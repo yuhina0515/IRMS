@@ -1,0 +1,80 @@
+<div id="view-history" class="view">
+                <header class="top-header header-flex">
+                    <div>
+                        <h2>Session History</h2>
+                        <p>Review past rehabilitation sessions</p>
+                    </div>
+                    <button id="export-csv-btn" class="primary-btn export-btn-inline">Export CSV</button>
+                </header>
+                <!-- B2: 篩選工具列 -->
+                <div class="history-toolbar" id="history-toolbar">
+                    <label>From:</label>
+                    <input type="date" id="filter-date-from">
+                    <label>To:</label>
+                    <input type="date" id="filter-date-to">
+                    <label>Action:</label>
+                    <select id="filter-action" class="select-styled" style="width: auto; min-width: 140px;">
+                        <option value="">All Actions</option>
+                    </select>
+                    <button id="filter-apply-btn" class="secondary-btn" style="padding: 8px 16px; font-size: 0.85rem;">Apply</button>
+                    <button id="filter-reset-btn" class="secondary-btn" style="padding: 8px 16px; font-size: 0.85rem;">Reset</button>
+                </div>
+                <div class="history-container glass-panel">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Session ID</th>
+                                <th>Date</th>
+                                <th>Protocol / Action</th>
+                                <th>Target Angle</th>
+                                <th>Tolerance</th>
+                                <th>Duration</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <!-- Rows populated by JS -->
+                        </tbody>
+                    </table>
+                    <!-- C3: 歷史頁空狀態 -->
+                    <div id="history-empty" class="empty-state" style="display: none;">
+                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h3>No Sessions Yet</h3>
+                        <p>Start your first rehabilitation session from the Dashboard to see history here.</p>
+                        <button class="primary-btn" onclick="document.getElementById('nav-dashboard').click()">Go to Dashboard</button>
+                    </div>
+                </div>
+                <!-- B2: 分頁控制 -->
+                <div class="pagination" id="pagination">
+                    <button id="page-prev" disabled>&laquo; Prev</button>
+                    <span class="page-info" id="page-info">Page 1</span>
+                    <button id="page-next" disabled>Next &raquo;</button>
+                </div>
+            </div>
+
+            <!-- Actions View -->
+            <div id="view-actions" class="view">
+                <header class="top-header header-flex" style="flex-shrink: 0;">
+                    <div>
+                        <h2>Exercise & Action Customization</h2>
+                        <p>Configure, create, and customize rehabilitation actions</p>
+                    </div>
+                    <div class="header-actions">
+                        <button id="btn-restore-defaults" class="secondary-btn">Restore Defaults</button>
+                        <button id="btn-create-action" class="primary-btn">+ Create Action</button>
+                    </div>
+                </header>
+                <div class="actions-container actions-container-main">
+                    <div id="actions-list-empty" class="empty-state" style="display: none;">
+                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <h3>No Actions Defined</h3>
+                        <p>You haven't created any custom exercises yet. Create one or load templates.</p>
+                        <button class="primary-btn" id="empty-restore-defaults-btn">Load Default Templates</button>
+                    </div>
+                    <div id="actions-grid" class="actions-grid">
+                        <!-- Custom action cards will be rendered here dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
