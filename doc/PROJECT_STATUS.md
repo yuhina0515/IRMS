@@ -1,9 +1,31 @@
 # IRMS (智慧復健監測系統) - 專案開發進度與整合報告
 
 ## 📅 更新日期
-2026-06-11
+2026-06-27
 
-## ✅ 目前已完成進度 (Phase 1, Phase 2 & Phase 3)
+## 🔄 v2 應用端從零重寫 (2026-06-27)
+
+桌面監測端 (IRMS_App) 已從「Vanilla JS 模組 + Express + sqlite3」**從零重寫**為
+**Electron + Vite + React + TypeScript + IPC + better-sqlite3**。ESP32 韌體與 BLE 協定不變。
+
+**架構升級**
+- 移除 Express/localhost,改用 Electron **IPC + contextBridge**(型別安全 `window.irms`),消除 CSP/連接埠/啟動 race 問題。
+- 資料層改 **better-sqlite3**(同步、穩定),DB 移至 `userData` 目錄(不再進版控)。
+- 狀態以 **Zustand** 集中(單一真實來源),取代 StateManager + DOM 雙來源。
+- TriggerEngine 改為純狀態機(可測試);校準邏輯集中於 `applyCalibration`。
+
+**重寫時一併修復的舊版缺陷**
+- 🔴 **超限安全警報**:重新實作(舊版重構後完全遺失,從未發出 `CMD:ALARM_ON`)。
+- 🔴 **ERR:1 紅色遮罩**:重新接線(舊版事件無人監聽);錯誤時凍結畫面並暫停資料寫入。
+- 🟡 `restore_defaults` 端點、`action` 資料模型(改 `actionId`+`actionName`)、死訂閱、NaN 節流、XSS(React 文字渲染)等全部修正。
+
+詳見 `doc/coding log/log_20260627_app_v2_rewrite.md`。
+
+> ⚠ 尚未執行 `npm install`、BLE 實機連線尚待裝置回歸後驗證。
+
+---
+
+## ✅ 先前已完成進度 (Phase 1, Phase 2 & Phase 3 — v1)
 
 本專案目前已成功完成硬體端（ESP32）韌體架構與軟體桌面端（Electron App）的整合開發。系統具備多角度 Roll/Pitch 雙向感測、指定動作判定、藍牙硬體連動回饋、本地數據庫儲存與異常容錯能力。
 
@@ -92,10 +114,13 @@
 - `I2C_Scanner/I2C_Scanner.ino` (已完成)：硬體 I2C 接線檢測工具。
 - `IRMS_Sensor/IRMS_Sensor.ino` (已完成)：ESP32 主韌體程式碼（含 FreeRTOS, BLE, Complementary Filter, NVS, I2C Recovery）。
 
-### 應用監監測端 (Electron App) 程式碼
-- `IRMS_App/main.js` (已完成)：Electron 主進程與藍牙自動配對邏輯。
-- `IRMS_App/server.js` (已完成)：本地 Express REST API 服務端。
-- `IRMS_App/db.js` (已完成)：SQLite 資料庫初始化與連接。
-- `IRMS_App/public/index.html` (已完成)：深色玻璃擬物化 UI 儀表板與歷史紀錄頁面。
-- `IRMS_App/public/app.js` (已完成)：Web Bluetooth GATT 通訊、Chart.js 即時視覺化、設定同步與 CSV 導出邏輯。
-- `IRMS_App/public/style.css` (已完成)：Glassmorphism 前端樣式定義。
+### 應用監測端 (Electron App) 程式碼 — v2
+- `IRMS_App/src/shared/`:`protocol.ts`(BLE 協定/封包解析)、`types.ts`(DB 模型 + `IrmsApi`)、`ipc.ts`、`defaults.ts`。前後端共用單一真實來源。
+- `IRMS_App/src/main/`:`index.ts`(視窗 + BLE 自動配對)、`db.ts`(better-sqlite3)、`ipc.ts`(IPC handlers)。
+- `IRMS_App/src/preload/`:`index.ts`(contextBridge → `window.irms`)、`index.d.ts`。
+- `IRMS_App/src/renderer/src/`:
+  - `store/`:`useStore.ts`(Zustand + persist + 校準)、`useUiStore.ts`。
+  - `services/`:`bluetooth.ts`、`triggerEngine.ts`(含超限警報)、`sessionController.ts`。
+  - `components/` 與 `views/`:Dashboard / Actions / History / Settings 四視圖及共用元件。
+  - `styles/global.css`:Glassmorphism 主題。
+- 舊版檔案(`main.js`/`server.js`/`db.js`/`public/`/`routes/`)已移除,保留於 git 歷史。

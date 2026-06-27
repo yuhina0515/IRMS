@@ -3,3 +3,14 @@ dist/
 build/
 .env
 *.log
+
+# electron-vite / electron-builder 輸出
+out/
+release/
+.vite/
+*.tsbuildinfo
+
+# SQLite 執行期資料庫(改存於 userData,不進版控)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

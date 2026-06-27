@@ -68,10 +68,14 @@
 4. **狀態指示任務 (Task_LED - Core 1, 優先權 1)**：
    - 依據系統當前狀態（未連線、已連線、硬體異常、達標完成）切換內建 LED 閃爍頻率。
 
-### 3.2 應用端介面與後端 (Electron App)
-* **前端儀表板 (Frontend)**：提供即時關節角度折線圖 (Chart.js)、參數設定同步面板、歷史會話瀏覽與 CSV 數據匯出。透過 Web Bluetooth 實現與 ESP32 的自動配對與連線。
-* **本地伺服器 (Express Backend)**：作為 Electron 內置的 API 伺波器，負責處理 Session 的開始/結束以及感測數據的寫入 API。
-* **資料持久化 (SQLite DB)**：採用本地 SQLite 資料庫 (`irms.sqlite`)，設計 `sessions` 與 `sensor_data` 兩張關聯表，完整留存病患每一次復健的軌跡。
+### 3.2 應用端介面與後端 (Electron App — v2 架構)
+自 v2 起,應用端改以 **Electron + Vite + React + TypeScript** 重寫,並以 **IPC + contextBridge** 取代舊版的 Express/localhost 伺服器,資料層改用同步的 **better-sqlite3**。
+
+* **前端 (Renderer / React)**:即時關節角度折線圖 (Chart.js)、SVG 骨架視覺化、達標進度環、參數同步面板、歷史瀏覽與 CSV 匯出。透過 Web Bluetooth 與 ESP32 自動配對。狀態以 Zustand 集中管理(單一真實來源)。
+* **主進程 (Main)**:建立視窗、Web Bluetooth 裝置自動配對、`better-sqlite3` 資料存取,並透過 `ipcMain.handle` 提供 Session/Data/Action 操作。
+* **安全橋接 (Preload)**:以 `contextBridge` 將型別安全的 `window.irms` API 注入 renderer(`contextIsolation` 開啟、`nodeIntegration` 關閉)。
+* **資料持久化 (SQLite DB)**:本地 SQLite 資料庫存於 Electron `userData` 目錄(不再置於專案樹),設計 `custom_actions`、`sessions`、`sensor_data` 三張資料表;`sensor_data` 以外鍵 `ON DELETE CASCADE` 連動。
+* **協定相容**:BLE Service/Characteristic UUID、角度封包與 `CMD:` 指令完全沿用,韌體無需修改。
 
 ---
 
@@ -117,16 +121,24 @@
 3. 選擇對應的開發板型號（如 ESP32 Dev Module），確認 I2C 接腳與周邊配置無誤。
 4. 編譯並燒錄韌體至 ESP32 晶片中。
 
-### 5.2 應用端 (Electron App) 安裝與執行
-1. 進入 `IRMS_App` 目錄：
+### 5.2 應用端 (Electron App) 安裝與執行 (v2)
+1. 進入 `IRMS_App` 目錄:
    ```bash
    cd IRMS_App
    ```
-2. 安裝 Node.js 依賴項（包含 Electron 與 SQLite3）：
+2. 安裝依賴(`postinstall` 會自動以 `electron-rebuild` 重建原生模組 `better-sqlite3`):
    ```bash
    npm install
    ```
-3. 啟動 Electron 應用程式（這會自動在本機啟動 Express 伺服器與 SQLite 資料庫連線）：
+   > 若原生模組載入失敗,可手動重建:`npm run rebuild`
+3. 開發模式啟動(Vite HMR + Electron):
    ```bash
    npm run dev
    ```
+4. 型別檢查 / 打包:
+   ```bash
+   npm run typecheck   # 檢查 main 與 renderer 兩端型別
+   npm run dist        # electron-vite build + electron-builder 產生安裝檔
+   ```
+
+技術棧:Electron 33 · Vite 5 · React 18 · TypeScript 5 · better-sqlite3 11 · Zustand 5 · Chart.js 4。

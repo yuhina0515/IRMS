@@ -1,0 +1,17 @@
+appId: com.irms.app
+productName: IRMS Dashboard
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+# better-sqlite3 為原生模組,需解壓至 app.asar.unpacked 才能於執行期載入
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
