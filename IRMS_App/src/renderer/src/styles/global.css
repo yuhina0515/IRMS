@@ -233,21 +233,34 @@ body {
   padding: 16px;
 }
 
-/* ── 頂部狀態列:logo + 連線狀態 + Connect 按鈕 ── */
+/* ── 頂部狀態列:logo + 連線狀態 + Connect 按鈕 ──
+   內縮:左右各留白,不貼滿整個橫向版面(視覺上是一條浮動的玻璃 bar)。
+   右側留白刻意比左側大,因為視窗無標題列(titleBarStyle:'hidden'),
+   右上角疊著原生最小化/最大化/關閉鈕(titleBarOverlay),bar 本體要讓開
+   那塊區域,不能只用內距,否則玻璃背景會被原生按鈕蓋住看起來很怪。 */
 .top-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
-  /* 視窗無標題列(main/index.ts 用 titleBarStyle:'hidden'),原本靠標題列拖動
-     視窗的操作改由這條 header 承擔;按鈕等互動元素要各自標記 no-drag 拿回點擊。
-     右側留出原生最小化/最大化/關閉鈕(titleBarOverlay)的疊層空間,避免內容被蓋住。 */
+  margin: 0 150px 0 12px;
+  /* 視窗無標題列,原本靠標題列拖動視窗的操作改由這條 header 承擔;
+     按鈕等互動元素要各自標記 no-drag 拿回點擊。 */
   -webkit-app-region: drag;
-  padding-right: 150px;
 }
 .top-header button {
   -webkit-app-region: no-drag;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  height: 28px;
+  width: auto;
+  display: block;
 }
 .logo h1 {
   font-size: 1.3rem;
@@ -293,6 +306,10 @@ body {
   display: flex;
   justify-content: space-around;
   padding: 8px 12px;
+  /* 內縮:不貼滿橫向版面,置中成一條寬度有限的浮動玻璃 bar */
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
 }
 .bottom-bar-item {
   position: relative;

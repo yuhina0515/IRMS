@@ -63,6 +63,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   修好 electron-builder 打包時 winCodeSign symlink 權限問題(需開 Developer
   Mode);實測打包後的 exe 可正常啟動;用 `gh release create` 發布
   **v1.0.0**,附上 Windows 安裝檔
+- **2026-07-14 Logo 套用 + 上下 bar 內縮**([[log_20260714_logo_and_layout_inset|日誌]]):
+  使用者提供的 logo 去背(飽和度+亮度分離,非單純色鍵)並裁出純圖標版本,
+  套到 TopHeader 與應用程式 `.ico`;頂部/底部 bar 改為內縮浮動樣式,不再
+  貼滿橫向版面
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **未燒錄請先重燒**
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
 - 📡 待實機:校準精靈跑一輪 → E2E 清單(達標音/超限/ERR/斷線收尾/精靈 round-trip)

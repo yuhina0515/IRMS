@@ -2,6 +2,7 @@
 // 頂部狀態列:取代舊側欄的 logo/連線狀態/Connect 按鈕,橫向玻璃 bar。
 import { useStore } from '../store/useStore'
 import { bluetoothService } from '../services/bluetooth'
+import logoIcon from '../assets/logo-icon-only.png'
 
 export function TopHeader(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
@@ -10,6 +11,7 @@ export function TopHeader(): JSX.Element {
   return (
     <header className="top-header glass">
       <div className="logo">
+        <img src={logoIcon} alt="" className="logo-mark" />
         <h1>
           IRMS<span>.</span>
         </h1>

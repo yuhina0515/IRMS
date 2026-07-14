@@ -9,6 +9,10 @@ out/
 release/
 .vite/
 *.tsbuildinfo
+# IRMS_App/build/ 是 electron-builder 的 buildResources 來源目錄(圖示等),
+# 不是編譯產出物,必須進版控——排除頂層 build/ 規則對它的例外
+!IRMS_App/build/
+!IRMS_App/build/**
 # electron-vite dev 執行期會把解析後的設定寫成帶時間戳的暫存檔,不該進版控
 electron.vite.config.*.mjs
 
