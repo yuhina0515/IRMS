@@ -58,7 +58,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-07-14 發布前文件清理**([[log_20260714_doc_cleanup_and_release|日誌]]):
   刪除混入 repo 的個人學校作業檔案與空設定檔、修正過時內容(10Hz→25Hz 等)、
   雙軌工作紀錄整合為單一 `doc/coding log` 系統(`.claude/logs` 停用,見
-  `.claude/CLAUDE.md` 專案層級覆寫);v1.0.0 發布
+  `.claude/CLAUDE.md` 專案層級覆寫)
+- **2026-07-14 打包 exe + GitHub Release 發布**([[log_20260714_exe_packaging_and_github_release|日誌]]):
+  修好 electron-builder 打包時 winCodeSign symlink 權限問題(需開 Developer
+  Mode);實測打包後的 exe 可正常啟動;用 `gh release create` 發布
+  **v1.0.0**,附上 Windows 安裝檔
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **未燒錄請先重燒**
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
 - 📡 待實機:校準精靈跑一輪 → E2E 清單(達標音/超限/ERR/斷線收尾/精靈 round-trip)
