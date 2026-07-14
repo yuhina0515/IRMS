@@ -67,6 +67,9 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   使用者提供的 logo 去背(飽和度+亮度分離,非單純色鍵)並裁出純圖標版本,
   套到 TopHeader 與應用程式 `.ico`;頂部/底部 bar 改為內縮浮動樣式,不再
   貼滿橫向版面
+- **2026-07-14 v1.0.1 發布**([[log_20260714_v1.0.1_release|日誌]]):版本號
+  bump、重新打包確認自訂圖示生效(不再是預設 Electron 圖示),`gh release
+  create` 發布
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **未燒錄請先重燒**
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
 - 📡 待實機:校準精靈跑一輪 → E2E 清單(達標音/超限/ERR/斷線收尾/精靈 round-trip)
