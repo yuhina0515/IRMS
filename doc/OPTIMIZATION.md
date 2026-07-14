@@ -11,7 +11,7 @@
 
 ### 1. 連線與 BLE 通訊
 - [x] Web Bluetooth 自動配對(過濾名稱含 `IRMS` 的裝置,主進程 `select-bluetooth-device`)
-- [x] GATT 連線、訂閱 Angle TX 通知 (10Hz)
+- [x] GATT 連線、訂閱 Angle TX 通知 (25Hz)
 - [x] 手動 Connect / Disconnect 切換
 - [x] 斷線自動重連(最多 5 次,間隔 3 秒)
 - [x] 下發控制指令:`LED_ON/OFF`、`GOAL`、`ALARM_ON/OFF`、`SYNC,offset`
@@ -61,8 +61,7 @@
 ### 7. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
 - [x] better-sqlite3(WAL、外鍵、交易批次寫入)
-- [x] Toast / Confirm / 側欄收合 UI 基礎
-- [x] 系統日誌面板(環狀 200 行)
+- [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
 
 ---
 
@@ -81,12 +80,11 @@
 - [ ] 評估以 `requestAnimationFrame` 聚合多筆封包再繪圖。
 
 ### 🟢 P2 — 使用者體驗
-- [ ] 側欄收合狀態持久化(目前 `useUiStore` 未 persist)。
+- [x] ~~淺色主題(目前僅深色)~~:**已於 2026-07-12 完成**——雙主題跟隨系統(Apple Liquid Glass token 架構)。
 - [ ] 圖表可切換顯示 Roll(內外翻)曲線。
 - [ ] 動作卡片排序 / 搜尋 / 依 triggerType 分組。
 - [ ] 重連進度更明確的視覺提示(目前僅狀態文字)。
 - [ ] i18n(繁中 / English 切換),目前介面中英混用。
-- [ ] 淺色主題(目前僅深色)。
 - [ ] 鍵盤快捷鍵(連線、開始/結束 Session)。
 
 ### 🔵 P3 — 程式品質與測試

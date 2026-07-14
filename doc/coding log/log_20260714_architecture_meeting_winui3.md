@@ -1,7 +1,14 @@
+---
+tags: [coding-log, meeting]
+date: 2026-07-14
+summary: "架構會議:Electron+React 是否改寫 WinUI 3?三方顧問辯論後決議「驗證優先」——先 BLE 實機驗證+Profiler 找卡頓根源,UI 優化改善 <50% 才考慮改寫;71 tests 不重寫"
+---
+
 # 2026-07-14 會議紀錄 — 架構決策:Electron + React vs WinUI 3
 
-> **主題**:IRMS App 是否從 Electron + React + TypeScript 改寫為 WinUI 3 (C#)?  
-> **參與者**:效能顧問、生態優勢顧問、實務約束顧問  
+> **相關文件**:[[HOME|導覽首頁]] · [[log_20260714_ui_dropdown_sidebar_warp|同日:側欄拖拉+液態指示器]]
+> **主題**:IRMS App 是否從 Electron + React + TypeScript 改寫為 WinUI 3 (C#)?
+> **參與者**:效能顧問、生態優勢顧問、實務約束顧問
 > **椅子決定**:驗證優先,維持 Electron + React(條件式)
 
 ---
@@ -190,8 +197,8 @@
 
 ## 決議
 
-**方案**:保留 Electron + React,執行「驗證優先」30 天計畫。  
-**條件**:若優化完成後改善 <50%,重新召開會議評估 WinUI 3 改寫。  
+**方案**:保留 Electron + React,執行「驗證優先」30 天計畫。
+**條件**:若優化完成後改善 <50%,重新召開會議評估 WinUI 3 改寫。
 **監控指標**:
 - BLE 穩定性 >99%
 - HistoryView 載入時間 <300ms
@@ -201,3 +208,7 @@
 ---
 
 **會議結束**. 2026-07-14
+
+## 📝 後續待辦
+
+- 回到「驗證優先」30 天計畫:BLE 實機驗證 + Profiler 基線,決定是否需要進一步優化

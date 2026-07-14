@@ -39,7 +39,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   背景重設計(色彩 blob 慢漂移)、三層鏡面 rim、捲軸玻璃化
 - **2026-07-13 自製向量桌布**([[log_20260713_custom_wallpaper|日誌]]):aurora 漸層
   SVG 淺/深各一張,blob 降為點綴;feTurbulence 有光柵化效能地雷,勿用;待視覺驗收
-- **2026-07-14 架構會議(WinUI 3 暫緩)**([[2026-07-14-meeting-architecture-decision|會議紀錄]]):
+- **2026-07-14 架構會議(WinUI 3 暫緩)**([[log_20260714_architecture_meeting_winui3|會議紀錄]]):
   三方顧問辯論後決議「驗證優先」——先 BLE 實機驗證+Profiler 找卡頓根源,
   改善 <50% 才考慮改寫;71 tests 全綠不重寫
 - **2026-07-14 側欄拖拉 + GlassDropdown + 選單扭曲**([[log_20260714_ui_dropdown_sidebar_warp|日誌]]):
@@ -55,6 +55,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   GlassDropdown 改成長大/縮小動畫;指示塊拖曳時依速度拉伸;視窗改
   `titleBarStyle:'hidden'`+`titleBarOverlay` 滿版無邊框(視覺效果待使用者於
   真實 Electron 視窗驗收)
+- **2026-07-14 發布前文件清理**([[log_20260714_doc_cleanup_and_release|日誌]]):
+  刪除混入 repo 的個人學校作業檔案與空設定檔、修正過時內容(10Hz→25Hz 等)、
+  雙軌工作紀錄整合為單一 `doc/coding log` 系統(`.claude/logs` 停用,見
+  `.claude/CLAUDE.md` 專案層級覆寫);v1.0.0 發布
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **未燒錄請先重燒**
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
 - 📡 待實機:校準精靈跑一輪 → E2E 清單(達標音/超限/ERR/斷線收尾/精靈 round-trip)

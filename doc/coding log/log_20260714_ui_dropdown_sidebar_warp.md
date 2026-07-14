@@ -7,7 +7,7 @@ summary: "側欄拖拉調寬+晃動、GlassDropdown 取代原生 select(點擊�
 # 2026-07-14 變更日誌 — 側欄拖拉、下拉選單改版、Liquid Glass 扭曲
 
 > **相關文件**:[[HOME|導覽首頁]] · [[log_20260713_custom_wallpaper|前置:自製向量桌布]] ·
-> [[2026-07-14-meeting-architecture-decision|架構會議紀錄(WinUI 3 暫緩)]]
+> [[log_20260714_architecture_meeting_winui3|架構會議紀錄(WinUI 3 暫緩)]]
 
 ## 🎯 目的
 

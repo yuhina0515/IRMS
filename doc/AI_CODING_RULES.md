@@ -49,7 +49,7 @@
 ## 3. 應用監測端 (Electron App) 開發規則 (Electron App Rules)
 
 * **資料庫高頻寫入防護 (SQLite Buffer/Transaction)**：
-  * 由於邊緣端角度推送頻率高（10Hz），為避免 SQLite 因高頻磁碟 I/O 連鎖鎖定，應用端在寫入 `sensor_data` 時必須使用**事務（Transactions）**進行批量寫入，或建立寫入緩衝區。
+  * 由於邊緣端角度推送頻率高（25Hz），為避免 SQLite 因高頻磁碟 I/O 連鎖鎖定，應用端在寫入 `sensor_data` 時必須使用**事務（Transactions）**進行批量寫入，或建立寫入緩衝區。
 * **藍牙連線生命週期管理 (BLE Lifecycle & UI Protection)**：
   * 應用端必須監聽 `select-bluetooth-device` 與設備斷線事件。
   * 當藍牙連線意外中斷或收到 `ERR:1` 異常時，前端必須凍結角度顯示，暫停資料庫寫入，並彈出**紅色警示遮罩 (Error Overlay)**。待復原後自動解除，防止系統在無有效資料時崩潰或寫入空值。
@@ -75,7 +75,7 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **藍牙廣播名稱**：`IRMS_Device`(前端以 `includes("IRMS")` 比對自動配對)
 * **BLE Service UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b`
 * **MTU**：韌體 `setMTU(128)`,確保 6 軸封包不被截斷。
-* **Angle TX 特徵值 (角度推播,ESP32 → App,Notify @10Hz)**：
+* **Angle TX 特徵值 (角度推播,ESP32 → App,Notify @25Hz)**：
   * **UUID**：`beb5483e-36e1-4688-b7f5-ea07361b26a8`
   * **正常格式 (6 軸)**：`"T:大腿Pitch,S:小腿Pitch,K:膝夾角,TR:大腿Roll,SR:小腿Roll,KR:膝Roll差"`
     （例如 `"T:15.5,S:-40.2,K:55.7,TR:1.0,SR:-0.5,KR:1.5"`）。`K`/`KR` 為衍生值,前端自行重算。
