@@ -32,22 +32,25 @@ export function AngleVisualizer(): JSX.Element {
   const thighEnd = { x: CENTER + 60 * Math.sin(thighRad), y: CENTER - 60 * Math.cos(thighRad) }
   const shinEnd = { x: CENTER + 60 * Math.sin(shinRad), y: CENTER + 60 * Math.cos(shinRad) }
 
+  // 螢幕極座標(0°=正上方,順時針):大腿線位於 thigh°,小腿線位於 180° - shin。
+  // 目標弧必須畫在「達標時該肢段所在的螢幕角度」上:
+  // - segment_elevation:大腿抬至 target → 弧在 target°
+  // - segment_extension:大腿後擺至 -target → 弧在 -target°
+  // - joint_angle:夾角達 target 時小腿位於 thigh - target → 弧在 180 - thigh + target
   const { targetAngle: target, tolerance: tol } = params
-  let startA: number
-  let endA: number
+  let center: number
   let arcR = 48
   if (triggerType === 'segment_elevation') {
-    startA = 180 - target - tol
-    endA = 180 - target + tol
+    center = target
     arcR = 52
   } else if (triggerType === 'segment_extension') {
-    startA = 180 + target - tol
-    endA = 180 + target + tol
+    center = -target
     arcR = 52
   } else {
-    startA = thigh - target - tol
-    endA = thigh - target + tol
+    center = 180 - thigh + target
   }
+  const startA = center - tol
+  const endA = center + tol
   const isSegment = triggerType !== 'joint_angle'
 
   return (
@@ -57,7 +60,7 @@ export function AngleVisualizer(): JSX.Element {
         <path
           d={describeArc(arcR, startA, endA)}
           fill="none"
-          stroke={inZone ? 'var(--success)' : 'rgba(99,102,241,0.5)'}
+          stroke={inZone ? 'var(--success)' : 'var(--arc-idle)'}
           strokeWidth={isSegment ? 8 : 14}
           strokeLinecap="round"
         />

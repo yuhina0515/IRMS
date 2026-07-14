@@ -2,6 +2,7 @@
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
+import { GlassDropdown } from './GlassDropdown'
 
 function formatClock(sec: number): string {
   const h = String(Math.floor(sec / 3600)).padStart(2, '0')
@@ -43,18 +44,13 @@ export function SessionControlPanel(): JSX.Element {
     <div className="panel glass">
       <div className="field">
         <label>Designated Action (指定動作)</label>
-        <select
-          value={selectedActionId ?? ''}
+        <GlassDropdown
+          value={selectedActionId != null ? String(selectedActionId) : ''}
           disabled={running}
-          onChange={(e) => selectAction(e.target.value ? Number(e.target.value) : null)}
-        >
-          {filtered.length === 0 && <option value="">本協定尚無動作</option>}
-          {filtered.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
+          placeholder={filtered.length === 0 ? '本協定尚無動作' : '請選擇動作'}
+          onChange={(v) => selectAction(v ? Number(v) : null)}
+          options={filtered.map((a) => ({ value: String(a.id), label: a.name }))}
+        />
       </div>
 
       <div className="row">

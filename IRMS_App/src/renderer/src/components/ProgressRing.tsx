@@ -9,12 +9,12 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export function ProgressRing({ percent, reps }: Props): JSX.Element {
   const offset = CIRCUMFERENCE - (Math.min(100, Math.max(0, percent)) / 100) * CIRCUMFERENCE
-  const color = percent >= 100 ? 'var(--success)' : percent > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.18)'
+  const color = percent >= 100 ? 'var(--success)' : percent > 0 ? 'var(--accent)' : 'var(--ring-idle)'
 
   return (
     <div className="ring-wrap">
       <svg viewBox="0 0 180 180">
-        <circle cx="90" cy="90" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="12" />
+        <circle cx="90" cy="90" r={RADIUS} fill="none" stroke="var(--ring-track)" strokeWidth="12" />
         <circle
           cx="90"
           cy="90"

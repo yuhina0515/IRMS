@@ -1,7 +1,9 @@
 # IRMS (智慧復健監測系統) - 專案開發進度與整合報告
 
+> **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [優化待辦 OPTIMIZATION](OPTIMIZATION.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
+
 ## 📅 更新日期
-2026-06-27
+2026-06-30(v2 重寫於 2026-06-27)
 
 ## 🔄 v2 應用端從零重寫 (2026-06-27)
 
@@ -106,9 +108,12 @@
 ## 📁 相關檔案狀態
 
 ### 文件檔案
-- `doc/README.md` (已完成)：系統架構、規格與建置說明文件。
-- `doc/PROJECT_STATUS.md` (已完成)：專案開發進度報告與整合細節報告（本檔案）。
-- `doc/AI_CODING_RULES.md` (已完成)：AI 協同開發與編碼規範，確保後續 AI 開發邏輯一致與效率。
+- [`README.md`](../README.md) (根目錄)：專案總覽與文件入口(v2 架構摘要、快速開始、倉庫結構)。
+- [`doc/README.md`](README.md)：系統架構、整合規格與建置說明文件(BLE 協定、SQLite schema、腳位)。
+- [`doc/PROJECT_STATUS.md`](PROJECT_STATUS.md)：專案開發進度報告與整合細節報告（本檔案）。
+- [`doc/OPTIMIZATION.md`](OPTIMIZATION.md)：v2 功能清單與 P0–P4 優化待辦(活清單)。
+- [`doc/AI_CODING_RULES.md`](AI_CODING_RULES.md)：AI 協同開發與編碼規範及參數速查表，確保後續 AI 開發邏輯一致與效率。
+- [`doc/coding log/`](coding%20log/)：歷次開發計畫與變更日誌(只增不改);v2 重寫詳見 [`log_20260627_app_v2_rewrite.md`](coding%20log/log_20260627_app_v2_rewrite.md)。
 
 ### 邊緣端 (ESP32) 程式碼
 - `I2C_Scanner/I2C_Scanner.ino` (已完成)：硬體 I2C 接線檢測工具。

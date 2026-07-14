@@ -11,6 +11,7 @@ import {
   type LiveAngles
 } from '@shared/protocol'
 import { applyCalibration, useStore } from '../store/useStore'
+import { AngleSmoother } from './smoothing'
 
 const MAX_RECONNECT_ATTEMPTS = 5
 const RECONNECT_DELAY_MS = 3000
@@ -21,9 +22,14 @@ export class BluetoothService {
   private profileChar: BluetoothRemoteGATTCharacteristic | null = null
   private manualDisconnect = false
   private packetCount = 0
+  private malformedCount = 0
+  private smoother = new AngleSmoother()
 
   /** 每筆有效角度更新後呼叫(由 sessionController 設定),供達標判定與資料緩衝 */
   onAnglesReceived: ((angles: LiveAngles) => void) | null = null
+
+  /** 連線確定失守(手動斷線或自動重連耗盡)時呼叫,供 sessionController 安全收尾 Session */
+  onConnectionLost: (() => void) | null = null
 
   private get store() {
     return useStore.getState()
@@ -48,7 +54,8 @@ export class BluetoothService {
     } catch (err) {
       const e = err as Error
       if (e.name === 'NotFoundError' || e.message?.includes('cancelled')) {
-        this.store.log('Connection cancelled by user.')
+        this.store.log('Device not found within scan window (or cancelled).')
+        useStore.getState().setStatus('Device not found')
         return
       }
       this.store.log(`Connection error: ${e.message ?? e}`)
@@ -89,8 +96,12 @@ export class BluetoothService {
   private onDisconnected = (): void => {
     this.store.log('Device disconnected (GATT lost).')
     useStore.getState().setConnection(false, null)
+    this.smoother.reset()
     if (!this.manualDisconnect) {
       void this.attemptReconnect()
+    } else {
+      // 手動斷線即為永久斷線,立即收尾
+      this.onConnectionLost?.()
     }
   }
 
@@ -111,6 +122,7 @@ export class BluetoothService {
     if (!this.store.isConnected) {
       useStore.getState().setStatus('Disconnected')
       this.store.log('Auto-reconnect exhausted all attempts.')
+      this.onConnectionLost?.()
     }
   }
 
@@ -126,13 +138,16 @@ export class BluetoothService {
       if (this.store.hardwareError !== parsed.code) {
         this.store.log(`Hardware error: ${parsed.code}`)
         useStore.getState().setHardwareError(parsed.code)
+        // 清除濾波狀態:復原後第一筆重新播種,不從錯誤前的舊角度拖出假值
+        this.smoother.reset()
       }
       return
     }
 
     if (parsed.kind === 'malformed') {
-      // 節流:不洗版日誌
-      if (this.packetCount % 50 === 0) this.store.log(`Malformed packet discarded: "${parsed.value}"`)
+      // 節流:用獨立計數器,即使整條資料流都是壞封包也只每 50 筆記一次
+      this.malformedCount++
+      if (this.malformedCount % 50 === 1) this.store.log(`Malformed packet discarded: "${parsed.value}"`)
       return
     }
 
@@ -145,8 +160,10 @@ export class BluetoothService {
     this.packetCount++
     if (this.packetCount % 30 === 1) this.store.log(`Packet #${this.packetCount}: "${value}"`)
 
-    const angles = applyCalibration(parsed.raw, this.store.settings)
-    useStore.getState().setAngles(angles, parsed.raw)
+    // rawAngles 全速進 store(校準精靈逐筆取樣);顯示用 angles 由
+    // sessionController 統一節流同步,這裡只交給判定管線
+    useStore.getState().setRawAngles(parsed.raw)
+    const angles = this.smoother.next(applyCalibration(parsed.raw, this.store.settings))
     this.onAnglesReceived?.(angles)
   }
 
@@ -154,7 +171,9 @@ export class BluetoothService {
   async send(command: string): Promise<void> {
     if (!this.profileChar) return
     try {
-      const data = new TextEncoder().encode(command + '\n')
+      // 注意:不可附加換行——韌體 onWrite 以 == 精確比對指令字串,
+      // 多一個 '\n' 會使 CMD:LED/GOAL/ALARM 全部靜默失效
+      const data = new TextEncoder().encode(command)
       await this.profileChar.writeValue(data)
     } catch (err) {
       this.store.log(`Failed to send "${command}": ${(err as Error).message}`)

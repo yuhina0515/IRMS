@@ -1,0 +1,34 @@
+{
+	"nodes": [
+		{"id":"grp-esp32","type":"group","label":"ESP32 韌體 (FreeRTOS,協定不變)","x":-1480,"y":-460,"width":680,"height":760},
+		{"id":"grp-ble","type":"group","label":"BLE (NimBLE,UUID 沿用 v1)","x":-740,"y":-280,"width":360,"height":500},
+		{"id":"grp-app","type":"group","label":"Electron App v2 (Vite + React + TS)","x":-320,"y":-460,"width":760,"height":760},
+
+		{"id":"mpu","type":"text","text":"**雙 MPU6050 IMU**\n大腿 0x68 / 小腿 0x69\nSDA GPIO21 · SCL GPIO22","x":-1440,"y":-400,"width":260,"height":110,"color":"6"},
+		{"id":"task-sensor","type":"text","text":"**Task_Sensor** (Core1, P3)\n50Hz 讀取 + 互補濾波\n開機零點校準 · I2C 自動復位","x":-1120,"y":-400,"width":280,"height":110,"color":"4"},
+		{"id":"gpio","type":"text","text":"**回饋單元**(由 App 端 CMD 直控)\nGPIO25 目標區間 LED\nGPIO26 蜂鳴器(達標雙響/超限長鳴)","x":-1440,"y":-230,"width":260,"height":110,"color":"2"},
+		{"id":"task-comm","type":"text","text":"**Task_Comm** (Core0, P1)\nBLE 廣播 · 10Hz 角度推播\nProfile / CMD 接收解譯","x":-1120,"y":-70,"width":280,"height":110,"color":"4"},
+		{"id":"task-led","type":"text","text":"**Task_LED** (Core1, P1)\n狀態指示燈 GPIO2\n(廣播/連線/錯誤/達標)","x":-1440,"y":-70,"width":260,"height":110,"color":"4"},
+		{"id":"fw-note","type":"text","text":"✅ v3 韌體(2026-07-04 重寫)\nconfig.h / imu.h 模組化\n斷線即靜音 · GOAL 旗標制 · dt 夾限\n判定在 App 端 (決策 D1)","x":-1440,"y":90,"width":260,"height":120,"color":"4"},
+
+		{"id":"ble-tx","type":"text","text":"**Angle TX**(Notify @25Hz / 40ms)\n`T,S,K,TR,SR,KR` 或 `ERR:1`\nMTU 128","x":-710,"y":-240,"width":300,"height":120,"color":"5"},
+		{"id":"ble-rx","type":"text","text":"**Profile RX**(Write)\n`CMD:LED_ON/OFF · GOAL · ALARM_ON/OFF`\n(SYNC/Profile 未實作,指令不可帶換行)","x":-710,"y":40,"width":300,"height":120,"color":"5"},
+
+		{"id":"renderer","type":"text","text":"**Renderer**(React)\nZustand 單一狀態源\nChart.js 折線 · SVG 骨架 · 進度環\nWeb Bluetooth 連線 · CSV 匯出","x":-260,"y":-400,"width":300,"height":140,"color":"1"},
+		{"id":"preload","type":"text","text":"**Preload**(contextBridge)\n型別安全 `window.irms`\ncontextIsolation ON","x":-260,"y":-180,"width":300,"height":100,"color":"3"},
+		{"id":"main","type":"text","text":"**Main Process**\n`select-bluetooth-device` 自動配對 IRMS_Device\n`ipcMain.handle`(Session/Data/Action)","x":-260,"y":0,"width":300,"height":130,"color":"3"},
+		{"id":"db","type":"text","text":"**SQLite**(better-sqlite3,同步)\n存於 `userData` 目錄\n`custom_actions` / `sessions` / `sensor_data`\n外鍵 ON DELETE CASCADE","x":110,"y":0,"width":300,"height":140,"color":"6"}
+	],
+	"edges": [
+		{"id":"e-mpu-sensor","fromNode":"mpu","fromSide":"right","toNode":"task-sensor","toSide":"left","label":"I2C 50Hz"},
+		{"id":"e-sensor-comm","fromNode":"task-sensor","fromSide":"bottom","toNode":"task-comm","toSide":"top","label":"latestAngles (mutex)"},
+		{"id":"e-rx-gpio","fromNode":"ble-rx","fromSide":"left","toNode":"gpio","toSide":"right","label":"onWrite CMD 直控"},
+		{"id":"e-comm-tx","fromNode":"task-comm","fromSide":"right","toNode":"ble-tx","toSide":"left","label":"Notify"},
+		{"id":"e-rx-comm","fromNode":"ble-rx","fromSide":"left","toNode":"task-comm","toSide":"right","label":"onWrite"},
+		{"id":"e-tx-renderer","fromNode":"ble-tx","fromSide":"right","toNode":"renderer","toSide":"left","label":"Web Bluetooth"},
+		{"id":"e-renderer-rx","fromNode":"renderer","fromSide":"left","toNode":"ble-rx","toSide":"right","label":"Profile / CMD 下發"},
+		{"id":"e-renderer-preload","fromNode":"renderer","fromSide":"bottom","toNode":"preload","toSide":"top","label":"window.irms"},
+		{"id":"e-preload-main","fromNode":"preload","fromSide":"bottom","toNode":"main","toSide":"top","label":"IPC invoke"},
+		{"id":"e-main-db","fromNode":"main","fromSide":"right","toNode":"db","toSide":"left","label":"同步讀寫"}
+	]
+}

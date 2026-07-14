@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Chart } from 'chart.js'
 import { useUiStore } from '../store/useUiStore'
+import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
 
 function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
@@ -14,20 +15,24 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       const data = await window.irms.sessions.getData(session.id)
       setReadings(data)
       if (!canvasRef.current) return
+      const t = chartTheme()
       chart = new Chart(canvasRef.current, {
         type: 'line',
         data: {
           labels: data.map((r) => new Date(r.timestamp).toLocaleTimeString([], { hour12: false })),
           datasets: [
-            { label: 'Knee 夾角', data: data.map((r) => r.kneeAngle), borderColor: '#3b82f6', borderWidth: 2, fill: true, backgroundColor: 'rgba(59,130,246,0.12)', pointRadius: 0, tension: 0.3 },
-            { label: 'Varus/Valgus', data: data.map((r) => r.kneeRoll), borderColor: '#f59e0b', borderWidth: 1, fill: false, pointRadius: 0 }
+            { label: 'Knee 夾角', data: data.map((r) => r.kneeAngle), borderColor: t.knee, borderWidth: 2, fill: true, backgroundColor: t.kneeFill, pointRadius: 0, tension: 0.3 },
+            { label: 'Varus/Valgus', data: data.map((r) => r.kneeRoll), borderColor: t.thigh, borderWidth: 1, fill: false, pointRadius: 0 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { x: { ticks: { color: '#9ca3af', maxTicksLimit: 10 } }, y: { ticks: { color: '#9ca3af' } } },
-          plugins: { legend: { labels: { color: '#f3f4f6' } } }
+          scales: {
+            x: { grid: { color: t.grid }, ticks: { color: t.tick, maxTicksLimit: 10 } },
+            y: { grid: { color: t.grid }, ticks: { color: t.tick } }
+          },
+          plugins: { legend: { labels: { color: t.text } } }
         }
       })
     })()

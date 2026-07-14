@@ -1,0 +1,13 @@
+filters:
+  and:
+    - file.inFolder("doc/coding log")
+views:
+  - type: table
+    name: 全部日誌
+    order:
+      - file.name
+      - summary
+      - tags
+    sort:
+      - property: file.name
+        direction: DESC

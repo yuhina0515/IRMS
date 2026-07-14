@@ -1,6 +1,6 @@
 {
   "name": "irms-app",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "智慧復健監測系統 (IRMS) 桌面監測端 — Electron + React + TypeScript",
   "main": "./out/main/index.js",
   "author": "IRMS Team",
@@ -13,12 +13,16 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ci": "npm run typecheck && npm run test && npm run build",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0"
+    "better-sqlite3": "^11.7.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",
@@ -27,6 +31,7 @@
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.185.0",
     "@types/web-bluetooth": "^0.0.20",
     "@vitejs/plugin-react": "^4.3.4",
     "chart.js": "^4.4.7",
@@ -38,6 +43,7 @@
     "react-dom": "^18.3.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
+    "vitest": "^4.1.9",
     "zustand": "^5.0.1"
   }
 }

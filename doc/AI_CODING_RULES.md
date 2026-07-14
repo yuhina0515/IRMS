@@ -1,5 +1,7 @@
 # 智慧復健監測系統 (IRMS) AI 協同開發與編碼規範 (AI Coding & Collaboration Guidelines)
 
+> **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [優化待辦 OPTIMIZATION](OPTIMIZATION.md) · [變更日誌 coding log](coding%20log/)
+
 本文件定義了 AI 助手在參與此專案（包括 ESP32 韌體與 Electron 監測應用程式）開發時必須遵守的編碼原則與運行邏輯。這些規則旨在確保系統的穩定性、代碼的可讀性，並極大化 AI 的協同開發效率。
 
 ---
@@ -17,11 +19,11 @@
 * **文件與註解維護 (Comments & Docs Preservation)**：
   * 必須完整保留代碼中原有且不衝突的**繁體中文註解**。
   * 新增任何函數、變數或重要控制邏輯時，必須附上清晰的繁體中文說明。
-  * 修改核心功能或接口協議後，必須在第一時間同步更新 [PROJECT_STATUS.md](file:///c:/Users/Yuhina/Documents/IRMS/doc/PROJECT_STATUS.md) 與 [README.md](file:///c:/Users/Yuhina/Documents/IRMS/doc/README.md)。
+  * 修改核心功能或接口協議後，必須在第一時間同步更新 [PROJECT_STATUS.md](PROJECT_STATUS.md)、[README.md](README.md)(系統規格)與 [OPTIMIZATION.md](OPTIMIZATION.md),並確保 BLE 協定 / SQLite schema 描述與實際程式碼一致。
 * **增量編輯 (Incremental File Editing)**：
   * 嚴禁對大型檔案進行無意義的整檔覆寫。必須優先使用精密編輯工具（如 `replace_file_content` 或 `multi_replace_file_content`），以降低 Token 消耗並避免意外覆蓋其他無關邏輯。
 * **記錄計畫與變更日誌 (Plan & Action Logging)**：
-  * 每次進行開發計畫與程式碼變更時，必須在 [coding log](file:///c:/Users/Yuhina/Documents/IRMS/doc/coding%20log) 目錄下建立全新的 markdown 格式 log 檔案，記錄當時的修改目的與所有 AI 執行動作。
+  * 每次進行開發計畫與程式碼變更時，必須在 [coding log](coding%20log/) 目錄下建立全新的 markdown 格式 log 檔案，記錄當時的修改目的與所有 AI 執行動作。
   * 每次都必須建立獨立的新 log 檔案，嚴禁覆寫或刪除歷史舊 log。
 * **持續運行與架構質疑 (Continuous Execution & Architectural Questioning)**：
   * 在完成任何分配的任務後，AI **不得直接結束**運作。
@@ -67,22 +69,31 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **I2C 總線腳位**：`SDA (GPIO 21)`、`SCL (GPIO 22)`
 * **I2C 位址**：大腿端 `0x68`，小腿端 `0x69`
 
-### 4.2 藍牙通訊協定與 UUID (BLE & Protocol)
-* **藍牙廣播名稱**：`IRMS_Device`
-* **BLE Service UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b`
-* **Angle TX 特徵值 (角度推播)**：
-  * **UUID**：`beb5483e-36e1-4688-b7f5-ea07361b26a8`
-  * **正常格式**：`"T:大腿角度,S:小腿角度,K:膝蓋夾角"`（例如 `"T:15.5,S:-40.2,K:55.7"`）
-  * **錯誤格式**：`"ERR:1"` (I2C 斷線時)
-* **Profile RX 特徵值 (參數接收)**：
-  * **UUID**：`beb5483f-36e1-4688-b7f5-ea07361b26a8`
-  * **寫入格式**：`"目標角度,容錯範圍,維持時間Ms"`（例如 `"90.0,10.0,3000"`）
+> 此節為協定契約速查;權威來源為 [`IRMS_App/src/shared/protocol.ts`](../IRMS_App/src/shared/protocol.ts) 與韌體
+> [`IRMS_Sensor/IRMS_Sensor.ino`](../IRMS_Sensor/IRMS_Sensor.ino),兩端任一變更必須同步。
 
-### 4.3 SQLite 資料庫結構 (SQLite Database Schema)
+* **藍牙廣播名稱**：`IRMS_Device`(前端以 `includes("IRMS")` 比對自動配對)
+* **BLE Service UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b`
+* **MTU**：韌體 `setMTU(128)`,確保 6 軸封包不被截斷。
+* **Angle TX 特徵值 (角度推播,ESP32 → App,Notify @10Hz)**：
+  * **UUID**：`beb5483e-36e1-4688-b7f5-ea07361b26a8`
+  * **正常格式 (6 軸)**：`"T:大腿Pitch,S:小腿Pitch,K:膝夾角,TR:大腿Roll,SR:小腿Roll,KR:膝Roll差"`
+    （例如 `"T:15.5,S:-40.2,K:55.7,TR:1.0,SR:-0.5,KR:1.5"`）。`K`/`KR` 為衍生值,前端自行重算。
+  * **錯誤格式**：`"ERR:1"` (I2C 斷線時)
+* **Profile RX 特徵值 (參數與指令接收,App → ESP32,Write)**：
+  * **UUID**：`beb5483f-36e1-4688-b7f5-ea07361b26a8`
+  * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
+  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:SYNC,大腿offset,小腿offset`
+
+> 權威來源為 [`IRMS_App/src/main/db.ts`](../IRMS_App/src/main/db.ts) 的 `createSchema()`;DB 檔存於 Electron `userData` 目錄(不進版控)。
+
+* **資料表 `custom_actions`** (自訂復健動作範本)：
+  * 欄位：`id` (PK), `name` (TEXT), `description` (TEXT), `protocol` (TEXT), `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER), `triggerType` (TEXT)
 * **資料表 `sessions`** (復健歷程紀錄)：
-  * 欄位：`id` (主鍵, INTEGER), `startTime` (TEXT), `endTime` (TEXT), `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER)
-* **資料表 `sensor_data`** (高頻角度數據)：
-  * 欄位：`id` (主鍵, INTEGER), `sessionId` (外鍵, INTEGER), `kneeAngle` (REAL), `timestamp` (TEXT)
+  * 欄位：`id` (PK), `startTime` (TEXT), `endTime` (TEXT), `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER), `actionId` (INTEGER), `actionName` (TEXT), `protocol` (TEXT), `repsCompleted` (INTEGER)
+* **資料表 `sensor_data`** (高頻 6 軸角度數據)：
+  * 欄位：`id` (PK), `sessionId` (外鍵 → `sessions.id`, `ON DELETE CASCADE`), `timestamp` (TEXT), `kneeAngle` (REAL), `thighAngle` (REAL), `shinAngle` (REAL), `kneeRoll` (REAL), `thighRoll` (REAL), `shinRoll` (REAL)
+  * 索引：`idx_sensor_data_sessionId` on `sensor_data(sessionId)`
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
 * **達標區間**：`fabs(kneeAngle - targetAngle) <= tolerance`

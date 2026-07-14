@@ -1,21 +1,99 @@
-/* renderer/styles/global.css — IRMS 深色玻璃擬物主題 */
+/* renderer/styles/global.css — Apple Liquid Glass 主題(雙主題,跟隨系統) */
+/* Token 架構:語意變數集中於 :root(淺色)+ prefers-color-scheme: dark 覆寫。
+   元件一律引用語意 token;圖表/3D 等 canvas 類由 services/theme.ts 解析同一組 token。
+   Liquid Glass 材質 = 半透明面 + backdrop-filter 折射 + 頂緣高光 + 柔和外陰影,
+   背景鋪柔和色彩漸層供玻璃取樣。 */
 
 :root {
-  --bg-0: #0b1020;
-  --bg-1: #131a30;
-  --glass: rgba(255, 255, 255, 0.04);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --text: #f3f4f6;
-  --text-dim: #9ca3af;
-  --accent: #3b82f6;
-  --accent-2: #6366f1;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --thigh: #f59e0b;
-  --shin: #10b981;
-  --radius: 14px;
-  --font: system-ui, -apple-system, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  color-scheme: light dark;
+
+  /* ── 基底 ── */
+  --bg-0: #eef2fb;                       /* 玻璃後的基底色(對齊桌布 SVG 頂色、視窗底色) */
+  --surface: rgba(255, 255, 255, 0.58);  /* 玻璃卡片 */
+  --surface-2: rgba(255, 255, 255, 0.5); /* 卡片內嵌格(wizard cell、coach-hint 等) */
+  --text: #1c1c1e;
+  --text-dim: #5d5d63;
+  --separator: rgba(60, 60, 67, 0.12);   /* 內容分隔線(表格列等) */
+  --glass-border: rgba(255, 255, 255, 0.55); /* 玻璃外緣光圈 */
+  /* 鏡面 rim:頂緣強高光 + 全周細內光 + 底部極淡內陰影(光從上方打的立體感) */
+  --glass-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 -12px 24px -18px rgba(31, 38, 60, 0.25);
+  --fill: rgba(120, 120, 128, 0.1);      /* hover / 淡填色 */
+  --fill-2: rgba(120, 120, 128, 0.18);   /* 次要按鈕 */
+
+  /* ── 系統色(Apple palette)── */
+  --accent: #007aff;
+  --accent-2: #5856d6;
+  --success: #34c759;
+  --warning: #ff9500;
+  --danger: #ff3b30;
+  --thigh: #ff9500;
+  --shin: #34c759;
+
+  /* ── 材質 ── */
+  --radius: 18px;
+  --glass-blur: blur(20px) saturate(1.8);
+  --blob-opacity: 0.35; /* 桌布為主角,blob 降為點綴動態 */
+  --shadow-card: 0 8px 24px rgba(31, 38, 60, 0.12);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI',
+    'PingFang TC', 'Microsoft JhengHei', sans-serif;
+
+  /* ── 元件 token(canvas/SVG 亦由 theme.ts 讀取)── */
+  --console-bg: rgba(18, 18, 22, 0.85);
+  --console-text: #32d74b;
+  --gauge-track: rgba(120, 120, 128, 0.18);
+  --gauge-band: color-mix(in srgb, var(--success) 28%, transparent);
+  --ring-track: rgba(120, 120, 128, 0.18);
+  --ring-idle: rgba(120, 120, 128, 0.32);
+  --arc-idle: color-mix(in srgb, var(--accent) 40%, transparent);
+  --chart-grid: rgba(0, 0, 0, 0.06);
+  --chart-tick: #5d5d63;
+  --chart-text: #1c1c1e;
+  --leg3d-bg: #e2e7f2;
+  --leg3d-grid-major: #bcc4d4;
+  --leg3d-grid-minor: #d3dae6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-0: #0b0f1f;
+    --surface: rgba(38, 44, 66, 0.5);
+    --surface-2: rgba(255, 255, 255, 0.06);
+    --text: #ffffff;
+    --text-dim: #9a9aa2;
+    --separator: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass-highlight:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 -12px 24px -18px rgba(0, 0, 0, 0.4);
+    --fill: rgba(120, 120, 128, 0.22);
+    --fill-2: rgba(120, 120, 128, 0.34);
+
+    --accent: #0a84ff;
+    --accent-2: #5e5ce6;
+    --success: #30d158;
+    --warning: #ff9f0a;
+    --danger: #ff453a;
+    --thigh: #ff9f0a;
+    --shin: #30d158;
+
+    --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
+    --blob-opacity: 0.3;
+
+    --console-bg: rgba(10, 12, 18, 0.7);
+    --gauge-track: rgba(160, 160, 175, 0.25);
+    --ring-track: rgba(160, 160, 175, 0.25);
+    --ring-idle: rgba(160, 160, 175, 0.4);
+    --chart-grid: rgba(255, 255, 255, 0.08);
+    --chart-tick: #9a9aa2;
+    --chart-text: #ffffff;
+    --leg3d-bg: #12172a;
+    --leg3d-grid-major: #3a4260;
+    --leg3d-grid-minor: #232a44;
+  }
 }
 
 * {
@@ -33,96 +111,157 @@ body,
 body {
   font-family: var(--font);
   color: var(--text);
-  background:
-    radial-gradient(1200px 800px at 80% -10%, rgba(99, 102, 241, 0.18), transparent),
-    radial-gradient(900px 700px at -10% 110%, rgba(59, 130, 246, 0.15), transparent),
-    var(--bg-0);
+  background: var(--bg-0);
   overflow: hidden;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ── Liquid Glass 背景場景:自製向量桌布 + 色彩 blob ──
+   底層為 aurora 網格漸層 SVG(淺/深各一張,零授權疑慮、任意解析度銳利);
+   blob 疊在其上做慢漂移(transform-only 合成器層),讓玻璃折射有活的內容 */
+.bg-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--bg-0) url('../assets/bg-light.svg') center / cover no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  .bg-scene {
+    background-image: url('../assets/bg-dark.svg');
+  }
+}
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: var(--blob-opacity, 0.6);
+  will-change: transform;
+}
+.b1 {
+  width: 55vw;
+  height: 55vw;
+  top: -22vw;
+  right: -12vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 45%, transparent), transparent 65%);
+  animation: drift-1 90s ease-in-out infinite alternate;
+}
+.b2 {
+  width: 50vw;
+  height: 50vw;
+  bottom: -20vw;
+  left: -14vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 40%, transparent), transparent 65%);
+  animation: drift-2 110s ease-in-out infinite alternate;
+}
+.b3 {
+  width: 38vw;
+  height: 38vw;
+  top: 30%;
+  left: 42%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--success) 22%, transparent), transparent 65%);
+  animation: drift-3 130s ease-in-out infinite alternate;
+}
+@keyframes drift-1 {
+  to {
+    transform: translate(-8vw, 10vh) scale(1.15);
+  }
+}
+@keyframes drift-2 {
+  to {
+    transform: translate(10vw, -8vh) scale(1.1);
+  }
+}
+@keyframes drift-3 {
+  to {
+    transform: translate(-12vw, -10vh) scale(0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blob {
+    animation: none;
+  }
+}
+
+/* Liquid Glass 材質:半透明面 + 背景折射 + 鏡面 rim + 柔和外陰影 */
 .glass {
-  background: var(--glass);
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
   border-radius: var(--radius);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
 }
 
-/* ── 版面 ── */
+/* 選單類玻璃面板的「不規則扭曲」:把 SVG 濾鏡直接串進 backdrop-filter 鏈
+   (blur → saturate → 自訂扭曲),backdrop-filter 只處理元素「後方」的內容,
+   元素本身的文字/按鈕/邊框/陰影完全不受影響 —— 折射會晃但字永遠清晰,
+   也不需要額外的 ::before 圖層。刻意只套用在選單性質元件(側欄、下拉選單
+   彈出面板),避免對每張卡片都跑 feDisplacementMap 拖累大量元素在版面變動時
+   的重繪成本。 */
+.glass-warp {
+  backdrop-filter: var(--glass-blur) url(#glass-warp-filter);
+}
+
+/* 捲軸同步玻璃語言:透明軌道 + 半透明膠囊 thumb */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fill-2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fill-2);
+  background-clip: border-box;
+  border-radius: 999px;
+}
+
+/* ── 版面 ──
+   直式排列:頂部狀態列 + 主內容(可捲動,佔滿剩餘空間)+ 底部導覽列。
+   取代舊版「左側可拖拉側欄」——導覽移到底部 icon bar,狀態列移到頂部。 */
 .app {
-  display: grid;
-  grid-template-columns: 264px 1fr;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   gap: 16px;
   padding: 16px;
-  transition: grid-template-columns 0.2s ease;
-}
-.app.collapsed {
-  grid-template-columns: 76px 1fr;
 }
 
-.sidebar {
+/* ── 頂部狀態列:logo + 連線狀態 + Connect 按鈕 ── */
+.top-header {
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  padding: 18px 14px;
-  gap: 14px;
-  overflow: hidden;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  /* 視窗無標題列(main/index.ts 用 titleBarStyle:'hidden'),原本靠標題列拖動
+     視窗的操作改由這條 header 承擔;按鈕等互動元素要各自標記 no-drag 拿回點擊。
+     右側留出原生最小化/最大化/關閉鈕(titleBarOverlay)的疊層空間,避免內容被蓋住。 */
+  -webkit-app-region: drag;
+  padding-right: 150px;
+}
+.top-header button {
+  -webkit-app-region: no-drag;
 }
 .logo h1 {
-  font-size: 1.5rem;
-  letter-spacing: 0.5px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
 }
 .logo h1 span {
   color: var(--accent);
 }
-.logo p {
-  color: var(--text-dim);
-  font-size: 0.8rem;
-}
-.collapsed .logo p,
-.collapsed .nav-item span,
-.collapsed .conn-text,
-.collapsed .log-panel {
-  display: none;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 12px;
-  border-radius: 10px;
-  color: var(--text-dim);
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-}
-.nav-item.active {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.25), rgba(99, 102, 241, 0.12));
-  color: #fff;
-}
-.nav-item svg {
-  flex-shrink: 0;
-}
-
 .conn {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
+  margin-left: auto;
   font-size: 0.85rem;
   color: var(--text-dim);
 }
@@ -131,36 +270,64 @@ body {
   height: 10px;
   border-radius: 50%;
   background: var(--danger);
-  box-shadow: 0 0 8px var(--danger);
 }
 .dot.on {
   background: var(--success);
-  box-shadow: 0 0 8px var(--success);
-}
-
-.log-panel {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 10px;
-  padding: 8px;
-  font-family: ui-monospace, 'Cascadia Code', monospace;
-  font-size: 0.7rem;
-  color: #86efac;
-  height: 130px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 
 /* ── 主內容 ── */
 .main {
+  flex: 1;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+/* ── 底部導覽列:icon bar + 液態滑動指示塊 ──
+   .bottom-bar-item 需要 position:relative + z-index:1,原因同 .tab-btn:
+   指示塊是 position:absolute,CSS 堆疊規則會讓「有定位」元素一律蓋在
+   「無定位(static)」的兄弟之上、不論 DOM 順序 —— 沒有這兩行,指示塊會蓋住
+   icon/文字。 */
+.bottom-bar {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 12px;
+}
+.bottom-bar-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  max-width: 120px;
+  padding: 8px 4px;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.bottom-bar-item.active {
+  /* 底色改由 LiquidKnob 滑動指示塊負責,這裡只留文字/圖示變色 */
+  color: var(--accent);
+}
+.bottom-bar-item svg {
+  flex-shrink: 0;
 }
 .page-header {
   margin-bottom: 18px;
 }
 .page-header h2 {
   font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
 }
 .page-header p {
   color: var(--text-dim);
@@ -180,14 +347,16 @@ body {
 
 .stat .label {
   color: var(--text-dim);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
+  font-weight: 600;
 }
 .stat .value {
   font-size: 2rem;
   font-weight: 700;
   margin-top: 4px;
+  font-variant-numeric: tabular-nums;
 }
 .color-thigh {
   color: var(--thigh);
@@ -199,32 +368,38 @@ body {
   color: var(--accent);
 }
 
-/* ── 按鈕 ── */
+/* ── 按鈕(Liquid Glass 膠囊)── */
 button.btn {
   border: none;
-  border-radius: 10px;
-  padding: 11px 16px;
+  border-radius: 999px;
+  padding: 10px 18px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
   color: #fff;
   transition: transform 0.1s, opacity 0.15s, filter 0.15s;
 }
+button.btn:hover {
+  filter: brightness(1.06);
+}
 button.btn:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
+  filter: brightness(0.94);
 }
 button.btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .btn-primary {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  background: var(--accent);
 }
 .btn-danger {
   background: var(--danger);
 }
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--fill-2);
+  color: var(--text);
+  box-shadow: var(--glass-highlight);
 }
 .btn-success {
   background: var(--success);
@@ -247,20 +422,23 @@ button.btn:disabled {
 .field label {
   font-size: 0.82rem;
   color: var(--text-dim);
+  font-weight: 500;
 }
 input,
 select {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--glass-border);
-  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
   padding: 10px 12px;
   color: var(--text);
   font: inherit;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 input:focus,
 select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .row {
   display: flex;
@@ -273,6 +451,138 @@ select:focus {
   gap: 8px;
 }
 
+/* ── 自訂下拉選單(取代原生 select):點擊彈出玻璃選單面板,支援扭曲折射 ── */
+.glass-dropdown {
+  position: relative;
+}
+.glass-dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.glass-dropdown-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--separator));
+}
+.glass-dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.glass-dropdown.disabled .glass-dropdown-trigger {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.glass-dropdown-trigger .placeholder {
+  color: var(--text-dim);
+}
+.glass-dropdown-trigger .chevron {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.glass-dropdown-trigger .chevron.open {
+  transform: rotate(180deg);
+}
+
+.glass-dropdown-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* 由觸發按鈕頂端「長出」的錨點,符合 Liquid Glass 由小長大的展開感 */
+  transform-origin: top center;
+  animation: dropdown-grow 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* 關閉時播放縮小動畫(由 GlassDropdown.tsx 延遲卸載 DOM 直到動畫播完),
+   而非直接消失;縮小比展開快一點,符合 Apple 動效指南「退場比進場快」的慣例 */
+.glass-dropdown-popup.closing {
+  animation: dropdown-shrink 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes dropdown-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dropdown-shrink {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-dropdown-popup {
+    animation: dropdown-fade 0.12s ease both;
+  }
+  .glass-dropdown-popup.closing {
+    animation: dropdown-fade-out 0.1s ease both;
+  }
+}
+@keyframes dropdown-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dropdown-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.glass-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.glass-dropdown-item:hover {
+  background: var(--fill);
+}
+.glass-dropdown-item.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.glass-dropdown-empty {
+  padding: 10px;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
 /* ── 表格 ── */
 table {
   width: 100%;
@@ -282,14 +592,15 @@ th,
 td {
   text-align: left;
   padding: 11px 12px;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--separator);
   font-size: 0.9rem;
 }
 th {
   color: var(--text-dim);
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .badge {
@@ -297,8 +608,9 @@ th {
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 0.72rem;
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
 }
 
 /* ── 動作卡片 ── */
@@ -310,6 +622,7 @@ th {
 }
 .action-card h4 {
   font-size: 1.05rem;
+  font-weight: 600;
 }
 .action-card .meta {
   color: var(--text-dim);
@@ -332,6 +645,7 @@ th {
   justify-content: center;
   font-size: 1.8rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── 骨架視覺化 ── */
@@ -356,10 +670,12 @@ th {
   gap: 10px;
   min-width: 240px;
   padding: 12px 14px;
-  border-radius: 11px;
-  background: var(--bg-1);
+  border-radius: 14px;
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-left: 4px solid var(--accent);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--glass-highlight), 0 8px 24px rgba(0, 0, 0, 0.16);
   animation: slide-in 0.2s ease;
 }
 .toast.success {
@@ -385,8 +701,8 @@ th {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 1100;
 }
 .dialog {
@@ -425,7 +741,7 @@ th {
   cursor: pointer;
 }
 
-/* ── 硬體錯誤紅色遮罩(補回舊版遺失功能)── */
+/* ── 硬體錯誤紅色遮罩 ── */
 .error-overlay {
   position: fixed;
   inset: 0;
@@ -438,6 +754,7 @@ th {
   backdrop-filter: blur(6px);
   z-index: 1500;
   animation: pulse-red 1.2s ease-in-out infinite;
+  color: #fff;
 }
 .error-overlay .icon {
   font-size: 4rem;
@@ -464,4 +781,273 @@ th {
   padding: 40px;
   color: var(--text-dim);
   text-align: center;
+}
+
+/* ── 主指標量表與教練提示 ── */
+.metric-gauge svg {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+  margin: 0 auto;
+}
+.knee-badge {
+  margin: 6px auto 0;
+  width: fit-content;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.knee-badge.ok {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+.coach-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: var(--glass-highlight);
+}
+.coach-hint .coach-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.coach-hint.success .coach-text {
+  color: var(--success);
+}
+.coach-hint.danger .coach-text {
+  color: var(--danger);
+}
+.phase-badge {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.phase-badge.holding {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+.phase-badge.restPending {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+.metric-action {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.metric-sub {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* ── 次要區 tabs(Liquid Glass 膠囊)── */
+.tabs {
+  position: relative;
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--fill);
+  box-shadow: var(--glass-highlight);
+}
+.tab-btn {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.tab-btn:hover {
+  color: var(--text);
+}
+.tab-btn.active {
+  /* 底色改由 LiquidKnob 滑動指示塊負責,這裡只留文字變色 */
+  color: var(--text);
+}
+
+/* ── 液態黏滯滑動指示器(分頁 .tabs 與底部導覽 .bottom-bar 共用,見 LiquidKnob.tsx)──
+   track 負責平滑滑動定位(transition: transform/size),shape 負責到位時的
+   一次性拉伸回彈(knob-stretch keyframe)+ 黏滯濾鏡,兩者職責分離,
+   避免同一個 transform 屬性要同時處理「持續位移」和「一次性形變」而互相打架。
+   track 本身 pointer-events:none(純視覺,不擋按鈕點擊)——「抓取指示塊」的拖曳
+   事件其實是掛在目前 active 的按鈕上(useLiquidKnob 的 getItemProps),因為指示塊
+   視覺上永遠疊在該按鈕正下方,不需要額外的可穿透層。 */
+.liquid-knob-track {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+/* 拖曳中關閉 transition,指示塊才會即時跟手而不是被 0.4s 緩動拖慢;
+   放開後(class 移除)transition 恢復,不論吸附回原位或新選項都會有彈簧滑順感 */
+.liquid-knob-track.dragging {
+  transition: none;
+}
+.liquid-knob-track.horizontal {
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+.liquid-knob-track.vertical {
+  left: 0;
+  right: 0;
+  top: 0;
+}
+.liquid-knob-shape {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--glass-highlight), 0 1px 4px rgba(0, 0, 0, 0.14);
+  filter: url(#liquid-gooey-filter);
+  /* 拖曳鬆手後,依瞬時速度拉伸的 scaleX/scaleY(inline style)彈簧回正到 1 */
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* 拖曳中關閉 transition,拉伸才會即時反映瞬時速度而不是被緩動拖慢 */
+.liquid-knob-track.dragging .liquid-knob-shape {
+  transition: none;
+}
+.liquid-knob-track.horizontal .liquid-knob-shape.morph {
+  animation: knob-stretch-x 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.liquid-knob-track.vertical .liquid-knob-shape.morph {
+  animation: knob-stretch-y 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes knob-stretch-x {
+  0% {
+    transform: scaleX(1);
+  }
+  32% {
+    transform: scaleX(1.22);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes knob-stretch-y {
+  0% {
+    transform: scaleY(1);
+  }
+  32% {
+    transform: scaleY(1.22);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liquid-knob-track {
+    transition: none;
+  }
+  .liquid-knob-shape.morph {
+    animation: none;
+  }
+}
+
+/* ── 未校準提示 chip ── */
+.calib-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.calib-chip:hover {
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+}
+
+/* ── 校準精靈 ── */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 220px;
+}
+.wizard-step h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.wizard-step .desc {
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+.wizard-count {
+  font-size: 3.2rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.wizard-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.wizard-preview .cell {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.wizard-preview .cell .v {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.wizard-err {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+.wizard-steps-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.wizard-steps-nav .dot-step {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-2);
+}
+.wizard-steps-nav .dot-step.done {
+  background: var(--accent);
+}
+
+/* ── 進階摺疊(Settings)── */
+details.adv-fold {
+  border-top: 1px solid var(--separator);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+details.adv-fold summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
 }

@@ -1,6 +1,7 @@
 // renderer/App.tsx
 import { useUiStore } from './store/useUiStore'
-import { Sidebar } from './components/Sidebar'
+import { TopHeader } from './components/TopHeader'
+import { BottomBar } from './components/BottomBar'
 import { ToastHost } from './components/ToastHost'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorOverlay } from './components/ErrorOverlay'
@@ -11,18 +12,56 @@ import { SettingsView } from './views/SettingsView'
 
 export default function App(): JSX.Element {
   const view = useUiStore((s) => s.view)
-  const collapsed = useUiStore((s) => s.sidebarCollapsed)
 
   return (
     <>
-      <div className={`app${collapsed ? ' collapsed' : ''}`}>
-        <Sidebar />
+      {/* Liquid Glass 背景:色彩 blob 網格,極慢漂移(transform-only,GPU 合成) */}
+      <div className="bg-scene" aria-hidden>
+        <div className="blob b1" />
+        <div className="blob b2" />
+        <div className="blob b3" />
+      </div>
+
+      {/* 選單類玻璃面板的不規則扭曲濾鏡定義,串進 backdrop-filter(見 global.css
+          .glass-warp)。扭曲只作用於背景折射,元素本身內容不受影響。
+          feGaussianBlur 把 turbulence 雜訊抹平,扭曲才會像液體波動而非顆粒抖動。
+          零尺寸 SVG,只提供 filter 定義,不佔版面、不渲染任何可見內容。 */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden focusable="false">
+        <defs>
+          <filter id="glass-warp-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="7" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="1.5" result="smoothNoise" />
+            <feDisplacementMap in="SourceGraphic" in2="smoothNoise" scale="18" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+
+          {/* 液態黏滯濾鏡:套在滑動指示塊(LiquidKnob.tsx)本身,讓 knob-stretch
+              拉伸時邊緣呈現有機的液態感,而非硬邊縮放。做法:先模糊再用
+              feColorMatrix 把 alpha 拉回陡峭閾值(只留高於閾值的部分),
+              最後 feComposite atop 疊回原始色彩,只借 blur+threshold 重塑輪廓、
+              不讓顏色本身變模糊。數值刻意比常見教學案例(stdDeviation 12)輕,
+              因為套用對象是小尺寸的導覽/分頁指示塊,不是大型 blob 動畫。 */}
+          <filter id="liquid-gooey-filter">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8"
+              result="goo"
+            />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+
+      <div className="app">
+        <TopHeader />
         <main className="main">
           {view === 'dashboard' && <DashboardView />}
           {view === 'actions' && <ActionsView />}
           {view === 'history' && <HistoryView />}
           {view === 'settings' && <SettingsView />}
         </main>
+        <BottomBar />
       </div>
 
       <ToastHost />

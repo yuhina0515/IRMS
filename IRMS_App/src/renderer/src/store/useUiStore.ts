@@ -22,14 +22,12 @@ interface UiState {
   toasts: Toast[]
   confirm: ConfirmRequest | null
   view: 'dashboard' | 'actions' | 'history' | 'settings'
-  sidebarCollapsed: boolean
 
   showToast(message: string, type?: ToastType, duration?: number): void
   dismissToast(id: number): void
   requestConfirm(title: string, message: string): Promise<boolean>
   resolveConfirm(ok: boolean): void
   setView(view: UiState['view']): void
-  toggleSidebar(): void
 }
 
 let toastSeq = 0
@@ -38,7 +36,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   toasts: [],
   confirm: null,
   view: 'dashboard',
-  sidebarCollapsed: false,
 
   showToast: (message, type = 'info', duration = 3000) => {
     const id = ++toastSeq
@@ -56,6 +53,5 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ confirm: null })
   },
 
-  setView: (view) => set({ view }),
-  toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed })
+  setView: (view) => set({ view })
 }))

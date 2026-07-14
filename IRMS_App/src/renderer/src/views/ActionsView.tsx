@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput } from '@shared/types'
+import { GlassDropdown } from '../components/GlassDropdown'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -80,13 +81,13 @@ export function ActionsView(): JSX.Element {
       </header>
 
       <div className="row" style={{ marginBottom: 16, justifyContent: 'space-between' }}>
-        <select value={protocol} onChange={(e) => setSettings({ protocol: e.target.value as CustomAction['protocol'] })}>
-          {JOINT_PROTOCOLS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <div style={{ width: 220 }}>
+          <GlassDropdown
+            value={protocol}
+            onChange={(v) => setSettings({ protocol: v as CustomAction['protocol'] })}
+            options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
+          />
+        </div>
         <div className="row">
           <button className="btn btn-secondary" onClick={() => void restoreDefaults()}>
             還原預設
@@ -149,16 +150,11 @@ export function ActionsView(): JSX.Element {
             </div>
             <div className="field">
               <label>Trigger Type 判定規則</label>
-              <select
+              <GlassDropdown
                 value={form.triggerType}
-                onChange={(e) => setForm({ ...form, triggerType: e.target.value as CustomActionInput['triggerType'] })}
-              >
-                {TRIGGER_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm({ ...form, triggerType: v as CustomActionInput['triggerType'] })}
+                options={TRIGGER_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              />
             </div>
             <div className="row">
               <div className="field" style={{ flex: 1 }}>

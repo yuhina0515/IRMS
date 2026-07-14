@@ -117,8 +117,9 @@ export const actionsRepo = {
     return db.prepare('SELECT * FROM custom_actions WHERE id = ?').get(id) as CustomAction
   },
 
-  delete(id: number): void {
+  delete(id: number): { success: true } {
     db.prepare('DELETE FROM custom_actions WHERE id = ?').run(id)
+    return { success: true }
   },
 
   /** 清空現有動作並重新載入預設範本(避免重複) */

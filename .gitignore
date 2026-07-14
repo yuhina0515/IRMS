@@ -9,8 +9,14 @@ out/
 release/
 .vite/
 *.tsbuildinfo
+# electron-vite dev 執行期會把解析後的設定寫成帶時間戳的暫存檔,不該進版控
+electron.vite.config.*.mjs
 
 # SQLite 執行期資料庫(改存於 userData,不進版控)
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# Obsidian:個人工作區狀態不進版控,共用設定(外掛/外觀/模板)保留
+.obsidian/workspace.json
+.obsidian/graph.json

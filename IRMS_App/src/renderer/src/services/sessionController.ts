@@ -8,9 +8,13 @@ import { BleCommand } from '@shared/protocol'
 import type { SensorReading, TriggerType } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { bluetoothService } from './bluetooth'
-import { TriggerEngine, type TriggerConfig } from './triggerEngine'
+import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
+import { TriggerEngine } from './triggerEngine'
+import { createTrailingThrottle } from './uiThrottle'
 
 const MAX_BUFFER_RESTORE = 2000
+/** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
+const UI_SYNC_MS = 80
 
 class SessionController {
   private engine: TriggerEngine
@@ -23,6 +27,14 @@ class SessionController {
   private lastLed: 'on' | 'off' | null = null
   private lastAlarm: 'on' | 'off' | null = null
 
+  // UI 同步節流:angles + holdProgress 合併為單一 set(一次重繪)
+  private uiSync = createTrailingThrottle<{ angles: LiveAngles; hold: number | null }>(
+    UI_SYNC_MS,
+    ({ angles, hold }) => useStore.getState().syncLiveFrame(angles, hold)
+  )
+  /** 引擎最近一次回報的保持進度;由節流同步帶入 store,邊界事件(0/100)直寫 */
+  private pendingHold: number | null = null
+
   constructor() {
     this.engine = new TriggerEngine({
       onZoneEnter: () => {
@@ -33,13 +45,28 @@ class SessionController {
         useStore.getState().patchSession({ inZone: false })
         this.sendLed('off')
       },
-      onHoldProgress: (percent) => useStore.getState().patchSession({ holdProgress: percent }),
+      onHoldProgress: (percent) => {
+        this.pendingHold = percent
+      },
       onRepCompleted: () => {
-        const reps = useStore.getState().session.reps + 1
-        useStore.getState().patchSession({ reps, holdProgress: 100, inZone: false })
+        // 完成瞬間為邊界事件:直寫精確值,並丟棄節流中的舊進度防止蓋回
+        this.uiSync.cancel()
+        this.pendingHold = null
+        // 僅在 Session 進行中才累計次數與觸發達標音;
+        // 連線但未開始時只保留區間 LED 回饋,避免「還沒開始就有 Reps」
+        const { session } = useStore.getState()
+        if (!session.running) {
+          useStore.getState().patchSession({ holdProgress: 0, inZone: false })
+          return
+        }
+        useStore.getState().patchSession({ reps: session.reps + 1, holdProgress: 100, inZone: false })
         void bluetoothService.send(BleCommand.GOAL)
       },
-      onRestCompleted: () => useStore.getState().patchSession({ holdProgress: 0 }),
+      onRestCompleted: () => {
+        this.uiSync.cancel()
+        this.pendingHold = null
+        useStore.getState().patchSession({ holdProgress: 0 })
+      },
       onOverExtension: (active) => {
         useStore.getState().patchSession({ alarmActive: active })
         this.sendAlarm(active ? 'on' : 'off')
@@ -49,6 +76,53 @@ class SessionController {
 
     // 接收藍牙即時角度
     bluetoothService.onAnglesReceived = (angles) => this.onAngles(angles)
+
+    // 連線確定失守(手動斷線/重連耗盡)→ 安全收尾 Session,保住已緩衝資料
+    bluetoothService.onConnectionLost = () => void this.handleConnectionLost()
+
+    useStore.subscribe((state, prev) => {
+      // 斷線時重置指令去重快取:ESP32 斷線後 GPIO 狀態未知(可能重開機),
+      // 若不重置,重連後的第一次 LED_ON/ALARM_ON 會被去重吃掉而永不下發
+      if (prev.isConnected && !state.isConnected) {
+        this.lastLed = null
+        this.lastAlarm = null
+      }
+      // 進入硬體錯誤(ERR:)當下,主動關閉硬體回饋,防止蜂鳴器/LED 卡在作動狀態
+      if (!prev.hardwareError && state.hardwareError) {
+        this.handleHardwareError()
+      }
+    })
+  }
+
+  /** 引擎 phase → store(去重,避免每筆封包都觸發 set) */
+  private syncPhase(): void {
+    const phase = this.engine.phase
+    if (useStore.getState().session.phase !== phase) {
+      useStore.getState().patchSession({ phase })
+    }
+  }
+
+  /** ERR 當下:重置判定引擎並強制下發關閉指令(繞過去重,硬體實際狀態未知) */
+  private handleHardwareError(): void {
+    this.engine.reset()
+    this.syncPhase()
+    // 丟棄節流中的錯誤前資料,進度直寫歸零,防止稍後被舊值蓋回
+    this.uiSync.cancel()
+    this.pendingHold = null
+    useStore.getState().patchSession({ holdProgress: 0 })
+    this.lastLed = 'off'
+    this.lastAlarm = 'off'
+    void bluetoothService.send(BleCommand.LED_OFF)
+    void bluetoothService.send(BleCommand.ALARM_OFF)
+    useStore.getState().log('Hardware error — feedback outputs forced OFF.')
+  }
+
+  /** 斷線收尾:若 Session 進行中,自動結束並 flush 緩衝,資料不遺失 */
+  private async handleConnectionLost(): Promise<void> {
+    const { session } = useStore.getState()
+    if (!session.running) return
+    useStore.getState().log('Connection lost — auto-ending session to preserve buffered data.')
+    await this.endSession()
   }
 
   /** 由 bluetoothService 推入的每筆即時角度 */
@@ -56,7 +130,16 @@ class SessionController {
     const { session } = useStore.getState()
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
-    this.engine.handle(angles, this.currentConfig())
+    const cfg = this.currentConfig()
+    this.engine.handle({
+      sample: computeMetricSample(angles, cfg.triggerType, cfg.tolerance),
+      zone: computeMetricZone(cfg),
+      holdTimeMs: cfg.holdTimeMs
+    })
+    this.syncPhase()
+
+    // 顯示更新走節流(最後一筆保證送達);判定與緩衝已在上方吃到全速資料
+    this.uiSync.queue({ angles, hold: this.pendingHold })
 
     // 僅在 Session 進行中緩衝資料
     if (session.running && session.id != null) {
@@ -95,6 +178,8 @@ class SessionController {
 
       this.buffer = []
       this.engine.reset()
+      this.uiSync.cancel()
+      this.pendingHold = null
       this.startTimestamp = Date.now()
 
       useStore.getState().patchSession({
@@ -104,7 +189,8 @@ class SessionController {
         inZone: false,
         alarmActive: false,
         elapsedSec: 0,
-        running: true
+        running: true,
+        phase: 'idle'
       })
 
       this.startTimers()
@@ -129,10 +215,12 @@ class SessionController {
       useStore.getState().log(`Failed to end session: ${(err as Error).message}`)
     }
 
-    // 收尾:關閉硬體回饋
+    // 收尾:關閉硬體回饋;丟棄節流中的殘留進度,防止蓋回已歸零的 session
     this.sendLed('off')
     this.sendAlarm('off')
     this.engine.reset()
+    this.uiSync.cancel()
+    this.pendingHold = null
     useStore.getState().resetSession()
   }
 

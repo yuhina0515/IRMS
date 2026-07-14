@@ -1,6 +1,8 @@
 # IRMS_App 功能清單與優化待辦 (v2)
 
-> 更新日期:2026-06-27 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
+> **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
+
+> 更新日期:2026-06-30 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
 > 本文件為「活清單」,完成項目請打勾並標註日期。
 
 ---
@@ -43,11 +45,18 @@
 - [x] 刪除紀錄(FK CASCADE 連動清除 sensor_data)
 
 ### 6. 設定與校準 (Settings)
-- [x] 校準:offset + 反相 × {大腿, 小腿} × {Pitch, Roll}
+- [x] **校準精靈**:五步引導自動判斷佩戴方向(invert)與歸零(offset),含幅度/靜止驗證與套用前預覽(2026-07-05)
+- [x] 手動校準(進階摺疊):offset + 反相 × {大腿, 小腿} × {Pitch, Roll}
 - [x] 快速歸零(以最新原始值反推 offset)
-- [x] 同步校準 offset 至 ESP32
+- [x] ~~同步校準 offset 至 ESP32~~(依 D1 移除:校準全在 App 端,2026-07-03)
 - [x] 一般設定:預設協定、圖表最大點數、寫入間隔
-- [x] 設定持久化 (Zustand persist → localStorage)
+- [x] 設定持久化 (Zustand persist → localStorage,version 1 + migrate)
+
+### 8. 引導式監測(2026-07-05 重構)
+- [x] 主指標正規化層(movementMetric):三種 triggerType 收斂單一判定路徑
+- [x] 弧形量表(目標帶/超限/回位刻線/膝直徽章)+ 教練提示(再抬 X°/保持/回位)
+- [x] 引擎 phase 外露(準備/保持/回位徽章)
+- [x] 3D 即時姿態視圖(Three.js,2026-07-04);趨勢圖/3D/2D/詳細數值 tab 化
 
 ### 7. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
@@ -60,11 +69,11 @@
 ## 二、優化待辦 (Optimization Backlog)
 
 ### 🔴 P0 — 正確性與安全(優先)
-- [ ] **實機端對端驗證**:裝置回歸後完整跑 BLE 連線 → 達標 → 超限 → 斷線復原。
-- [ ] **下發 Profile 參數至韌體**:目前 Settings 的「同步」只送校準 offset,未透過 Profile RX 下發 `目標角度,容錯,維持時間`。需確認 ESP32 在 `deviceConnected` 時是否仍需 App 下發 profile(原韌體會跳過本機判定)。
-- [ ] **ERR 當下主動關閉回饋**:收到 `ERR:` 時除凍結畫面外,主動送 `LED_OFF` + `ALARM_OFF`,避免蜂鳴器卡在作動狀態。
-- [ ] **斷線時的 Session 收尾**:Session 進行中若 BLE 永久斷線,確保仍能安全 End 並 flush 已緩衝資料。
-- [ ] **復健評分模型 (Phase 3)**:以角速度變異數(平穩度)+ 維持達標率產出單次品質分數,寫入 session 並於 History 顯示。
+- [ ] **實機端對端驗證**:裝置回歸後完整跑 BLE 連線 → 達標 → 超限 → 斷線復原。(⚠ 韌體已加 `trim()`,需重燒)
+- [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
+- [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
+- [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
+- [ ] **復健評分模型 (Phase 3)**:以角速度變異數(平穩度)+ 維持達標率產出單次品質分數,寫入 session 並於 History 顯示。(依 ROADMAP 排入 Phase 4,先建 D4 migration)
 
 ### 🟡 P1 — 效能
 - [ ] LiveChart 高頻更新:啟用 Chart.js decimation 或將 `update` 節流至 ~20fps,降低長時間 Session 的 CPU。
@@ -81,8 +90,8 @@
 - [ ] 鍵盤快捷鍵(連線、開始/結束 Session)。
 
 ### 🔵 P3 — 程式品質與測試
-- [ ] **單元測試**:`triggerEngine.ts`(純狀態機,含超限/休息/達標邊界)、`parseAnglePacket`、`applyCalibration`。導入 Vitest。
-- [ ] ESLint + Prettier 設定與 CI typecheck。
+- [x] **單元測試**:`triggerEngine.ts`(純狀態機,含超限/休息/達標邊界)、`parseAnglePacket`、`applyCalibration`、`reconcileSelection`。已導入 Vitest,22 tests;`npm run ci` = typecheck+test+build。(2026-07-03)
+- [ ] ESLint + Prettier 設定與 CI typecheck。(`npm run ci` 已含 typecheck+test+build,ESLint 待補)
 - [ ] React ErrorBoundary 包裹各視圖,避免單一錯誤白屏。
 - [ ] DB migration 機制(目前為 CREATE IF NOT EXISTS;未來 schema 變更需版本化遷移)。
 
@@ -102,4 +111,4 @@
 ## 三、已知技術債(重寫時保留待辦)
 - [x] `react-chartjs-2` 已列入依賴但實際使用原生 Chart.js,可移除依賴。(2026-06-27 已移除)
 - [ ] 舊版 `irms.sqlite`(v1 schema)未自動遷移至 v2;若需保留歷史資料需寫一次性匯入腳本。
-- [ ] 文件中 `AI_CODING_RULES.md` 的檔案路徑仍指向舊位置 `c:/Users/Yuhina/Documents/IRMS`,待更新。
+- [x] 文件中 `AI_CODING_RULES.md` 的檔案路徑仍指向舊位置 `c:/Users/Yuhina/Documents/IRMS`。(2026-06-30 已改為倉庫內相對連結;並一併同步全文件至 v2 架構、修正 3 軸/舊 schema 描述、補齊文件交互指引。)

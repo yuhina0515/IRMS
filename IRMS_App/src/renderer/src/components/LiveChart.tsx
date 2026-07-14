@@ -14,6 +14,7 @@ import {
   Tooltip
 } from 'chart.js'
 import { useStore } from '../store/useStore'
+import { chartTheme, onSystemThemeChange } from '../services/theme'
 
 Chart.register(
   LineController,
@@ -32,14 +33,15 @@ export function LiveChart(): JSX.Element {
 
   useEffect(() => {
     if (!canvasRef.current) return
+    const t = chartTheme()
     const chart = new Chart(canvasRef.current, {
       type: 'line',
       data: {
         labels: [],
         datasets: [
-          { label: '夾角 Knee', data: [], borderColor: '#3b82f6', borderWidth: 2, fill: true, backgroundColor: 'rgba(59,130,246,0.12)', pointRadius: 0, tension: 0.3 },
-          { label: '大腿 Thigh', data: [], borderColor: '#f59e0b', borderWidth: 1, fill: false, pointRadius: 0 },
-          { label: '小腿 Shin', data: [], borderColor: '#10b981', borderWidth: 1, fill: false, pointRadius: 0 }
+          { label: '夾角 Knee', data: [], borderColor: t.knee, borderWidth: 2, fill: true, backgroundColor: t.kneeFill, pointRadius: 0, tension: 0.3 },
+          { label: '大腿 Thigh', data: [], borderColor: t.thigh, borderWidth: 1, fill: false, pointRadius: 0 },
+          { label: '小腿 Shin', data: [], borderColor: t.shin, borderWidth: 1, fill: false, pointRadius: 0 }
         ]
       },
       options: {
@@ -48,13 +50,31 @@ export function LiveChart(): JSX.Element {
         animation: false,
         interaction: { mode: 'index', intersect: false },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', maxTicksLimit: 8 } },
-          y: { beginAtZero: true, suggestedMax: 150, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }
+          x: { grid: { color: t.grid }, ticks: { color: t.tick, maxTicksLimit: 8 } },
+          y: { beginAtZero: true, suggestedMax: 150, grid: { color: t.grid }, ticks: { color: t.tick } }
         },
-        plugins: { legend: { labels: { color: '#f3f4f6' } } }
+        plugins: { legend: { labels: { color: t.text } } }
       }
     })
     chartRef.current = chart
+
+    // 系統主題切換 → 重新解析 token 套色
+    const unsubTheme = onSystemThemeChange(() => {
+      const n = chartTheme()
+      chart.data.datasets[0].borderColor = n.knee
+      chart.data.datasets[0].backgroundColor = n.kneeFill
+      chart.data.datasets[1].borderColor = n.thigh
+      chart.data.datasets[2].borderColor = n.shin
+      const scales = chart.options.scales!
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sx = scales.x as any, sy = scales.y as any
+      sx.grid.color = n.grid
+      sx.ticks.color = n.tick
+      sy.grid.color = n.grid
+      sy.ticks.color = n.tick
+      chart.options.plugins!.legend!.labels!.color = n.text
+      chart.update('none')
+    })
 
     // 訂閱角度更新(命令式 push,不經 React render)
     const unsub = useStore.subscribe((state, prev) => {
@@ -83,6 +103,7 @@ export function LiveChart(): JSX.Element {
 
     return () => {
       unsub()
+      unsubTheme()
       chart.destroy()
       chartRef.current = null
     }

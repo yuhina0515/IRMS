@@ -1,3 +1,9 @@
+---
+tags: [coding-log]
+date: 2026-06-11
+summary: "架構審計:發現 onWrite 阻塞 BLE、陀螺儀 Pitch/Roll 軸向交叉接錯、I2C 重連 dt 突增三項重大缺陷"
+---
+
 # AI Coding Log - 2026-06-11 01:36:00 (Architecture & Logic Audit)
 
 ## 目的 (Objective)

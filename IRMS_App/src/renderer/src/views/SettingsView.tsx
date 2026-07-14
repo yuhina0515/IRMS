@@ -1,10 +1,11 @@
 // renderer/views/SettingsView.tsx
+import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
-import { bluetoothService } from '../services/bluetooth'
-import { buildSyncCommand } from '@shared/protocol'
 import { JOINT_PROTOCOLS } from '@shared/types'
 import type { Settings } from '../store/useStore'
+import { CalibrationWizard } from '../components/CalibrationWizard'
+import { GlassDropdown } from '../components/GlassDropdown'
 
 function NumField({
   label,
@@ -46,6 +47,7 @@ export function SettingsView(): JSX.Element {
   const rawAngles = useStore((s) => s.rawAngles)
   const isConnected = useStore((s) => s.isConnected)
   const showToast = useUiStore((s) => s.showToast)
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     setSettings({ [key]: value } as Partial<Settings>)
@@ -57,14 +59,11 @@ export function SettingsView(): JSX.Element {
     }
     setSettings({
       thighOffset: -(rawAngles.thigh * (settings.thighInvert ? -1 : 1)),
-      shinOffset: -(rawAngles.shin * (settings.shinInvert ? -1 : 1))
+      shinOffset: -(rawAngles.shin * (settings.shinInvert ? -1 : 1)),
+      thighRollOffset: -(rawAngles.thighRoll * (settings.thighRollInvert ? -1 : 1)),
+      shinRollOffset: -(rawAngles.shinRoll * (settings.shinRollInvert ? -1 : 1))
     })
-    showToast('已套用快速歸零校準', 'success')
-  }
-
-  const syncToEsp = (): void => {
-    void bluetoothService.send(buildSyncCommand(settings.thighOffset, settings.shinOffset))
-    showToast('設定已同步至硬體', 'success')
+    showToast('已套用快速歸零校準(含 Roll)', 'success')
   }
 
   return (
@@ -76,6 +75,22 @@ export function SettingsView(): JSX.Element {
 
       <div className="panel glass" style={{ marginBottom: 16 }}>
         <h3 style={{ marginBottom: 14 }}>Sensor Calibration 校準</h3>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 12 }}>
+          {settings.lastCalibratedAt
+            ? `上次精靈校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
+            : '尚未執行校準精靈——建議先跑一次,自動判斷佩戴方向並歸零'}
+        </p>
+        <button
+          className="btn btn-primary"
+          disabled={!isConnected}
+          title={isConnected ? '' : '請先連線裝置'}
+          onClick={() => setWizardOpen(true)}
+        >
+          啟動校準精靈
+        </button>
+
+        <details className="adv-fold">
+          <summary>進階手動校準(一般情況請使用精靈)</summary>
         <div className="row">
           <NumField label="Thigh Offset (°)" value={settings.thighOffset} onChange={(v) => set('thighOffset', v)} />
           <NumField label="Shin Offset (°)" value={settings.shinOffset} onChange={(v) => set('shinOffset', v)} />
@@ -96,23 +111,24 @@ export function SettingsView(): JSX.Element {
           <button className="btn btn-secondary" onClick={quickZero}>
             快速歸零
           </button>
-          <button className="btn btn-primary" disabled={!isConnected} onClick={syncToEsp}>
-            同步至 ESP32
-          </button>
         </div>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 8 }}>
+          校準完全在 App 端套用;韌體僅回傳原始角度,無需同步。
+        </p>
+        </details>
       </div>
+
+      {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
 
       <div className="panel glass">
         <h3 style={{ marginBottom: 14 }}>General 一般</h3>
         <div className="field">
           <label>Default Protocol 預設協定</label>
-          <select value={settings.protocol} onChange={(e) => set('protocol', e.target.value as Settings['protocol'])}>
-            {JOINT_PROTOCOLS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <GlassDropdown
+            value={settings.protocol}
+            onChange={(v) => set('protocol', v as Settings['protocol'])}
+            options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
+          />
         </div>
         <div className="row">
           <NumField

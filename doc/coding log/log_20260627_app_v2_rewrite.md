@@ -1,3 +1,9 @@
+---
+tags: [coding-log]
+date: 2026-06-27
+summary: "App 從零重寫為 Electron+Vite+React+TS+IPC+better-sqlite3;一併修復超限警報遺失、ERR:1 遮罩孤兒等舊缺陷"
+---
+
 # 變更日誌 — IRMS_App v2 從零重寫
 
 ## 日期

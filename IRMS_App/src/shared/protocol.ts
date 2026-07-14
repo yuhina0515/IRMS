@@ -34,12 +34,20 @@ export const BleCommand = {
 
 export type BleCommand = (typeof BleCommand)[keyof typeof BleCommand]
 
-/** 組出校準同步指令:`CMD:SYNC,大腿offset,小腿offset` */
+/**
+ * 組出校準同步指令:`CMD:SYNC,大腿offset,小腿offset`
+ * @deprecated 現行韌體 (IRMS_Sensor.ino) 的 onWrite 未實作 SYNC 解析;
+ * v2 校準已完全在 App 端套用 (applyCalibration),UI 不再呼叫此函式。
+ */
 export function buildSyncCommand(thighOffset: number, shinOffset: number): string {
   return `CMD:SYNC,${thighOffset.toFixed(1)},${shinOffset.toFixed(1)}`
 }
 
-/** 組出參數設定檔寫入字串:`目標角度,容錯範圍,維持時間ms` */
+/**
+ * 組出參數設定檔寫入字串:`目標角度,容錯範圍,維持時間ms`
+ * @deprecated 現行韌體無 Task_Logic/NVS,不解析 Profile(舊版 IRMS_Sensor_Full.bak 才支援);
+ * v2 的達標判定完全在 App 端 (TriggerEngine),UI 不再呼叫此函式。
+ */
 export function buildProfilePayload(targetAngle: number, tolerance: number, holdTimeMs: number): string {
   return `${targetAngle.toFixed(1)},${tolerance.toFixed(1)},${Math.round(holdTimeMs)}`
 }
@@ -58,7 +66,7 @@ export interface LiveAngles {
   thigh: number
   /** 小腿矢狀面角度 (Pitch) */
   shin: number
-  /** 膝關節冠狀面內外翻角度(Roll 差值絕對值) */
+  /** 膝關節冠狀面內外翻角度(帶符號 shinRoll − thighRoll:正 = 外翻 valgus、負 = 內翻 varus) */
   kneeRoll: number
   /** 大腿冠狀面角度 (Roll) */
   thighRoll: number

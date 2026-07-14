@@ -1,3 +1,9 @@
+---
+tags: [coding-log]
+date: 2026-06-11
+summary: "修復審計發現的三項韌體缺陷(非阻塞蜂鳴、軸向校正、dt 對齊)+前端緩衝區 2000 點上限防溢出"
+---
+
 # AI Coding Log - 2026-06-11 01:38:00 (Architecture & Logic Fixes)
 
 ## 目的 (Objective)
