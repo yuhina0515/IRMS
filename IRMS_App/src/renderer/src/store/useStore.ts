@@ -22,6 +22,9 @@ export interface Settings {
   thighRollOffset: number
   shinRollInvert: boolean
   shinRollOffset: number
+  /** 大腿/小腿 roll 方向是否曾由精靈第 5 步(外展)實測驗證過;false = 仍在沿用預設或跳過時的舊值,內外翻方向可能相反 */
+  thighRollVerified: boolean
+  shinRollVerified: boolean
   protocol: JointProtocol
   maxChartPoints: number
   flushIntervalSec: number
@@ -60,6 +63,8 @@ const DEFAULT_SETTINGS: Settings = {
   thighRollOffset: 0,
   shinRollInvert: false,
   shinRollOffset: 0,
+  thighRollVerified: false,
+  shinRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -259,7 +264,7 @@ export const useStore = create<StoreState>()(
       partialize: (state) => ({ settings: state.settings }),
       // ⚠ zustand persist 為 shallow merge:舊 localStorage 的 settings 物件會整包
       // 蓋掉新增欄位。新增 Settings 欄位時必須遞增 version 並經 migrateSettings 補齊預設值。
-      version: 2, // v2:新增 axisSwap 與帶符號 kneeRoll 慣例
+      version: 3, // v3:新增 thighRollVerified/shinRollVerified(外展方向是否已實測驗證)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

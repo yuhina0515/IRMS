@@ -40,6 +40,7 @@ export function DashboardView(): JSX.Element {
   const params = useStore((s) => s.params)
   const isConnected = useStore((s) => s.isConnected)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
+  const rollUnverified = useStore((s) => !s.settings.thighRollVerified || !s.settings.shinRollVerified)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
 
   const [tab, setTab] = useState<Tab>('chart')
@@ -81,6 +82,11 @@ export function DashboardView(): JSX.Element {
       {lastCalibratedAt == null && (
         <div className="calib-chip" onClick={() => setWizardOpen(true)}>
           ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
+        </div>
+      )}
+      {lastCalibratedAt != null && rollUnverified && (
+        <div className="calib-chip" onClick={() => setWizardOpen(true)}>
+          ⚠ 內外翻方向尚未實測驗證(校準精靈第 5 步未完成或幅度不足)——顯示方向可能相反,點此重新校準
         </div>
       )}
 

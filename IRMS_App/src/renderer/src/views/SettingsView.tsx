@@ -80,6 +80,15 @@ export function SettingsView(): JSX.Element {
             ? `上次精靈校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
             : '尚未執行校準精靈——建議先跑一次,自動判斷佩戴方向並歸零'}
         </p>
+        {settings.lastCalibratedAt != null && (!settings.thighRollVerified || !settings.shinRollVerified) && (
+          <p style={{ color: 'var(--warning)', fontSize: 13, marginBottom: 12 }}>
+            ⚠ 內外翻方向未經第 5 步實測驗證:
+            {!settings.thighRollVerified && '大腿'}
+            {!settings.thighRollVerified && !settings.shinRollVerified && '、'}
+            {!settings.shinRollVerified && '小腿'}
+            ——方向可能相反,建議重跑精靈並完成外展步驟
+          </p>
+        )}
         <button
           className="btn btn-primary"
           disabled={!isConnected}

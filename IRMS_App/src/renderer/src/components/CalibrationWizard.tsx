@@ -8,6 +8,7 @@ import {
   buildCalibrationPatch,
   computeCaptureStats,
   CAPTURE_STD_LIMIT,
+  CAPTURE_STD_LIMIT_ABDUCTION,
   type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
@@ -18,8 +19,7 @@ const CAPTURE_TIMEOUT_MS = 3000
 const ERROR_TEXT: Record<CalibrationError, string> = {
   unstable: '偵測到晃動,請於捕捉期間保持靜止後重試',
   thighDeltaTooSmall: '大腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉',
-  shinDeltaTooSmall: '小腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉',
-  rollDeltaTooSmall: '側擺幅度不足(需 ≥ 15°),請將整條腿再向外側擺多一點後重試'
+  shinDeltaTooSmall: '小腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉'
 }
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
@@ -58,8 +58,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     }
   }, [])
 
-  /** 倒數 3 秒 → 收集 ~30 筆 rawAngles → 統計 */
-  const capture = async (): Promise<CaptureStats | null> => {
+  /** 倒數 3 秒 → 收集 ~30 筆 rawAngles → 統計。stdLimit 依步驟不同(外展單腳站立較晃,門檻略寬)。 */
+  const capture = async (stdLimit: number = CAPTURE_STD_LIMIT): Promise<CaptureStats | null> => {
     setErrMsg(null)
     setCapturing(true)
     for (let c = 3; c > 0; c--) {
@@ -93,7 +93,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       return null
     }
     const stats = computeCaptureStats(samples)
-    if (stats.maxStdDev > CAPTURE_STD_LIMIT) {
+    if (stats.maxStdDev > stdLimit) {
       setErrMsg('偵測到晃動,請保持靜止後重試')
       return null
     }
@@ -111,7 +111,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const finish = async (withAbduction: boolean): Promise<void> => {
     let abduction: CaptureStats | null = null
     if (withAbduction) {
-      const stats = await capture()
+      const stats = await capture(CAPTURE_STD_LIMIT_ABDUCTION)
       if (!stats) return
       abduction = stats
     }
@@ -120,7 +120,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     const result = buildCalibrationPatch(baseline, thighRaise, kneeFlex, abduction, settings)
     if (!result.ok) {
       setErrMsg(ERROR_TEXT[result.error])
-      // 幅度錯誤退回對應步驟重捕;roll 幅度不足留在本步重試
+      // 幅度錯誤退回對應步驟重捕
       if (result.error === 'thighDeltaTooSmall') setStep(2)
       else if (result.error === 'shinDeltaTooSmall') setStep(3)
       return
@@ -216,8 +216,9 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
             <h4>步驟 5/6 · 腿向外側擺(Roll 方向,可跳過)</h4>
             <p className="desc">
               全腿伸直,將整條腿向<b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。
-              這一步用來判定<b>內翻/外翻的方向</b>;跳過則沿用現有 Roll 方向設定
-              (內外翻只會顯示大小、方向可能相反)。
+              這一步用來判定<b>內翻/外翻的方向</b>;大腿、小腿分開判定,若某一側擺動幅度不足
+              以信任方向,該側會沿用現有設定(不影響另一側已判定成功的方向)。跳過則兩側皆沿用
+              現有 Roll 方向設定——未經本步驟驗證的方向,內外翻可能顯示相反。
             </p>
             {errMsg && <p className="wizard-err">{errMsg}</p>}
             <div className="row">

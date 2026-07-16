@@ -1,7 +1,7 @@
-// --- 校準精靈純數學(v2:方向校正)---
+// --- 校準精靈純數學(v3:外展 roll invert 逐軸解耦)---
 // 由四次靜態捕捉(站直 / 前抬大腿 / 站立後勾小腿 / 腿向外側擺)推導:
 // 1. axisSwap —— 感測器貼歪 90° 時,彎曲動作出現在 roll 軸 → 軟體對調 pitch/roll
-// 2. invert  —— pitch 依前抬/後勾方向、roll 依外展方向自動判定
+// 2. invert  —— pitch 依前抬/後勾方向、roll 依外展方向自動判定(大腿/小腿獨立,見下)
 // 3. offset  —— 以站直姿勢四軸歸零
 // 統一慣例(校準後):Pitch 正 = 向前抬;Roll 正 = 向外側傾;kneeRoll 正 = 外翻。
 // 產出的 patch 直接餵 applyCalibration,偵測 / 3D / 2D 全域同步生效。
@@ -10,9 +10,11 @@ import type { Settings } from '../store/useStore'
 
 /** 捕捉期間允許的最大標準差(度)——超過視為晃動 */
 export const CAPTURE_STD_LIMIT = 3
+/** 外展步驟專用的標準差上限——單腳站立本身晃動較大,略放寬於一般步驟 */
+export const CAPTURE_STD_LIMIT_ABDUCTION = 4
 /** 判斷 pitch invert 所需的最小動作幅度(度) */
 export const CAPTURE_DELTA_MIN = 20
-/** 判斷 roll invert(外展)所需的最小動作幅度(度) */
+/** 判斷 roll invert(外展)所需的最小動作幅度(度)——大腿/小腿分別獨立判定 */
 export const CAPTURE_ROLL_DELTA_MIN = 15
 
 export interface CaptureStats {
@@ -66,11 +68,7 @@ export function detectAxisSwap(
   return { swap: dRoll > dPitch, delta: Math.max(dPitch, dRoll) }
 }
 
-export type CalibrationError =
-  | 'unstable'
-  | 'thighDeltaTooSmall'
-  | 'shinDeltaTooSmall'
-  | 'rollDeltaTooSmall'
+export type CalibrationError = 'unstable' | 'thighDeltaTooSmall' | 'shinDeltaTooSmall'
 
 export type CalibrationResult =
   | { ok: true; patch: Partial<Settings> }
@@ -78,7 +76,8 @@ export type CalibrationResult =
 
 /**
  * 整合捕捉 → 方向校正 → settings patch。
- * @param abduction 外展捕捉(選配);null 表示使用者跳過,沿用現有 roll invert 設定。
+ * @param abduction 外展捕捉(選配);null 表示使用者跳過。大腿/小腿 roll 方向獨立判定——
+ *   跳過或某一軸擺動幅度不足以信任正負號時,該軸沿用現有 invert 設定且 verified 維持不變。
  */
 export function buildCalibrationPatch(
   baseline: CaptureStats,
@@ -87,8 +86,10 @@ export function buildCalibrationPatch(
   abduction: CaptureStats | null,
   current: Settings
 ): CalibrationResult {
-  const captures = [baseline, thighRaise, kneeFlex, ...(abduction ? [abduction] : [])]
-  if (captures.some((c) => c.maxStdDev > CAPTURE_STD_LIMIT)) {
+  if ([baseline, thighRaise, kneeFlex].some((c) => c.maxStdDev > CAPTURE_STD_LIMIT)) {
+    return { ok: false, error: 'unstable' }
+  }
+  if (abduction && abduction.maxStdDev > CAPTURE_STD_LIMIT_ABDUCTION) {
     return { ok: false, error: 'unstable' }
   }
 
@@ -107,18 +108,25 @@ export function buildCalibrationPatch(
   const thighInvert = effRaise.thigh - effBase.thigh < 0
   const shinInvert = effFlex.shin - effBase.shin > 0
 
-  // 3. roll invert:腿向外側擺 → 慣例下(正 = 向外)兩肢段 roll 皆應變大
+  // 3. roll invert:腿向外側擺 → 慣例下(正 = 向外)兩肢段 roll 皆應變大。
+  //    大腿/小腿獨立判定——單腳站立時膝蓋未必鎖死,兩肢段擺動幅度可能不同步;
+  //    哪一軸幅度不足以信任正負號,就沿用該軸原設定,不因單軸不足讓整步失敗重捕。
   let thighRollInvert = current.thighRollInvert
   let shinRollInvert = current.shinRollInvert
+  let thighRollVerified = current.thighRollVerified
+  let shinRollVerified = current.shinRollVerified
   if (abduction) {
     const effAbd = effectiveRaw(abduction.mean, mapping)
     const dThigh = effAbd.thighRoll - effBase.thighRoll
     const dShin = effAbd.shinRoll - effBase.shinRoll
-    if (Math.abs(dThigh) < CAPTURE_ROLL_DELTA_MIN || Math.abs(dShin) < CAPTURE_ROLL_DELTA_MIN) {
-      return { ok: false, error: 'rollDeltaTooSmall' }
+    if (Math.abs(dThigh) >= CAPTURE_ROLL_DELTA_MIN) {
+      thighRollInvert = dThigh < 0
+      thighRollVerified = true
     }
-    thighRollInvert = dThigh < 0
-    shinRollInvert = dShin < 0
+    if (Math.abs(dShin) >= CAPTURE_ROLL_DELTA_MIN) {
+      shinRollInvert = dShin < 0
+      shinRollVerified = true
+    }
   }
 
   // 4. offset:站直四軸歸零(以有效軸 + 已定符號計算)
@@ -128,6 +136,8 @@ export function buildCalibrationPatch(
     shinInvert,
     thighRollInvert,
     shinRollInvert,
+    thighRollVerified,
+    shinRollVerified,
     thighOffset: -(effBase.thigh * (thighInvert ? -1 : 1)),
     shinOffset: -(effBase.shin * (shinInvert ? -1 : 1)),
     thighRollOffset: -(effBase.thighRoll * (thighRollInvert ? -1 : 1)),
