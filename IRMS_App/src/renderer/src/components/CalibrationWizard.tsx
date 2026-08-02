@@ -9,12 +9,27 @@ import {
   computeCaptureStats,
   CAPTURE_STD_LIMIT,
   CAPTURE_STD_LIMIT_ABDUCTION,
+  CAPTURE_DELTA_MIN,
+  CAPTURE_ROLL_DELTA_MIN,
   type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
+import { shortestArcDelta } from '../services/angleMath'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const SAMPLE_COUNT = 30
 const CAPTURE_TIMEOUT_MS = 3000
+
+/**
+ * 免手觸發:姿勢連續穩定這麼久就自動開始擷取。
+ *
+ * 原本每一步都要求「維持姿勢」同時「按下滑鼠」,但第 3、4、5 步(前抬大腿、
+ * 後勾小腿、單腳外展)正是拿不到滑鼠的姿勢——患者得先擺好、按鈕、再擺回去,
+ * 而按鈕本身就會破壞剛擺好的姿勢(2026-08-01 意見清單 #16)。
+ */
+const AUTO_STABLE_MS = 1500
+/** 判定穩定所需的最少樣本數(25Hz 下 1.5 秒約 37 筆,取保守值) */
+const AUTO_MIN_SAMPLES = 20
 
 const ERROR_TEXT: Record<CalibrationError, string> = {
   unstable: '偵測到晃動,請於捕捉期間保持靜止後重試',
@@ -40,6 +55,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const [capturing, setCapturing] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [patch, setPatch] = useState<Partial<Settings> | null>(null)
+  /** 免手模式:擺好姿勢並穩住即自動擷取,不必伸手按滑鼠 */
+  const [autoCapture, setAutoCapture] = useState(true)
   const capturesRef = useRef<{
     baseline?: CaptureStats
     thighRaise?: CaptureStats
@@ -129,6 +146,56 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     setStep(5)
   }
 
+  /**
+   * 免手自動觸發。
+   *
+   * 只有「穩定」是不夠的:第 2–5 步若在患者還站直不動時就觸發,會把站姿當成
+   * 抬腿姿勢捕捉下來,接著必然以「幅度不足」失敗。因此除了穩定,還要求姿勢
+   * 相對站直基準確實移動過——這同時也讓「站著不動」不會誤觸外展步驟。
+   */
+  useEffect(() => {
+    if (!autoCapture || capturing || !isConnected) return
+    const stepSpec: Record<number, { limit: number; minDelta: number; run: () => Promise<void> }> = {
+      1: { limit: CAPTURE_STD_LIMIT, minDelta: 0, run: () => handleCapture('baseline', 2) },
+      2: { limit: CAPTURE_STD_LIMIT, minDelta: CAPTURE_DELTA_MIN, run: () => handleCapture('thighRaise', 3) },
+      3: { limit: CAPTURE_STD_LIMIT, minDelta: CAPTURE_DELTA_MIN, run: () => handleCapture('kneeFlex', 4) },
+      4: { limit: CAPTURE_STD_LIMIT_ABDUCTION, minDelta: CAPTURE_ROLL_DELTA_MIN, run: () => finish(true) }
+    }
+    const spec = stepSpec[step]
+    if (!spec) return
+
+    const buf: { t: number; a: RawAngles }[] = []
+    let fired = false
+    const unsub = useStore.subscribe((s, prev) => {
+      if (fired || !s.rawAngles || s.rawAngles === prev.rawAngles) return
+      const now = Date.now()
+      buf.push({ t: now, a: s.rawAngles })
+      while (buf.length > 0 && now - buf[0].t > AUTO_STABLE_MS) buf.shift()
+      if (buf.length < AUTO_MIN_SAMPLES || now - buf[0].t < AUTO_STABLE_MS * 0.9) return
+
+      const stats = computeCaptureStats(buf.map((b) => b.a))
+      if (stats.maxStdDev > spec.limit) return
+      // 相對站直基準的實際移動量(取四軸最大);基準步驟本身不設此門檻
+      if (spec.minDelta > 0) {
+        const base = capturesRef.current.baseline
+        if (!base) return
+        const moved = Math.max(
+          ...(['thigh', 'shin', 'thighRoll', 'shinRoll'] as const).map((k) =>
+            Math.abs(shortestArcDelta(base.mean[k], stats.mean[k]))
+          )
+        )
+        if (moved < spec.minDelta) return
+      }
+      fired = true
+      unsub()
+      void spec.run()
+    })
+    return unsub
+  }, [autoCapture, capturing, step, isConnected])
+
+  // 擷取進行中不讓 Esc 中斷,避免倒數到一半被誤觸而不知道發生什麼事
+  useEscapeKey(capturing ? null : onClose)
+
   const apply = (): void => {
     if (!patch) return
     setSettings({ ...patch, lastCalibratedAt: new Date().toISOString() })
@@ -153,6 +220,23 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
           <button className="close-x" onClick={onClose}>
             ×
           </button>
+        </div>
+
+        {/* 免手模式與返回:兩者都是為了「擺好姿勢的人拿不到滑鼠」這件事而存在 */}
+        <div className="wizard-toolbar">
+          <label className="wizard-auto">
+            <input
+              type="checkbox"
+              checked={autoCapture}
+              onChange={(e) => setAutoCapture(e.target.checked)}
+            />
+            免手擷取:擺好姿勢並穩住 {AUTO_STABLE_MS / 1000} 秒即自動開始
+          </label>
+          {step > 0 && step < 5 && (
+            <button className="btn btn-secondary btn-sm" disabled={capturing} onClick={() => setStep(step - 1)}>
+              ← 上一步(重捕)
+            </button>
+          )}
         </div>
 
         <div className="wizard-steps-nav">

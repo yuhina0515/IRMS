@@ -5,6 +5,7 @@ import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
 import { computeMetricZone, metricInfo } from '../services/movementMetric'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
 const CHART_MAX_POINTS = 1200
@@ -102,6 +103,8 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     })()
     return () => chart?.destroy()
   }, [session.id, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs])
+
+  useEscapeKey(onClose)
 
   const exportCsv = async (): Promise<void> => {
     // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集

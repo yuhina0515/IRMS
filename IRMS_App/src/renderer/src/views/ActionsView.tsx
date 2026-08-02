@@ -14,6 +14,7 @@ import {
   clampTriggerParams
 } from '@shared/validation'
 import { computeMetricSample, metricInfo, OVER_EXTENSION_MARGIN } from '../services/movementMetric'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -47,6 +48,9 @@ export function ActionsView(): JSX.Element {
     angles == null || form == null
       ? null
       : computeMetricSample(angles, form.triggerType, form.tolerance).value
+
+  // 編輯中才綁 Esc(未開啟表單時 Esc 不應有作用)
+  useEscapeKey(form ? () => setForm(null) : null)
 
   const filtered = actions.filter((a) => a.protocol === protocol)
 
