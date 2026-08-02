@@ -1145,14 +1145,14 @@ details.adv-fold summary {
   color: var(--text-dim);
 }
 
-/* 斷線期間:量表數值是最後一筆殘值,不是即時值。必須看得出來。 */
-.metric-gauge.stale {
+/* 量表不代表一個即時量測時(斷線殘值、或協定尚未支援)必須看得出來。
+   訊息本身改由元件渲染成真實文字節點,而非 ::after 的 content——一來同一個
+   樣式要承載兩種訊息,二來 ::after 的文字選不起來也讀不出來。 */
+.metric-gauge.muted {
   opacity: 0.45;
   filter: grayscale(0.8);
 }
-.metric-gauge.stale::after {
-  content: '斷線中 · 數值已過期';
-  display: block;
+.metric-gauge-notice {
   text-align: center;
   margin-top: 4px;
   font-size: 0.78rem;

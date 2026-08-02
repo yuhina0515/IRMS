@@ -2,6 +2,7 @@
 // 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;
 // 折線圖 / 3D / 2D / 詳細數值收進次要 tab(單一掛載,省 GPU/CPU)。
 import { useRef, useState } from 'react'
+import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
 import { computeGuidance, guidanceText } from '../services/guidance'
@@ -41,6 +42,7 @@ export function DashboardView(): JSX.Element {
   const params = useStore((s) => s.params)
   const isConnected = useStore((s) => s.isConnected)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
+  const protocol = useStore((s) => s.settings.protocol)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
 
   const [tab, setTab] = useState<Tab>('chart')
@@ -59,14 +61,20 @@ export function DashboardView(): JSX.Element {
   const zone = computeMetricZone({ ...params, triggerType, safetyLimit: action?.safetyLimit ?? null })
   const sample = angles && !hardwareError ? computeMetricSample(angles, triggerType, params.tolerance) : null
 
+  const protocolOk = isProtocolSupported(protocol)
+
   const guidance = computeGuidance(sample, zone, session.phase, session.holdProgress, params.holdTimeMs)
+  // 未支援的協定排在連線之前:接上裝置也不會讓它變成可用的量測,先叫使用者
+  // 去連線等於把人推向一條走不通的路。
   const hintText = hardwareError
     ? '硬體異常,等待感測器復原…'
-    : !isConnected
-      ? '請先於頂部連線裝置'
-      : !action
-        ? '請先選擇復健動作'
-        : guidanceText(guidance, info)
+    : !protocolOk
+      ? '此協定尚未支援,請於設定切換回膝關節'
+      : !isConnected
+        ? '請先於頂部連線裝置'
+        : !action
+          ? '請先選擇復健動作'
+          : guidanceText(guidance, info)
   const tone: 'normal' | 'success' | 'danger' =
     hardwareError || session.alarmActive ? 'danger' : session.phase === 'holding' ? 'success' : 'normal'
 
@@ -108,6 +116,7 @@ export function DashboardView(): JSX.Element {
             alarm={session.alarmActive}
             error={hardwareError != null}
             stale={!isConnected}
+            unsupported={!protocolOk}
           />
           <CoachHint phase={session.phase} text={hintText} tone={tone} />
         </div>

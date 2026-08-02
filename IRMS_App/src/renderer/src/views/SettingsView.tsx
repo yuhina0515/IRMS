@@ -95,14 +95,17 @@ export function SettingsView(): JSX.Element {
               正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
             </p>
           )}
-        <button
-          className="btn btn-primary"
-          disabled={!isConnected}
-          title={isConnected ? '' : '請先連線裝置'}
-          onClick={() => setWizardOpen(true)}
-        >
+        <button className="btn btn-primary" disabled={!isConnected} onClick={() => setWizardOpen(true)}>
           啟動校準精靈
         </button>
+        {/* 停用理由必須看得見。原本只放在 title 裡:tooltip 要滑鼠停留才出現、觸控
+            裝置根本叫不出來、螢幕閱讀器也不一定會念,於是按鈕看起來只是「按了沒反應」。
+            App 其他地方(Record Pose、未支援協定的開始鈕)都已改用可見說明,這裡跟上。 */}
+        {!isConnected && (
+          <p className="field-hint" style={{ marginTop: 8 }}>
+            校準需要即時感測器數值,請先於頂部連線裝置。
+          </p>
+        )}
 
         <details className="adv-fold">
           <summary>進階手動校準(一般情況請使用精靈)</summary>

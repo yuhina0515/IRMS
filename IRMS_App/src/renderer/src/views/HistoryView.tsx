@@ -41,7 +41,12 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
               targetAngle: session.targetAngle,
               tolerance: session.tolerance,
               holdTimeMs: session.holdTimeMs ?? 2000,
-              triggerType: session.triggerType ?? 'joint_angle'
+              triggerType: session.triggerType ?? 'joint_angle',
+              // 必須用這場「當下實際生效」的安全上限。少了它會退回導出值
+              // (target+tolerance+10),於是回顧圖上畫出一條當時根本不存在的紅線——
+              // 督導據此判斷患者有沒有超限,線畫錯等於病歷記錯。
+              // 舊資料 safetyLimit 為 NULL,退回導出值才是對的(那時就是導出的)。
+              safetyLimit: session.safetyLimit ?? null
             })
           : null
 
@@ -102,7 +107,14 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       })
     })()
     return () => chart?.destroy()
-  }, [session.id, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs])
+  }, [
+    session.id,
+    session.triggerType,
+    session.targetAngle,
+    session.tolerance,
+    session.holdTimeMs,
+    session.safetyLimit
+  ])
 
   useEscapeKey(onClose)
 
@@ -118,6 +130,8 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       `# targetAngle,${session.targetAngle ?? ''}`,
       `# tolerance,${session.tolerance ?? ''}`,
       `# holdTimeMs,${session.holdTimeMs ?? ''}`,
+      // 空值代表「當時沿用導出值」,與圖表的退回規則一致
+      `# safetyLimit,${session.safetyLimit ?? ''}`,
       `# startTime,${session.startTime}`,
       `# endTime,${session.endTime ?? ''}`,
       `# repsCompleted,${session.repsCompleted}`,
