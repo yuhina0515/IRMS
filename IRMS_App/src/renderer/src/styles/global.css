@@ -1113,3 +1113,26 @@ details.adv-fold summary {
   border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
   cursor: help;
 }
+
+/* Record Pose:動作編輯器內的即時角度 + 一鍵擷取(回補 v1 遺失功能) */
+.record-pose {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--separator);
+}
+.record-pose-live {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+.record-pose-live strong {
+  color: var(--text);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}

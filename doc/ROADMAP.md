@@ -68,17 +68,17 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 - [x] 🖥 導入 **Vitest**:`triggerEngine`(狀態機邊界:進出區間/維持/休息/超限)、
       `parseAnglePacket`(6軸/舊格式/ERR/malformed)、`applyCalibration`、`reconcileSelection`
       (2026-07-03,22 tests;`npm run ci` = typecheck+test+build)
-- [ ] 🖥 ESLint + Prettier;`npm run ci` = lint + typecheck + test + build
-- [ ] 🖥 React ErrorBoundary 包各 view,防單點白屏
-- [ ] 🖥 DB migration 機制(`user_version`,見 D4)
+- [ ] 🖥 ESLint + Prettier;`npm run ci` = lint + typecheck + test + build(2026-08-01 會議明確延後)
+- [x] 🖥 React ErrorBoundary 包各 view,防單點白屏(2026-08-01)
+- [x] 🖥 DB migration 機制(`user_version`,見 D4)(2026-08-01,含 v1.0.1 升級路徑測試)
 
 ### Phase 3|效能(1 天)
 - [ ] 🖥 LiveChart:rAF 聚合封包 + 節流至 ~20fps(25Hz 推播下必要)
-- [ ] 🖥 History 大 Session:LTTB 抽樣或分頁載入
+- [x] 🖥 History 大 Session:LTTB 抽樣(2026-08-01,主進程抽樣至 1200 點,保留峰值)
 
 ### Phase 4|功能補完(按價值排序)
-- [ ] 🖥 **回補 v1 遺失功能「記憶姿勢 (Record Pose)」**:動作編輯 Modal 內即時顯示目前角度,
-      一鍵擷取為 targetAngle(v1 有、v2 重寫時遺失)
+- [x] 🖥 **回補 v1 遺失功能「記憶姿勢 (Record Pose)」**:動作編輯 Modal 內即時顯示目前角度,
+      一鍵擷取為 targetAngle(2026-08-01)
 - [ ] 🖥 復健評分模型:平穩度(角速度變異)+ 達標維持率 → `sessions.qualityScore`(走 migration)
 - [ ] 🖥 圖表 Roll 曲線切換、側欄收合持久化、重連視覺提示
 - [ ] 🖥 i18n(繁中/EN)、淺色主題、快捷鍵(P2 全項見 [[OPTIMIZATION]])
@@ -104,3 +104,25 @@ graph LR
 
 Phase 0 的兩個 🖥 項與 Phase 1、2 **不依賴硬體**,裝置未回歸前即可推進;
 📡 驗證是 Phase 3 之後所有行為變更的信心基礎,裝置一到手優先做。
+
+---
+
+## 四、2026-08-01 全面檢視後的順位覆寫
+
+[[log_20260801_meeting_app_review|多代理會議]]裁決的執行順序取代上方 Phase 的自然順序:
+
+1. **判定正確性批次** — ✅ 完成(2026-08-01):rest 不變式、wrap-safe 角度數學、
+   警報三修、參數鉗制、統一 reset、ErrorOverlay 逃生出口
+2. **📡 桌面燒錄 + ±180° 旋轉 serial 記錄** — ❌ **未完成,目前唯一的硬體阻塞項**。
+   不需受試者、不需焊接:USB 燒錄後手拿兩塊板子在桌上各轉一圈並記錄 serial,
+   一個晚上可定案 MTU 協商、FILTER_ALPHA 振鈴、以及各姿勢的真實 stdDev
+   (`CAPTURE_STD_LIMIT_ABDUCTION = 4` 至今仍是無依據的猜測)
+3. **migration runner + session 收尾 + ErrorBoundary** — ✅ 完成(2026-08-01)
+
+**新增專案規則**:動任何 UI 或校準工作之前,先指出它餵給哪一條判定路徑的輸入;
+指不出來就是裝飾性的,排到清單最後面。
+
+**migration #1 待辦(需先完成第 2 項)**:`sensor_data` 目前只存校準後 + EMA 後的值,
+原始值丟棄,而當時生效的校準設定存在 localStorage 而非 session 列上。錄過 N 場之後
+若發現某軸 invert 設反並重跑精靈,先前所有場次將永久無法解讀。應加「每場校準快照 +
+原始角度欄位」,但該 schema 要長什麼樣,需先看過真實感測資料才能定案。

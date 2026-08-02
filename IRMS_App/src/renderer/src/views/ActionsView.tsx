@@ -13,6 +13,7 @@ import {
   clampTolerance,
   clampTriggerParams
 } from '@shared/validation'
+import { computeMetricSample, metricInfo } from '../services/movementMetric'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -34,6 +35,17 @@ export function ActionsView(): JSX.Element {
 
   const [editing, setEditing] = useState<CustomAction | null>(null)
   const [form, setForm] = useState<CustomActionInput | null>(null)
+
+  // Record Pose(v1 有、v2 重寫時遺失,2026-08-01 會議意見清單 #11 回補):
+  // 沒有這個功能,治療師必須在感測器已經綁在患者腿上的情況下「盲打」一個目標角度,
+  // 每一個處方目標都是猜的——這是臨床上錯誤目標的最大來源。
+  const angles = useStore((s) => s.angles)
+  const isConnected = useStore((s) => s.isConnected)
+  /** 依目前表單的判定型別,算出「此刻的姿勢對應的目標角度」 */
+  const liveMetric =
+    angles == null || form == null
+      ? null
+      : computeMetricSample(angles, form.triggerType, form.tolerance).value
 
   const filtered = actions.filter((a) => a.protocol === protocol)
 
@@ -209,6 +221,29 @@ export function ActionsView(): JSX.Element {
                   }
                 />
               </div>
+            </div>
+            {/* Record Pose:讓患者擺出要達成的姿勢,直接把當下數值收成目標角度 */}
+            <div className="record-pose">
+              {isConnected && liveMetric != null ? (
+                <>
+                  <span className="record-pose-live">
+                    目前 {metricInfo(form.triggerType).label}:
+                    <strong>{liveMetric.toFixed(1)}°</strong>
+                  </span>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() =>
+                      setForm({ ...form, targetAngle: clampTargetAngle(Math.round(liveMetric)) })
+                    }
+                  >
+                    ⤓ 擷取目前角度為目標
+                  </button>
+                </>
+              ) : (
+                <span className="record-pose-live" style={{ opacity: 0.7 }}>
+                  連線裝置後,可讓患者擺出目標姿勢並一鍵擷取角度,不必憑空輸入
+                </span>
+              )}
             </div>
             <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button className="btn btn-secondary" onClick={() => setForm(null)}>
