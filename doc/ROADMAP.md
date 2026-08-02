@@ -56,7 +56,7 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 > 🖥 = 無需硬體即可完成 · 📡 = 需 ESP32 實機
 
 ### Phase 0|驗證與安全收尾(本週,P0)
-- [ ] 📡 燒錄含 `trim()` 的韌體,實機 E2E:連線 → 達標(雙響+LED)→ 超限長鳴 → 斷線復原
+- [→] 📡 燒錄韌體 + 實機 E2E → **已移至 GitHub issues [#2](https://github.com/yuhina0515/IRMS/issues/2) / [#3](https://github.com/yuhina0515/IRMS/issues/3)**(硬體阻塞項不再佔用桌面 backlog)
 - [x] 🖥 **ERR 時主動關回饋**:收到 `ERR:` 即下發 `LED_OFF`+`ALARM_OFF`,防蜂鳴器卡死(2026-07-03)
 - [x] 🖥 **斷線 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝(2026-07-03)
 
@@ -113,16 +113,17 @@ Phase 0 的兩個 🖥 項與 Phase 1、2 **不依賴硬體**,裝置未回歸前
 
 1. **判定正確性批次** — ✅ 完成(2026-08-01):rest 不變式、wrap-safe 角度數學、
    警報三修、參數鉗制、統一 reset、ErrorOverlay 逃生出口
-2. **📡 桌面燒錄 + ±180° 旋轉 serial 記錄** — ❌ **未完成,目前唯一的硬體阻塞項**。
-   不需受試者、不需焊接:USB 燒錄後手拿兩塊板子在桌上各轉一圈並記錄 serial,
-   一個晚上可定案 MTU 協商、FILTER_ALPHA 振鈴、以及各姿勢的真實 stdDev
-   (`CAPTURE_STD_LIMIT_ABDUCTION = 4` 至今仍是無依據的猜測)
+2. **📡 桌面燒錄 + 實機 E2E** — 移至 GitHub issues
+   [#2](https://github.com/yuhina0515/IRMS/issues/2)(燒錄 + ±180° 旋轉記錄)與
+   [#3](https://github.com/yuhina0515/IRMS/issues/3)(完整 E2E)。硬體阻塞項一律走 issue,
+   不再列在這份文件裡卡住桌面 backlog
 3. **migration runner + session 收尾 + ErrorBoundary** — ✅ 完成(2026-08-01)
 
 **新增專案規則**:動任何 UI 或校準工作之前,先指出它餵給哪一條判定路徑的輸入;
 指不出來就是裝飾性的,排到清單最後面。
 
-**migration #1 待辦(需先完成第 2 項)**:`sensor_data` 目前只存校準後 + EMA 後的值,
-原始值丟棄,而當時生效的校準設定存在 localStorage 而非 session 列上。錄過 N 場之後
-若發現某軸 invert 設反並重跑精靈,先前所有場次將永久無法解讀。應加「每場校準快照 +
-原始角度欄位」,但該 schema 要長什麼樣,需先看過真實感測資料才能定案。
+**校準快照 migration**:移至 [#4](https://github.com/yuhina0515/IRMS/issues/4)——
+schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。
+
+> **慣例**:需要實機/硬體的工作一律開 GitHub issue,不寫進 ROADMAP。
+> 文件只追蹤「坐在桌前就能推進」的項目,避免硬體滑期時整份 backlog 看起來是空的。
