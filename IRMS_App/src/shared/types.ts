@@ -53,6 +53,8 @@ export interface Session {
   actionName: string | null
   protocol: JointProtocol | null
   repsCompleted: number
+  /** 當場的判定型別快照;歷史分析據此畫出「實際被判定的那個指標」。舊列為 null */
+  triggerType: TriggerType | null
   /**
    * 1 = 這場 Session 沒有正常結束(關窗/強殺/當機),由啟動時的孤兒收尾補上結束時間。
    * repsCompleted 只在正常結束時寫入,所以 abandoned 的列其 reps 不可信——
@@ -69,6 +71,7 @@ export interface SessionStartInput {
   actionId: number | null
   actionName: string | null
   protocol: JointProtocol | null
+  triggerType: TriggerType | null
 }
 
 /** 單筆高頻角度讀數(sensor_data 資料表) */
@@ -100,7 +103,8 @@ export interface IrmsApi {
     /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
     progress(sessionId: number, reps: number): Promise<{ success: true }>
     list(): Promise<Session[]>
-    getData(sessionId: number): Promise<StoredReading[]>
+    /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
+    getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
     delete(sessionId: number): Promise<{ success: true }>
   }
   data: {

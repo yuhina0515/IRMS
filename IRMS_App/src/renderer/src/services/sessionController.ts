@@ -259,7 +259,10 @@ class SessionController {
         holdTimeMs: params.holdTimeMs,
         actionId: action?.id ?? null,
         actionName: action?.name ?? null,
-        protocol: state.settings.protocol
+        protocol: state.settings.protocol,
+        // 快照當場的判定型別:動作日後可能被改或刪除,而歷史分析要畫的是
+        // 「這場當時實際被判定的那個指標」
+        triggerType: this.currentConfig().triggerType
       })
 
       this.buffer = []

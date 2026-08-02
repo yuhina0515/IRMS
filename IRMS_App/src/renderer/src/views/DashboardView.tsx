@@ -41,7 +41,6 @@ export function DashboardView(): JSX.Element {
   const params = useStore((s) => s.params)
   const isConnected = useStore((s) => s.isConnected)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
-  const rollUnverified = useStore((s) => !s.settings.thighRollVerified || !s.settings.shinRollVerified)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
 
   const [tab, setTab] = useState<Tab>('chart')
@@ -85,11 +84,12 @@ export function DashboardView(): JSX.Element {
           ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
         </div>
       )}
-      {lastCalibratedAt != null && rollUnverified && (
-        <div className="calib-chip" onClick={() => setWizardOpen(true)}>
-          ⚠ 內外翻方向尚未實測驗證(校準精靈第 5 步未完成或幅度不足)——顯示方向可能相反,點此重新校準
-        </div>
-      )}
+      {/* 2026-08-01 會議連帶決議:移除「內外翻方向未驗證」警示。
+          roll 完全不進入任何判定路徑——computeMetricSample 只讀 thigh/knee,
+          三種 triggerType 全是 pitch 導向,連 overLimit 都是從 sample.value 算的。
+          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號,只會訓練
+          使用者忽略警告。roll 影響的僅有 3D 模型、詳細數值、History 疊圖與 CSV,
+          該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
 
       <div className="grid" style={{ gridTemplateColumns: '1.6fr 1fr', alignItems: 'start' }}>
         <div className="panel glass">

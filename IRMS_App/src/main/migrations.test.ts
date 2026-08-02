@@ -92,6 +92,7 @@ describe('applyMigrations — v1.0.1 升級路徑(本次修復的核心情境)',
       (c) => c.name
     )
     expect(cols).toContain('abandoned')
+    expect(cols).toContain('triggerType')
   })
 
   it('升級時把既有的非法參數鉗制回合法範圍,而不是讓重建失敗', () => {

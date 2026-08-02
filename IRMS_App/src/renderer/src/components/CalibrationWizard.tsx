@@ -213,20 +213,31 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
 
         {step === 4 && (
           <div className="wizard-step">
-            <h4>步驟 5/6 · 腿向外側擺(Roll 方向,可跳過)</h4>
+            {/* 2026-08-01 會議連帶決議:這一步是全精靈唯一需要單腳站立的動作,
+                對平衡受限的復健患者最困難——而它校準的 roll invert 完全不進入判定路徑
+                (達標、次數、超限警報都不讀 roll)。因此明確標示為選配,且把「略過」
+                做成與「捕捉」同等份量的主要動作,而不是看起來像放棄的次要按鈕。 */}
+            <h4>步驟 5/6 · 腿向外側擺(選配)</h4>
             <p className="desc">
-              全腿伸直,將整條腿向<b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。
-              這一步用來判定<b>內翻/外翻的方向</b>;大腿、小腿分開判定,若某一側擺動幅度不足
-              以信任方向,該側會沿用現有設定(不影響另一側已判定成功的方向)。跳過則兩側皆沿用
-              現有 Roll 方向設定——未經本步驟驗證的方向,內外翻可能顯示相反。
+              這一步<b>只影響顯示</b>:3D 姿態、內外翻數值與圖表的正負方向。
+              <b>達標判定、次數計算與超限警報都不使用這個資料</b>,略過不會讓校準不完整。
+            </p>
+            <p className="desc">
+              需要單腳站立,若平衡不便請直接略過。要做的話:全腿伸直,將整條腿向
+              <b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。大腿與小腿分開判定,
+              某一側幅度不足時該側沿用現有設定,不影響另一側。
             </p>
             {errMsg && <p className="wizard-err">{errMsg}</p>}
             <div className="row">
-              <button className="btn btn-primary" disabled={capturing} onClick={() => void finish(true)}>
-                {capturing ? (countdown != null ? `${countdown}…` : '捕捉中…') : '開始捕捉(倒數 3 秒)'}
+              <button className="btn btn-primary" disabled={capturing} onClick={() => void finish(false)}>
+                略過,直接完成校準
               </button>
-              <button className="btn btn-secondary" disabled={capturing} onClick={() => void finish(false)}>
-                跳過
+              <button className="btn btn-secondary" disabled={capturing} onClick={() => void finish(true)}>
+                {capturing
+                  ? countdown != null
+                    ? `${countdown}…`
+                    : '捕捉中…'
+                  : '仍要校正顯示方向(倒數 3 秒)'}
               </button>
             </div>
           </div>

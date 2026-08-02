@@ -15,6 +15,7 @@ import type {
 } from '@shared/types'
 import { DEFAULT_ACTIONS } from '@shared/defaults'
 import { applyMigrations, finalizeOrphanedSessions } from './migrations'
+import { lttb } from '@shared/downsample'
 
 let db: Database.Database
 
@@ -110,8 +111,8 @@ export const sessionsRepo = {
   start(input: SessionStartInput): { sessionId: number } {
     const info = db
       .prepare(
-        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol)
-         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol)`
+        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType)
+         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType)`
       )
       .run(input)
     return { sessionId: Number(info.lastInsertRowid) }
@@ -141,10 +142,18 @@ export const sessionsRepo = {
     return db.prepare('SELECT * FROM sessions ORDER BY startTime DESC').all() as Session[]
   },
 
-  getData(sessionId: number): StoredReading[] {
-    return db
+  /**
+   * @param maxPoints 給定時以 LTTB 抽樣後回傳(圖表用)。不給則取全量(CSV 匯出用)。
+   *   25Hz × 10 分鐘約 15,000 列,整包過 IPC 再全部餵給 Chart.js 會讓分析視窗卡住。
+   */
+  getData(sessionId: number, maxPoints?: number): StoredReading[] {
+    const rows = db
       .prepare('SELECT * FROM sensor_data WHERE sessionId = ? ORDER BY timestamp ASC, id ASC')
       .all(sessionId) as StoredReading[]
+    if (maxPoints == null || rows.length <= maxPoints) return rows
+    // LTTB 需要數值 x 軸;以時間戳毫秒值為 x,抽樣後取回原始列
+    const points = rows.map((r, i) => ({ x: Date.parse(r.timestamp) || i, y: r.kneeAngle ?? 0, r }))
+    return lttb(points, maxPoints).map((p) => p.r)
   },
 
   delete(sessionId: number): { success: true } {

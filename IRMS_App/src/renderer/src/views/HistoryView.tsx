@@ -4,6 +4,10 @@ import { Chart } from 'chart.js'
 import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
+import { computeMetricZone, metricInfo } from '../services/movementMetric'
+
+/** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
+const CHART_MAX_POINTS = 1200
 
 function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -12,17 +16,77 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
   useEffect(() => {
     let chart: Chart<'line'> | null = null
     void (async () => {
-      const data = await window.irms.sessions.getData(session.id)
+      // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js
+      // 會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
+      const data = await window.irms.sessions.getData(session.id, CHART_MAX_POINTS)
       setReadings(data)
       if (!canvasRef.current) return
       const t = chartTheme()
+
+      // 畫出「這場實際被判定的那個指標」。舊資料沒有 triggerType 快照,退回膝角。
+      const info = metricInfo(session.triggerType ?? 'joint_angle')
+      const metricOf = (r: StoredReading): number | null =>
+        session.triggerType === 'segment_elevation'
+          ? r.thighAngle
+          : session.triggerType === 'segment_extension'
+            ? r.thighAngle == null
+              ? null
+              : -r.thighAngle
+            : r.kneeAngle
+
+      const zone =
+        session.targetAngle != null && session.tolerance != null
+          ? computeMetricZone({
+              targetAngle: session.targetAngle,
+              tolerance: session.tolerance,
+              holdTimeMs: session.holdTimeMs ?? 2000,
+              triggerType: session.triggerType ?? 'joint_angle'
+            })
+          : null
+
+      /** 常數線資料集:讓督導一眼看出曲線有沒有進到目標帶、有沒有越過安全上限 */
+      const constantLine = (label: string, value: number, color: string, dash: number[]) => ({
+        label,
+        data: data.map(() => value),
+        borderColor: color,
+        borderWidth: 1,
+        borderDash: dash,
+        pointRadius: 0,
+        fill: false
+      })
+
       chart = new Chart(canvasRef.current, {
         type: 'line',
         data: {
           labels: data.map((r) => new Date(r.timestamp).toLocaleTimeString([], { hour12: false })),
           datasets: [
-            { label: 'Knee 夾角', data: data.map((r) => r.kneeAngle), borderColor: t.knee, borderWidth: 2, fill: true, backgroundColor: t.kneeFill, pointRadius: 0, tension: 0.3 },
-            { label: 'Varus/Valgus', data: data.map((r) => r.kneeRoll), borderColor: t.thigh, borderWidth: 1, fill: false, pointRadius: 0 }
+            {
+              label: info.label,
+              data: data.map(metricOf),
+              borderColor: t.knee,
+              borderWidth: 2,
+              fill: true,
+              backgroundColor: t.kneeFill,
+              pointRadius: 0,
+              tension: 0.3
+            },
+            ...(zone
+              ? [
+                  constantLine('目標下限', zone.min, t.thigh, [6, 4]),
+                  ...(Number.isFinite(zone.max)
+                    ? [constantLine('目標上限', zone.max, t.thigh, [6, 4])]
+                    : []),
+                  constantLine('超限門檻', zone.overLimit, t.danger, [2, 3])
+                ]
+              : []),
+            {
+              label: 'Varus/Valgus(顯示用)',
+              data: data.map((r) => r.kneeRoll),
+              borderColor: t.shin,
+              borderWidth: 1,
+              fill: false,
+              pointRadius: 0
+            }
           ]
         },
         options: {
@@ -37,16 +101,32 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       })
     })()
     return () => chart?.destroy()
-  }, [session.id])
+  }, [session.id, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs])
 
-  const exportCsv = (): void => {
-    const header = 'timestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
-    const body = readings
+  const exportCsv = async (): Promise<void> => {
+    // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集
+    const full = await window.irms.sessions.getData(session.id)
+    // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
+    const meta = [
+      `# session,${session.id}`,
+      `# action,${session.actionName ?? ''}`,
+      `# protocol,${session.protocol ?? ''}`,
+      `# triggerType,${session.triggerType ?? ''}`,
+      `# targetAngle,${session.targetAngle ?? ''}`,
+      `# tolerance,${session.tolerance ?? ''}`,
+      `# holdTimeMs,${session.holdTimeMs ?? ''}`,
+      `# startTime,${session.startTime}`,
+      `# endTime,${session.endTime ?? ''}`,
+      `# repsCompleted,${session.repsCompleted}`,
+      `# abandoned,${session.abandoned}`
+    ].join('\n')
+    const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
+    const body = full
       .map((r) =>
         [r.timestamp, r.kneeAngle, r.thighAngle, r.shinAngle, r.kneeRoll, r.thighRoll, r.shinRoll].join(',')
       )
       .join('\n')
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob([meta + header + body], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -69,9 +149,9 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
         </div>
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-dim)' }}>
-            {readings.length} 筆讀數 · {session.repsCompleted} reps
+            {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps
           </span>
-          <button className="btn btn-secondary" onClick={exportCsv} disabled={readings.length === 0}>
+          <button className="btn btn-secondary" onClick={() => void exportCsv()} disabled={readings.length === 0}>
             匯出 CSV
           </button>
         </div>

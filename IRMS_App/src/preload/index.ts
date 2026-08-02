@@ -20,7 +20,8 @@ const api: IrmsApi = {
     progress: (sessionId: number, reps: number) =>
       ipcRenderer.invoke(IpcChannel.SESSION_PROGRESS, sessionId, reps),
     list: () => ipcRenderer.invoke(IpcChannel.SESSION_LIST),
-    getData: (sessionId: number) => ipcRenderer.invoke(IpcChannel.SESSION_GET_DATA, sessionId),
+    getData: (sessionId: number, maxPoints?: number) =>
+      ipcRenderer.invoke(IpcChannel.SESSION_GET_DATA, sessionId, maxPoints),
     delete: (sessionId: number) => ipcRenderer.invoke(IpcChannel.SESSION_DELETE, sessionId)
   },
   data: {

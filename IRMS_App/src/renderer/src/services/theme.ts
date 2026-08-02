@@ -25,6 +25,8 @@ export function chartTheme(): {
   kneeFill: string
   thigh: string
   shin: string
+  /** 安全上限等警示線 */
+  danger: string
 } {
   const knee = themeToken('--accent')
   return {
@@ -34,6 +36,7 @@ export function chartTheme(): {
     knee,
     kneeFill: `${knee}1f`, // ~12% alpha(8 位 hex)
     thigh: themeToken('--thigh'),
-    shin: themeToken('--shin')
+    shin: themeToken('--shin'),
+    danger: themeToken('--danger')
   }
 }

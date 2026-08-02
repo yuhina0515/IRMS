@@ -139,6 +139,16 @@ export const MIGRATIONS: Migration[] = [
     // 而那是一個「看起來像事實」的假數字。標記為 abandoned 才是誠實的做法。
     up: (db) =>
       db.exec(`ALTER TABLE sessions ADD COLUMN abandoned INTEGER NOT NULL DEFAULT 0;`)
+  },
+  {
+    version: 4,
+    name: 'sessions: triggerType snapshot for history analysis',
+    // History 的分析圖原本只畫 knee + 內外翻,但 SLR / 後擺是以 angles.thigh 判定的,
+    // 督導看到的是一條貼近 0 的平坦膝線,完全看不出腿有沒有抬起來——App 的臨床輸出
+    // 漏掉了它自己實際判定的那個變數。要畫對就必須知道當時的 triggerType,
+    // 而動作可能事後被刪改,所以跟 actionName 一樣存成當場快照。
+    // 既有列為 NULL,UI 端退回舊行為(畫膝角)。
+    up: (db) => db.exec(`ALTER TABLE sessions ADD COLUMN triggerType TEXT;`)
   }
 ]
 
