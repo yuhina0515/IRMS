@@ -4,6 +4,15 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput } from '@shared/types'
 import { GlassDropdown } from '../components/GlassDropdown'
+import {
+  HOLD_TIME_BOUND,
+  TARGET_ANGLE_BOUND,
+  TOLERANCE_BOUND,
+  clampHoldTimeMs,
+  clampTargetAngle,
+  clampTolerance,
+  clampTriggerParams
+} from '@shared/validation'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -47,9 +56,12 @@ export function ActionsView(): JSX.Element {
       showToast('動作名稱不可為空', 'warning')
       return
     }
+    // 儲存前一律鉗制:動作會被反覆載入使用,一個不合法的參數存進去會永久影響
+    // 每一場用到它的 Session(負容錯 → rep 靜默永不前進)
+    const safe = clampTriggerParams(form)
     try {
-      if (editing) await window.irms.actions.update(editing.id, form)
-      else await window.irms.actions.create(form)
+      if (editing) await window.irms.actions.update(editing.id, safe)
+      else await window.irms.actions.create(safe)
       showToast(editing ? '動作已更新' : '動作已建立', 'success')
       setForm(null)
       await reload()
@@ -161,24 +173,40 @@ export function ActionsView(): JSX.Element {
                 <label>Target (°)</label>
                 <input
                   type="number"
+                  min={TARGET_ANGLE_BOUND.min}
+                  max={TARGET_ANGLE_BOUND.max}
                   value={form.targetAngle}
-                  onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, targetAngle: clampTargetAngle(parseFloat(e.target.value)) })
+                  }
                 />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Tolerance (±°)</label>
                 <input
                   type="number"
+                  min={TOLERANCE_BOUND.min}
+                  max={TOLERANCE_BOUND.max}
                   value={form.tolerance}
-                  onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, tolerance: clampTolerance(parseFloat(e.target.value)) })
+                  }
                 />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Hold (ms)</label>
                 <input
                   type="number"
+                  min={HOLD_TIME_BOUND.min}
+                  max={HOLD_TIME_BOUND.max}
+                  step={100}
                   value={form.holdTimeMs}
-                  onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, holdTimeMs: clampHoldTimeMs(parseInt(e.target.value, 10)) })
+                  }
                 />
               </div>
             </div>

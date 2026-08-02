@@ -784,6 +784,18 @@ th {
   max-width: 460px;
   text-align: center;
 }
+/* 逃生出口:遮罩會蓋住整個 App,沒有這些按鈕使用者就只能強殺 App,
+   而強殺會讓進行中的 Session 留下 endTime=NULL / reps=0 的孤兒列 */
+.error-overlay-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.error-overlay-hint {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
 @keyframes pulse-red {
   50% {
     background: rgba(180, 0, 0, 0.65);

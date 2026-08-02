@@ -3,6 +3,14 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { GlassDropdown } from './GlassDropdown'
+import {
+  HOLD_TIME_BOUND,
+  TARGET_ANGLE_BOUND,
+  TOLERANCE_BOUND,
+  clampHoldTimeMs,
+  clampTargetAngle,
+  clampTolerance
+} from '@shared/validation'
 
 function formatClock(sec: number): string {
   const h = String(Math.floor(sec / 3600)).padStart(2, '0')
@@ -54,31 +62,44 @@ export function SessionControlPanel(): JSX.Element {
       </div>
 
       <div className="row">
+        {/* 鉗制在 blur 而非每次按鍵:打字打到一半的中間值(例如輸入 100 的第一個 1)
+            不該被跳改。真正的保證在 sessionController.currentConfig(),引擎永遠拿不到
+            超出界限的參數。 */}
         <div className="field" style={{ flex: 1 }}>
           <label>Target (°)</label>
           <input
             type="number"
+            min={TARGET_ANGLE_BOUND.min}
+            max={TARGET_ANGLE_BOUND.max}
             value={params.targetAngle}
             disabled={running}
-            onChange={(e) => setParams({ targetAngle: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => setParams({ targetAngle: parseFloat(e.target.value) })}
+            onBlur={(e) => setParams({ targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
           />
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Tolerance (±°)</label>
           <input
             type="number"
+            min={TOLERANCE_BOUND.min}
+            max={TOLERANCE_BOUND.max}
             value={params.tolerance}
             disabled={running}
-            onChange={(e) => setParams({ tolerance: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => setParams({ tolerance: parseFloat(e.target.value) })}
+            onBlur={(e) => setParams({ tolerance: clampTolerance(parseFloat(e.target.value)) })}
           />
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Hold (ms)</label>
           <input
             type="number"
+            min={HOLD_TIME_BOUND.min}
+            max={HOLD_TIME_BOUND.max}
+            step={100}
             value={params.holdTimeMs}
             disabled={running}
-            onChange={(e) => setParams({ holdTimeMs: parseInt(e.target.value, 10) || 0 })}
+            onChange={(e) => setParams({ holdTimeMs: parseInt(e.target.value, 10) })}
+            onBlur={(e) => setParams({ holdTimeMs: clampHoldTimeMs(parseInt(e.target.value, 10)) })}
           />
         </div>
       </div>

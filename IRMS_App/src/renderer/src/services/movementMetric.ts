@@ -15,6 +15,27 @@ export interface TriggerConfig {
 
 /** 休息姿勢的放寬容錯(度),正規化空間中三種型別同構:value <= rest 即回位 */
 export const REST_TOLERANCE = 30
+/**
+ * 休息門檻與達標下限之間必須保留的最小間距(度)。
+ *
+ * 狀態機隱含一個不變式:`rest < zone.min`。若違反,目標區會落在休息區內,
+ * 於是 holding → restPending → idle → holding 在原地閉合成迴圈:一條完全靜止
+ * 的腿每 holdTimeMs 就被計一次 rep 並發一次達標音,而那些捏造的次數會寫進
+ * sessions.repsCompleted(2026-08-01 會議 F2)。
+ *
+ * 出貨預設 Backward Extension(target 20、segment_extension)就違反了它:
+ * min = 20 ≤ 舊的固定 rest = 30。任何 min ≤ 30 的動作都會中,包含使用者自建的
+ * 溫和早期復健動作。改由 min 導出 rest 之後,不變式成為結構性保證。
+ */
+export const REST_MARGIN = 5
+
+/**
+ * 由達標下限導出休息門檻,保證恆有 `rest ≤ min - REST_MARGIN < min`。
+ * 一般情況下維持原本的 30°;只有在低目標角度的動作上才收緊。
+ */
+export function restThreshold(min: number): number {
+  return Math.min(REST_TOLERANCE, min - REST_MARGIN)
+}
 /** 出區遲滯(度):進區用嚴格門檻,保持中判定區間向外放寬此值,防止邊界抖動 */
 export const HYSTERESIS_DEG = 4
 /** 出區寬限(ms):保持中短暫跳出(雜訊尖峰)不立即清進度,逾時才算真的離區 */
@@ -91,7 +112,8 @@ export function computeMetricZone(config: TriggerConfig): MetricZone {
   const { targetAngle, tolerance, triggerType } = config
   const overLimit = targetAngle + tolerance + OVER_EXTENSION_MARGIN
   if (triggerType === 'joint_angle') {
-    return { min: targetAngle - tolerance, max: targetAngle + tolerance, overLimit, rest: REST_TOLERANCE }
+    const min = targetAngle - tolerance
+    return { min, max: targetAngle + tolerance, overLimit, rest: restThreshold(min) }
   }
-  return { min: targetAngle, max: Infinity, overLimit, rest: REST_TOLERANCE }
+  return { min: targetAngle, max: Infinity, overLimit, rest: restThreshold(targetAngle) }
 }

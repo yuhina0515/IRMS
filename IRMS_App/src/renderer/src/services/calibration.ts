@@ -7,6 +7,7 @@
 // 產出的 patch 直接餵 applyCalibration,偵測 / 3D / 2D 全域同步生效。
 import type { RawAngles } from '@shared/protocol'
 import type { Settings } from '../store/useStore'
+import { circularMeanDeg, circularStdDevDeg, shortestArcDelta } from './angleMath'
 
 /** 捕捉期間允許的最大標準差(度)——超過視為晃動 */
 export const CAPTURE_STD_LIMIT = 3
@@ -25,15 +26,19 @@ export interface CaptureStats {
 
 const AXES: (keyof RawAngles)[] = ['thigh', 'shin', 'thighRoll', 'shinRoll']
 
+/**
+ * 四軸的環形平均與最大環形標準差。
+ * 必須用環形統計而非算術平均:角度是環不是實數線,若某肢段的靜止姿勢落在
+ * ±180 分支切點,線性版本會把 0.6° 的抖動算成 stdDev ≈ 180,精靈永遠回報
+ * 「偵測到晃動」而無法完成校準(2026-08-01 會議 F4)。
+ */
 export function computeCaptureStats(samples: RawAngles[]): CaptureStats {
-  const n = samples.length
   const mean: RawAngles = { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0 }
   let maxStdDev = 0
   for (const k of AXES) {
-    const m = samples.reduce((acc, s) => acc + s[k], 0) / n
-    mean[k] = m
-    const variance = samples.reduce((acc, s) => acc + (s[k] - m) ** 2, 0) / n
-    maxStdDev = Math.max(maxStdDev, Math.sqrt(variance))
+    const series = samples.map((s) => s[k])
+    mean[k] = circularMeanDeg(series)
+    maxStdDev = Math.max(maxStdDev, circularStdDevDeg(series))
   }
   return { mean, maxStdDev }
 }
@@ -62,9 +67,11 @@ export function detectAxisSwap(
   moved: RawAngles,
   limb: 'thigh' | 'shin'
 ): { swap: boolean; delta: number } {
-  const dPitch = Math.abs(moved[limb] - baseline[limb])
+  // 最短弧差:掛載方向可能讓某軸的靜止姿勢落在 ±180 切點,線性相減會把 2° 的
+  // 實際動作算成 358°,足以偽造出「幅度足夠」並且正負號相反
+  const dPitch = Math.abs(shortestArcDelta(baseline[limb], moved[limb]))
   const rollKey = limb === 'thigh' ? 'thighRoll' : 'shinRoll'
-  const dRoll = Math.abs(moved[rollKey] - baseline[rollKey])
+  const dRoll = Math.abs(shortestArcDelta(baseline[rollKey], moved[rollKey]))
   return { swap: dRoll > dPitch, delta: Math.max(dPitch, dRoll) }
 }
 
@@ -105,8 +112,8 @@ export function buildCalibrationPatch(
   const effBase = effectiveRaw(baseline.mean, mapping)
   const effRaise = effectiveRaw(thighRaise.mean, mapping)
   const effFlex = effectiveRaw(kneeFlex.mean, mapping)
-  const thighInvert = effRaise.thigh - effBase.thigh < 0
-  const shinInvert = effFlex.shin - effBase.shin > 0
+  const thighInvert = shortestArcDelta(effBase.thigh, effRaise.thigh) < 0
+  const shinInvert = shortestArcDelta(effBase.shin, effFlex.shin) > 0
 
   // 3. roll invert:腿向外側擺 → 慣例下(正 = 向外)兩肢段 roll 皆應變大。
   //    大腿/小腿獨立判定——單腳站立時膝蓋未必鎖死,兩肢段擺動幅度可能不同步;
@@ -117,8 +124,8 @@ export function buildCalibrationPatch(
   let shinRollVerified = current.shinRollVerified
   if (abduction) {
     const effAbd = effectiveRaw(abduction.mean, mapping)
-    const dThigh = effAbd.thighRoll - effBase.thighRoll
-    const dShin = effAbd.shinRoll - effBase.shinRoll
+    const dThigh = shortestArcDelta(effBase.thighRoll, effAbd.thighRoll)
+    const dShin = shortestArcDelta(effBase.shinRoll, effAbd.shinRoll)
     if (Math.abs(dThigh) >= CAPTURE_ROLL_DELTA_MIN) {
       thighRollInvert = dThigh < 0
       thighRollVerified = true

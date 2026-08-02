@@ -216,3 +216,76 @@ describe('TriggerEngine — segment 類判定', () => {
     expect(rec.events).toEqual(['enter'])
   })
 })
+
+// --- 2026-08-01 會議 F2 迴歸:rest 不變式 ---
+// 修復前:rest 是寫死的 30,而出貨預設 Backward Extension 的 min 是 20,
+// 目標區整個落在休息區內,狀態機在原地閉合成迴圈,一條靜止不動的腿
+// 每 holdTimeMs 被計一次 rep 並發一次達標音,寫進 sessions.repsCompleted。
+describe('TriggerEngine — 靜止的腿不得產生幻影 reps', () => {
+  const BACKWARD_EXTENSION: TriggerConfig = {
+    targetAngle: 20,
+    tolerance: 8,
+    holdTimeMs: 2000,
+    triggerType: 'segment_extension'
+  }
+
+  it('出貨預設 Backward Extension:腿停在區間內不動,只算一下', () => {
+    const { engine, rec, tick } = makeEngine()
+
+    // 大腿後伸 25°(value = 25 >= min 20),然後完全靜止不動
+    for (let i = 0; i < 200; i++) {
+      engine.handle(input(0, -25, BACKWARD_EXTENSION))
+      tick(40) // 25Hz 封包流,總共模擬 8 秒 = 4 個 holdTime 週期
+    }
+
+    expect(rec.events.filter((e) => e === 'rep')).toHaveLength(1)
+    expect(engine.phase).toBe('restPending') // 卡在等回位,而非回到 idle 重新計數
+  })
+
+  it('必須真的回到休息位才能計下一下', () => {
+    const { engine, rec, tick } = makeEngine()
+
+    engine.handle(input(0, -25, BACKWARD_EXTENSION))
+    tick(2000)
+    engine.handle(input(0, -25, BACKWARD_EXTENSION))
+    expect(rec.events).toEqual(['enter', 'rep'])
+
+    // 回到 -16(value 16):高於新的 rest 門檻 15,還不算回位
+    engine.handle(input(0, -16, BACKWARD_EXTENSION))
+    expect(rec.events).toEqual(['enter', 'rep'])
+
+    // 回到 -10(value 10 <= 15):確實回位
+    engine.handle(input(0, -10, BACKWARD_EXTENSION))
+    expect(rec.events).toEqual(['enter', 'rep', 'rest'])
+
+    // 再做一次才是第二下
+    engine.handle(input(0, -25, BACKWARD_EXTENSION))
+    tick(2000)
+    engine.handle(input(0, -25, BACKWARD_EXTENSION))
+    expect(rec.events.filter((e) => e === 'rep')).toHaveLength(2)
+  })
+
+  it('低目標的 joint_angle 動作同樣不會迴圈(使用者自建溫和動作)', () => {
+    // target 35 / tol 10 → min 25;舊的固定 rest=30 會讓 min < rest 而迴圈
+    const gentle: TriggerConfig = {
+      targetAngle: 35,
+      tolerance: 10,
+      holdTimeMs: 1000,
+      triggerType: 'joint_angle'
+    }
+    const { engine, rec, tick } = makeEngine()
+
+    for (let i = 0; i < 150; i++) {
+      engine.handle(input(30, 0, gentle)) // 膝停在 30°,落在 25–45 區間內
+      tick(40)
+    }
+    expect(rec.events.filter((e) => e === 'rep')).toHaveLength(1)
+  })
+
+  it('holdTimeMs 為 0 時進度不得為 NaN', () => {
+    const { engine, rec } = makeEngine()
+    const zeroHold: TriggerConfig = { ...JOINT, holdTimeMs: 0 }
+    engine.handle(input(90, 0, zeroHold))
+    expect(rec.progress.every((p) => Number.isFinite(p))).toBe(true)
+  })
+})

@@ -8,6 +8,7 @@ import { persist } from 'zustand/middleware'
 import type { CustomAction, JointProtocol } from '@shared/types'
 import type { LiveAngles, RawAngles } from '@shared/protocol'
 import type { EnginePhase } from '../services/triggerEngine'
+import { jointAngleDeg, normalizeDeg, shortestArcDelta } from '../services/angleMath'
 
 /** 感測器校準與一般 UI 設定(持久化) */
 export interface Settings {
@@ -290,18 +291,20 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   const rawShin = s.shinAxisSwap ? raw.shinRoll : raw.shin
   const rawShinRoll = s.shinAxisSwap ? raw.shin : raw.shinRoll
 
-  const thigh = rawThigh * (s.thighInvert ? -1 : 1) + s.thighOffset
-  const shin = rawShin * (s.shinInvert ? -1 : 1) + s.shinOffset
-  const thighRoll = rawThighRoll * (s.thighRollInvert ? -1 : 1) + s.thighRollOffset
-  const shinRoll = rawShinRoll * (s.shinRollInvert ? -1 : 1) + s.shinRollOffset
+  // 反相與位移之後必須重新正規化回 (-180, 180]:offset 相加可以把值推出值域,
+  // 之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
+  const thigh = normalizeDeg(rawThigh * (s.thighInvert ? -1 : 1) + s.thighOffset)
+  const shin = normalizeDeg(rawShin * (s.shinInvert ? -1 : 1) + s.shinOffset)
+  const thighRoll = normalizeDeg(rawThighRoll * (s.thighRollInvert ? -1 : 1) + s.thighRollOffset)
+  const shinRoll = normalizeDeg(rawShinRoll * (s.shinRollInvert ? -1 : 1) + s.shinRollOffset)
 
   return {
     thigh,
     shin,
-    knee: Math.abs(thigh - shin),
+    knee: jointAngleDeg(thigh, shin),
     thighRoll,
     shinRoll,
-    kneeRoll: shinRoll - thighRoll,
+    kneeRoll: shortestArcDelta(thighRoll, shinRoll),
     rawThigh: raw.thigh,
     rawShin: raw.shin,
     rawThighRoll: raw.thighRoll,

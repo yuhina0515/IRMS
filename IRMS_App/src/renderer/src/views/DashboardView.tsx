@@ -14,6 +14,7 @@ import { ProgressRing } from '../components/ProgressRing'
 import { SessionControlPanel } from '../components/SessionControlPanel'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { useLiquidKnob } from '../components/LiquidKnob'
+import { sessionController } from '../services/sessionController'
 
 type Tab = 'chart' | '3d' | '2d' | 'detail'
 
@@ -113,7 +114,15 @@ export function DashboardView(): JSX.Element {
           <div className="panel glass" style={{ textAlign: 'center' }}>
             <ProgressRing percent={session.holdProgress} reps={session.reps} />
             {session.alarmActive && (
-              <p style={{ color: 'var(--danger)', marginTop: 10, fontWeight: 600 }}>⚠ 超限警報</p>
+              <div style={{ marginTop: 10 }}>
+                <p style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: 8 }}>
+                  ⚠ 超限警報
+                </p>
+                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
+                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
+                  🔕 靜音 30 秒
+                </button>
+              </div>
             )}
           </div>
           <SessionControlPanel />

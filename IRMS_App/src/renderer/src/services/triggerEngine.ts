@@ -85,7 +85,9 @@ export class TriggerEngine {
       if (relaxedIn) {
         this.graceStartedAt = null
         const elapsed = this.now() - this.inZoneStartTime
-        const percent = Math.min(100, (elapsed / holdTimeMs) * 100)
+        // holdTimeMs 為 0 時 (elapsed / 0) 在第一個封包是 0/0 = NaN,之後是 Infinity;
+        // NaN 會一路流進 session.holdProgress 與量表。輸入端已鉗制下限,這裡再防一層。
+        const percent = Math.min(100, (elapsed / Math.max(1, holdTimeMs)) * 100)
         this.events.onHoldProgress(percent)
         if (percent >= 100) {
           this.state = 'restPending'
