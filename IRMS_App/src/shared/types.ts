@@ -6,9 +6,26 @@ export type JointProtocol = 'knee' | 'elbow' | 'shoulder'
 
 export const JOINT_PROTOCOLS: { value: JointProtocol; label: string }[] = [
   { value: 'knee', label: 'Knee Flexion (膝彎曲)' },
-  { value: 'elbow', label: 'Elbow Flexion (肘彎曲)' },
-  { value: 'shoulder', label: 'Shoulder Abduction (肩外展)' }
+  { value: 'elbow', label: 'Elbow Flexion (肘彎曲) — 尚未支援' },
+  { value: 'shoulder', label: 'Shoulder Abduction (肩外展) — 尚未支援' }
 ]
+
+/**
+ * 目前判定管線真正支援的協定。
+ *
+ * elbow / shoulder 在資料模型與 UI 上都存在,選了也能建立動作、能按開始,
+ * 產生一場看起來完全正常的 Session——但 `computeMetricSample` 永遠讀
+ * `angles.thigh` / `angles.knee`(腿部感測器),量表標籤也寫死「大腿仰角」。
+ * 結果是把腿的資料錄成一場「肩關節」紀錄,而督導無從察覺。
+ *
+ * 泛化的正確順序見 ROADMAP 決策 D3(先改共享型別 proximal/distal → DB migration
+ * → UI 標籤 → 判定邏輯)。在那之前,寧可明確擋下,也不要產生假的臨床紀錄。
+ */
+export const SUPPORTED_PROTOCOLS: readonly JointProtocol[] = ['knee']
+
+export function isProtocolSupported(p: JointProtocol | null | undefined): boolean {
+  return p != null && SUPPORTED_PROTOCOLS.includes(p)
+}
 
 /**
  * 動作判定規則:

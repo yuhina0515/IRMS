@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { GlassDropdown } from './GlassDropdown'
+import { isProtocolSupported } from '@shared/types'
 import {
   HOLD_TIME_BOUND,
   TARGET_ANGLE_BOUND,
@@ -32,7 +33,10 @@ export function SessionControlPanel(): JSX.Element {
 
   const filtered = actions.filter((a) => a.protocol === protocol)
   const running = session.running
-  const canStart = isConnected && selectedActionId != null && !running
+  // elbow / shoulder 的判定管線尚未泛化(仍讀腿部感測器),擋在這裡而不是
+  // 讓它產生一場資料與標籤對不上的「肩關節」紀錄
+  const protocolOk = isProtocolSupported(protocol)
+  const canStart = isConnected && selectedActionId != null && !running && protocolOk
 
   const handleStart = async (): Promise<void> => {
     try {
@@ -117,8 +121,18 @@ export function SessionControlPanel(): JSX.Element {
         </>
       ) : (
         <button className="btn btn-primary btn-block" disabled={!canStart} onClick={() => void handleStart()}>
-          {isConnected ? 'Start Session' : 'Connect device first'}
+          {!protocolOk
+            ? '此協定尚未支援'
+            : isConnected
+              ? 'Start Session'
+              : 'Connect device first'}
         </button>
+      )}
+      {!running && !protocolOk && (
+        <p className="field-hint" style={{ marginTop: 8 }}>
+          判定目前只支援膝關節:感測器裝在大腿與小腿,量表與判定讀的都是腿部角度。
+          在此協定下開始 Session 會把腿的資料錄成該關節的紀錄,故先行擋下。
+        </p>
       )}
     </div>
   )
