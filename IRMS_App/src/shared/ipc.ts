@@ -6,6 +6,7 @@
 export const IpcChannel = {
   SESSION_START: 'session:start',
   SESSION_END: 'session:end',
+  SESSION_PROGRESS: 'session:progress',
   SESSION_LIST: 'session:list',
   SESSION_GET_DATA: 'session:getData',
   SESSION_DELETE: 'session:delete',

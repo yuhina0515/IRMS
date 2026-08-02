@@ -9,6 +9,14 @@ import { DashboardView } from './views/DashboardView'
 import { ActionsView } from './views/ActionsView'
 import { HistoryView } from './views/HistoryView'
 import { SettingsView } from './views/SettingsView'
+import { ErrorBoundary } from './components/ErrorBoundary'
+
+const VIEW_NAMES: Record<string, string> = {
+  dashboard: '即時監測',
+  actions: '動作設定',
+  history: '歷史紀錄',
+  settings: '設定'
+}
 
 export default function App(): JSX.Element {
   const view = useUiStore((s) => s.view)
@@ -56,10 +64,13 @@ export default function App(): JSX.Element {
       <div className="app">
         <TopHeader />
         <main className="main">
-          {view === 'dashboard' && <DashboardView />}
-          {view === 'actions' && <ActionsView />}
-          {view === 'history' && <HistoryView />}
-          {view === 'settings' && <SettingsView />}
+          {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
+          <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
+            {view === 'dashboard' && <DashboardView />}
+            {view === 'actions' && <ActionsView />}
+            {view === 'history' && <HistoryView />}
+            {view === 'settings' && <SettingsView />}
+          </ErrorBoundary>
         </main>
         <BottomBar />
       </div>

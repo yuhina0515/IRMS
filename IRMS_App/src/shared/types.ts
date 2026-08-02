@@ -53,6 +53,12 @@ export interface Session {
   actionName: string | null
   protocol: JointProtocol | null
   repsCompleted: number
+  /**
+   * 1 = 這場 Session 沒有正常結束(關窗/強殺/當機),由啟動時的孤兒收尾補上結束時間。
+   * repsCompleted 只在正常結束時寫入,所以 abandoned 的列其 reps 不可信——
+   * UI 必須標示出來,而不是把 0 當成事實呈現。
+   */
+  abandoned: 0 | 1
 }
 
 /** 開始 Session 的輸入 */
@@ -91,6 +97,8 @@ export interface IrmsApi {
   sessions: {
     start(input: SessionStartInput): Promise<{ sessionId: number }>
     end(sessionId: number, repsCompleted: number): Promise<{ success: true }>
+    /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
+    progress(sessionId: number, reps: number): Promise<{ success: true }>
     list(): Promise<Session[]>
     getData(sessionId: number): Promise<StoredReading[]>
     delete(sessionId: number): Promise<{ success: true }>

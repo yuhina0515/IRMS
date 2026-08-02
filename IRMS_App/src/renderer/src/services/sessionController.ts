@@ -71,8 +71,16 @@ class SessionController {
           useStore.getState().patchSession({ holdProgress: 0, inZone: false })
           return
         }
-        useStore.getState().patchSession({ reps: session.reps + 1, holdProgress: 100, inZone: false })
+        const reps = session.reps + 1
+        useStore.getState().patchSession({ reps, holdProgress: 100, inZone: false })
         void bluetoothService.send(BleCommand.GOAL)
+        // 立刻持久化計數:關窗/強殺不會跑到 endSession,若只在結束時寫一次,
+        // 一場真實的 12 下 Session 會永遠以 0 reps 留在歷史裡
+        if (session.id != null) {
+          void window.irms.sessions.progress(session.id, reps).catch(() => {
+            /* 計數持久化失敗不影響進行中的 Session;結束時仍會再寫一次 */
+          })
+        }
       },
       onRestCompleted: () => {
         this.uiSync.cancel()

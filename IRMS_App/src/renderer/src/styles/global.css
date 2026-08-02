@@ -1080,3 +1080,36 @@ details.adv-fold summary {
   font-size: 0.9rem;
   margin-bottom: 12px;
 }
+
+/* --- ErrorBoundary fallback(2026-08-01:防止單一 view 崩潰造成整個 App 白屏)--- */
+.error-boundary {
+  border: 1px solid var(--danger);
+}
+.error-boundary h3 {
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+.error-boundary-detail {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.75;
+  margin: 10px 0 14px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+/* 歷史紀錄:未正常結束的 Session 標記 */
+.badge-warn {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  cursor: help;
+}

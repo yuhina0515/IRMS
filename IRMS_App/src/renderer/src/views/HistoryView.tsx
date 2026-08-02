@@ -133,7 +133,19 @@ export function HistoryView(): JSX.Element {
                   <td>#{s.id}</td>
                   <td>{new Date(s.startTime).toLocaleString()}</td>
                   <td>{s.actionName ?? '—'}</td>
-                  <td>{s.repsCompleted}</td>
+                  <td>
+                    {s.repsCompleted}
+                    {/* 非正常結束的 Session:結束時間是啟動時推估的,reps 可能少計。
+                        把不確定性標示出來,而不是把數字當成事實呈現。 */}
+                    {s.abandoned === 1 && (
+                      <span
+                        className="badge-warn"
+                        title="這場 Session 未正常結束(關窗或當機),結束時間為推估值,次數可能不完整"
+                      >
+                        未正常結束
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <div className="row">
                       <button className="btn btn-primary btn-sm" onClick={() => setAnalyzing(s)}>
