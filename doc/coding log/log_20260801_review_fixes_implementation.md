@@ -86,8 +86,28 @@ summary: "實作 2026-08-01 會議裁決的第一與第三順位:rest 不變式(
       等於匯出被抽掉的資料集。已改為另外取全量。
 - [ ] **📡 未做實機驗證**。所有變更都是桌面可證的邏輯層修正,但沒有任何一項在真實
       感測器上跑過。韌體 v3 仍未燒錄。
-- [ ] **未跑 dev 煙霧測試**:Dashboard 靜音按鈕、ErrorOverlay 按鈕、ErrorBoundary
-      fallback、Record Pose 面板皆只經 typecheck + build,未在實際 Electron 視窗點過。
+- [x] **實際啟動 App(`npm run dev`)驗證 migration 在正式 driver 上運作**——這是單元測試
+      無法涵蓋的部分:測試用 `node:sqlite`,正式跑的是 better-sqlite3。先備份使用者的真實
+      資料庫(`%APPDATA%/irms-app/irms.sqlite`,備份於本次 session 的 scratchpad),
+      啟動前狀態為 `user_version = 0`、5 個動作、表已存在——**正是 v1.0.1 升級路徑本身**。
+      主進程輸出:
+
+      ```
+      [db] migration 1 applied: base schema (v1.0.1 shape)
+      [db] migration 2 applied: custom_actions: clamp existing rows and add CHECK constraints
+      [db] migration 3 applied: sessions: abandoned flag for sessions never properly ended
+      [db] migration 4 applied: sessions: triggerType snapshot for history analysis
+      ```
+
+      升級後查驗:`user_version = 4`、5 個動作連同原 id(11–15)與數值完整保留、
+      `sessions` 已含 `abandoned` 與 `triggerType` 欄位、`custom_actions` 的 CHECK 約束存在。
+- [x] renderer 無錯誤:dev log 中 4 筆 `ERROR:CONSOLE` 全部來自 `devtools://`
+      (DevTools 自身的 Autofill / VE context 雜訊),App 自身 origin 零錯誤,
+      無 React 例外或未捕捉錯誤。
+- [ ] **未目視確認畫面**:要求螢幕存取時被拒絕,因此沒有截圖。
+      「renderer 沒拋錯」不等於「畫面長得對」——Dashboard 靜音按鈕、ErrorOverlay 的
+      逃生按鈕、ErrorBoundary fallback、Record Pose 面板的**視覺呈現與版面皆未經人眼確認**,
+      需使用者自行開 App 驗收。
 
 ## 📝 後續待辦
 
