@@ -14,6 +14,12 @@ interface Props {
   phase: EnginePhase
   alarm: boolean
   error: boolean
+  /**
+   * 資料是否已過期(斷線中)。斷線後 store 的 angles 不會被清掉,所以量表會繼續
+   * 顯示最後一筆數值長達 15 秒的重連期間,看起來完全像即時值——使用者無從得知
+   * 那條腿現在到底在哪裡(2026-08-01 意見清單 #29)。
+   */
+  stale?: boolean
 }
 
 function point(valueDeg: number, r: number, domainMax: number): { x: number; y: number } {
@@ -33,7 +39,7 @@ function tick(v: number, domainMax: number): string {
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 }
 
-export function MetricGauge({ sample, zone, info, phase, alarm, error }: Props): JSX.Element {
+export function MetricGauge({ sample, zone, info, phase, alarm, error, stale = false}: Props): JSX.Element {
   const domainMax = zone.overLimit + 15
   const clamp = (v: number): number => Math.min(domainMax, Math.max(0, v))
   const value = sample ? clamp(sample.value) : 0
@@ -46,7 +52,7 @@ export function MetricGauge({ sample, zone, info, phase, alarm, error }: Props):
     zone.max === Infinity ? `目標 ≥ ${zone.min}°` : `目標 ${zone.min}–${zone.max}°`
 
   return (
-    <div className="metric-gauge">
+    <div className={`metric-gauge${stale ? ' stale' : ''}`}>
       <svg viewBox="0 0 240 150">
         <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="var(--gauge-track)" strokeWidth="14" strokeLinecap="round" />
         <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="var(--gauge-band)" strokeWidth="14" strokeLinecap="butt" />

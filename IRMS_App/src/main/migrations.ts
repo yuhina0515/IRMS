@@ -149,6 +149,19 @@ export const MIGRATIONS: Migration[] = [
     // 而動作可能事後被刪改,所以跟 actionName 一樣存成當場快照。
     // 既有列為 NULL,UI 端退回舊行為(畫膝角)。
     up: (db) => db.exec(`ALTER TABLE sessions ADD COLUMN triggerType TEXT;`)
+  },
+  {
+    version: 5,
+    name: 'independent safety limit on actions and sessions',
+    // 超限警報門檻原本是從 target + tolerance + 10 導出的,於是「為了寬容而放寬容錯」
+    // 會連帶把患者的安全上限往外推——那是兩個不該綁在一起的決定:容錯是「算不算達標」,
+    // 安全上限是「這個關節不該超過幾度」。後者由解剖決定,與處方的寬鬆程度無關。
+    // NULL = 沿用舊的導出值,既有動作與歷史紀錄行為不變。
+    up: (db) =>
+      db.exec(`
+        ALTER TABLE custom_actions ADD COLUMN safetyLimit REAL;
+        ALTER TABLE sessions       ADD COLUMN safetyLimit REAL;
+      `)
   }
 ]
 

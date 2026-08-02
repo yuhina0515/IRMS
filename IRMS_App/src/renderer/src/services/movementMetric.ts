@@ -11,6 +11,16 @@ export interface TriggerConfig {
   tolerance: number
   holdTimeMs: number
   triggerType: TriggerType
+  /**
+   * 超限警報門檻(度),獨立於容錯。
+   * null / undefined = 沿用舊的導出值 `target + tolerance + OVER_EXTENSION_MARGIN`。
+   *
+   * 為什麼要獨立:容錯回答的是「這樣算不算達標」,安全上限回答的是「這個關節不該
+   * 超過幾度」。後者由解剖與醫囑決定,和處方寬鬆與否無關。綁在一起的話,治療師
+   * 為了讓患者容易達標而把容錯從 10° 放寬到 25°,會在完全沒察覺的情況下把警報門檻
+   * 一併往外推 15°(2026-08-01 會議意見清單 #19)。
+   */
+  safetyLimit?: number | null
 }
 
 /** 休息姿勢的放寬容錯(度),正規化空間中三種型別同構:value <= rest 即回位 */
@@ -109,8 +119,14 @@ export function computeMetricSample(
 }
 
 export function computeMetricZone(config: TriggerConfig): MetricZone {
-  const { targetAngle, tolerance, triggerType } = config
-  const overLimit = targetAngle + tolerance + OVER_EXTENSION_MARGIN
+  const { targetAngle, tolerance, triggerType, safetyLimit } = config
+  // 明確設定的安全上限優先;未設定則沿用導出值(既有動作行為不變)
+  const derived = targetAngle + tolerance + OVER_EXTENSION_MARGIN
+  const overLimit =
+    safetyLimit != null && Number.isFinite(safetyLimit)
+      ? // 安全上限不得低於達標上限,否則患者一達標就觸發警報,警報等於失去意義
+        Math.max(safetyLimit, targetAngle + tolerance)
+      : derived
   if (triggerType === 'joint_angle') {
     const min = targetAngle - tolerance
     return { min, max: targetAngle + tolerance, overLimit, rest: restThreshold(min) }

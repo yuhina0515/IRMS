@@ -55,7 +55,8 @@ export function DashboardView(): JSX.Element {
 
   const triggerType = action?.triggerType ?? 'joint_angle'
   const info = metricInfo(triggerType)
-  const zone = computeMetricZone({ ...params, triggerType })
+  // 必須帶上動作的 safetyLimit,否則量表畫的超限刻線會與引擎實際判定的門檻不一致
+  const zone = computeMetricZone({ ...params, triggerType, safetyLimit: action?.safetyLimit ?? null })
   const sample = angles && !hardwareError ? computeMetricSample(angles, triggerType, params.tolerance) : null
 
   const guidance = computeGuidance(sample, zone, session.phase, session.holdProgress, params.holdTimeMs)
@@ -106,6 +107,7 @@ export function DashboardView(): JSX.Element {
             phase={session.phase}
             alarm={session.alarmActive}
             error={hardwareError != null}
+            stale={!isConnected}
           />
           <CoachHint phase={session.phase} text={hintText} tone={tone} />
         </div>

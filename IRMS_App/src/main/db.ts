@@ -47,8 +47,8 @@ export function closeDatabase(): void {
 
 function insertDefaultActions(): void {
   const insert = db.prepare(
-    `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType)
-     VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType)`
+    `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType, safetyLimit)
+     VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType, @safetyLimit)`
   )
   const tx = db.transaction((actions: CustomActionInput[]) => {
     for (const a of actions) insert.run(a)
@@ -68,8 +68,8 @@ export const actionsRepo = {
   create(input: CustomActionInput): CustomAction {
     const info = db
       .prepare(
-        `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType)
-         VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType)`
+        `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType, safetyLimit)
+         VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType, @safetyLimit)`
       )
       .run(input)
     return db
@@ -81,7 +81,8 @@ export const actionsRepo = {
     db.prepare(
       `UPDATE custom_actions
        SET name=@name, description=@description, protocol=@protocol,
-           targetAngle=@targetAngle, tolerance=@tolerance, holdTimeMs=@holdTimeMs, triggerType=@triggerType
+           targetAngle=@targetAngle, tolerance=@tolerance, holdTimeMs=@holdTimeMs,
+           triggerType=@triggerType, safetyLimit=@safetyLimit
        WHERE id=@id`
     ).run({ ...input, id })
     return db.prepare('SELECT * FROM custom_actions WHERE id = ?').get(id) as CustomAction
@@ -111,8 +112,8 @@ export const sessionsRepo = {
   start(input: SessionStartInput): { sessionId: number } {
     const info = db
       .prepare(
-        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType)
-         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType)`
+        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit)
+         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit)`
       )
       .run(input)
     return { sessionId: Number(info.lastInsertRowid) }

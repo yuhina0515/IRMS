@@ -1136,3 +1136,26 @@ details.adv-fold summary {
   margin-left: 6px;
   font-variant-numeric: tabular-nums;
 }
+
+/* 表單欄位下方的說明文字(安全上限等需要解釋語意的欄位) */
+.field-hint {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* 斷線期間:量表數值是最後一筆殘值,不是即時值。必須看得出來。 */
+.metric-gauge.stale {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+}
+.metric-gauge.stale::after {
+  content: '斷線中 · 數值已過期';
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--warning);
+}

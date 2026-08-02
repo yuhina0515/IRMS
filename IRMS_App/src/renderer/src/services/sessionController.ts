@@ -234,7 +234,7 @@ class SessionController {
     const state = useStore.getState()
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     const triggerType: TriggerType = action?.triggerType ?? 'joint_angle'
-    return { ...clampTriggerParams(state.params), triggerType }
+    return { ...clampTriggerParams(state.params), triggerType, safetyLimit: action?.safetyLimit ?? null }
   }
 
   async startSession(): Promise<void> {
@@ -262,7 +262,8 @@ class SessionController {
         protocol: state.settings.protocol,
         // 快照當場的判定型別:動作日後可能被改或刪除,而歷史分析要畫的是
         // 「這場當時實際被判定的那個指標」
-        triggerType: this.currentConfig().triggerType
+        triggerType: this.currentConfig().triggerType,
+        safetyLimit: action?.safetyLimit ?? null
       })
 
       this.buffer = []
@@ -288,11 +289,16 @@ class SessionController {
     }
   }
 
-  async endSession(): Promise<void> {
-    const { session } = useStore.getState()
-    if (session.id == null) return
-
+  /**
+   * @returns true 表示確實結束了一場 Session;false 表示當下沒有進行中的 Session
+   *   (重複點擊、或與斷線收尾競爭)。呼叫端據此決定要不要顯示「已儲存」。
+   */
+  async endSession(): Promise<boolean> {
+    // 計時器一律停掉:早退時若跳過,一場已經結束的 Session 的時鐘會繼續跑
     this.stopTimers()
+    const { session } = useStore.getState()
+    if (session.id == null) return false
+
     await this.flush()
 
     try {
@@ -307,6 +313,7 @@ class SessionController {
     this.sendAlarm('off')
     this.resetFeedbackState()
     useStore.getState().resetSession()
+    return true
   }
 
   private startTimers(): void {

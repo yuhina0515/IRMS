@@ -34,6 +34,11 @@ export interface CustomAction {
   tolerance: number
   holdTimeMs: number
   triggerType: TriggerType
+  /**
+   * 超限警報門檻(度)。null = 沿用導出值 target + tolerance + 10。
+   * 獨立於 tolerance:放寬容錯讓患者容易達標,不該連帶把安全上限往外推。
+   */
+  safetyLimit: number | null
 }
 
 /** 建立/更新動作的輸入(無 id) */
@@ -53,6 +58,8 @@ export interface Session {
   actionName: string | null
   protocol: JointProtocol | null
   repsCompleted: number
+  /** 當場的安全上限快照(null = 使用導出值) */
+  safetyLimit: number | null
   /** 當場的判定型別快照;歷史分析據此畫出「實際被判定的那個指標」。舊列為 null */
   triggerType: TriggerType | null
   /**
@@ -72,6 +79,7 @@ export interface SessionStartInput {
   actionName: string | null
   protocol: JointProtocol | null
   triggerType: TriggerType | null
+  safetyLimit: number | null
 }
 
 /** 單筆高頻角度讀數(sensor_data 資料表) */

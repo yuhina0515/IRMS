@@ -171,8 +171,9 @@ export class BluetoothService {
   async send(command: string): Promise<void> {
     if (!this.profileChar) return
     try {
-      // 注意:不可附加換行——韌體 onWrite 以 == 精確比對指令字串,
-      // 多一個 '\n' 會使 CMD:LED/GOAL/ALARM 全部靜默失效
+      // 沿革:v2 韌體的 onWrite 以 == 精確比對,多一個 '\n' 會讓所有 CMD 靜默失效。
+      // 韌體 v3 起 onWrite 會先 trim(),此限制已解除——仍不附加換行只是因為沒有必要。
+      // (原註解宣稱的限制早已不存在;錯的安全註解比沒有註解更危險,故一併更正。)
       const data = new TextEncoder().encode(command)
       await this.profileChar.writeValue(data)
     } catch (err) {

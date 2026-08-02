@@ -34,23 +34,12 @@ export const BleCommand = {
 
 export type BleCommand = (typeof BleCommand)[keyof typeof BleCommand]
 
-/**
- * 組出校準同步指令:`CMD:SYNC,大腿offset,小腿offset`
- * @deprecated 現行韌體 (IRMS_Sensor.ino) 的 onWrite 未實作 SYNC 解析;
- * v2 校準已完全在 App 端套用 (applyCalibration),UI 不再呼叫此函式。
- */
-export function buildSyncCommand(thighOffset: number, shinOffset: number): string {
-  return `CMD:SYNC,${thighOffset.toFixed(1)},${shinOffset.toFixed(1)}`
-}
-
-/**
- * 組出參數設定檔寫入字串:`目標角度,容錯範圍,維持時間ms`
- * @deprecated 現行韌體無 Task_Logic/NVS,不解析 Profile(舊版 IRMS_Sensor_Full.bak 才支援);
- * v2 的達標判定完全在 App 端 (TriggerEngine),UI 不再呼叫此函式。
- */
-export function buildProfilePayload(targetAngle: number, tolerance: number, holdTimeMs: number): string {
-  return `${targetAngle.toFixed(1)},${tolerance.toFixed(1)},${Math.round(holdTimeMs)}`
-}
+// 已移除:buildSyncCommand / buildProfilePayload。
+// 兩者是 @deprecated 死碼,零呼叫端,卻仍在文件化一份韌體並不實作的協定
+// (現行韌體無 SYNC 解析、無 Task_Logic/NVS,判定 100% 在 App 端 —— ROADMAP 決策 D1)。
+// 讀 protocol.ts 想知道「App 與韌體之間到底講什麼」的人會被它們誤導,故刪除。
+// 若日後要做 D1 後果條款裡的 Standalone 離線模式,應依當時的韌體重新設計,
+// 而不是復活這兩個函式。
 
 /** 硬體錯誤代碼前綴(I2C 斷線等) */
 export const ERROR_PREFIX = 'ERR:'

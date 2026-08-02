@@ -13,7 +13,7 @@ import {
   clampTolerance,
   clampTriggerParams
 } from '@shared/validation'
-import { computeMetricSample, metricInfo } from '../services/movementMetric'
+import { computeMetricSample, metricInfo, OVER_EXTENSION_MARGIN } from '../services/movementMetric'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -22,7 +22,8 @@ const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   targetAngle: 90,
   tolerance: 10,
   holdTimeMs: 3000,
-  triggerType: 'joint_angle'
+  triggerType: 'joint_angle',
+  safetyLimit: null
 })
 
 export function ActionsView(): JSX.Element {
@@ -138,6 +139,12 @@ export function ActionsView(): JSX.Element {
               <div className="meta">
                 Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
               </div>
+              <div className="meta">
+                安全上限{' '}
+                {a.safetyLimit != null
+                  ? `${a.safetyLimit}°`
+                  : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
+              </div>
               {a.description && <div className="meta">{a.description}</div>}
               <div className="row" style={{ marginTop: 8 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
@@ -222,6 +229,40 @@ export function ActionsView(): JSX.Element {
                 />
               </div>
             </div>
+            {/* 安全上限:獨立於容錯的一個決定。空白 = 沿用舊的導出值,行為與過去相同。 */}
+            <div className="field">
+              <label>
+                Safety Limit 安全上限 (°) — 留空則沿用 target + tolerance +{' '}
+                {OVER_EXTENSION_MARGIN}
+              </label>
+              <input
+                type="number"
+                min={TARGET_ANGLE_BOUND.min}
+                max={180}
+                placeholder={`未設定(目前導出為 ${form.targetAngle + form.tolerance + OVER_EXTENSION_MARGIN}°)`}
+                value={form.safetyLimit ?? ''}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    safetyLimit: e.target.value === '' ? null : parseFloat(e.target.value)
+                  })
+                }
+                onBlur={(e) =>
+                  setForm({
+                    ...form,
+                    safetyLimit:
+                      e.target.value === ''
+                        ? null
+                        : Math.min(180, Math.max(form.targetAngle + form.tolerance, parseFloat(e.target.value) || 0))
+                  })
+                }
+              />
+              <p className="field-hint">
+                超過此角度會觸發長鳴警報。這是解剖上的上限,與「算不算達標」無關——
+                放寬容錯讓患者容易達標時,<b>不應該</b>連帶把這個值往外推。
+              </p>
+            </div>
+
             {/* Record Pose:讓患者擺出要達成的姿勢,直接把當下數值收成目標角度 */}
             <div className="record-pose">
               {isConnected && liveMetric != null ? (

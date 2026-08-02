@@ -80,7 +80,8 @@ const action = (id: number, protocol: CustomAction['protocol'], targetAngle = 90
   targetAngle,
   tolerance: 10,
   holdTimeMs: 3000,
-  triggerType: 'joint_angle'
+  triggerType: 'joint_angle',
+  safetyLimit: null
 })
 
 describe('reconcileSelection', () => {

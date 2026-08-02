@@ -43,7 +43,14 @@ export function computeGuidance(
   if (sample.value < zone.min) {
     return { kind: 'raise', deltaDeg: zone.min - sample.value }
   }
-  // joint_angle 過頭但未超限(value > max;segment 類 max=Infinity 不會走到這裡)
+  // segment 類的 zone.max 是 Infinity(超標仍計 rep),落到這裡會算出 value - Infinity,
+  // 渲染成「回降 -Infinity° 進入目標區」。可達路徑:引擎在腿仍抬高時被 reset
+  // (例如保持中按下結束 Session),phase 回到 idle 而 value 仍高於 min。
+  // 這種情況下正確的提示是「已在目標區,保持」而不是要求回降。
+  if (!Number.isFinite(zone.max)) {
+    return { kind: 'hold', heldSec: 0, totalSec: holdTimeMs / 1000 }
+  }
+  // joint_angle 過頭但未超限(value > max)
   return { kind: 'lower', deltaDeg: sample.value - zone.max }
 }
 

@@ -44,8 +44,9 @@ export function SessionControlPanel(): JSX.Element {
   }
 
   const handleEnd = async (): Promise<void> => {
-    await sessionController.endSession()
-    showToast('Session ended and saved.', 'success')
+    // 早退時不得謊報「已儲存」:雙擊,或與斷線自動收尾競爭時,這裡其實什麼也沒做
+    const ended = await sessionController.endSession()
+    if (ended) showToast('Session ended and saved.', 'success')
   }
 
   return (
