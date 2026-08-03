@@ -112,6 +112,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   0.1° 量化底線)、LiveChart rAF(已被 `UI_SYNC_MS = 80` 實作,backlog 項應刪除)。
   **規則變更**:「指出它餵給哪條判定路徑」→「**指出它改變哪一個決定,以及那是誰的決定
   ——引擎的,還是人的**」(舊規則按字面會把畫錯的安全線判為裝飾性)
+- **2026-08-03 History 讀取進度指示器**([[log_20260803_history_loading_indicators|日誌]]):
+  使用者臨時請求「讀取進度」,不在同日方向裁決會議的順序內。查無字面對應功能,
+  比對 OPTIMIZATION 與程式碼後鎖定 History 三個原本完全無回饋的讀取(session 列表、
+  單場分析圖表、CSV 匯出)——`AnalysisModal` 舊註解早就寫著「會讓這個 modal 明顯
+  卡住」卻從未接上提示。新增 `Spinner` 元件 + 三處 loading 狀態,並補上原本沒有的
+  錯誤處理(否則失敗會卡在轉圈圈永不消失);141 tests 全綠,並以隔離
+  user-data-dir + Playwright 驅動實際打包的 Electron 視窗目視驗證
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。

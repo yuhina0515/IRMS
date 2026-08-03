@@ -76,7 +76,10 @@
 
 ### 🟡 P1 — 效能
 - [ ] LiveChart 高頻更新:啟用 Chart.js decimation 或將 `update` 節流至 ~20fps,降低長時間 Session 的 CPU。
-- [ ] History 分析:大型 Session(數萬筆)讀取改分頁 / 抽樣繪圖,避免一次載入。
+- [x] History 分析:大型 Session(數萬筆)讀取改分頁 / 抽樣繪圖,避免一次載入。**LTTB 抽樣已於
+      2026-08-01 完成**(主進程抽樣至 1200 點,見 ROADMAP Phase 3);**讀取期間的視覺回饋
+      (loading spinner)於 2026-08-03 補上**——原本這段 IPC 等待完全沒有回饋,`AnalysisModal`
+      的註解早就寫著「會讓這個 modal 明顯卡住」,卻從未接上任何提示。
 - [ ] 評估以 `requestAnimationFrame` 聚合多筆封包再繪圖。
 
 ### 🟢 P2 — 使用者體驗
