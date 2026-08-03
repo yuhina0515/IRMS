@@ -15,6 +15,8 @@ const BASE_SETTINGS: Settings = {
   thighRollOffset: 0,
   shinRollInvert: false,
   shinRollOffset: 0,
+  thighRollVerified: false,
+  shinRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -30,6 +32,8 @@ describe('migrateSettings', () => {
     expect(settings.protocol).toBe('elbow')
     expect(settings.lastCalibratedAt).toBeNull() // 新欄位補預設
     expect(settings.flushIntervalSec).toBe(2)
+    expect(settings.thighRollVerified).toBe(false) // v3 新欄位補預設(未驗證)
+    expect(settings.shinRollVerified).toBe(false)
   })
 
   it('空/毀損的 persist 資料回退為完整預設值', () => {
@@ -76,7 +80,8 @@ const action = (id: number, protocol: CustomAction['protocol'], targetAngle = 90
   targetAngle,
   tolerance: 10,
   holdTimeMs: 3000,
-  triggerType: 'joint_angle'
+  triggerType: 'joint_angle',
+  safetyLimit: null
 })
 
 describe('reconcileSelection', () => {

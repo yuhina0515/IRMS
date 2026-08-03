@@ -14,6 +14,8 @@ import type {
   StoredReading
 } from '@shared/types'
 import { DEFAULT_ACTIONS } from '@shared/defaults'
+import { applyMigrations, finalizeOrphanedSessions } from './migrations'
+import { lttb } from '@shared/downsample'
 
 let db: Database.Database
 
@@ -23,50 +25,13 @@ export function initDatabase(userDataDir: string): void {
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
-  createSchema()
-}
 
-function createSchema(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS custom_actions (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT    NOT NULL,
-      description TEXT,
-      protocol    TEXT    NOT NULL,
-      targetAngle REAL    NOT NULL,
-      tolerance   REAL    NOT NULL,
-      holdTimeMs  INTEGER NOT NULL,
-      triggerType TEXT    NOT NULL
-    );
+  // schema 演進走 user_version migration(見 migrations.ts / ROADMAP D4)
+  applyMigrations(db, (m) => console.log(m))
 
-    CREATE TABLE IF NOT EXISTS sessions (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      startTime     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-      endTime       TEXT,
-      targetAngle   REAL,
-      tolerance     REAL,
-      holdTimeMs    INTEGER,
-      actionId      INTEGER,
-      actionName    TEXT,
-      protocol      TEXT,
-      repsCompleted INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS sensor_data (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      sessionId  INTEGER NOT NULL,
-      timestamp  TEXT    NOT NULL,
-      kneeAngle  REAL,
-      thighAngle REAL,
-      shinAngle  REAL,
-      kneeRoll   REAL,
-      thighRoll  REAL,
-      shinRoll   REAL,
-      FOREIGN KEY (sessionId) REFERENCES sessions(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_sensor_data_sessionId ON sensor_data(sessionId);
-  `)
+  // 上次執行若是被關窗/強殺中斷,會留下 endTime=NULL 的孤兒 session。
+  // 啟動時不可能有進行中的 session,一律收尾並標記 abandoned。
+  finalizeOrphanedSessions(db, (m) => console.log(m))
 
   // 首次啟動且無任何動作時,自動載入預設範本
   const count = db.prepare('SELECT COUNT(*) AS n FROM custom_actions').get() as { n: number }
@@ -75,10 +40,15 @@ function createSchema(): void {
   }
 }
 
+/** 於 app 結束前呼叫:關閉連線並 checkpoint WAL,避免 -wal 檔無限增長 */
+export function closeDatabase(): void {
+  if (db && db.open) db.close()
+}
+
 function insertDefaultActions(): void {
   const insert = db.prepare(
-    `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType)
-     VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType)`
+    `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType, safetyLimit)
+     VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType, @safetyLimit)`
   )
   const tx = db.transaction((actions: CustomActionInput[]) => {
     for (const a of actions) insert.run(a)
@@ -98,8 +68,8 @@ export const actionsRepo = {
   create(input: CustomActionInput): CustomAction {
     const info = db
       .prepare(
-        `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType)
-         VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType)`
+        `INSERT INTO custom_actions (name, description, protocol, targetAngle, tolerance, holdTimeMs, triggerType, safetyLimit)
+         VALUES (@name, @description, @protocol, @targetAngle, @tolerance, @holdTimeMs, @triggerType, @safetyLimit)`
       )
       .run(input)
     return db
@@ -111,7 +81,8 @@ export const actionsRepo = {
     db.prepare(
       `UPDATE custom_actions
        SET name=@name, description=@description, protocol=@protocol,
-           targetAngle=@targetAngle, tolerance=@tolerance, holdTimeMs=@holdTimeMs, triggerType=@triggerType
+           targetAngle=@targetAngle, tolerance=@tolerance, holdTimeMs=@holdTimeMs,
+           triggerType=@triggerType, safetyLimit=@safetyLimit
        WHERE id=@id`
     ).run({ ...input, id })
     return db.prepare('SELECT * FROM custom_actions WHERE id = ?').get(id) as CustomAction
@@ -141,11 +112,22 @@ export const sessionsRepo = {
   start(input: SessionStartInput): { sessionId: number } {
     const info = db
       .prepare(
-        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol)
-         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol)`
+        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit)
+         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit)`
       )
       .run(input)
     return { sessionId: Number(info.lastInsertRowid) }
+  },
+
+  /**
+   * 逐次更新 reps(每完成一下呼叫一次)。
+   * 過去 repsCompleted 只在 end() 寫入,所以關窗/強殺會讓一場真實的 12 下
+   * Session 永遠顯示 0 reps,而且無法從 sensor_data 回推。
+   * reps 之間至少隔一個 holdTime(≥500ms),寫入頻率遠低於感測資料批次。
+   */
+  updateReps(sessionId: number, repsCompleted: number): { success: true } {
+    db.prepare('UPDATE sessions SET repsCompleted = ? WHERE id = ?').run(repsCompleted, sessionId)
+    return { success: true }
   },
 
   end(sessionId: number, repsCompleted: number): { success: true } {
@@ -161,10 +143,18 @@ export const sessionsRepo = {
     return db.prepare('SELECT * FROM sessions ORDER BY startTime DESC').all() as Session[]
   },
 
-  getData(sessionId: number): StoredReading[] {
-    return db
+  /**
+   * @param maxPoints 給定時以 LTTB 抽樣後回傳(圖表用)。不給則取全量(CSV 匯出用)。
+   *   25Hz × 10 分鐘約 15,000 列,整包過 IPC 再全部餵給 Chart.js 會讓分析視窗卡住。
+   */
+  getData(sessionId: number, maxPoints?: number): StoredReading[] {
+    const rows = db
       .prepare('SELECT * FROM sensor_data WHERE sessionId = ? ORDER BY timestamp ASC, id ASC')
       .all(sessionId) as StoredReading[]
+    if (maxPoints == null || rows.length <= maxPoints) return rows
+    // LTTB 需要數值 x 軸;以時間戳毫秒值為 x,抽樣後取回原始列
+    const points = rows.map((r, i) => ({ x: Date.parse(r.timestamp) || i, y: r.kneeAngle ?? 0, r }))
+    return lttb(points, maxPoints).map((p) => p.r)
   },
 
   delete(sessionId: number): { success: true } {

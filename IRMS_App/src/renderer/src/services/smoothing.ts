@@ -5,6 +5,7 @@
 // 確保「knee = |thigh − shin|」的恆等式在平滑後仍成立。
 // raw* 欄位直接透傳(校準精靈需要未平滑的原始值做 stdDev 驗證)。
 import type { LiveAngles } from '@shared/protocol'
+import { jointAngleDeg, normalizeDeg, shortestArcDelta } from './angleMath'
 
 /** EMA 新樣本權重:25Hz 資料流下時間常數約 0.12s,肉眼無感延遲但足以壓住抖動 */
 export const EMA_ALPHA = 0.3
@@ -31,10 +32,16 @@ export class AngleSmoother {
       this.shinRoll = a.shinRoll
       this.seeded = true
     } else {
-      this.thigh += this.alpha * (a.thigh - this.thigh)
-      this.shin += this.alpha * (a.shin - this.shin)
-      this.thighRoll += this.alpha * (a.thighRoll - this.thighRoll)
-      this.shinRoll += this.alpha * (a.shinRoll - this.shinRoll)
+      // EMA 必須走最短弧:線性版本在跨越 ±180 切點時會沿著長邊走,
+      // 於途中經過 0,使 knee 短暫讀到約 360° 而誤觸超限警報
+      this.thigh = normalizeDeg(this.thigh + this.alpha * shortestArcDelta(this.thigh, a.thigh))
+      this.shin = normalizeDeg(this.shin + this.alpha * shortestArcDelta(this.shin, a.shin))
+      this.thighRoll = normalizeDeg(
+        this.thighRoll + this.alpha * shortestArcDelta(this.thighRoll, a.thighRoll)
+      )
+      this.shinRoll = normalizeDeg(
+        this.shinRoll + this.alpha * shortestArcDelta(this.shinRoll, a.shinRoll)
+      )
     }
     return {
       ...a,
@@ -42,8 +49,8 @@ export class AngleSmoother {
       shin: this.shin,
       thighRoll: this.thighRoll,
       shinRoll: this.shinRoll,
-      knee: Math.abs(this.thigh - this.shin),
-      kneeRoll: this.shinRoll - this.thighRoll
+      knee: jointAngleDeg(this.thigh, this.shin),
+      kneeRoll: shortestArcDelta(this.thighRoll, this.shinRoll)
     }
   }
 }

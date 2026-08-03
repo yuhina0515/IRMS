@@ -14,8 +14,13 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.SESSION_END, (_e, sessionId: number, reps: number) =>
     sessionsRepo.end(sessionId, reps)
   )
+  ipcMain.handle(IpcChannel.SESSION_PROGRESS, (_e, sessionId: number, reps: number) =>
+    sessionsRepo.updateReps(sessionId, reps)
+  )
   ipcMain.handle(IpcChannel.SESSION_LIST, () => sessionsRepo.list())
-  ipcMain.handle(IpcChannel.SESSION_GET_DATA, (_e, sessionId: number) => sessionsRepo.getData(sessionId))
+  ipcMain.handle(IpcChannel.SESSION_GET_DATA, (_e, sessionId: number, maxPoints?: number) =>
+    sessionsRepo.getData(sessionId, maxPoints)
+  )
   ipcMain.handle(IpcChannel.SESSION_DELETE, (_e, sessionId: number) => sessionsRepo.delete(sessionId))
 
   // Sensor data

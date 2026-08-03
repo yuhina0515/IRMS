@@ -2,6 +2,7 @@
 // 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;
 // 折線圖 / 3D / 2D / 詳細數值收進次要 tab(單一掛載,省 GPU/CPU)。
 import { useRef, useState } from 'react'
+import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
 import { computeGuidance, guidanceText } from '../services/guidance'
@@ -14,6 +15,7 @@ import { ProgressRing } from '../components/ProgressRing'
 import { SessionControlPanel } from '../components/SessionControlPanel'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { useLiquidKnob } from '../components/LiquidKnob'
+import { sessionController } from '../services/sessionController'
 
 type Tab = 'chart' | '3d' | '2d' | 'detail'
 
@@ -40,6 +42,7 @@ export function DashboardView(): JSX.Element {
   const params = useStore((s) => s.params)
   const isConnected = useStore((s) => s.isConnected)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
+  const protocol = useStore((s) => s.settings.protocol)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
 
   const [tab, setTab] = useState<Tab>('chart')
@@ -54,17 +57,24 @@ export function DashboardView(): JSX.Element {
 
   const triggerType = action?.triggerType ?? 'joint_angle'
   const info = metricInfo(triggerType)
-  const zone = computeMetricZone({ ...params, triggerType })
+  // 必須帶上動作的 safetyLimit,否則量表畫的超限刻線會與引擎實際判定的門檻不一致
+  const zone = computeMetricZone({ ...params, triggerType, safetyLimit: action?.safetyLimit ?? null })
   const sample = angles && !hardwareError ? computeMetricSample(angles, triggerType, params.tolerance) : null
 
+  const protocolOk = isProtocolSupported(protocol)
+
   const guidance = computeGuidance(sample, zone, session.phase, session.holdProgress, params.holdTimeMs)
+  // 未支援的協定排在連線之前:接上裝置也不會讓它變成可用的量測,先叫使用者
+  // 去連線等於把人推向一條走不通的路。
   const hintText = hardwareError
     ? '硬體異常,等待感測器復原…'
-    : !isConnected
-      ? '請先於頂部連線裝置'
-      : !action
-        ? '請先選擇復健動作'
-        : guidanceText(guidance, info)
+    : !protocolOk
+      ? '此協定尚未支援,請於設定切換回膝關節'
+      : !isConnected
+        ? '請先於頂部連線裝置'
+        : !action
+          ? '請先選擇復健動作'
+          : guidanceText(guidance, info)
   const tone: 'normal' | 'success' | 'danger' =
     hardwareError || session.alarmActive ? 'danger' : session.phase === 'holding' ? 'success' : 'normal'
 
@@ -83,6 +93,12 @@ export function DashboardView(): JSX.Element {
           ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
         </div>
       )}
+      {/* 2026-08-01 會議連帶決議:移除「內外翻方向未驗證」警示。
+          roll 完全不進入任何判定路徑——computeMetricSample 只讀 thigh/knee,
+          三種 triggerType 全是 pitch 導向,連 overLimit 都是從 sample.value 算的。
+          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號,只會訓練
+          使用者忽略警告。roll 影響的僅有 3D 模型、詳細數值、History 疊圖與 CSV,
+          該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
 
       <div className="grid" style={{ gridTemplateColumns: '1.6fr 1fr', alignItems: 'start' }}>
         <div className="panel glass">
@@ -99,6 +115,8 @@ export function DashboardView(): JSX.Element {
             phase={session.phase}
             alarm={session.alarmActive}
             error={hardwareError != null}
+            stale={!isConnected}
+            unsupported={!protocolOk}
           />
           <CoachHint phase={session.phase} text={hintText} tone={tone} />
         </div>
@@ -107,7 +125,15 @@ export function DashboardView(): JSX.Element {
           <div className="panel glass" style={{ textAlign: 'center' }}>
             <ProgressRing percent={session.holdProgress} reps={session.reps} />
             {session.alarmActive && (
-              <p style={{ color: 'var(--danger)', marginTop: 10, fontWeight: 600 }}>⚠ 超限警報</p>
+              <div style={{ marginTop: 10 }}>
+                <p style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: 8 }}>
+                  ⚠ 超限警報
+                </p>
+                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
+                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
+                  🔕 靜音 30 秒
+                </button>
+              </div>
             )}
           </div>
           <SessionControlPanel />

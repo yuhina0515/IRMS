@@ -4,6 +4,17 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput } from '@shared/types'
 import { GlassDropdown } from '../components/GlassDropdown'
+import {
+  HOLD_TIME_BOUND,
+  TARGET_ANGLE_BOUND,
+  TOLERANCE_BOUND,
+  clampHoldTimeMs,
+  clampTargetAngle,
+  clampTolerance,
+  clampTriggerParams
+} from '@shared/validation'
+import { computeMetricSample, metricInfo, OVER_EXTENSION_MARGIN } from '../services/movementMetric'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -12,7 +23,8 @@ const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   targetAngle: 90,
   tolerance: 10,
   holdTimeMs: 3000,
-  triggerType: 'joint_angle'
+  triggerType: 'joint_angle',
+  safetyLimit: null
 })
 
 export function ActionsView(): JSX.Element {
@@ -25,6 +37,20 @@ export function ActionsView(): JSX.Element {
 
   const [editing, setEditing] = useState<CustomAction | null>(null)
   const [form, setForm] = useState<CustomActionInput | null>(null)
+
+  // Record Pose(v1 有、v2 重寫時遺失,2026-08-01 會議意見清單 #11 回補):
+  // 沒有這個功能,治療師必須在感測器已經綁在患者腿上的情況下「盲打」一個目標角度,
+  // 每一個處方目標都是猜的——這是臨床上錯誤目標的最大來源。
+  const angles = useStore((s) => s.angles)
+  const isConnected = useStore((s) => s.isConnected)
+  /** 依目前表單的判定型別,算出「此刻的姿勢對應的目標角度」 */
+  const liveMetric =
+    angles == null || form == null
+      ? null
+      : computeMetricSample(angles, form.triggerType, form.tolerance).value
+
+  // 編輯中才綁 Esc(未開啟表單時 Esc 不應有作用)
+  useEscapeKey(form ? () => setForm(null) : null)
 
   const filtered = actions.filter((a) => a.protocol === protocol)
 
@@ -47,9 +73,12 @@ export function ActionsView(): JSX.Element {
       showToast('動作名稱不可為空', 'warning')
       return
     }
+    // 儲存前一律鉗制:動作會被反覆載入使用,一個不合法的參數存進去會永久影響
+    // 每一場用到它的 Session(負容錯 → rep 靜默永不前進)
+    const safe = clampTriggerParams(form)
     try {
-      if (editing) await window.irms.actions.update(editing.id, form)
-      else await window.irms.actions.create(form)
+      if (editing) await window.irms.actions.update(editing.id, safe)
+      else await window.irms.actions.create(safe)
       showToast(editing ? '動作已更新' : '動作已建立', 'success')
       setForm(null)
       await reload()
@@ -114,6 +143,12 @@ export function ActionsView(): JSX.Element {
               <div className="meta">
                 Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
               </div>
+              <div className="meta">
+                安全上限{' '}
+                {a.safetyLimit != null
+                  ? `${a.safetyLimit}°`
+                  : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
+              </div>
               {a.description && <div className="meta">{a.description}</div>}
               <div className="row" style={{ marginTop: 8 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
@@ -161,26 +196,99 @@ export function ActionsView(): JSX.Element {
                 <label>Target (°)</label>
                 <input
                   type="number"
+                  min={TARGET_ANGLE_BOUND.min}
+                  max={TARGET_ANGLE_BOUND.max}
                   value={form.targetAngle}
-                  onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, targetAngle: clampTargetAngle(parseFloat(e.target.value)) })
+                  }
                 />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Tolerance (±°)</label>
                 <input
                   type="number"
+                  min={TOLERANCE_BOUND.min}
+                  max={TOLERANCE_BOUND.max}
                   value={form.tolerance}
-                  onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, tolerance: clampTolerance(parseFloat(e.target.value)) })
+                  }
                 />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Hold (ms)</label>
                 <input
                   type="number"
+                  min={HOLD_TIME_BOUND.min}
+                  max={HOLD_TIME_BOUND.max}
+                  step={100}
                   value={form.holdTimeMs}
-                  onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) })}
+                  onBlur={(e) =>
+                    setForm({ ...form, holdTimeMs: clampHoldTimeMs(parseInt(e.target.value, 10)) })
+                  }
                 />
               </div>
+            </div>
+            {/* 安全上限:獨立於容錯的一個決定。空白 = 沿用舊的導出值,行為與過去相同。 */}
+            <div className="field">
+              <label>
+                Safety Limit 安全上限 (°) — 留空則沿用 target + tolerance +{' '}
+                {OVER_EXTENSION_MARGIN}
+              </label>
+              <input
+                type="number"
+                min={TARGET_ANGLE_BOUND.min}
+                max={180}
+                placeholder={`未設定(目前導出為 ${form.targetAngle + form.tolerance + OVER_EXTENSION_MARGIN}°)`}
+                value={form.safetyLimit ?? ''}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    safetyLimit: e.target.value === '' ? null : parseFloat(e.target.value)
+                  })
+                }
+                onBlur={(e) =>
+                  setForm({
+                    ...form,
+                    safetyLimit:
+                      e.target.value === ''
+                        ? null
+                        : Math.min(180, Math.max(form.targetAngle + form.tolerance, parseFloat(e.target.value) || 0))
+                  })
+                }
+              />
+              <p className="field-hint">
+                超過此角度會觸發長鳴警報。這是解剖上的上限,與「算不算達標」無關——
+                放寬容錯讓患者容易達標時,<b>不應該</b>連帶把這個值往外推。
+              </p>
+            </div>
+
+            {/* Record Pose:讓患者擺出要達成的姿勢,直接把當下數值收成目標角度 */}
+            <div className="record-pose">
+              {isConnected && liveMetric != null ? (
+                <>
+                  <span className="record-pose-live">
+                    目前 {metricInfo(form.triggerType).label}:
+                    <strong>{liveMetric.toFixed(1)}°</strong>
+                  </span>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() =>
+                      setForm({ ...form, targetAngle: clampTargetAngle(Math.round(liveMetric)) })
+                    }
+                  >
+                    ⤓ 擷取目前角度為目標
+                  </button>
+                </>
+              ) : (
+                <span className="record-pose-live" style={{ opacity: 0.7 }}>
+                  連線裝置後,可讓患者擺出目標姿勢並一鍵擷取角度,不必憑空輸入
+                </span>
+              )}
             </div>
             <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button className="btn btn-secondary" onClick={() => setForm(null)}>

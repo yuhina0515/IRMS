@@ -14,6 +14,19 @@ interface Props {
   phase: EnginePhase
   alarm: boolean
   error: boolean
+  /**
+   * 資料是否已過期(斷線中)。斷線後 store 的 angles 不會被清掉,所以量表會繼續
+   * 顯示最後一筆數值長達 15 秒的重連期間,看起來完全像即時值——使用者無從得知
+   * 那條腿現在到底在哪裡(2026-08-01 意見清單 #29)。
+   */
+  stale?: boolean
+  /**
+   * 目前協定的判定是否尚未支援。為真時量表照樣畫得出目標帶與超限刻線——因為
+   * 那些數字全部來自動作參數,與感測器裝在哪條肢體無關——於是畫面看起來完全
+   * 正常,卻與下方停用的開始按鈕互相矛盾。量表是這個畫面上最大、最像「正在
+   * 運作」的元件,不能讓它繼續代表一個不會發生的量測。
+   */
+  unsupported?: boolean
 }
 
 function point(valueDeg: number, r: number, domainMax: number): { x: number; y: number } {
@@ -33,7 +46,26 @@ function tick(v: number, domainMax: number): string {
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 }
 
-export function MetricGauge({ sample, zone, info, phase, alarm, error }: Props): JSX.Element {
+export function MetricGauge({
+  sample,
+  zone,
+  info,
+  phase,
+  alarm,
+  error,
+  stale = false,
+  unsupported = false
+}: Props): JSX.Element {
+  // 「殘值」必須真的有一個值才能殘。冷開機從未連線過時 sample 是 null,量表顯示
+  // 「--」,此時掛上「數值已過期」是在警告一個不存在的數字——而假警告會訓練
+  // 使用者忽略真警告。這裡用結構保證,而非要求每個呼叫端自己記得判斷。
+  const showStale = stale && sample != null
+  // 未支援優先於過期:協定根本不會被量測,「數值過期」是次要且誤導的說法。
+  const notice = unsupported
+    ? `此協定尚未支援 — 量表讀的仍是${info.label}`
+    : showStale
+      ? '斷線中 · 數值已過期'
+      : null
   const domainMax = zone.overLimit + 15
   const clamp = (v: number): number => Math.min(domainMax, Math.max(0, v))
   const value = sample ? clamp(sample.value) : 0
@@ -46,7 +78,7 @@ export function MetricGauge({ sample, zone, info, phase, alarm, error }: Props):
     zone.max === Infinity ? `目標 ≥ ${zone.min}°` : `目標 ${zone.min}–${zone.max}°`
 
   return (
-    <div className="metric-gauge">
+    <div className={`metric-gauge${notice ? ' muted' : ''}`}>
       <svg viewBox="0 0 240 150">
         <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="var(--gauge-track)" strokeWidth="14" strokeLinecap="round" />
         <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="var(--gauge-band)" strokeWidth="14" strokeLinecap="butt" />
@@ -65,6 +97,7 @@ export function MetricGauge({ sample, zone, info, phase, alarm, error }: Props):
           {targetText} · 回位 ≤ {zone.rest}° · <tspan fill="var(--danger)">超限 {zone.overLimit}°</tspan>
         </text>
       </svg>
+      {notice && <div className="metric-gauge-notice">{notice}</div>}
       {sample?.kneeMax != null && (
         <div className={`knee-badge${sample.kneeStraightOk ? ' ok' : ''}`}>
           膝直前置:{sample.knee.toFixed(0)}° / 需 ≤ {sample.kneeMax}°

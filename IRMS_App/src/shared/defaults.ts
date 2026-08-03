@@ -13,7 +13,8 @@ export const DEFAULT_ACTIONS: CustomActionInput[] = [
     targetAngle: 90,
     tolerance: 10,
     holdTimeMs: 3000,
-    triggerType: 'joint_angle'
+    triggerType: 'joint_angle',
+    safetyLimit: 135
   },
   {
     name: 'Straight Leg Raise (直膝抬腿)',
@@ -22,7 +23,8 @@ export const DEFAULT_ACTIONS: CustomActionInput[] = [
     targetAngle: 45,
     tolerance: 10,
     holdTimeMs: 3000,
-    triggerType: 'segment_elevation'
+    triggerType: 'segment_elevation',
+    safetyLimit: 80
   },
   {
     name: 'Backward Extension (直膝後擺)',
@@ -31,7 +33,8 @@ export const DEFAULT_ACTIONS: CustomActionInput[] = [
     targetAngle: 20,
     tolerance: 8,
     holdTimeMs: 2000,
-    triggerType: 'segment_extension'
+    triggerType: 'segment_extension',
+    safetyLimit: 30
   },
   // 肘關節 (Elbow)
   {
@@ -41,7 +44,8 @@ export const DEFAULT_ACTIONS: CustomActionInput[] = [
     targetAngle: 100,
     tolerance: 12,
     holdTimeMs: 2500,
-    triggerType: 'joint_angle'
+    triggerType: 'joint_angle',
+    safetyLimit: 145
   },
   // 肩關節 (Shoulder)
   {
@@ -51,6 +55,7 @@ export const DEFAULT_ACTIONS: CustomActionInput[] = [
     targetAngle: 90,
     tolerance: 15,
     holdTimeMs: 3000,
-    triggerType: 'segment_elevation'
+    triggerType: 'segment_elevation',
+    safetyLimit: 160
   }
 ]

@@ -8,6 +8,7 @@ import {
   computeCaptureStats,
   detectAxisSwap,
   effectiveRaw,
+  CAPTURE_STD_LIMIT_ABDUCTION,
   type CaptureStats
 } from './calibration'
 
@@ -31,6 +32,8 @@ const SETTINGS: Settings = {
   thighRollOffset: 0,
   shinRollInvert: false,
   shinRollOffset: 0,
+  thighRollVerified: false,
+  shinRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -81,16 +84,48 @@ describe('buildCalibrationPatch — 驗證', () => {
     })
   })
 
-  it('外展 roll 幅度不足 → rollDeltaTooSmall', () => {
+  it('外展單軸幅度不足 → 該軸沿用原設定且未驗證,另一軸正常判定,整步不失敗', () => {
+    // thighRoll delta = 8(< 15,不足)、shinRoll delta = 20(≥ 15,足夠)
     const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, stable(raw(0, 0, 8, 20)), SETTINGS)
-    expect(r).toEqual({ ok: false, error: 'rollDeltaTooSmall' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.patch.thighRollInvert).toBe(SETTINGS.thighRollInvert) // 沿用原設定
+    expect(r.patch.thighRollVerified).toBe(false) // 未驗證
+    expect(r.patch.shinRollInvert).toBe(false) // 20 ≥ 0 → 不反相
+    expect(r.patch.shinRollVerified).toBe(true)
   })
 
-  it('跳過外展 → 沿用現有 roll invert 設定', () => {
-    const cur = { ...SETTINGS, thighRollInvert: true }
+  it('外展兩軸皆幅度不足 → 兩軸都沿用原設定,整步仍成功(等同跳過)', () => {
+    const cur = { ...SETTINGS, thighRollInvert: true, thighRollVerified: true }
+    const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, stable(raw(0, 0, 5, -3)), cur)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.patch.thighRollInvert).toBe(true)
+    expect(r.patch.thighRollVerified).toBe(true) // 保留原本已驗證狀態,不因這次不足而清掉
+    expect(r.patch.shinRollInvert).toBe(false)
+    expect(r.patch.shinRollVerified).toBe(false)
+  })
+
+  it('跳過外展 → 沿用現有 roll invert 設定,verified 狀態不變', () => {
+    const cur = { ...SETTINGS, thighRollInvert: true, thighRollVerified: true }
     const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, null, cur)
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.patch.thighRollInvert).toBe(true)
+    if (!r.ok) return
+    expect(r.patch.thighRollInvert).toBe(true)
+    expect(r.patch.thighRollVerified).toBe(true)
+    expect(r.patch.shinRollVerified).toBe(false)
+  })
+
+  it('外展捕捉晃動介於一般門檻(3°)與外展專用門檻(4°)之間 → 仍視為穩定', () => {
+    const shakyAbduction: CaptureStats = { mean: raw(0, 0, 20, 20), maxStdDev: CAPTURE_STD_LIMIT_ABDUCTION - 0.1 }
+    const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, shakyAbduction, SETTINGS)
+    expect(r.ok).toBe(true)
+  })
+
+  it('外展捕捉晃動超過外展專用門檻 → unstable', () => {
+    const tooShakyAbduction: CaptureStats = { mean: raw(0, 0, 20, 20), maxStdDev: CAPTURE_STD_LIMIT_ABDUCTION + 0.1 }
+    const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, tooShakyAbduction, SETTINGS)
+    expect(r).toEqual({ ok: false, error: 'unstable' })
   })
 })
 

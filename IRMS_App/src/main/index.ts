@@ -6,7 +6,7 @@ import { app, shell, BrowserWindow, nativeTheme } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DEVICE_NAME_PREFIX } from '@shared/protocol'
-import { initDatabase } from './db'
+import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
 
 // 啟用 Web Bluetooth(Electron 預設關閉)
@@ -139,3 +139,6 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+// 關閉連線並 checkpoint WAL;不做的話 -wal 檔會跨執行無限增長
+app.on('will-quit', () => closeDatabase())
