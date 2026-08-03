@@ -6,6 +6,7 @@ import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
 import { computeMetricZone, metricInfo } from '../services/movementMetric'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { Spinner } from '../components/Spinner'
 
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
 const CHART_MAX_POINTS = 1200
@@ -13,14 +14,30 @@ const CHART_MAX_POINTS = 1200
 function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [readings, setReadings] = useState<StoredReading[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
+  const showToast = useUiStore((s) => s.showToast)
 
   useEffect(() => {
     let chart: Chart<'line'> | null = null
+    let cancelled = false
+    setIsLoading(true)
     void (async () => {
-      // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js
-      // 會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
-      const data = await window.irms.sessions.getData(session.id, CHART_MAX_POINTS)
+      // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js,
+      // 這段等待原本完全沒有回饋,只會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
+      let data: StoredReading[]
+      try {
+        data = await window.irms.sessions.getData(session.id, CHART_MAX_POINTS)
+      } catch {
+        if (!cancelled) {
+          setIsLoading(false)
+          showToast('讀取分析資料失敗', 'error')
+        }
+        return
+      }
+      if (cancelled) return
       setReadings(data)
+      setIsLoading(false)
       if (!canvasRef.current) return
       const t = chartTheme()
 
@@ -106,50 +123,61 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
         }
       })
     })()
-    return () => chart?.destroy()
+    return () => {
+      cancelled = true
+      chart?.destroy()
+    }
   }, [
     session.id,
     session.triggerType,
     session.targetAngle,
     session.tolerance,
     session.holdTimeMs,
-    session.safetyLimit
+    session.safetyLimit,
+    showToast
   ])
 
   useEscapeKey(onClose)
 
   const exportCsv = async (): Promise<void> => {
-    // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集
-    const full = await window.irms.sessions.getData(session.id)
-    // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
-    const meta = [
-      `# session,${session.id}`,
-      `# action,${session.actionName ?? ''}`,
-      `# protocol,${session.protocol ?? ''}`,
-      `# triggerType,${session.triggerType ?? ''}`,
-      `# targetAngle,${session.targetAngle ?? ''}`,
-      `# tolerance,${session.tolerance ?? ''}`,
-      `# holdTimeMs,${session.holdTimeMs ?? ''}`,
-      // 空值代表「當時沿用導出值」,與圖表的退回規則一致
-      `# safetyLimit,${session.safetyLimit ?? ''}`,
-      `# startTime,${session.startTime}`,
-      `# endTime,${session.endTime ?? ''}`,
-      `# repsCompleted,${session.repsCompleted}`,
-      `# abandoned,${session.abandoned}`
-    ].join('\n')
-    const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
-    const body = full
-      .map((r) =>
-        [r.timestamp, r.kneeAngle, r.thighAngle, r.shinAngle, r.kneeRoll, r.thighRoll, r.shinRoll].join(',')
-      )
-      .join('\n')
-    const blob = new Blob([meta + header + body], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `irms_session_${session.id}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    setIsExporting(true)
+    try {
+      // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集
+      const full = await window.irms.sessions.getData(session.id)
+      // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
+      const meta = [
+        `# session,${session.id}`,
+        `# action,${session.actionName ?? ''}`,
+        `# protocol,${session.protocol ?? ''}`,
+        `# triggerType,${session.triggerType ?? ''}`,
+        `# targetAngle,${session.targetAngle ?? ''}`,
+        `# tolerance,${session.tolerance ?? ''}`,
+        `# holdTimeMs,${session.holdTimeMs ?? ''}`,
+        // 空值代表「當時沿用導出值」,與圖表的退回規則一致
+        `# safetyLimit,${session.safetyLimit ?? ''}`,
+        `# startTime,${session.startTime}`,
+        `# endTime,${session.endTime ?? ''}`,
+        `# repsCompleted,${session.repsCompleted}`,
+        `# abandoned,${session.abandoned}`
+      ].join('\n')
+      const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
+      const body = full
+        .map((r) =>
+          [r.timestamp, r.kneeAngle, r.thighAngle, r.shinAngle, r.kneeRoll, r.thighRoll, r.shinRoll].join(',')
+        )
+        .join('\n')
+      const blob = new Blob([meta + header + body], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `irms_session_${session.id}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast('匯出 CSV 失敗', 'error')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -161,15 +189,26 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             ×
           </button>
         </div>
-        <div style={{ height: 320 }}>
+        <div style={{ height: 320, position: 'relative' }}>
           <canvas ref={canvasRef} />
+          {isLoading && (
+            <div
+              style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Spinner label="讀取分析資料中…" />
+            </div>
+          )}
         </div>
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-dim)' }}>
-            {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps
+            {isLoading ? '讀取中…' : `${readings.length} 點(圖表抽樣後)`} · {session.repsCompleted} reps
           </span>
-          <button className="btn btn-secondary" onClick={() => void exportCsv()} disabled={readings.length === 0}>
-            匯出 CSV
+          <button
+            className="btn btn-secondary"
+            onClick={() => void exportCsv()}
+            disabled={isExporting || isLoading || readings.length === 0}
+          >
+            {isExporting ? '匯出中…' : '匯出 CSV'}
           </button>
         </div>
       </div>
@@ -180,6 +219,9 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
 export function HistoryView(): JSX.Element {
   const [sessions, setSessions] = useState<Session[]>([])
   const [analyzing, setAnalyzing] = useState<Session | null>(null)
+  // 首次掛載預設為 true:避免在真正讀完前,把「還沒讀到」誤判成「沒有紀錄」而
+  // 短暫閃出「尚無復健紀錄」——那句話在使用者其實有歷史資料時是誤導。
+  const [isLoading, setIsLoading] = useState(true)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
 
@@ -188,6 +230,8 @@ export function HistoryView(): JSX.Element {
       setSessions(await window.irms.sessions.list())
     } catch {
       showToast('載入歷史失敗', 'error')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -210,7 +254,11 @@ export function HistoryView(): JSX.Element {
         <p>檢視與分析過往復健歷程</p>
       </header>
 
-      {sessions.length === 0 ? (
+      {isLoading && sessions.length === 0 ? (
+        <div className="panel glass">
+          <Spinner label="讀取歷史紀錄中…" />
+        </div>
+      ) : sessions.length === 0 ? (
         <div className="empty glass panel">尚無復健紀錄</div>
       ) : (
         <div className="panel glass">
