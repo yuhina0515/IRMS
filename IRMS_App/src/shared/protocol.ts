@@ -9,7 +9,7 @@ export const DEVICE_NAME_PREFIX = 'IRMS'
 /** GATT Service UUID */
 export const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b'
 
-/** 角度推播特徵值 (ESP32 → App,Notify,10Hz) */
+/** 角度推播特徵值 (ESP32 → App,Notify,25Hz — 韌體 config.h `COMM_PERIOD_MS = 40`) */
 export const CHAR_ANGLE_TX = 'beb5483e-36e1-4688-b7f5-ea07361b26a8'
 
 /** 參數/指令接收特徵值 (App → ESP32,Write) */

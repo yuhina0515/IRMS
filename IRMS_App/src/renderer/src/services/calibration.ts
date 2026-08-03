@@ -26,6 +26,29 @@ export interface CaptureStats {
 
 const AXES: (keyof RawAngles)[] = ['thigh', 'shin', 'thighRoll', 'shinRoll']
 
+/** 前後向動作(前抬 / 後勾)看 pitch 兩軸 */
+export const PITCH_AXES = ['thigh', 'shin'] as const
+/** 外展看 roll 兩軸 */
+export const ROLL_AXES = ['thighRoll', 'shinRoll'] as const
+
+/**
+ * 相對基準姿勢,在**指定軸**上的最大位移量(度)。
+ *
+ * 免手擷取用它判斷「患者確實做了這一步要求的動作」。軸必須指定,不能一律取四軸
+ * 最大——外展步驟的門檻是 roll 門檻,若把 pitch 也算進來,免手流程會直接自我觸發:
+ * 上一步(後勾小腿)擷取完成的瞬間,患者仍維持著勾腿姿勢,pitch 相對站直基準
+ * 早已遠超門檻,於是外展步驟在患者根本沒有外展的情況下就判定「動過了」而擷取。
+ * 後果是外展步驟被靜默消耗、roll 方向永遠處於未驗證,且每次重跑精靈都會再踩一次。
+ */
+export function maxAxisDelta(
+  baseline: RawAngles,
+  current: RawAngles,
+  axes: readonly (keyof RawAngles)[]
+): number {
+  if (axes.length === 0) return 0
+  return Math.max(...axes.map((k) => Math.abs(shortestArcDelta(baseline[k], current[k]))))
+}
+
 /**
  * 四軸的環形平均與最大環形標準差。
  * 必須用環形統計而非算術平均:角度是環不是實數線,若某肢段的靜止姿勢落在

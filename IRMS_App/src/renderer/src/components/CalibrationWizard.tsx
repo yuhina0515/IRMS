@@ -11,10 +11,12 @@ import {
   CAPTURE_STD_LIMIT_ABDUCTION,
   CAPTURE_DELTA_MIN,
   CAPTURE_ROLL_DELTA_MIN,
+  PITCH_AXES,
+  ROLL_AXES,
+  maxAxisDelta,
   type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
-import { shortestArcDelta } from '../services/angleMath'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const SAMPLE_COUNT = 30
@@ -63,6 +65,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     kneeFlex?: CaptureStats
   }>({})
   const cancelledRef = useRef(false)
+  /** 已自動嘗試過的步驟——每步只放行一次,避免失敗後立刻重新武裝造成迴圈 */
+  const autoTriedRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     // StrictMode(dev)會刻意 mount→unmount→remount 一次來抓漏清理的 bug;
@@ -155,11 +159,38 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
    */
   useEffect(() => {
     if (!autoCapture || capturing || !isConnected) return
-    const stepSpec: Record<number, { limit: number; minDelta: number; run: () => Promise<void> }> = {
-      1: { limit: CAPTURE_STD_LIMIT, minDelta: 0, run: () => handleCapture('baseline', 2) },
-      2: { limit: CAPTURE_STD_LIMIT, minDelta: CAPTURE_DELTA_MIN, run: () => handleCapture('thighRaise', 3) },
-      3: { limit: CAPTURE_STD_LIMIT, minDelta: CAPTURE_DELTA_MIN, run: () => handleCapture('kneeFlex', 4) },
-      4: { limit: CAPTURE_STD_LIMIT_ABDUCTION, minDelta: CAPTURE_ROLL_DELTA_MIN, run: () => finish(true) }
+    // 每一步只自動嘗試一次。失敗後若立刻重新武裝,患者會落入
+    // 倒數 →「偵測到晃動」→ 倒數 的迴圈,而擷取期間按鈕全部 disabled、Esc 也停用,
+    // 只剩約 1.35 秒的空檔可以按到按鈕——這正好打在平衡受限的患者身上。
+    // 失敗就把控制權交還給人,由他自己決定重試或略過。
+    if (autoTriedRef.current.has(step)) return
+    const stepSpec: Record<
+      number,
+      { limit: number; minDelta: number; axes: readonly (keyof RawAngles)[]; run: () => Promise<void> }
+    > = {
+      1: { limit: CAPTURE_STD_LIMIT, minDelta: 0, axes: [], run: () => handleCapture('baseline', 2) },
+      2: {
+        limit: CAPTURE_STD_LIMIT,
+        minDelta: CAPTURE_DELTA_MIN,
+        axes: PITCH_AXES,
+        run: () => handleCapture('thighRaise', 3)
+      },
+      3: {
+        limit: CAPTURE_STD_LIMIT,
+        minDelta: CAPTURE_DELTA_MIN,
+        axes: PITCH_AXES,
+        run: () => handleCapture('kneeFlex', 4)
+      },
+      // 外展只看 roll。取四軸最大會讓這一步在上一步(後勾小腿)的殘留姿勢下
+      // 直接自我觸發——pitch 早已遠超門檻,患者根本沒有外展過。
+      // 改成只看 roll 之後,做不到外展的患者不會被自動擷取搶走「略過」的選擇,
+      // 做得到的患者仍然享有免手擷取。
+      4: {
+        limit: CAPTURE_STD_LIMIT_ABDUCTION,
+        minDelta: CAPTURE_ROLL_DELTA_MIN,
+        axes: ROLL_AXES,
+        run: () => finish(true)
+      }
     }
     const spec = stepSpec[step]
     if (!spec) return
@@ -179,14 +210,10 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       if (spec.minDelta > 0) {
         const base = capturesRef.current.baseline
         if (!base) return
-        const moved = Math.max(
-          ...(['thigh', 'shin', 'thighRoll', 'shinRoll'] as const).map((k) =>
-            Math.abs(shortestArcDelta(base.mean[k], stats.mean[k]))
-          )
-        )
-        if (moved < spec.minDelta) return
+        if (maxAxisDelta(base.mean, stats.mean, spec.axes) < spec.minDelta) return
       }
       fired = true
+      autoTriedRef.current.add(step)
       unsub()
       void spec.run()
     })
@@ -228,12 +255,24 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
             <input
               type="checkbox"
               checked={autoCapture}
-              onChange={(e) => setAutoCapture(e.target.checked)}
+              onChange={(e) => {
+                // 重新勾選視為「我要再試一次」——清掉已嘗試記錄,否則打開開關卻沒反應
+                if (e.target.checked) autoTriedRef.current.clear()
+                setAutoCapture(e.target.checked)
+              }}
             />
             免手擷取:擺好姿勢並穩住 {AUTO_STABLE_MS / 1000} 秒即自動開始
           </label>
           {step > 0 && step < 5 && (
-            <button className="btn btn-secondary btn-sm" disabled={capturing} onClick={() => setStep(step - 1)}>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={capturing}
+              onClick={() => {
+                // 回上一步是明確的「重捕」意圖,該步必須重新允許自動擷取
+                autoTriedRef.current.delete(step - 1)
+                setStep(step - 1)
+              }}
+            >
               ← 上一步(重捕)
             </button>
           )}
