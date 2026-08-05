@@ -112,6 +112,9 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   0.1° 量化底線)、LiveChart rAF(已被 `UI_SYNC_MS = 80` 實作,backlog 項應刪除)。
   **規則變更**:「指出它餵給哪條判定路徑」→「**指出它改變哪一個決定,以及那是誰的決定
   ——引擎的,還是人的**」(舊規則按字面會把畫錯的安全線判為裝飾性)
+- **2026-08-05 ESP32 序列埠偵測排錯**([[log_20260805_esp32_port_troubleshooting|日誌]]):
+  插電腦後埠清單完全沒列出裝置(非「埠被佔用」),`README.md` §5.1.1 新增排錯
+  子節(線材/驅動/USB 埠/供電,三平台檢查步驟),對應 issue #2 燒錄前置阻塞。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。
