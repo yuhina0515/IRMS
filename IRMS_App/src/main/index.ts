@@ -2,7 +2,7 @@
 // --- Electron 主進程進入點 ---
 // 職責:初始化資料庫、註冊 IPC、建立視窗、處理 Web Bluetooth 自動配對。
 
-import { app, shell, BrowserWindow, nativeTheme } from 'electron'
+import { app, shell, screen, BrowserWindow, nativeTheme } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DEVICE_NAME_PREFIX } from '@shared/protocol'
@@ -20,13 +20,32 @@ function themeColors(): { bg: string; symbol: string } {
     : { bg: '#eef2fb', symbol: '#1c1c1e' }
 }
 
+/**
+ * 13" 1366×768 筆電在 Windows 125% 縮放下,邏輯解析度只剩約 1093×614 DIP,扣工作列後
+ * 可用高度約 576–590——舊的 minHeight:680 比這個機型的整個螢幕邏輯高度還高,視窗連
+ * 自己宣告的最小尺寸都無法在這類硬體上完整顯示(2026-08-07 會議發現)。改為:
+ * (1) minHeight 降到這類硬體上留有安全邊際的高度;(2) 初始尺寸夾在主螢幕工作區內,
+ * 避免在小螢幕上一開窗就比工作區還大而被系統硬裁。
+ */
+const MIN_WIDTH = 1024
+const MIN_HEIGHT = 600
+
+function initialWindowSize(): { width: number; height: number } {
+  const work = screen.getPrimaryDisplay().workAreaSize
+  return {
+    width: Math.max(MIN_WIDTH, Math.min(1280, work.width)),
+    height: Math.max(MIN_HEIGHT, Math.min(820, work.height))
+  }
+}
+
 function createWindow(): void {
   const initial = themeColors()
+  const size = initialWindowSize()
   const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1024,
-    minHeight: 680,
+    width: size.width,
+    height: size.height,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     show: false,
     autoHideMenuBar: true,
     title: 'IRMS Dashboard',

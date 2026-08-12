@@ -174,5 +174,5 @@ export function Leg3D(): JSX.Element {
     }
   }, [])
 
-  return <div ref={mountRef} style={{ height: 320, borderRadius: 12, overflow: 'hidden' }} />
+  return <div ref={mountRef} className="leg3d-viewport" />
 }

@@ -100,7 +100,7 @@ export function DashboardView(): JSX.Element {
           使用者忽略警告。roll 影響的僅有 3D 模型、詳細數值、History 疊圖與 CSV,
           該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
 
-      <div className="grid" style={{ gridTemplateColumns: '1.6fr 1fr', alignItems: 'start' }}>
+      <div className="grid dashboard-grid">
         <div className="panel glass">
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
             <div>

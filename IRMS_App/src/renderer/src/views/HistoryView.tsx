@@ -161,7 +161,7 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             ×
           </button>
         </div>
-        <div style={{ height: 320 }}>
+        <div className="history-chart-viewport">
           <canvas ref={canvasRef} />
         </div>
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>

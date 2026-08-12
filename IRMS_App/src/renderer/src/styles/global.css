@@ -244,9 +244,13 @@ body {
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
-  margin: 0 150px 0 12px;
-  /* 視窗無標題列,原本靠標題列拖動視窗的操作改由這條 header 承擔;
-     按鈕等互動元素要各自標記 no-drag 拿回點擊。 */
+  margin-left: 12px;
+  /* 右側留白讓開原生 titleBarOverlay 按鈕。優先用 Electron/Chromium 即時填入的
+     env(titlebar-area-x/width)(隨 DPI/外接螢幕即時更新,2026-08-07 會議查證 Electron
+     titleBarOverlay 確實會填這組變數)反推按鈕區寬度 = 100vw − area_x − area_width;
+     必須用 100vw 而非 100%,因為 env() 是視窗座標系,和 .top-header 容器的百分比基準
+     不是同一個參考系。env() 不支援時,兩層 fallback 一路退回舊有的 150px 猜測常數。 */
+  margin-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 150px)));
   -webkit-app-region: drag;
 }
 .top-header button {
@@ -357,6 +361,37 @@ body {
 }
 .cards {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+/* Dashboard 主要區塊:主指標寬、次要區窄。窄窗(側欄式筆電、多視窗並排)收成單欄,
+   避免 1fr 欄位被壓到比其內容(進度環、量表)還窄而溢出裁切。 */
+.dashboard-grid {
+  grid-template-columns: 1.6fr 1fr;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 固定寬高比取代寫死 px 高度——3D/圖表本身已用 ResizeObserver / Chart.js responsive
+   模式跟著容器縮放,問題只出在外層容器被釘死;改用 aspect-ratio 讓容器本身也跟著
+   版面寬度縮放,同時用 max-height 避免在超寬視窗被拉得過高。 */
+/* max-height 和 aspect-ratio 一起用時,若寬度仍是 100%(定值),瀏覽器只會壓高度、
+   不會跟著縮寬,畫面會被拉扁變形。改用 max-width 從高度上限反推(cap × ratio),
+   讓 aspect-ratio 同時決定寬高,兩者才不會互相打架。 */
+.leg3d-viewport {
+  width: 100%;
+  max-width: calc(min(42vh, 380px) * 4 / 3);
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.history-chart-viewport {
+  position: relative;
+  width: 100%;
+  max-width: calc(min(40vh, 360px) * 16 / 9);
+  aspect-ratio: 16 / 9;
 }
 .panel {
   padding: 18px;
