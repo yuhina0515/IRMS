@@ -70,7 +70,7 @@ summary: "專案整頓:把 2026-08-07 已完成但躺在工作樹五天的成果
 ### 三、死連結修正
 
 寫了一支一次性連結檢查器掃過全 vault 的 48 份 markdown、198 條連結(相對連結與
-`[[wikilink]]` 都查)。揪出 9 條死連結,全在 v1 時代的四份日誌裡,指向專案搬家前的絕對路徑
+Obsidian 雙括號連結都查)。揪出 9 條死連結,全在 v1 時代的四份日誌裡,指向專案搬家前的絕對路徑
 `file:///c:/Users/Yuhina/Documents/IRMS/...`:
 
 - 指向仍存在的檔案(`IRMS_Sensor.ino`、`PROJECT_STATUS.md`、`AI_CODING_RULES.md`)→ 改為倉庫相對連結。

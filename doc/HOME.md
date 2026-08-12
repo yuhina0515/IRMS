@@ -131,6 +131,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   節號、判定邏輯改寫為 movementMetric + 獨立 `safetyLimit` 的現況;PROJECT_STATUS 由
   「只涵蓋到 06-30」的歷史檔改寫成現況快照。寫連結檢查器掃 198 條連結,修好 v1 時代四份
   日誌裡 9 條指向搬家前絕對路徑的死連結(只改指標、不動敘述)。`npm run ci` 全綠
+- **2026-08-12 校正與 UI 計畫會議**([[log_20260812_meeting_calibration_ui_plan|會議紀錄]]):
+  會前更正一項事實錯誤——**韌體其實早在 8/07 就已燒錄、BLE 實機連線成功、校準在真裝置上
+  跑過**,文件與 issues #2/#3 的「從未驗證」敘述已過時(仍未驗證的是達標音/超限/斷線這條
+  回饋鏈)。裝置現不在手邊,議題遂定為「下次拿到裝置前該備好什麼」。
+  **三方初始提案全部落選**,交叉詰問後收斂到沒人一開始提出的東西:**offset 用「帶符號摺疊」
+  儲存才是根因**。會議期間三方各自獨立發現同一個**已隨 v1.0.1 出貨**的缺陷:翻轉 invert
+  開關不重算 offset,校準姿勢讀值變 `-2×raw`;最壞情況在 `segment_extension`——患者往前
+  抬腿被記成後伸達標、蜂鳴器響、reps 寫進 DB。裁決:offset 改存 `zeroRaw` 重新參數化
+  (數學等價,全圓差 5.7e-14;由建構消滅整類缺陷,並讓「站直必須讀 0」第一次寫得成測試)
+  → session 中凍結校準(實測證明沒它 migration 6 不健全)→ migration 6 單一 JSON 欄位
+  → 縮小版零位檢查。**否決** raw 角度欄位(三方實跑證明可逆,+54MB/百場買零資訊)
+  與元件測試基建(兩個真實缺陷都在純函式層可捕捉)
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。
