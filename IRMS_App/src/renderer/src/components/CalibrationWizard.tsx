@@ -1,5 +1,7 @@
-// 校準精靈:五步引導,自動推導 invert/offset。套用前不寫任何 settings;
-// 最後一步以暫存 patch 即時預覽,使用者確認「抬腿時數字變大」才寫入。
+// 校準精靈:六個畫面(UI 標示 1/6–6/6),自動推導 invert/axisSwap/offset。
+// 其中第 2–5 步是擷取動作,第 1 步為佩戴確認、第 6 步為預覽。
+// 套用前不寫任何 settings;最後一步以暫存 patch 即時預覽,
+// 使用者確認「抬腿時數字變大」才寫入。
 import { useEffect, useRef, useState } from 'react'
 import type { RawAngles } from '@shared/protocol'
 import { applyCalibration, useStore, type Settings } from '../store/useStore'

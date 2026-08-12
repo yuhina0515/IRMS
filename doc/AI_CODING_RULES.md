@@ -19,7 +19,11 @@
 * **文件與註解維護 (Comments & Docs Preservation)**：
   * 必須完整保留代碼中原有且不衝突的**繁體中文註解**。
   * 新增任何函數、變數或重要控制邏輯時，必須附上清晰的繁體中文說明。
-  * 修改核心功能或接口協議後，必須在第一時間同步更新 [PROJECT_STATUS.md](PROJECT_STATUS.md)、[README.md](README.md)(系統規格)與 [OPTIMIZATION.md](OPTIMIZATION.md),並確保 BLE 協定 / SQLite schema 描述與實際程式碼一致。
+  * 修改核心功能或接口協議後，必須在第一時間同步更新 [README.md](README.md)(系統規格)、
+    [OPTIMIZATION.md](OPTIMIZATION.md)(活清單)與本檔 §4 速查表,並確保 BLE 協定 /
+    SQLite schema 描述與實際程式碼一致。**文件與程式再分歧時,一律以程式為準**
+    (ROADMAP 決策 D2)。
+  * 每批工作結束後在 [HOME.md](HOME.md) 的「目前狀態速記」補一條,指向該次的 coding log。
 * **增量編輯 (Incremental File Editing)**：
   * 嚴禁對大型檔案進行無意義的整檔覆寫。必須優先使用精密編輯工具（如 `replace_file_content` 或 `multi_replace_file_content`），以降低 Token 消耗並避免意外覆蓋其他無關邏輯。
 * **記錄計畫與變更日誌 (Plan & Action Logging)**：
@@ -69,6 +73,8 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **I2C 總線腳位**：`SDA (GPIO 21)`、`SCL (GPIO 22)`
 * **I2C 位址**：大腿端 `0x68`，小腿端 `0x69`
 
+### 4.2 BLE 協定契約 (BLE Protocol)
+
 > 此節為協定契約速查;權威來源為 [`IRMS_App/src/shared/protocol.ts`](../IRMS_App/src/shared/protocol.ts) 與韌體
 > [`IRMS_Sensor/IRMS_Sensor.ino`](../IRMS_Sensor/IRMS_Sensor.ino),兩端任一變更必須同步。
 
@@ -85,18 +91,56 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
   * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
   * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:SYNC,大腿offset,小腿offset`
 
-> 權威來源為 [`IRMS_App/src/main/db.ts`](../IRMS_App/src/main/db.ts) 的 `createSchema()`;DB 檔存於 Electron `userData` 目錄(不進版控)。
+### 4.3 SQLite Schema(目前 `user_version = 5`)
+
+> 權威來源為 [`IRMS_App/src/main/migrations.ts`](../IRMS_App/src/main/migrations.ts) 的 `MIGRATIONS` 陣列;
+> DB 檔存於 Electron `userData` 目錄(不進版控)。
+
+* **變更 schema 的唯一方式:新增一個 migration**。`db.ts` 不再有 `createSchema()`——
+  schema 演進走 `PRAGMA user_version` 遞增式 runner(ROADMAP 決策 D4,2026-08-01 實作)。
+  * **嚴禁**直接修改既有 migration 的 SQL:使用者手上的安裝已經跑過它了,改動只會影響
+    全新安裝,造成新舊安裝 schema 分歧,而開發者永遠看不到(他的 dev DB 想刪就刪)。
+  * 每一版包在自己的交易內,失敗整版回滾,`user_version` 停在前一版。
+  * migration 檔刻意只用 `exec`/`prepare`,不碰 better-sqlite3 專屬 API,
+    如此測試才能用 Node 內建 `node:sqlite` 跑真正的 SQLite 引擎。
 
 * **資料表 `custom_actions`** (自訂復健動作範本)：
-  * 欄位：`id` (PK), `name` (TEXT), `description` (TEXT), `protocol` (TEXT), `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER), `triggerType` (TEXT)
+  * 欄位：`id` (PK), `name` (TEXT), `description` (TEXT), `protocol` (TEXT),
+    `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER), `triggerType` (TEXT),
+    `safetyLimit` (REAL, nullable — migration 5)
+  * **CHECK 約束**(migration 2,DB 層最後防線,與 `shared/validation.ts` 的輸入端鉗制同值)：
+    `targetAngle` 10–170、`tolerance` 1–30、`holdTimeMs` 500–20000
 * **資料表 `sessions`** (復健歷程紀錄)：
-  * 欄位：`id` (PK), `startTime` (TEXT), `endTime` (TEXT), `targetAngle` (REAL), `tolerance` (REAL), `holdTimeMs` (INTEGER), `actionId` (INTEGER), `actionName` (TEXT), `protocol` (TEXT), `repsCompleted` (INTEGER)
+  * 欄位：`id` (PK), `startTime` (TEXT), `endTime` (TEXT), `targetAngle` (REAL),
+    `tolerance` (REAL), `holdTimeMs` (INTEGER), `actionId` (INTEGER), `actionName` (TEXT),
+    `protocol` (TEXT), `repsCompleted` (INTEGER),
+    `abandoned` (INTEGER NOT NULL DEFAULT 0 — migration 3),
+    `triggerType` (TEXT, nullable 快照 — migration 4),
+    `safetyLimit` (REAL, nullable — migration 5)
+  * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
+    歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
 * **資料表 `sensor_data`** (高頻 6 軸角度數據)：
   * 欄位：`id` (PK), `sessionId` (外鍵 → `sessions.id`, `ON DELETE CASCADE`), `timestamp` (TEXT), `kneeAngle` (REAL), `thighAngle` (REAL), `shinAngle` (REAL), `kneeRoll` (REAL), `thighRoll` (REAL), `shinRoll` (REAL)
   * 索引：`idx_sensor_data_sessionId` on `sensor_data(sessionId)`
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
-* **達標區間**：`fabs(kneeAngle - targetAngle) <= tolerance`
-* **達標回饋**：進入區間時 GPIO 25 點亮，維持時間達 `holdTimeMs` 時完成復健，GPIO 26 蜂鳴器發出雙短響，系統狀態燈快速雙閃。
-* **動作安全超限**：`kneeAngle > targetAngle + tolerance + 10.0`
-* **超限回饋**：GPIO 26 蜂鳴器持續長鳴，直到回復安全角度。
+
+> 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
+> `CMD:`。權威來源為 [`triggerEngine.ts`](../IRMS_App/src/renderer/src/services/triggerEngine.ts)
+> 與 movementMetric 正規化層。
+
+* **判定變數不一定是膝角**:三種 `triggerType`(`joint_angle` / `segment_elevation` /
+  `segment_extension`)先經 movementMetric 正規化為單一主指標再判定。SLR、後擺是以
+  `angles.thigh` 判定的——寫任何顯示或匯出時,畫的必須是**該場實際判定的那個變數**。
+* **達標區間**：`|metric − targetAngle| <= tolerance`,角度差一律走 wrap-safe 環形數學。
+* **穩定化**(2026-07-11)：引擎遲滯 4°、出區寬限 250ms(寬限內進度凍結而非歸零)、
+  顯示層 EMA 平滑 α=0.3。
+* **達標回饋**：進入區間時下發 `CMD:LED_ON`(GPIO 25),維持達 `holdTimeMs` 後
+  `CMD:GOAL` 觸發蜂鳴器雙短響;指令去重,狀態未變不重送。
+* **動作安全超限**：`metric > safetyLimit`。`safetyLimit` 是**獨立欄位**(migration 5),
+  與 `tolerance` 解耦——容錯決定「算不算達標」,安全上限由解剖決定,放寬前者不該連帶把
+  患者的安全上限往外推。`NULL` 時才沿用舊的導出值 `targetAngle + tolerance + 10.0`。
+* **超限回饋**：`CMD:ALARM_ON` 持續長鳴至回復安全角度;與 session 綁定、UI 可靜音、
+  收到 `ERR:` 或斷線時強制 `ALARM_OFF`,重連後重新武裝。
+* **rest 不變式**:必須先回到休息位才能計下一次 rep——沒有這條,靜止不動的腿會被
+  出貨預設的動作計出幻影 reps 寫進 DB。

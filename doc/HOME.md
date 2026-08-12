@@ -112,6 +112,25 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   0.1° 量化底線)、LiveChart rAF(已被 `UI_SYNC_MS = 80` 實作,backlog 項應刪除)。
   **規則變更**:「指出它餵給哪條判定路徑」→「**指出它改變哪一個決定,以及那是誰的決定
   ——引擎的,還是人的**」(舊規則按字面會把畫錯的安全線判為裝飾性)
+- **2026-08-07 校正 bug + 響應式修正**([[log_20260807_meeting_calibration_bug_and_responsive_layout|會議紀錄]]):
+  使用者重燒韌體實機連線後回報校正異常。三方獨立調查全數收斂於同一處——**Settings 的
+  「快速歸零」漏套 `axisSwap`**,貼歪 90° 的感測器歸零後 offset 會算在錯的物理軸上,
+  且無任何錯誤訊息(2026-06-27 寫下,早於 axisSwap,是原始遺漏非迴歸)。修法比照精靈
+  路徑,抽成 `calibration.ts` 的 `buildQuickZeroPatch` 純函式,由 vitest 覆蓋;
+  **132 → 144 tests**。UI 部分**否決「重新設計排版」的架構重寫**,改採 5 項具體修正
+  (兩處寫死 `height:320` → aspect-ratio、Dashboard 900px 斷點、視窗最小高度 680→600
+  併夾在工作區內、頂列改用 `env(titlebar-area-*)`)。新增 `vite.browsertest.config.ts`
+  純瀏覽器測試設定,四種尺寸實測無溢出;真實 Electron 視窗量到頂列 inset **136px**,
+  證實 `env()` 在本專案設定下確實生效(非退回 150px 常數)。重新打包 exe 成功
+- **2026-08-12 倉庫與文件整頓**([[log_20260812_repo_and_doc_cleanup|日誌]]):把 08-07
+  已完成卻躺在工作樹五天的成果分三個 commit 進版控;清掉 `.claude` 殘留備份與已停用的空
+  `logs/` 目錄並補 `.gitignore`(原本只有全域 ignore 蓋到,換機器 clone 就會漏)。
+  四份核心文件全面對齊現況:OPTIMIZATION 打勾 5 項已完成、被否決項改為保留並註明理由
+  (刪掉會讓同一提案幾個月後重新被辯論)、修好 §7/§8 順序顛倒;ROADMAP 補 08-03 / 08-07
+  兩次順位覆寫;AI_CODING_RULES 的 schema 補齊 migration 2–5 的欄位、修好 4.1 跳 4.4 的
+  節號、判定邏輯改寫為 movementMetric + 獨立 `safetyLimit` 的現況;PROJECT_STATUS 由
+  「只涵蓋到 06-30」的歷史檔改寫成現況快照。寫連結檢查器掃 198 條連結,修好 v1 時代四份
+  日誌裡 9 條指向搬家前絕對路徑的死連結(只改指標、不動敘述)。`npm run ci` 全綠
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。

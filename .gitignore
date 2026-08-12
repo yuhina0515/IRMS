@@ -24,3 +24,7 @@ electron.vite.config.*.mjs
 # Obsidian:個人工作區狀態不進版控,共用設定(外掛/外觀/模板)保留
 .obsidian/workspace.json
 .obsidian/graph.json
+
+# Claude Code 的本機權限設定與它自動留下的 .bak;逐台機器不同,不該進版控
+# (.claude/CLAUDE.md 是專案層級規則,要進版控,故只排除 settings.local.json*)
+.claude/settings.local.json*

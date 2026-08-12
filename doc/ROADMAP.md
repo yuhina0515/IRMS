@@ -1,7 +1,7 @@
 ---
 tags: [irms, roadmap]
-date: 2026-07-03
-description: 架構決策與分階段開發計畫(v2 審查後制定)
+date: 2026-08-12
+description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-12 對齊現況)
 ---
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
@@ -67,19 +67,27 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 ### Phase 2|測試與品質基建(1–2 天)
 - [x] 🖥 導入 **Vitest**:`triggerEngine`(狀態機邊界:進出區間/維持/休息/超限)、
       `parseAnglePacket`(6軸/舊格式/ERR/malformed)、`applyCalibration`、`reconcileSelection`
-      (2026-07-03,22 tests;`npm run ci` = typecheck+test+build)
+      (2026-07-03,22 tests;`npm run ci` = typecheck+test+build)。
+      此後逐批擴充,**2026-08-12 現況為 144 tests / 14 files**
 - [ ] 🖥 ESLint + Prettier;`npm run ci` = lint + typecheck + test + build(2026-08-01 會議明確延後)
+- [ ] 🖥 **判定路徑的元件測試**(2026-08-03 裁定順位,只鎖臨床輸出面)。
+      2026-08-07 的快速歸零缺陷正是死在這個缺口:純函式層全綠,但把值寫進 settings 的
+      那個元件沒有任何覆蓋
 - [x] 🖥 React ErrorBoundary 包各 view,防單點白屏(2026-08-01)
 - [x] 🖥 DB migration 機制(`user_version`,見 D4)(2026-08-01,含 v1.0.1 升級路徑測試)
 
-### Phase 3|效能(1 天)
-- [ ] 🖥 LiveChart:rAF 聚合封包 + 節流至 ~20fps(25Hz 推播下必要)
+### Phase 3|效能(1 天)— ✅ 完成
+- [x] 🖥 LiveChart 節流:以 `UI_SYNC_MS = 80` 尾緣節流同步 UI(2026-07-11)。
+      **2026-08-03 會議裁定原本寫的「rAF 聚合封包」應自 backlog 刪除**——需求已被此實作
+      滿足,rAF 只是同一件事的另一種寫法,留著會誤導成尚未處理
 - [x] 🖥 History 大 Session:LTTB 抽樣(2026-08-01,主進程抽樣至 1200 點,保留峰值)
 
 ### Phase 4|功能補完(按價值排序)
 - [x] 🖥 **回補 v1 遺失功能「記憶姿勢 (Record Pose)」**:動作編輯 Modal 內即時顯示目前角度,
       一鍵擷取為 targetAngle(2026-08-01)
-- [ ] 🖥 復健評分模型:平穩度(角速度變異)+ 達標維持率 → `sessions.qualityScore`(走 migration)
+- [~] 🖥 ~~復健評分模型 → `sessions.qualityScore`~~:**2026-08-03 會議否決**。BLE 協定沒有
+      陀螺通道(只傳融合後角度)、封包量化底線 0.1°,以差分角度反推的「平穩度」量到的
+      主要是量化雜訊。要做必須先擴充協定,屆時重開決策
 - [ ] 🖥 圖表 Roll 曲線切換、側欄收合持久化、重連視覺提示
 - [ ] 🖥 i18n(繁中/EN)、淺色主題、快捷鍵(P2 全項見 [[OPTIMIZATION]])
 
@@ -119,11 +127,43 @@ Phase 0 的兩個 🖥 項與 Phase 1、2 **不依賴硬體**,裝置未回歸前
    不再列在這份文件裡卡住桌面 backlog
 3. **migration runner + session 收尾 + ErrorBoundary** — ✅ 完成(2026-08-01)
 
-**新增專案規則**:動任何 UI 或校準工作之前,先指出它餵給哪一條判定路徑的輸入;
-指不出來就是裝飾性的,排到清單最後面。
-
 **校準快照 migration**:移至 [#4](https://github.com/yuhina0515/IRMS/issues/4)——
 schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。
 
 > **慣例**:需要實機/硬體的工作一律開 GitHub issue,不寫進 ROADMAP。
 > 文件只追蹤「坐在桌前就能推進」的項目,避免硬體滑期時整份 backlog 看起來是空的。
+
+---
+
+## 五、2026-08-03 目視驗收後的順位覆寫
+
+[[log_20260803_meeting_direction_after_visual_pass|方向裁決會議]]的裁定順序:
+
+1. **合併 PR #1** — ✅ 完成。最重大發現:`main` 一直在出貨會捏造 reps 的版本,而 v1.0.1
+   正是從它切出來的;修正早已寫好卻躺在未合併分支上兩天
+2. **修精靈第 5 步誤觸發** — ✅ 完成(commit `76d7011`)
+3. 單一 `ingest(text)` 注入管線 → 元件測試(只鎖臨床輸出面)→ 感測器模型測試 →
+   migration 6 原始欄位 → 對比修正 — ⏳ 未動工
+
+**否決**:`FILTER_ALPHA` 0.85→0.98(模型缺陀螺零偏項,最佳解必然貼邊界;且提交它會
+摧毀自己的驗證條件)、`qualityScore`、LiveChart rAF。
+
+**規則變更**:「指出它餵給哪條判定路徑」→「**指出它改變哪一個決定,以及那是誰的
+決定——引擎的,還是人的**」。舊規則按字面會把 History 畫錯的安全線判為裝飾性:
+它不餵給引擎,卻改變督導的判讀。
+
+---
+
+## 六、2026-08-07 校正 bug 與響應式修正
+
+[[log_20260807_meeting_calibration_bug_and_responsive_layout|會議紀錄]]。全數已落地並
+於 2026-08-12 進版控:
+
+1. **快速歸零漏套 `axisSwap`** — ✅ 抽成 `buildQuickZeroPatch` 純函式,vitest 覆蓋
+2. **UI 5 項響應式修正** — ✅ 完成,**否決**「重新設計排版」的架構級重寫,依第 2 條
+   專案規則(修缺陷、不擴大議程)只修具體缺陷
+3. `env(titlebar-area-*)` 於真實 Electron 視窗實測生效(量到 136px)
+
+**未緩解的已知限制**:`minHeight` 原值 680 是否真的超出 1366×768@125% 筆電的可用工作區,
+三方都只做算術推導,未在該機型或對應 VM 上實測。修正本身無害(下修 + 夾在工作區內),
+但其急迫性的前提未經驗證。

@@ -2,8 +2,10 @@
 
 > **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
 
-> 更新日期:2026-06-30 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
+> 更新日期:2026-08-12 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
 > 本文件為「活清單」,完成項目請打勾並標註日期。
+> 被會議否決的項目**保留在清單上並註明否決理由**,不直接刪除——否則同一個提案會在
+> 幾個月後被重新提出、重新辯論一次。
 
 ---
 
@@ -27,7 +29,8 @@
 ### 3. 復健 Session
 - [x] 開始 / 結束 Session(寫入 DB)
 - [x] 達標狀態機:進入區間 → 維持計時 → 達標 → 回休息位
-- [x] **超限安全警報**(超過 `target+tol+10°` 觸發長鳴)
+- [x] **超限安全警報**:獨立的 `safetyLimit` 欄位(2026-08-01 與容錯解耦,migration 5;
+      NULL 時才沿用舊的 `target+tol+10°` 導出值)、與 session 綁定、UI 可靜音、重連後重新武裝
 - [x] reps 計數 + Session 計時器
 - [x] 高頻資料批次緩衝寫入(可設 flush 間隔,失敗回補上限 2000 筆)
 - [x] 達標 / 進出區間時同步硬體 LED / 蜂鳴器(含指令去重)
@@ -45,39 +48,59 @@
 - [x] 刪除紀錄(FK CASCADE 連動清除 sensor_data)
 
 ### 6. 設定與校準 (Settings)
-- [x] **校準精靈**:五步引導自動判斷佩戴方向(invert)與歸零(offset),含幅度/靜止驗證與套用前預覽(2026-07-05)
+- [x] **校準精靈**:六步引導(UI 標示 1/6–6/6,末步為套用前預覽)自動判斷佩戴方向
+      (invert / axisSwap)與歸零(offset),含幅度/靜止驗證;免手擷取 + 可退上一步
+      (2026-07-05 建立,2026-08-01 改免手,2026-08-03 修第 5 步誤觸發)
 - [x] 手動校準(進階摺疊):offset + 反相 × {大腿, 小腿} × {Pitch, Roll}
-- [x] 快速歸零(以最新原始值反推 offset)
+- [x] 快速歸零(沿用現有 axisSwap/invert,只重算四個 offset;
+      `buildQuickZeroPatch` 純函式,2026-08-07 修好漏套 axisSwap 的缺陷)
 - [x] ~~同步校準 offset 至 ESP32~~(依 D1 移除:校準全在 App 端,2026-07-03)
 - [x] 一般設定:預設協定、圖表最大點數、寫入間隔
 - [x] 設定持久化 (Zustand persist → localStorage,version 1 + migrate)
 
-### 8. 引導式監測(2026-07-05 重構)
+### 7. 引導式監測(2026-07-05 重構)
 - [x] 主指標正規化層(movementMetric):三種 triggerType 收斂單一判定路徑
 - [x] 弧形量表(目標帶/超限/回位刻線/膝直徽章)+ 教練提示(再抬 X°/保持/回位)
 - [x] 引擎 phase 外露(準備/保持/回位徽章)
 - [x] 3D 即時姿態視圖(Three.js,2026-07-04);趨勢圖/3D/2D/詳細數值 tab 化
 
-### 7. 基礎建設
+### 8. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
 - [x] better-sqlite3(WAL、外鍵、交易批次寫入)
+- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 5 版;見 [ROADMAP](ROADMAP.md) D4)
+- [x] 孤兒 session 啟動收尾 + `abandoned` 標記(2026-08-01)
+- [x] React ErrorBoundary 包裹各視圖(2026-08-01)
 - [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
+- [x] `escapeStack` 巢狀 modal Esc 分派層(2026-08-03)
+- [x] Vitest 測試基建:目前 **144 tests / 14 files**;`npm run ci` = typecheck + test + build
 
 ---
 
 ## 二、優化待辦 (Optimization Backlog)
 
 ### 🔴 P0 — 正確性與安全(優先)
-- [ ] **實機端對端驗證**:裝置回歸後完整跑 BLE 連線 → 達標 → 超限 → 斷線復原。(⚠ 韌體已加 `trim()`,需重燒)
+- [→] 📡 **實機端對端驗證**:BLE 連線 → 達標 → 超限 → 斷線復原。**已移至 GitHub
+      [#2](https://github.com/yuhina0515/IRMS/issues/2)(燒錄韌體 v3 + 桌面旋轉記錄)與
+      [#3](https://github.com/yuhina0515/IRMS/issues/3)(完整 E2E)**——依專案慣例,需要
+      實機的工作一律走 issue,不佔用桌面 backlog。此仍是本專案**最大的未緩解風險**:
+      整條硬體迴路從未在真實裝置上完整驗證過。
 - [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
 - [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
 - [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
-- [ ] **復健評分模型 (Phase 3)**:以角速度變異數(平穩度)+ 維持達標率產出單次品質分數,寫入 session 並於 History 顯示。(依 ROADMAP 排入 Phase 4,先建 D4 migration)
+- [ ] ~~**復健評分模型**~~:**2026-08-03 會議否決**——平穩度需要角速度,但 BLE 協定只傳
+      融合後的角度、沒有陀螺通道,且封包量化底線 0.1°;用差分角度反推的「平穩度」量到的
+      主要是量化雜訊,會產出一個看起來客觀的假分數寫進病歷。要做必須先改協定。
+- [ ] 🔴 **判定路徑的元件測試**:目前 144 tests 全是純函式層;`SettingsView`/精靈這類
+      「會寫進 settings 再餵給判定」的元件無覆蓋——2026-08-07 的快速歸零缺陷正是死在這個
+      缺口(2026-08-03 會議裁定順位,只鎖臨床輸出面,不做全面元件測試)
 
 ### 🟡 P1 — 效能
-- [ ] LiveChart 高頻更新:啟用 Chart.js decimation 或將 `update` 節流至 ~20fps,降低長時間 Session 的 CPU。
-- [ ] History 分析:大型 Session(數萬筆)讀取改分頁 / 抽樣繪圖,避免一次載入。
-- [ ] 評估以 `requestAnimationFrame` 聚合多筆封包再繪圖。
+- [x] LiveChart 高頻更新:25Hz 封包流以 `UI_SYNC_MS = 80` 尾緣節流同步 UI(≈12.5fps,
+      重繪減半),判定與 DB 寫入仍全速。(2026-07-11)
+- [x] History 分析:大型 Session 於主進程 LTTB 抽樣至 1200 點(保留峰值),不再一次載入全量。(2026-08-01)
+- [x] ~~以 `requestAnimationFrame` 聚合多筆封包再繪圖~~:**2026-08-03 會議裁定此項應刪除**
+      ——需求已由上面的 `UI_SYNC_MS` 節流滿足,rAF 是同一件事的另一種寫法,留在 backlog
+      只會誤導成尚未處理。
 
 ### 🟢 P2 — 使用者體驗
 - [x] ~~淺色主題(目前僅深色)~~:**已於 2026-07-12 完成**——雙主題跟隨系統(Apple Liquid Glass token 架構)。
@@ -88,21 +111,45 @@
 - [ ] 鍵盤快捷鍵(連線、開始/結束 Session)。
 
 ### 🔵 P3 — 程式品質與測試
-- [x] **單元測試**:`triggerEngine.ts`(純狀態機,含超限/休息/達標邊界)、`parseAnglePacket`、`applyCalibration`、`reconcileSelection`。已導入 Vitest,22 tests;`npm run ci` = typecheck+test+build。(2026-07-03)
-- [ ] ESLint + Prettier 設定與 CI typecheck。(`npm run ci` 已含 typecheck+test+build,ESLint 待補)
-- [ ] React ErrorBoundary 包裹各視圖,避免單一錯誤白屏。
-- [ ] DB migration 機制(目前為 CREATE IF NOT EXISTS;未來 schema 變更需版本化遷移)。
+- [x] **單元測試**:2026-07-03 導入 Vitest(22 tests),此後隨每批修正擴充,
+      目前 **144 tests / 14 files**;`npm run ci` = typecheck + test + build。
+- [ ] ESLint + Prettier 設定。(2026-08-01 會議明確延後:已知約 35 項待修,
+      優先度低於判定正確性;`npm run ci` 現含 typecheck+test+build,不含 lint)
+- [x] React ErrorBoundary 包裹各視圖,避免單一錯誤白屏。(2026-08-01)
+- [x] DB migration 機制:`PRAGMA user_version` 遞增式 runner,每版單一交易、失敗回滾;
+      含 v1.0.1 既有安裝的升級路徑測試。(2026-08-01)
 
 ### ⚪ P4 — 打包與部署
-- [ ] electron-builder:應用程式圖示、產品中繼資料、Windows 簽章。
+- [x] electron-builder:應用程式圖示 (`build/icon.ico`) 與產品中繼資料
+      (`appId`/`productName`);已發布 v1.0.0 / v1.0.1 的 NSIS 安裝檔。(2026-07-14)
+- [ ] Windows 程式碼簽章(目前所有產出皆未簽章,安裝時會跳 SmartScreen 警告)。
 - [ ] 自動更新 (electron-updater)。
 - [ ] 跨平台 target(目前僅 Windows NSIS)。
 
-### 🧩 多關節協定泛化 (Phase 3)
+### 🧩 多關節協定泛化 (Phase 5)
+
+> 現況:elbow / shoulder 已在 2026-08-01 **明確擋下**(判定仍讀腿部感測器,擋下後
+> 不再讓它們產生假紀錄)。泛化順序依 [ROADMAP](ROADMAP.md) 決策 D3:型別 → migration
+> → UI → 判定。
+
 - [ ] elbow / shoulder 目前共用以「膝/大腿/小腿」命名的判定邏輯。需:
   - [ ] 泛化命名(近端/遠端肢段,而非 thigh/shin)。
   - [ ] 依關節對應正確的 IMU 軸向與判定方向。
   - [ ] 各協定的預設範本與目標角度臨床校準。
+
+---
+
+---
+
+## 二之二、專案規則(會議累積,動任何項目前先過這一關)
+
+1. **指出它改變哪一個決定,以及那是誰的決定——引擎的,還是人的。**(2026-08-03 修訂)
+   指不出來就是裝飾性的,排到清單最後面。舊版寫作「指出它餵給哪條判定路徑」,但那條
+   規則按字面會把「History 畫錯的安全線」判為裝飾性——它不餵給引擎,卻改變督導的判讀。
+2. **修缺陷,不擴大議程。**(2026-08-03 立、2026-08-07 沿用)發現缺陷就修該缺陷,
+   不順勢啟動架構級重寫。i18n、Electron 升級、多關節泛化、ESLint 35 項都是照此延後。
+3. **需要實機/硬體的工作一律開 GitHub issue**,不寫進本文件或 ROADMAP,
+   避免硬體滑期時整份 backlog 看起來是空的。
 
 ---
 
