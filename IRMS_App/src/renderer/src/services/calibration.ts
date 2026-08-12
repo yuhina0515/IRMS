@@ -175,3 +175,22 @@ export function buildCalibrationPatch(
   }
   return { ok: true, patch }
 }
+
+/**
+ * 快速歸零:沿用現有 axisSwap/invert 設定,只用「當下姿勢 = 0°」重算四個 offset。
+ * 必須先套用 effectiveRaw 做軸對調——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
+ * 否則貼歪 90° 的感測器會把 offset 算在錯的物理軸上(2026-08-07 會議發現,SettingsView
+ * 原本直接用 raw.thigh/raw.thighRoll,略過了這一步)。
+ */
+export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial<Settings> {
+  const eff = effectiveRaw(raw, {
+    thighAxisSwap: settings.thighAxisSwap,
+    shinAxisSwap: settings.shinAxisSwap
+  })
+  return {
+    thighOffset: -(eff.thigh * (settings.thighInvert ? -1 : 1)),
+    shinOffset: -(eff.shin * (settings.shinInvert ? -1 : 1)),
+    thighRollOffset: -(eff.thighRoll * (settings.thighRollInvert ? -1 : 1)),
+    shinRollOffset: -(eff.shinRoll * (settings.shinRollInvert ? -1 : 1))
+  }
+}

@@ -5,6 +5,7 @@ import type { RawAngles } from '@shared/protocol'
 import { applyCalibration, type Settings } from '../store/useStore'
 import {
   buildCalibrationPatch,
+  buildQuickZeroPatch,
   computeCaptureStats,
   detectAxisSwap,
   effectiveRaw,
@@ -184,5 +185,41 @@ describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
     const stand = applyCalibration(baseline.mean, { ...SETTINGS, ...r.patch })
     expect(stand.thigh).toBeCloseTo(0)
     expect(stand.shin).toBeCloseTo(0)
+  })
+})
+
+describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
+  it('未對調時,直接以當下姿勢為零位', () => {
+    const patch = buildQuickZeroPatch(raw(12, -8, 3, -1), SETTINGS)
+    const cal = { ...SETTINGS, ...patch }
+    const stand = applyCalibration(raw(12, -8, 3, -1), cal)
+    expect(stand.thigh).toBeCloseTo(0)
+    expect(stand.shin).toBeCloseTo(0)
+    expect(stand.thighRoll).toBeCloseTo(0)
+    expect(stand.shinRoll).toBeCloseTo(0)
+  })
+
+  it('大腿貼歪 90°(thighAxisSwap)時仍能正確歸零 —— 修復前會歸到錯的物理軸', () => {
+    const swapped = { ...SETTINGS, thighAxisSwap: true }
+    // thigh raw 承載的其實是 roll 動作、thighRoll raw 承載的其實是 pitch 動作
+    const currentRaw = raw(88, -8, 12, -1)
+    const patch = buildQuickZeroPatch(currentRaw, swapped)
+    const cal = { ...swapped, ...patch }
+    const stand = applyCalibration(currentRaw, cal)
+    // 對調後的「有效」pitch/roll 都應歸零,而不是原始軸歸零
+    expect(stand.thigh).toBeCloseTo(0)
+    expect(stand.thighRoll).toBeCloseTo(0)
+    expect(stand.shin).toBeCloseTo(0)
+    expect(stand.shinRoll).toBeCloseTo(0)
+  })
+
+  it('沿用既有 invert 設定,不重新判定方向', () => {
+    const inverted = { ...SETTINGS, thighInvert: true, shinRollInvert: true }
+    const patch = buildQuickZeroPatch(raw(20, 5, 0, -7), inverted)
+    const cal = { ...inverted, ...patch }
+    const stand = applyCalibration(raw(20, 5, 0, -7), cal)
+    expect(stand.thigh).toBeCloseTo(0)
+    expect(stand.shin).toBeCloseTo(0)
+    expect(stand.shinRoll).toBeCloseTo(0)
   })
 })

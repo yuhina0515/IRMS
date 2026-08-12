@@ -6,6 +6,7 @@ import { JOINT_PROTOCOLS } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { GlassDropdown } from '../components/GlassDropdown'
+import { buildQuickZeroPatch } from '../services/calibration'
 
 function NumField({
   label,
@@ -57,12 +58,7 @@ export function SettingsView(): JSX.Element {
       showToast('尚無即時資料,無法歸零', 'warning')
       return
     }
-    setSettings({
-      thighOffset: -(rawAngles.thigh * (settings.thighInvert ? -1 : 1)),
-      shinOffset: -(rawAngles.shin * (settings.shinInvert ? -1 : 1)),
-      thighRollOffset: -(rawAngles.thighRoll * (settings.thighRollInvert ? -1 : 1)),
-      shinRollOffset: -(rawAngles.shinRoll * (settings.shinRollInvert ? -1 : 1))
-    })
+    setSettings(buildQuickZeroPatch(rawAngles, settings))
     showToast('已套用快速歸零校準(含 Roll)', 'success')
   }
 
