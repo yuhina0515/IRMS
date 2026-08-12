@@ -79,11 +79,13 @@
 ## 二、優化待辦 (Optimization Backlog)
 
 ### 🔴 P0 — 正確性與安全(優先)
-- [→] 📡 **實機端對端驗證**:BLE 連線 → 達標 → 超限 → 斷線復原。**已移至 GitHub
-      [#2](https://github.com/yuhina0515/IRMS/issues/2)(燒錄韌體 v3 + 桌面旋轉記錄)與
-      [#3](https://github.com/yuhina0515/IRMS/issues/3)(完整 E2E)**——依專案慣例,需要
-      實機的工作一律走 issue,不佔用桌面 backlog。此仍是本專案**最大的未緩解風險**:
-      整條硬體迴路從未在真實裝置上完整驗證過。
+- [→] 📡 **實機端對端驗證**——**已部分完成**。2026-08-07 燒錄韌體 v3、BLE 連線、
+      跑完校準精靈,快速歸零修正經實測確認正常。**仍未驗證**:達標音 → 超限長鳴 →
+      斷線收尾這條回饋鏈(issue [#3](https://github.com/yuhina0515/IRMS/issues/3))
+      與 ±180° 桌面旋轉記錄(issue [#2](https://github.com/yuhina0515/IRMS/issues/2) 的後半)。
+      依專案慣例,需要實機的工作一律走 issue,不佔用桌面 backlog。
+      ⚠ **裝置取得零星,下次拿到之前必須先備妥錄製能力**,否則時間窗會被浪費在
+      「錄了但事後無法解讀」的 session 上(issue [#4](https://github.com/yuhina0515/IRMS/issues/4))。
 - [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
 - [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
 - [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
