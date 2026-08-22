@@ -76,16 +76,6 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 /**
- * 定義「原始讀值 → 判定用角度」這條仿射轉換的設定欄位。
- *
- * 這組欄位在 Session 進行中一律凍結。理由不是潔癖:`sessions.calibration`(migration 6)
- * 是「一場一個」的單一快照,一旦允許中途改校準,那個快照就會謊報——2026-08-12 會議
- * 對兩段式串流實測過,單一快照最壞可差 57°。與其存一個看起來合理但是錯的數字,
- * 不如讓轉換在一場之內不可變,快照因此由建構保證為真。
- *
- * protocol / maxChartPoints / flushIntervalSec 不在此列:它們不改變角度的算法。
- */
-/**
  * 真正參與 `(raw − zeroRaw) × sign` 這條算式的欄位——換句話說,改了它們,同一組
  * 原始讀值就會算出不同的角度。歷史紀錄要判斷「這場能不能照今天的設定解讀」,
  * 比的必須是這一組:`lastCalibratedAt` 只是時間戳,`*Verified` 只是「方向有沒有
@@ -106,6 +96,16 @@ export const CALIBRATION_TRANSFORM_KEYS = [
   'shinRollZeroRaw'
 ] as const satisfies readonly (keyof Settings)[]
 
+/**
+ * 快照與凍結的完整欄位集:轉換欄位,加上「這場是怎麼校出來的」的存證欄位。
+ *
+ * 這組欄位在 Session 進行中一律凍結。理由不是潔癖:`sessions.calibration`(migration 6)
+ * 是「一場一個」的單一快照,一旦允許中途改校準,那個快照就會謊報——2026-08-12 會議
+ * 對兩段式串流實測過,單一快照最壞可差 57°。與其存一個看起來合理但是錯的數字,
+ * 不如讓轉換在一場之內不可變,快照因此由建構保證為真。
+ *
+ * protocol / maxChartPoints / flushIntervalSec 不在此列:它們不改變角度的算法。
+ */
 export const CALIBRATION_KEYS = [
   ...CALIBRATION_TRANSFORM_KEYS,
   // 以下不改變算式,但屬於「這場是怎麼校出來的」的存證,一併快照:

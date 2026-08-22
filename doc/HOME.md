@@ -176,13 +176,30 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   玻璃扭曲濾鏡 `feDisplacementMap scale` 18→5、LiquidKnob 液態黏滯濾鏡模糊 4→2、
   拉伸回彈峰值 1.22→1.08、背景 blob 不透明度淺色 0.35→0.22/深色 0.3→0.18,機制
   保留只調輕強度。147 tests 持續全綠,截圖確認背景收斂明顯
+- **2026-08-22 Session 中凍結校準 + 校準快照**([[log_20260822_calibration_freeze_and_snapshot|日誌]]):
+  落地 08-12 會議裁決第 2、3 項——**先凍結,再快照**。`sensor_data` 只存校準後的數值,產生
+  它們的仿射轉換卻活在 localStorage 會被下次校準就地覆蓋:錄 20 場、第 21 場才發現
+  `shinInvert` 反了,前 20 場就永久無法解讀。凍結是快照的前提而非潔癖——`sessions.calibration`
+  是「一場一個」,允許中途改校準時 08-12 實測最壞可差 **57°**。`CALIBRATION_KEYS` 定義哪些
+  設定參與 `(raw − zeroRaw) × sign`,`setSettings` 在 session 進行中丟棄它們**並留下日誌**
+  (不靜默失敗),真正的防線在 UI:精靈入口/快速歸零/進階手動欄位全部停用並顯示原因。
+  migration 6 加 `sessions.calibration TEXT`,**單一 JSON 欄位**而非攤平(校準欄位仍在演進,
+  攤平等於每改一次欄位開一個 migration),舊列留 NULL 不回填。**存了沒人讀就不改變任何決定**,
+  所以 History 分析 modal 比對漂移並警示、CSV 帶出快照;漂移刻意只比會改變算式的欄位——
+  含 `lastCalibratedAt`/`*Verified` 會讓「重跑精靈得到相同數值」每次誤報,狼來了的警告
+  等於沒有警告(附迴歸測試)。`CALIBRATION_KEYS` 與 `CalibrationSnapshot` 由編譯期斷言鎖成
+  等價,漏一個欄位是 build error 而非安靜漏掉的快照。**147 → 163 tests**,`npm run ci` 全綠。
+  對應 issue #4(已關閉)。⚠ 尚未實機驗證
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
-  桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
-  [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。
+  桌上 ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
+  [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration 已於 2026-08-22 完成關閉。
   **慣例:需要實機的工作一律開 issue,不寫進 ROADMAP**
-- **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **未燒錄請先重燒**(見 issue #2)
+- **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **已於 2026-08-07 燒錄**,
+  BLE 實機連線與校準精靈都在真裝置上跑過(2026-08-12 更正)。`esp32:esp32 3.3.11` 下
+  `arduino-cli compile` 實測通過。issue #2 剩下的只有**旋轉記錄的擷取**
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
-- 📡 待實機:校準精靈跑一輪 → E2E 清單(達標音/超限/ERR/斷線收尾/精靈 round-trip)
+- 📡 待實機:達標音 / 超限警報 + 靜音鈕 / `ERR:1` 斷線收尾 / 斷線重連後警報重新武裝 /
+  校準凍結的 UI 停用態(見 issue #3)
 
 ## 🗂 變更日誌
 
