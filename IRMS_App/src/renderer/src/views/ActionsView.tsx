@@ -154,7 +154,7 @@ export function ActionsView(): JSX.Element {
                 <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
                   Edit
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => void remove(a)}>
+                <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(a)}>
                   Delete
                 </button>
               </div>

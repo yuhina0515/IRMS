@@ -115,7 +115,7 @@ export function SessionControlPanel(): JSX.Element {
             <span style={{ color: 'var(--text-dim)' }}>Recording</span>
             <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(session.elapsedSec)}</strong>
           </div>
-          <button className="btn btn-danger btn-block" onClick={() => void handleEnd()}>
+          <button className="btn btn-danger-ghost btn-block" onClick={() => void handleEnd()}>
             End Session
           </button>
         </>

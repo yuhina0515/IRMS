@@ -40,6 +40,21 @@
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI',
     'PingFang TC', 'Microsoft JhengHei', sans-serif;
 
+  /* ── .glass-elevated 修飾子:每個畫面「唯一主卡片」才用,疊在 .glass 之上
+     加一層頂緣光澤 + 更深的外陰影,製造 Z 軸落差,不動其餘卡片的統一材質。
+     淺色維持既有 --glass-highlight/--shadow-card 的強弱比例(淺色強高光、
+     輕陰影;深色弱高光、重陰影)── 見下方 dark 覆寫。 */
+  --glass-elevated-sheen: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  --glass-elevated-border-top: rgba(255, 255, 255, 0.7);
+  --glass-elevated-border-bottom: rgba(0, 0, 0, 0.12);
+  --glass-elevated-shadow:
+    0 12px 40px -12px rgba(31, 38, 60, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
   /* ── 元件 token(canvas/SVG 亦由 theme.ts 讀取)── */
   --console-bg: rgba(18, 18, 22, 0.85);
   --console-text: #32d74b;
@@ -82,6 +97,17 @@
 
     --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
     --blob-opacity: 0.3;
+
+    --glass-elevated-sheen: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    --glass-elevated-border-top: rgba(255, 255, 255, 0.2);
+    --glass-elevated-border-bottom: rgba(0, 0, 0, 0.4);
+    --glass-elevated-shadow:
+      0 12px 48px -12px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
     --console-bg: rgba(10, 12, 18, 0.7);
     --gauge-track: rgba(160, 160, 175, 0.25);
@@ -190,6 +216,18 @@ body {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: var(--glass-highlight), var(--shadow-card);
+}
+
+/* .glass-elevated:疊在 .glass 上的修飾子,只給「每個畫面唯一的主卡片」用
+   (目前僅 Dashboard 的主指標量表卡)——疊一層頂緣光澤 + 换掉外陰影製造 Z 軸
+   落差,不覆寫 background-color/backdrop-filter,其餘卡片的材質不受影響。
+   刻意不做成獨立材質類別大量套用:一旦每張卡片都「突出」,就沒有卡片是
+   真的突出,等於没做。 */
+.glass-elevated {
+  background-image: var(--glass-elevated-sheen);
+  border-top: 1px solid var(--glass-elevated-border-top);
+  border-bottom: 1px solid var(--glass-elevated-border-bottom);
+  box-shadow: var(--glass-elevated-shadow);
 }
 
 /* 選單類玻璃面板的「不規則扭曲」:把 SVG 濾鏡直接串進 backdrop-filter 鏈
@@ -448,6 +486,22 @@ button.btn:disabled {
 .btn-danger {
   background: var(--danger);
 }
+/* 危險色降級版:給「刪除範本列」「中斷連線」「結束 Session」這類例行/可逆
+   (或已由 ConfirmDialog 二次確認)的操作用——單場 Session 裡它們可能跟真正的
+   超限警報(靜音鈕)同時出現在畫面上,若都用實心 danger,使用者無法從色彩
+   一眼分辨哪個是「現在真的有安全問題」。實心 --danger 只保留給：alarmActive
+   時的靜音鈕、ConfirmDialog 的不可逆確認鈕。 */
+/* 選擇器用 button.btn-danger-ghost(而非單純 class)刻意讓特異度追平
+   button.btn,才蓋得掉它寫死的 color:#fff——.btn-secondary 也吃過這個虧
+   (light mode 下同樣的 color:var(--text) 被蓋掉),這裡不重蹈覆轍。 */
+button.btn-danger-ghost {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent);
+}
+button.btn-danger-ghost:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
 .btn-secondary {
   background: var(--fill-2);
   color: var(--text);
@@ -486,6 +540,14 @@ select {
   font: inherit;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+/* 瀏覽器預設 placeholder 顏色偏淡(Chromium ~40% alpha 灰),在深色玻璃底上
+   接近不可讀,例如 Safety Limit 欄位的「未設定(目前導出為 110°)」提示——
+   統一用 --text-dim 這個 App 其餘地方本來就用來當「次要但看得清楚」文字的
+   token,而不是刻意壓得比 hint 文字還淡。 */
+input::placeholder {
+  color: var(--text-dim);
+  opacity: 1;
 }
 input:focus,
 select:focus {

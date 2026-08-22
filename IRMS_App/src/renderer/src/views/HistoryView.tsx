@@ -248,7 +248,7 @@ export function HistoryView(): JSX.Element {
                       <button className="btn btn-primary btn-sm" onClick={() => setAnalyzing(s)}>
                         分析
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => void remove(s)}>
+                      <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(s)}>
                         ✕
                       </button>
                     </div>

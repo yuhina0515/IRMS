@@ -101,7 +101,7 @@ export function DashboardView(): JSX.Element {
           該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
 
       <div className="grid dashboard-grid">
-        <div className="panel glass">
+        <div className="panel glass glass-elevated">
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
             <div>
               <div className="metric-action">{action?.name ?? '未選擇動作'}</div>

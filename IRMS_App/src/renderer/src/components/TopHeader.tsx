@@ -23,7 +23,7 @@ export function TopHeader(): JSX.Element {
       </div>
 
       <button
-        className={`btn btn-sm ${isConnected ? 'btn-danger' : 'btn-primary'}`}
+        className={`btn btn-sm ${isConnected ? 'btn-danger-ghost' : 'btn-primary'}`}
         onClick={() => void bluetoothService.connect()}
       >
         {isConnected ? 'Disconnect' : 'Connect Device'}

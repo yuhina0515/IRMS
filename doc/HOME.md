@@ -151,6 +151,27 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   (快速歸零不再需要讀 invert);persist v3→v4,`migrateSettings` 補上舊格式換算;新增掃過
   全部 64 種 axisSwap/invert 組合、含跨 ±180 切點案例的由建構不變式測試。**144 → 147 tests**,
   `npm run ci` 全綠。下一項(依會議裁決順序):session 中凍結校準
+- **2026-08-14 offset 重新參數化為 zeroRaw**([[log_20260814_offset_zeroraw_reparam|日誌]]):
+  落地 08-12 會議裁決第 1 項——校準四軸 offset 的「符號摺疊」表示法(`offset = -(zeroRaw×sign)`)
+  改存 `zeroRaw`,判定改為 `(raw − zeroRaw) × sign`。此舉消滅已隨 v1.0.1 出貨的缺陷:進階手動
+  校準翻轉 invert 開關時 offset 不重算,校準姿勢殘差變成 `2×offset`,`segment_extension` 下
+  會把方向做錯的療程記錄成達標。`buildCalibrationPatch`/`buildQuickZeroPatch` 寫入端同步簡化
+  (快速歸零不再需要讀 invert);persist v3→v4,`migrateSettings` 補上舊格式換算;新增掃過
+  全部 64 種 axisSwap/invert 組合、含跨 ±180 切點案例的由建構不變式測試。**144 → 147 tests**,
+  `npm run ci` 全綠。下一項(依會議裁決順序):session 中凍結校準
+- **2026-08-20 Gemini UI 設計交接資料**([[log_20260820_gemini_ui_handoff|日誌]]):
+  純文件整理,未動程式碼。啟動 dev build 截圖四個主畫面(Dashboard/Actions/History/
+  Settings)+ 新增動作 Modal 共 5 張,整理 Apple Liquid Glass 色彩 token/版面說明,
+  寫成 `doc/gemini-handoff-20260820/README.md` 交給使用者帶去網頁版 Gemini 3.1 Pro
+  (人工操作,不接 API)做設計發想,並明列建議提交檔案(截圖 + global.css,不含 .tsx)
+- **2026-08-20 Gemini 稽核意見分診**([[log_20260820_gemini_audit_triage_and_fixes|日誌]]):
+  Gemini 回饋 4 項 UI 建議,逐項對照 CSS 數值/截圖/既有會議決議後只採 2 項——新增
+  `.btn-danger-ghost` 把「刪除/中斷連線/結束 Session」降級為外框紅字(實心 `--danger`
+  只留給真正 alarmActive 與 ConfirmDialog 不可逆確認),過程中順帶抓到 `button.btn`
+  蓋掉 `.btn-secondary` 文字色的既有 specificity 陷阱;新增 `input::placeholder` 對比度
+  修正。**否決**警示 banner 改實心(牴觸 08-01 會議「非阻斷警告不做視覺化緊急」決議)、
+  empty-state 置中與 line-height(現狀已符合,非真問題)。Z 軸深度分層判定為牴觸「統一
+  Liquid Glass 材質」設計決議的大改,留給使用者裁決。147 tests 全綠
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。
