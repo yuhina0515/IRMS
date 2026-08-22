@@ -190,8 +190,21 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   等於沒有警告(附迴歸測試)。`CALIBRATION_KEYS` 與 `CalibrationSnapshot` 由編譯期斷言鎖成
   等價,漏一個欄位是 build error 而非安靜漏掉的快照。**147 → 163 tests**,`npm run ci` 全綠。
   對應 issue #4(已關閉)。⚠ 尚未實機驗證
+- **2026-08-22 MTU 截斷診斷 + 韌體序列遙測**([[log_20260822_firmware_mtu_diagnostics_and_serial_telemetry|日誌]]):
+  issue #2 桌面可做的部分(不需要患者、只需要桌上兩塊板子)。App 端 `parseAnglePacket`
+  原打算「偵測到截斷就整包丟棄」,讀 `computeMetricSample` 才發現判定只讀 Pitch 不讀 Roll,
+  而 `T:`/`S:` 在 MTU-23 → 20 bytes 的切點下必定存活——整包丟棄會把臨床正確的 Pitch 資料流
+  變成空白,矯枉過正。改為逐軸降級:T/S 缺席才 malformed,Roll 被切掉則丟該欄並升起
+  `truncated`,新增的 `hasRoll`/`truncated` 讓校準精靈外展步驟與 Settings 快速歸零從靜默
+  Roll=0 改為可見示警。韌體端補上 `onMtuChanged` 印出實際協商到的 MTU(`setMTU()` 只是請求,
+  原本完全不回報結果,故障只能靠症狀反推成因);並把封包組裝與 BLE notify 解耦,新增預設
+  開啟的 Serial 遙測——此前 60 秒旋轉記錄必須先有 App 連線才拿得到資料,而 App 連線正是
+  這份記錄要驗證的對象,邏輯上循環。**163 → 173 tests**,`npm run ci` 全綠;韌體以
+  `arduino-cli compile --fqbn esp32:esp32:esp32` 改動前後各驗證一次,皆 exit 0、85% flash。
+  issue #2 唯一剩下的是實機旋轉記錄本身。⚠ 韌體改動尚未燒錄實測
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
-  桌上 ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
+  桌上 ±180° 旋轉記錄(App 端診斷與韌體端遙測已於 2026-08-22 就緒,剩實機擷取)、
+  [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration 已於 2026-08-22 完成關閉。
   **慣例:需要實機的工作一律開 issue,不寫進 ROADMAP**
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **已於 2026-08-07 燒錄**,
