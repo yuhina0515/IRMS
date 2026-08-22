@@ -33,23 +33,29 @@ export default function App(): JSX.Element {
       {/* 選單類玻璃面板的不規則扭曲濾鏡定義,串進 backdrop-filter(見 global.css
           .glass-warp)。扭曲只作用於背景折射,元素本身內容不受影響。
           feGaussianBlur 把 turbulence 雜訊抹平,扭曲才會像液體波動而非顆粒抖動。
-          零尺寸 SVG,只提供 filter 定義,不佔版面、不渲染任何可見內容。 */}
+          零尺寸 SVG,只提供 filter 定義,不佔版面、不渲染任何可見內容。
+          2026-08-21:scale 從 18 收斂到 5——真正的 Liquid Glass 折射是穩定的
+          透鏡效果,不是會晃動的液態噪點扭曲,原本的量級讀起來比較像「融化的
+          玻璃」而不是「光學材質」。保留極輕微的不規則感(而非完全拉直變回
+          普通 blur),留一點「這是玻璃不是霧面壓克力」的質感差異。 */}
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden focusable="false">
         <defs>
           <filter id="glass-warp-filter" x="-20%" y="-20%" width="140%" height="140%">
             <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="7" result="noise" />
             <feGaussianBlur in="noise" stdDeviation="1.5" result="smoothNoise" />
-            <feDisplacementMap in="SourceGraphic" in2="smoothNoise" scale="18" xChannelSelector="R" yChannelSelector="G" />
+            <feDisplacementMap in="SourceGraphic" in2="smoothNoise" scale="5" xChannelSelector="R" yChannelSelector="G" />
           </filter>
 
           {/* 液態黏滯濾鏡:套在滑動指示塊(LiquidKnob.tsx)本身,讓 knob-stretch
               拉伸時邊緣呈現有機的液態感,而非硬邊縮放。做法:先模糊再用
               feColorMatrix 把 alpha 拉回陡峭閾值(只留高於閾值的部分),
               最後 feComposite atop 疊回原始色彩,只借 blur+threshold 重塑輪廓、
-              不讓顏色本身變模糊。數值刻意比常見教學案例(stdDeviation 12)輕,
-              因為套用對象是小尺寸的導覽/分頁指示塊,不是大型 blob 動畫。 */}
+              不讓顏色本身變模糊。
+              2026-08-21:stdDeviation 4→2——真正 iOS 26 的分頁「玻璃膠囊高亮塊」
+              只是平滑縮放/位移,沒有卡通式的融邊;這裡改成只留可以感覺到「不是
+              死板矩形在滑」的極輕微邊緣柔化,不再是明顯的果凍質感。 */}
           <filter id="liquid-gooey-filter">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
             <feColorMatrix
               in="blur"
               mode="matrix"

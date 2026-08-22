@@ -151,14 +151,6 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   (快速歸零不再需要讀 invert);persist v3→v4,`migrateSettings` 補上舊格式換算;新增掃過
   全部 64 種 axisSwap/invert 組合、含跨 ±180 切點案例的由建構不變式測試。**144 → 147 tests**,
   `npm run ci` 全綠。下一項(依會議裁決順序):session 中凍結校準
-- **2026-08-14 offset 重新參數化為 zeroRaw**([[log_20260814_offset_zeroraw_reparam|日誌]]):
-  落地 08-12 會議裁決第 1 項——校準四軸 offset 的「符號摺疊」表示法(`offset = -(zeroRaw×sign)`)
-  改存 `zeroRaw`,判定改為 `(raw − zeroRaw) × sign`。此舉消滅已隨 v1.0.1 出貨的缺陷:進階手動
-  校準翻轉 invert 開關時 offset 不重算,校準姿勢殘差變成 `2×offset`,`segment_extension` 下
-  會把方向做錯的療程記錄成達標。`buildCalibrationPatch`/`buildQuickZeroPatch` 寫入端同步簡化
-  (快速歸零不再需要讀 invert);persist v3→v4,`migrateSettings` 補上舊格式換算;新增掃過
-  全部 64 種 axisSwap/invert 組合、含跨 ±180 切點案例的由建構不變式測試。**144 → 147 tests**,
-  `npm run ci` 全綠。下一項(依會議裁決順序):session 中凍結校準
 - **2026-08-20 Gemini UI 設計交接資料**([[log_20260820_gemini_ui_handoff|日誌]]):
   純文件整理,未動程式碼。啟動 dev build 截圖四個主畫面(Dashboard/Actions/History/
   Settings)+ 新增動作 Modal 共 5 張,整理 Apple Liquid Glass 色彩 token/版面說明,
@@ -172,6 +164,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   修正。**否決**警示 banner 改實心(牴觸 08-01 會議「非阻斷警告不做視覺化緊急」決議)、
   empty-state 置中與 line-height(現狀已符合,非真問題)。Z 軸深度分層判定為牴觸「統一
   Liquid Glass 材質」設計決議的大改,留給使用者裁決。147 tests 全綠
+- **2026-08-21 HIG 規格核對**([[log_20260821_hig_audit_bar_font_blur_fixes|日誌]]):
+  對照 Apple 官方 HIG 逐項核對「不像 Apple」的直覺。顏色/飽和度/圓角早就對得上
+  慣例,不是問題。真實落差:①字型——查證本機沒裝 SF Pro(授權字型不能合法塞進
+  Windows build),font-stack 實際落點是 Segoe UI/JhengHei,裝
+  `@fontsource-variable/inter` 自架替身解決;②`--glass-blur` 20px→30px 對齊
+  Apple 材質模糊量級;③`html` 根字級 106.25%(17/16)對齊 body text 慣例;
+  ④`TopHeader`/`BottomBar` 圓角改 999px 做成 iOS 26 規格的膠囊導覽列(內部
+  LiquidKnob 指示塊本來就已經是膠囊,外框原本沒跟上)。147 tests 全綠,截圖驗證
+  四項改動同時可見。使用者接著提「3. 特效追加」,澄清後為「收斂現有裝飾效果」:
+  玻璃扭曲濾鏡 `feDisplacementMap scale` 18→5、LiquidKnob 液態黏滯濾鏡模糊 4→2、
+  拉伸回彈峰值 1.22→1.08、背景 blob 不透明度淺色 0.35→0.22/深色 0.3→0.18,機制
+  保留只調輕強度。147 tests 持續全綠,截圖確認背景收斂明顯
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。

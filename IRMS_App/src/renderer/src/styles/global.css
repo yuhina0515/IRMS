@@ -34,11 +34,22 @@
 
   /* ── 材質 ── */
   --radius: 18px;
-  --glass-blur: blur(20px) saturate(1.8);
-  --blob-opacity: 0.35; /* 桌布為主角,blob 降為點綴動態 */
+  /* 20px→30px:社群量測 Apple 材質常見模糊量級落在 ~30px 上下,原本 20px 偏薄,
+     saturate(1.8)=180% 早就對得上慣例值,不用動 */
+  --glass-blur: blur(30px) saturate(1.8);
+  /* 0.35→0.22(2026-08-21):真正的 Liquid Glass 折射螢幕上實際的內容跟光線,
+     不是畫幾坨會動的裝飾色塊——blob 存在是因為 Electron 視窗背後沒有真的桌面
+     內容可以讓玻璃取樣,純粹補一點動態視覺讓模糊不是對著死板單色背景,
+     不該搶過內容本身,收斂到更克制的點綴量級 */
+  --blob-opacity: 0.22;
   --shadow-card: 0 8px 24px rgba(31, 38, 60, 0.12);
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI',
-    'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  /* -apple-system/BlinkMacSystemFont/'SF Pro Text' 只有真的在 Apple 平台上才會
+     命中;這台開發機(Windows)三個都不認得,會直接跳到 system-ui/Segoe UI——
+     SF Pro 是 Apple 授權字型,無法合法塞進 Windows build 裡讓它命中。'Inter
+     Variable' 插在 Segoe UI 之前,幾何比例是市面上公認離 SF Pro 最近的開源
+     替身,由 main.tsx 自架引入,不吃使用者本機有沒有裝。 */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', system-ui,
+    'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
 
   /* ── .glass-elevated 修飾子:每個畫面「唯一主卡片」才用,疊在 .glass 之上
      加一層頂緣光澤 + 更深的外陰影,製造 Z 軸落差,不動其餘卡片的統一材質。
@@ -96,7 +107,7 @@
     --shin: #30d158;
 
     --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
-    --blob-opacity: 0.3;
+    --blob-opacity: 0.18;
 
     --glass-elevated-sheen: linear-gradient(
       135deg,
@@ -128,6 +139,12 @@
   padding: 0;
 }
 
+/* 106.25% = 17/16:全站字級都用 rem,唯一要動的地方就是把根字級從瀏覽器
+   預設的 16px 校準到 Apple body text 慣例的 17pt,其餘 rem 數值自動跟著等比例
+   放大,不用逐一改每個 font-size */
+html {
+  font-size: 106.25%;
+}
 html,
 body,
 #root {
@@ -290,6 +307,11 @@ body {
      不是同一個參考系。env() 不支援時,兩層 fallback 一路退回舊有的 150px 猜測常數。 */
   margin-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 150px)));
   -webkit-app-region: drag;
+  /* iOS 26 Liquid Glass 的浮動導覽/工具列一律是膠囊(inset from screen edges,
+     capsule),不是內容卡片那種中等圓角——蓋掉 .glass 的 var(--radius)。
+     裡面 LiquidKnob 的滑動指示塊本來就已經是 999px 正膠囊,外框跟上才會是
+     「膠囊裡包膠囊」的正確巢狀關係,而不是方角外框包一顆膠囊。 */
+  border-radius: 999px;
 }
 .top-header button {
   -webkit-app-region: no-drag;
@@ -352,6 +374,7 @@ body {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
+  border-radius: 999px; /* 理由同 .top-header,見上方註解 */
 }
 .bottom-bar-item {
   position: relative;
@@ -1058,12 +1081,14 @@ th {
 .liquid-knob-track.vertical .liquid-knob-shape.morph {
   animation: knob-stretch-y 0.42s cubic-bezier(0.25, 1, 0.5, 1);
 }
+/* 2026-08-21:1.22→1.08——iOS 26 真正的分頁玻璃膠囊高亮塊只是平滑縮放/位移,
+   沒有這種卡通式彈跳拉伸;收斂到只留「有回彈感」但不誇張的量級 */
 @keyframes knob-stretch-x {
   0% {
     transform: scaleX(1);
   }
   32% {
-    transform: scaleX(1.22);
+    transform: scaleX(1.08);
   }
   100% {
     transform: scaleX(1);
@@ -1074,7 +1099,7 @@ th {
     transform: scaleY(1);
   }
   32% {
-    transform: scaleY(1.22);
+    transform: scaleY(1.08);
   }
   100% {
     transform: scaleY(1);
