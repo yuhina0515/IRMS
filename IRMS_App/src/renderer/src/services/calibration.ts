@@ -5,8 +5,9 @@
 // 3. offset  —— 以站直姿勢四軸歸零
 // 統一慣例(校準後):Pitch 正 = 向前抬;Roll 正 = 向外側傾;kneeRoll 正 = 外翻。
 // 產出的 patch 直接餵 applyCalibration,偵測 / 3D / 2D 全域同步生效。
+import type { CalibrationSnapshot } from '@shared/types'
 import type { RawAngles } from '@shared/protocol'
-import type { Settings } from '../store/useStore'
+import { CALIBRATION_KEYS, CALIBRATION_TRANSFORM_KEYS, type Settings } from '../store/useStore'
 import { circularMeanDeg, circularStdDevDeg, shortestArcDelta } from './angleMath'
 
 /** 捕捉期間允許的最大標準差(度)——超過視為晃動 */
@@ -197,4 +198,64 @@ export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial
     thighRollZeroRaw: eff.thighRoll,
     shinRollZeroRaw: eff.shinRoll
   }
+}
+
+/**
+ * 由型別層強制:`CALIBRATION_KEYS`(Session 中凍結哪些欄位)與 `CalibrationSnapshot`
+ * (存進紀錄的是哪些欄位)必須是同一組。這兩件事在語意上本來就是同一個定義——
+ * 凍結是為了讓單一快照成立,快照存的就該是被凍結的那些欄位。任一邊少一個欄位,
+ * 下面這行就編譯失敗,而不是等到某天發現快照漏了某個會改變角度算法的設定。
+ */
+type _AssertKeysMatch = [
+  Exclude<(typeof CALIBRATION_KEYS)[number], keyof CalibrationSnapshot>,
+  Exclude<keyof CalibrationSnapshot, (typeof CALIBRATION_KEYS)[number]>
+] extends [never, never]
+  ? true
+  : never
+export const CALIBRATION_KEYS_MATCH_SNAPSHOT: _AssertKeysMatch = true
+
+/**
+ * 擷取當下生效的校準轉換,供 Session 開始時寫入 `sessions.calibration`(migration 6)。
+ *
+ * 欄位來源刻意是 `CALIBRATION_KEYS` 而不是手抄一份清單:那個常數同時也是
+ * 「Session 進行中凍結哪些欄位」的定義,兩者本來就必須是同一組。日後新增一個
+ * 會改變角度算法的設定時,只要加進 CALIBRATION_KEYS,凍結與快照會一起跟上——
+ * 手抄清單的版本會安靜地漏掉新欄位,而漏掉的後果是快照再次說謊。
+ */
+export function buildCalibrationSnapshot(settings: Settings): CalibrationSnapshot {
+  const snapshot: Record<string, unknown> = {}
+  for (const key of CALIBRATION_KEYS) snapshot[key] = settings[key]
+  // 這個轉型的依據是上面的 AssertKeysMatch:兩個集合已由編譯器證明一一對應,
+  // 所以迴圈填完的物件必然剛好是一個 CalibrationSnapshot。若日後有人只改了
+  // 其中一邊,壞掉的是那個型別斷言(編譯失敗),而不是這裡靜默產生半套快照。
+  return snapshot as unknown as CalibrationSnapshot
+}
+
+/** 解析 `sessions.calibration`;欄位不是合法 JSON 或為 migration 6 之前的 null 時回傳 null。 */
+export function parseCalibrationSnapshot(raw: string | null): CalibrationSnapshot | null {
+  if (raw == null) return null
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return parsed != null && typeof parsed === 'object' ? (parsed as CalibrationSnapshot) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 列出某場 Session 的校準快照與「目前設定」之間有差異的欄位。
+ *
+ * 這是這個欄位存在的理由所在:督導在 History 看到的曲線,是由當時那組轉換算出來的。
+ * 若之後重跑過精靈,同一條曲線的意義就變了——沒有這個比對,他會拿今天的座標系
+ * 去讀上個月的資料而毫無察覺。回傳空陣列 = 與今天完全一致,可直接照當前設定解讀。
+ *
+ * 只比 `CALIBRATION_TRANSFORM_KEYS`,不比時間戳與 verified 註記:重跑一次精靈、
+ * 數值卻完全相同是最常見的情況,那不是漂移,警告在那時響起只會稀釋掉真正的警告。
+ */
+export function calibrationDrift(
+  snapshot: CalibrationSnapshot | null,
+  settings: Settings
+): (keyof CalibrationSnapshot)[] {
+  if (snapshot == null) return []
+  return CALIBRATION_TRANSFORM_KEYS.filter((key) => snapshot[key] !== settings[key])
 }

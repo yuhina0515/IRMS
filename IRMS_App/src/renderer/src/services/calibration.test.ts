@@ -2,7 +2,12 @@
 // applyCalibration,斷言統一慣例成立——站直≈0、前抬為正、後勾為負、外展 roll 為正。
 import { describe, expect, it } from 'vitest'
 import type { RawAngles } from '@shared/protocol'
-import { applyCalibration, type Settings } from '../store/useStore'
+import {
+  applyCalibration,
+  CALIBRATION_KEYS,
+  CALIBRATION_TRANSFORM_KEYS,
+  type Settings
+} from '../store/useStore'
 import {
   buildCalibrationPatch,
   buildQuickZeroPatch,
@@ -10,6 +15,9 @@ import {
   detectAxisSwap,
   effectiveRaw,
   CAPTURE_STD_LIMIT_ABDUCTION,
+  buildCalibrationSnapshot,
+  calibrationDrift,
+  parseCalibrationSnapshot,
   type CaptureStats
 } from './calibration'
 
@@ -221,5 +229,74 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
     expect(stand.thigh).toBeCloseTo(0)
     expect(stand.shin).toBeCloseTo(0)
     expect(stand.shinRoll).toBeCloseTo(0)
+  })
+})
+
+describe('校準快照(migration 6)', () => {
+  it('快照涵蓋全部被凍結的欄位,一個都不少', () => {
+    // 漏掉任一欄位,那個欄位就是「有在影響角度、卻沒被記錄」——正是這個功能要消滅的狀況
+    const snapshot = buildCalibrationSnapshot(SETTINGS)
+    expect(Object.keys(snapshot).sort()).toEqual([...CALIBRATION_KEYS].sort())
+  })
+
+  it('快照存的是當下的值,不是參照;事後改設定不會回頭改寫已存的快照', () => {
+    const settings: Settings = { ...SETTINGS, thighZeroRaw: 12.5, shinInvert: true }
+    const snapshot = buildCalibrationSnapshot(settings)
+    settings.thighZeroRaw = 99
+    expect(snapshot.thighZeroRaw).toBe(12.5)
+    expect(snapshot.shinInvert).toBe(true)
+  })
+
+  it('序列化後可原樣還原(這是它進 DB 的形式)', () => {
+    const snapshot = buildCalibrationSnapshot({ ...SETTINGS, thighRollZeroRaw: -7.25 })
+    expect(parseCalibrationSnapshot(JSON.stringify(snapshot))).toEqual(snapshot)
+  })
+
+  it('舊列(null)與壞掉的 JSON 都回傳 null,不丟例外', () => {
+    // History 開啟舊 session 時會走到這裡;這裡丟例外等於整個分析視窗白屏
+    expect(parseCalibrationSnapshot(null)).toBeNull()
+    expect(parseCalibrationSnapshot('{ not json')).toBeNull()
+    expect(parseCalibrationSnapshot('42')).toBeNull()
+    expect(parseCalibrationSnapshot('null')).toBeNull()
+  })
+})
+
+describe('calibrationDrift — 這場資料能不能照今天的設定解讀', () => {
+  it('與目前設定相同時沒有漂移', () => {
+    expect(calibrationDrift(buildCalibrationSnapshot(SETTINGS), SETTINGS)).toEqual([])
+  })
+
+  it('列出所有不一致的欄位', () => {
+    const snapshot = buildCalibrationSnapshot(SETTINGS)
+    const now: Settings = { ...SETTINGS, shinInvert: true, thighZeroRaw: 4 }
+    expect(calibrationDrift(snapshot, now).sort()).toEqual(['shinInvert', 'thighZeroRaw'])
+  })
+
+  it('沒有快照時回傳空陣列——這是「不知道」,呼叫端另行處理,不可當成「一致」', () => {
+    expect(calibrationDrift(null, SETTINGS)).toEqual([])
+  })
+
+  it('重跑精靈得到相同數值(只有時間戳與 verified 變了)不算漂移', () => {
+    // 這是最常見的情況。若這裡報漂移,History 會對每一場都掛上「校準已改變」,
+    // 真正的方向錯位就會被當成雜訊略過——警告只有在稀少時才是警告。
+    const snapshot = buildCalibrationSnapshot(SETTINGS)
+    const recalibrated: Settings = {
+      ...SETTINGS,
+      lastCalibratedAt: '2026-08-22T10:00:00.000Z',
+      thighRollVerified: true,
+      shinRollVerified: true
+    }
+    expect(calibrationDrift(snapshot, recalibrated)).toEqual([])
+  })
+
+  it('每一個會改變算式的欄位單獨改動都偵測得到', () => {
+    const snapshot = buildCalibrationSnapshot(SETTINGS)
+    for (const key of CALIBRATION_TRANSFORM_KEYS) {
+      const current = SETTINGS[key]
+      const next =
+        typeof current === 'boolean' ? !current : typeof current === 'number' ? current + 3 : 'z'
+      const now = { ...SETTINGS, [key]: next } as Settings
+      expect(calibrationDrift(snapshot, now)).toEqual([key])
+    }
   })
 })

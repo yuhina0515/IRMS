@@ -112,10 +112,13 @@ export const sessionsRepo = {
   start(input: SessionStartInput): { sessionId: number } {
     const info = db
       .prepare(
-        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit)
-         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit)`
+        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit, calibration)
+         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit, @calibration)`
       )
-      .run(input)
+      // 校準快照在 DB 層只是一段字串:主進程不解讀它的內容,欄位形狀日後演進
+      // 也不必再動 schema。序列化放在這裡而非呼叫端,是為了讓 renderer 送出的
+      // 仍是型別化的物件(型別檢查得到),而不是一個誰都能塞的 string。
+      .run({ ...input, calibration: JSON.stringify(input.calibration) })
     return { sessionId: Number(info.lastInsertRowid) }
   },
 

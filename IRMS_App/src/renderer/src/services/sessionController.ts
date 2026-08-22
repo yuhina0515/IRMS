@@ -9,6 +9,7 @@ import type { SensorReading, TriggerType } from '@shared/types'
 import { clampTriggerParams } from '@shared/validation'
 import { useStore } from '../store/useStore'
 import { bluetoothService } from './bluetooth'
+import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
 import { TriggerEngine } from './triggerEngine'
 import { createTrailingThrottle } from './uiThrottle'
@@ -263,7 +264,10 @@ class SessionController {
         // 快照當場的判定型別:動作日後可能被改或刪除,而歷史分析要畫的是
         // 「這場當時實際被判定的那個指標」
         triggerType: this.currentConfig().triggerType,
-        safetyLimit: action?.safetyLimit ?? null
+        safetyLimit: action?.safetyLimit ?? null,
+        // 快照當場生效的校準轉換。校準在 Session 進行中被凍結(見 CALIBRATION_KEYS),
+        // 所以「開始時擷取一次」對整場都成立,不需要逐筆存原始值。
+        calibration: buildCalibrationSnapshot(state.settings)
       })
 
       this.buffer = []

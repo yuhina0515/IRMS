@@ -80,11 +80,45 @@ export interface Session {
   /** 當場的判定型別快照;歷史分析據此畫出「實際被判定的那個指標」。舊列為 null */
   triggerType: TriggerType | null
   /**
+   * 當場校準轉換的 JSON 快照(migration 6 之前建立的列為 null)。
+   * 以字串存放:主進程只負責存取,不解讀內容;解析與比對留在 renderer 端。
+   */
+  calibration: string | null
+  /**
    * 1 = 這場 Session 沒有正常結束(關窗/強殺/當機),由啟動時的孤兒收尾補上結束時間。
    * repsCompleted 只在正常結束時寫入,所以 abandoned 的列其 reps 不可信——
    * UI 必須標示出來,而不是把 0 當成事實呈現。
    */
   abandoned: 0 | 1
+}
+
+/**
+ * 一場 Session 開始當下實際生效的校準轉換快照(migration 6 起以單一 JSON 欄位存於 sessions)。
+ *
+ * 沒有它,`sensor_data` 只留下校準後的數值,而產生那些數值的仿射轉換活在 localStorage:
+ * 使用者錄了 20 場,第 21 場才發現 shinInvert 反了、重跑精靈,前 20 場就永久無法解讀——
+ * 沒有任何紀錄說明它們是由哪一組轉換算出來的。
+ *
+ * 刻意存成單一 JSON 欄位而非逐欄位攤平(2026-08-12 會議裁決):校準欄位本身仍在演進
+ * (v1.0.1 的 offset → v4 的 zeroRaw 就是一次),攤平會讓每次改欄位都得再開一個 migration,
+ * 而這個欄位的用途是「當時是什麼」的存證,不是查詢維度。
+ */
+export interface CalibrationSnapshot {
+  thighAxisSwap: boolean
+  shinAxisSwap: boolean
+  thighInvert: boolean
+  thighZeroRaw: number
+  shinInvert: boolean
+  shinZeroRaw: number
+  thighRollInvert: boolean
+  thighRollZeroRaw: number
+  shinRollInvert: boolean
+  shinRollZeroRaw: number
+  /** roll 方向是否曾由精靈第 5 步實測驗證;false = 內外翻符號可能相反,判讀時必須知道 */
+  thighRollVerified: boolean
+  shinRollVerified: boolean
+  /** 最近一次跑完精靈的時間;null = 從未跑過(全預設值或純手動輸入) */
+  lastCalibratedAt: string | null
 }
 
 /** 開始 Session 的輸入 */
@@ -97,6 +131,8 @@ export interface SessionStartInput {
   protocol: JointProtocol | null
   triggerType: TriggerType | null
   safetyLimit: number | null
+  /** 當場校準快照 */
+  calibration: CalibrationSnapshot
 }
 
 /** 單筆高頻角度讀數(sensor_data 資料表) */

@@ -5,6 +5,8 @@ import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
 import { computeMetricZone, metricInfo } from '../services/movementMetric'
+import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
+import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
@@ -13,6 +15,13 @@ const CHART_MAX_POINTS = 1200
 function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [readings, setReadings] = useState<StoredReading[]>([])
+  const settings = useStore((s) => s.settings)
+
+  // 這條曲線是由「當時那組校準轉換」算出來的。如果之後重跑過精靈,同一條曲線的
+  // 意義就變了——沒有這個比對,督導會拿今天的座標系去讀上個月的資料而毫無察覺。
+  // migration 6 之前的舊列沒有快照,回傳 null:此時不宣稱一致,也不宣稱不一致。
+  const snapshot = parseCalibrationSnapshot(session.calibration)
+  const drift = calibrationDrift(snapshot, settings)
 
   useEffect(() => {
     let chart: Chart<'line'> | null = null
@@ -135,7 +144,11 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       `# startTime,${session.startTime}`,
       `# endTime,${session.endTime ?? ''}`,
       `# repsCompleted,${session.repsCompleted}`,
-      `# abandoned,${session.abandoned}`
+      `# abandoned,${session.abandoned}`,
+      // 匯出的 CSV 常常是拿去離線分析的那一份,而校準轉換決定這些數字代表什麼。
+      // JSON 本身含逗號與雙引號,必須照 CSV 規則整段包起來並把 " 加倍,
+      // 否則這一行在任何按逗號切欄位的工具裡都會散成一堆欄位。
+      `# calibration,"${(session.calibration ?? '').replace(/"/g, '""')}"`
     ].join('\n')
     const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
     const body = full
@@ -164,6 +177,18 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
         <div className="history-chart-viewport">
           <canvas ref={canvasRef} />
         </div>
+        {/* 非阻斷性提示,刻意不用實心警示色:這不是「出事了」,是「解讀這張圖前要知道的事」
+            (沿用 2026-08-01 會議「非阻斷性警告不做視覺化緊急」的決議)。 */}
+        {snapshot == null ? (
+          <p className="field-hint" style={{ marginTop: 10 }}>
+            這場沒有校準快照(建立於本功能之前),無法確認它與目前設定是否為同一組轉換。
+          </p>
+        ) : drift.length > 0 ? (
+          <p className="field-hint" style={{ marginTop: 10, color: 'var(--warning)' }}>
+            ⚠ 這場的校準與目前設定不同({drift.join('、')}),曲線的零點或正負方向可能
+            與現在不一致,請勿與近期紀錄直接比較。
+          </p>
+        ) : null}
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-dim)' }}>
             {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps

@@ -3,7 +3,15 @@ import { describe, expect, it } from 'vitest'
 import type { CustomAction } from '@shared/types'
 import type { LiveAngles } from '@shared/protocol'
 import { effectiveRaw } from '../services/calibration'
-import { applyCalibration, migrateSettings, reconcileSelection, useStore, type Settings } from './useStore'
+import {
+  applyCalibration,
+  CALIBRATION_KEYS,
+  migrateSettings,
+  reconcileSelection,
+  splitCalibrationPatch,
+  useStore,
+  type Settings
+} from './useStore'
 
 const BASE_SETTINGS: Settings = {
   thighAxisSwap: false,
@@ -207,5 +215,56 @@ describe('syncLiveFrame', () => {
     expect(useStore.getState().session).toBe(before)
     useStore.getState().syncLiveFrame(angles, 42) // 同值
     expect(useStore.getState().session).toBe(before)
+  })
+})
+
+describe('setSettings — Session 進行中凍結校準(migration 6 快照成立的前提)', () => {
+  const startClean = (running: boolean): void => {
+    useStore.setState({ settings: { ...BASE_SETTINGS }, logs: [] })
+    useStore.getState().patchSession({ running })
+  }
+
+  it('splitCalibrationPatch 只攔校準欄位,顯示類設定照過', () => {
+    const { allowed, frozen } = splitCalibrationPatch({
+      thighZeroRaw: 12,
+      thighInvert: true,
+      maxChartPoints: 200
+    })
+    expect(frozen.sort()).toEqual(['thighInvert', 'thighZeroRaw'])
+    expect(allowed).toEqual({ maxChartPoints: 200 })
+  })
+
+  it('進行中:校準欄位被忽略,原值保持不動', () => {
+    startClean(true)
+    useStore.getState().setSettings({ thighZeroRaw: 33, shinInvert: true })
+    expect(useStore.getState().settings.thighZeroRaw).toBe(BASE_SETTINGS.thighZeroRaw)
+    expect(useStore.getState().settings.shinInvert).toBe(BASE_SETTINGS.shinInvert)
+  })
+
+  it('進行中被忽略時會留下日誌,而不是靜默失敗', () => {
+    startClean(true)
+    useStore.getState().setSettings({ thighZeroRaw: 33 })
+    const logged = useStore.getState().logs.some((l) => l.includes('Calibration frozen'))
+    expect(logged).toBe(true)
+    expect(useStore.getState().logs.some((l) => l.includes('thighZeroRaw'))).toBe(true)
+  })
+
+  it('進行中:同一筆 patch 內的非校準欄位仍然套用(不是整筆丟掉)', () => {
+    startClean(true)
+    useStore.getState().setSettings({ thighZeroRaw: 33, maxChartPoints: 123 })
+    expect(useStore.getState().settings.thighZeroRaw).toBe(BASE_SETTINGS.thighZeroRaw)
+    expect(useStore.getState().settings.maxChartPoints).toBe(123)
+  })
+
+  it('未進行:每一個校準欄位都照常寫得進去(凍結只在 Session 中生效)', () => {
+    startClean(false)
+    // 逐欄位掃過,避免日後新增欄位時只有被抽樣到的那幾個受測
+    for (const key of CALIBRATION_KEYS) {
+      const current = BASE_SETTINGS[key]
+      const next =
+        typeof current === 'boolean' ? !current : typeof current === 'number' ? current + 7 : 'x'
+      useStore.getState().setSettings({ [key]: next } as Partial<Settings>)
+      expect(useStore.getState().settings[key]).toEqual(next)
+    }
   })
 })

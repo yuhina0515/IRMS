@@ -162,6 +162,23 @@ export const MIGRATIONS: Migration[] = [
         ALTER TABLE custom_actions ADD COLUMN safetyLimit REAL;
         ALTER TABLE sessions       ADD COLUMN safetyLimit REAL;
       `)
+  },
+  {
+    version: 6,
+    name: 'sessions: calibration snapshot in force at session start',
+    // sensor_data 只存校準後的數值,而產生那些數值的仿射轉換活在 localStorage,
+    // 會被下一次校準就地覆蓋。後果不是資料變髒,是資料變得無法解讀:錄了 20 場,
+    // 第 21 場才發現 shinInvert 反了、重跑精靈,前 20 場沒有任何東西說明它們
+    // 是由哪一組轉換算出來的,連「往前抬還是往後擺」都無法回推。
+    //
+    // 單一 JSON 欄位而非逐欄位攤平(2026-08-12 會議裁決):校準欄位本身仍在演進
+    // (v1.0.1 的 offset → v4 的 zeroRaw 就是一次),攤平會讓每次改欄位都得再開
+    // 一個 migration;這個欄位是「當時是什麼」的存證,不是查詢維度。
+    //
+    // 同次會議否決了 sensor_data 的四個原始角度欄位:三方各自實跑證明
+    // 校準轉換可逆,存原始值等於 +54MB/百場買到零資訊。要回推原始值,
+    // 用這個快照反算即可。
+    up: (db) => db.exec(`ALTER TABLE sessions ADD COLUMN calibration TEXT;`)
   }
 ]
 

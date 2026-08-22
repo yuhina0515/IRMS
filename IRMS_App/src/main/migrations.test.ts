@@ -93,6 +93,33 @@ describe('applyMigrations — v1.0.1 升級路徑(本次修復的核心情境)',
     )
     expect(cols).toContain('abandoned')
     expect(cols).toContain('triggerType')
+    expect(cols).toContain('calibration')
+  })
+
+  it('migration 6:既有 session 的 calibration 為 NULL,而非假造一份快照', () => {
+    // 升級前錄下的場次,其校準轉換確實無人記錄。這裡要守住的是「誠實地說不知道」:
+    // 若用今天的設定回填,History 會宣稱那些舊資料與現在同一組座標系——
+    // 那是一個看起來合理、但沒有任何依據的斷言,比 NULL 危險得多。
+    const db = legacyV101()
+    db.prepare('INSERT INTO sessions (targetAngle, tolerance, holdTimeMs) VALUES (?, ?, ?)').run(
+      90,
+      5,
+      2000
+    )
+    applyMigrations(db)
+    const row = db.prepare('SELECT calibration FROM sessions').get() as { calibration: unknown }
+    expect(row.calibration).toBeNull()
+  })
+
+  it('migration 6 後可寫入並讀回校準快照 JSON', () => {
+    const db = legacyV101()
+    applyMigrations(db)
+    const snapshot = JSON.stringify({ thighInvert: true, thighZeroRaw: -12.5 })
+    db.prepare(
+      'INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, calibration) VALUES (?, ?, ?, ?)'
+    ).run(90, 5, 2000, snapshot)
+    const row = db.prepare('SELECT calibration FROM sessions').get() as { calibration: string }
+    expect(JSON.parse(row.calibration)).toEqual({ thighInvert: true, thighZeroRaw: -12.5 })
   })
 
   it('升級時把既有的非法參數鉗制回合法範圍,而不是讓重建失敗', () => {

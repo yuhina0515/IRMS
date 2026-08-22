@@ -11,16 +11,23 @@ import { buildQuickZeroPatch } from '../services/calibration'
 function NumField({
   label,
   value,
-  onChange
+  onChange,
+  disabled = false
 }: {
   label: string
   value: number
   onChange: (v: number) => void
+  disabled?: boolean
 }): JSX.Element {
   return (
     <div className="field" style={{ flex: 1 }}>
       <label>{label}</label>
-      <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} />
+      <input
+        type="number"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      />
     </div>
   )
 }
@@ -28,15 +35,22 @@ function NumField({
 function Toggle({
   label,
   checked,
-  onChange
+  onChange,
+  disabled = false
 }: {
   label: string
   checked: boolean
   onChange: (v: boolean) => void
+  disabled?: boolean
 }): JSX.Element {
   return (
     <label className="switch">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       {label}
     </label>
   )
@@ -52,6 +66,11 @@ export function SettingsView(): JSX.Element {
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     setSettings({ [key]: value } as Partial<Settings>)
+
+  // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
+  // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
+  // 這裡把入口直接關掉,而不是讓使用者按下去之後在日誌裡才發現被忽略。
+  const calibrationLocked = useStore((s) => s.session.running)
 
   const quickZero = (): void => {
     if (!rawAngles) {
@@ -91,7 +110,11 @@ export function SettingsView(): JSX.Element {
               正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
             </p>
           )}
-        <button className="btn btn-primary" disabled={!isConnected} onClick={() => setWizardOpen(true)}>
+        <button
+          className="btn btn-primary"
+          disabled={!isConnected || calibrationLocked}
+          onClick={() => setWizardOpen(true)}
+        >
           啟動校準精靈
         </button>
         {/* 停用理由必須看得見。原本只放在 title 裡:tooltip 要滑鼠停留才出現、觸控
@@ -102,6 +125,12 @@ export function SettingsView(): JSX.Element {
             校準需要即時感測器數值,請先於頂部連線裝置。
           </p>
         )}
+        {calibrationLocked && (
+          <p className="field-hint" style={{ marginTop: 8 }}>
+            Session 進行中無法變更校準——這一場的資料必須全程由同一組轉換產生,
+            紀錄裡才存得下一份說得通的校準快照。請先結束 Session。
+          </p>
+        )}
 
         <details className="adv-fold">
           <summary>進階手動校準(一般情況請使用精靈)</summary>
@@ -110,23 +139,23 @@ export function SettingsView(): JSX.Element {
           「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
         </p>
         <div className="row">
-          <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} />
-          <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} />
+          <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} disabled={calibrationLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-          <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} />
-          <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} />
+          <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} disabled={calibrationLocked} />
         </div>
         <div className="row">
-          <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} />
-          <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} />
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} disabled={calibrationLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-          <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} />
-          <Toggle label="Invert Shin Roll" checked={settings.shinRollInvert} onChange={(v) => set('shinRollInvert', v)} />
+          <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Shin Roll" checked={settings.shinRollInvert} onChange={(v) => set('shinRollInvert', v)} disabled={calibrationLocked} />
         </div>
         <div className="row">
-          <button className="btn btn-secondary" onClick={quickZero}>
+          <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
             快速歸零
           </button>
         </div>

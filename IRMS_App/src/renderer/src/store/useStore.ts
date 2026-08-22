@@ -75,6 +75,60 @@ const DEFAULT_SETTINGS: Settings = {
   lastCalibratedAt: null
 }
 
+/**
+ * 定義「原始讀值 → 判定用角度」這條仿射轉換的設定欄位。
+ *
+ * 這組欄位在 Session 進行中一律凍結。理由不是潔癖:`sessions.calibration`(migration 6)
+ * 是「一場一個」的單一快照,一旦允許中途改校準,那個快照就會謊報——2026-08-12 會議
+ * 對兩段式串流實測過,單一快照最壞可差 57°。與其存一個看起來合理但是錯的數字,
+ * 不如讓轉換在一場之內不可變,快照因此由建構保證為真。
+ *
+ * protocol / maxChartPoints / flushIntervalSec 不在此列:它們不改變角度的算法。
+ */
+/**
+ * 真正參與 `(raw − zeroRaw) × sign` 這條算式的欄位——換句話說,改了它們,同一組
+ * 原始讀值就會算出不同的角度。歷史紀錄要判斷「這場能不能照今天的設定解讀」,
+ * 比的必須是這一組:`lastCalibratedAt` 只是時間戳,`*Verified` 只是「方向有沒有
+ * 被實測過」的註記,兩者都不改變任何數字。把它們算進差異,會讓「重跑一次精靈、
+ * 結果數值完全一樣」這個最常見的情況跳出「校準已改變」的警告——一個不存在的問題
+ * 每次都響,真正的方向錯位反而被當成雜訊略過。
+ */
+export const CALIBRATION_TRANSFORM_KEYS = [
+  'thighAxisSwap',
+  'shinAxisSwap',
+  'thighInvert',
+  'thighZeroRaw',
+  'shinInvert',
+  'shinZeroRaw',
+  'thighRollInvert',
+  'thighRollZeroRaw',
+  'shinRollInvert',
+  'shinRollZeroRaw'
+] as const satisfies readonly (keyof Settings)[]
+
+export const CALIBRATION_KEYS = [
+  ...CALIBRATION_TRANSFORM_KEYS,
+  // 以下不改變算式,但屬於「這場是怎麼校出來的」的存證,一併快照:
+  'thighRollVerified',
+  'shinRollVerified',
+  'lastCalibratedAt'
+] as const satisfies readonly (keyof Settings)[]
+
+/** 把一筆 settings patch 拆成「Session 進行中仍可套用」與「被凍結」兩部分。export 供測試。 */
+export function splitCalibrationPatch(patch: Partial<Settings>): {
+  allowed: Partial<Settings>
+  frozen: (keyof Settings)[]
+} {
+  const frozenSet = new Set<string>(CALIBRATION_KEYS)
+  const allowed: Partial<Settings> = {}
+  const frozen: (keyof Settings)[] = []
+  for (const key of Object.keys(patch) as (keyof Settings)[]) {
+    if (frozenSet.has(key)) frozen.push(key)
+    else (allowed as Record<string, unknown>)[key] = patch[key]
+  }
+  return { allowed, frozen }
+}
+
 interface StoreState {
   // 連線
   isConnected: boolean
@@ -220,6 +274,17 @@ export const useStore = create<StoreState>()(
 
       setSettings: (patch) => {
         const state = get()
+        // Session 進行中凍結校準:見 CALIBRATION_KEYS。刻意「丟掉並留下日誌」而非
+        // 靜默忽略——靜默失敗正是這個專案反覆抓到的那類缺陷。真正的防線在 UI
+        // (按鈕/入口在進行中就不可按),這裡是最後一道,擋掉任何繞過 UI 的路徑。
+        if (state.session.running) {
+          const { allowed, frozen } = splitCalibrationPatch(patch)
+          if (frozen.length > 0) {
+            state.log(`Calibration frozen during session; ignored: ${frozen.join(', ')}`)
+            if (Object.keys(allowed).length === 0) return
+            patch = allowed
+          }
+        }
         const settings = { ...state.settings, ...patch }
         const protocolChanged = patch.protocol != null && patch.protocol !== state.settings.protocol
         if (protocolChanged && !state.session.running) {
