@@ -71,6 +71,9 @@ export function SettingsView(): JSX.Element {
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
   // 這裡把入口直接關掉,而不是讓使用者按下去之後在日誌裡才發現被忽略。
   const calibrationLocked = useStore((s) => s.session.running)
+  // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
+  // 功能不擋——pitch 的歸零仍然有效且有用——但提示不能再宣稱「含 Roll」。
+  const linkTruncated = useStore((s) => s.linkTruncated)
 
   const quickZero = (): void => {
     if (!rawAngles) {
@@ -78,7 +81,12 @@ export function SettingsView(): JSX.Element {
       return
     }
     setSettings(buildQuickZeroPatch(rawAngles, settings))
-    showToast('已套用快速歸零校準(含 Roll)', 'success')
+    showToast(
+      linkTruncated
+        ? '已套用快速歸零校準(僅 Pitch:BLE 未送達 roll 資料)'
+        : '已套用快速歸零校準(含 Roll)',
+      linkTruncated ? 'warning' : 'success'
+    )
   }
 
   return (

@@ -73,7 +73,30 @@ export interface LiveAngles {
 
 /** BLE 封包解析結果:成功 / 硬體錯誤 / 格式錯誤 */
 export type ParsedPacket =
-  | { kind: 'angles'; raw: RawAngles }
+  | {
+      kind: 'angles'
+      raw: RawAngles
+      /**
+       * 這個封包是否真的帶了 `TR:`/`SR:` 冠狀面欄位。
+       *
+       * `raw.thighRoll`/`raw.shinRoll` 在缺欄時填 0,而 0 是一個**合法的角度值**——
+       * 「感測器擺平」與「這條鏈路沒送 Roll 過來」在數字上完全一樣。Roll 餵的是
+       * 外展 / 內外翻判定,把後者當成前者,等於在患者其實沒做到位時判定達標。
+       * 呼叫端據此把「缺 Roll」當成可見的異常回報,而不是靜靜地用 0 算下去。
+       */
+      hasRoll: boolean
+      /**
+       * 這個封包尾端被切掉了可辨識的殘骸——實務上就是 BLE MTU 沒協商上去。
+       *
+       * 與 `hasRoll` 分開表示,因為兩者的成因不同:3 欄舊韌體是「本來就沒有 Roll」
+       * (`hasRoll` false、`truncated` false),MTU 截斷是「送了但沒收到」
+       * (兩者皆 true)。呼叫端要據此提示使用者的是後者。
+       *
+       * 切點剛好落在數值邊界時(`T:12.5,S:-45.2,K:57.`)兩者仍無法區分,此時
+       * 回報 false——寧可漏報也不誤報,不在解析層猜。
+       */
+      truncated: boolean
+    }
   | { kind: 'error'; code: string }
   | { kind: 'malformed'; value: string }
 
@@ -85,11 +108,26 @@ export interface RawAngles {
   shinRoll: number
 }
 
+/** 韌體會送出的欄位前綴。順序有意義:較長的 TR/SR/KR 必須先比,否則 'T:' 會誤吃 'TR:'。 */
+const FIELD_PREFIXES = ['TR:', 'SR:', 'KR:', 'T:', 'S:', 'K:'] as const
+
 /**
  * 解析 ESP32 角度推播封包。
  * 正常格式:`T:12.5,S:-45.2,K:57.7`(可含 TR/SR/KR 冠狀面欄位)
  * 錯誤格式:`ERR:1`
  * 純數字(舊韌體相容):僅膝夾角
+ *
+ * **逐軸降級而非整包丟棄(2026-08-22,issue #2)。** 韌體 6 軸封包最長 54 bytes;若 BLE MTU
+ * 沒協商到 `config.h` 的 128 而停在預設 23,notify 承載只剩 20 bytes,封包被硬切。
+ * 舊解析器對切出來的殘骸照單全收,Roll 靜靜變成 0,使用者看不到任何錯誤。
+ *
+ * 但整包丟棄是過度反應:`T:` 與 `S:` 最壞情況(`T:-180.0,S:-180.0,`)只佔 18 bytes,
+ * **在 20 bytes 的切點下必定完整存活**,而判定只讀 Pitch(`computeMetricSample` 不碰 Roll)。
+ * 丟掉整包會把一條臨床上仍然正確的 Pitch 資料流變成什麼都不顯示。
+ *
+ * 因此:T/S 缺席或不合法 → malformed(判定來源不可信,必須拒絕);尾端切碎的殘骸 →
+ * 丟掉該欄並升起 `truncated`;中段就壞掉 → malformed(那不是截斷,是真的亂碼)。
+ * 靜默的部分由 `hasRoll` / `truncated` 消除,由呼叫端可見地回報。
  */
 export function parseAnglePacket(value: string): ParsedPacket {
   const trimmed = value.trim()
@@ -98,33 +136,60 @@ export function parseAnglePacket(value: string): ParsedPacket {
     return { kind: 'error', code: trimmed }
   }
 
-  let thigh = 0
-  let shin = 0
-  let thighRoll = 0
-  let shinRoll = 0
+  const malformed = { kind: 'malformed', value: trimmed } as const
 
   const parts = trimmed.split(',')
-  if (parts.length >= 3) {
-    for (const p of parts) {
-      // 注意:先比對較長的前綴 (TR/SR/KR),避免 'T:' 誤吃 'TR:'
-      if (p.startsWith('TR:')) thighRoll = parseFloat(p.slice(3))
-      else if (p.startsWith('SR:')) shinRoll = parseFloat(p.slice(3))
-      else if (p.startsWith('KR:')) {
-        /* KR 為衍生值,前端會自行由 Roll 差值計算,此處忽略 */
-      } else if (p.startsWith('T:')) thigh = parseFloat(p.slice(2))
-      else if (p.startsWith('S:')) shin = parseFloat(p.slice(2))
-      else if (p.startsWith('K:')) {
-        /* K 為衍生夾角,前端由 thigh/shin 計算,此處忽略 */
-      }
-    }
-  } else {
+  if (parts.length < 3) {
     // 舊韌體相容:整個字串視為膝夾角(以小腿欄位承載,大腿為 0)
-    shin = parseFloat(trimmed)
+    const knee = Number(trimmed)
+    if (trimmed === '' || !Number.isFinite(knee)) return malformed
+    return {
+      kind: 'angles',
+      raw: { thigh: 0, shin: knee, thighRoll: 0, shinRoll: 0 },
+      hasRoll: false,
+      truncated: false
+    }
   }
 
-  if ([thigh, shin, thighRoll, shinRoll].some((n) => Number.isNaN(n))) {
-    return { kind: 'malformed', value: trimmed }
+  const field = new Map<string, number>()
+  let truncated = false
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+    const prefix = FIELD_PREFIXES.find((f) => part.startsWith(f))
+    // 空字串必須另外擋:`Number('')` 是 0 而不是 NaN,只看 isFinite 會讓 `K:` 過關,
+    // 而 `K:` 正是 20 bytes 切點最典型的殘骸。
+    const rawValue = prefix === undefined ? '' : part.slice(prefix.length)
+    const n = Number(rawValue)
+    const bad = prefix === undefined || field.has(prefix) || rawValue.trim() === '' || !Number.isFinite(n)
+
+    if (bad) {
+      // 只有「最後一段」壞掉才可能是截斷;中段壞掉代表這根本不是完整的協定封包
+      if (i === parts.length - 1) {
+        truncated = true
+        break
+      }
+      return malformed
+    }
+    field.set(prefix, n)
   }
 
-  return { kind: 'angles', raw: { thigh, shin, thighRoll, shinRoll } }
+  // T/S 餵判定,缺任何一個都不得放行——這是拒絕與降級的分界
+  const thigh = field.get('T:')
+  const shin = field.get('S:')
+  if (thigh === undefined || shin === undefined) return malformed
+
+  // 只剩一邊的 Roll 必然是尾端被切:韌體要嘛兩個都送,要嘛(舊版)都不送。
+  // 單獨一個 TR 沒有意義,丟掉並記為截斷,而不是拿它去算內外翻。
+  const thighRoll = field.get('TR:')
+  const shinRoll = field.get('SR:')
+  const hasRoll = thighRoll !== undefined && shinRoll !== undefined
+  if (!hasRoll && (thighRoll !== undefined || shinRoll !== undefined)) truncated = true
+
+  return {
+    kind: 'angles',
+    raw: { thigh, shin, thighRoll: hasRoll ? thighRoll : 0, shinRoll: hasRoll ? shinRoll : 0 },
+    hasRoll,
+    truncated
+  }
 }

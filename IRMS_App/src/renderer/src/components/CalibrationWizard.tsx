@@ -50,6 +50,9 @@ interface Props {
 export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const rawAngles = useStore((s) => s.rawAngles)
+  // BLE MTU 沒協商上去時 Roll 欄位根本沒送到,rawAngles 的兩個 roll 會恆為 0。
+  // 這一步校的正是 roll 方向,拿一串 0 去算會得出一份看似成功、實則無意義的校準。
+  const linkTruncated = useStore((s) => s.linkTruncated)
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const showToast = useUiStore((s) => s.showToast)
@@ -352,12 +355,23 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
               <b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。大腿與小腿分開判定,
               某一側幅度不足時該側沿用現有設定,不影響另一側。
             </p>
+            {linkTruncated && (
+              <p className="wizard-err">
+                ⚠ BLE 連線的 MTU 沒有協商成功,冠狀面(roll)資料沒有送達,目前恆為 0°。
+                這一步校的就是 roll 方向,現在做只會得到一份無意義的校準,請直接略過。
+                重新連線或重新燒錄韌體後可再校正顯示方向。
+              </p>
+            )}
             {errMsg && <p className="wizard-err">{errMsg}</p>}
             <div className="row">
               <button className="btn btn-primary" disabled={capturing} onClick={() => void finish(false)}>
                 略過,直接完成校準
               </button>
-              <button className="btn btn-secondary" disabled={capturing} onClick={() => void finish(true)}>
+              <button
+                className="btn btn-secondary"
+                disabled={capturing || linkTruncated}
+                onClick={() => void finish(true)}
+              >
                 {capturing
                   ? countdown != null
                     ? `${countdown}…`

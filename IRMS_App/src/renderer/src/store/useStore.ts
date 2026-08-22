@@ -136,6 +136,15 @@ interface StoreState {
   statusText: string
   /** 硬體錯誤代碼(如 'ERR:1'),null 表示正常 */
   hardwareError: string | null
+  /**
+   * BLE 鏈路正在截斷封包(MTU 沒協商到 `config.h` 的 128,停在預設 23)。
+   *
+   * 不是 `hardwareError`:判定只讀 Pitch,而 `T:`/`S:` 在 20 bytes 的切點下必定
+   * 完整存活,所以療程仍然可以正常進行——升起紅色遮罩把它擋掉是過度反應。
+   * 真正壞掉的是 Roll,它餵的是 3D 姿態顯示與校準精靈的外展步驟,因此改用
+   * 不阻斷但持續可見的提示。連線時重置。
+   */
+  linkTruncated: boolean
 
   // 即時資料
   angles: LiveAngles | null
@@ -161,6 +170,7 @@ interface StoreState {
   setConnection(isConnected: boolean, deviceName: string | null): void
   setStatus(text: string): void
   setHardwareError(code: string | null): void
+  setLinkTruncated(truncated: boolean): void
   /** 原始角度全速更新(校準精靈取樣依賴 25Hz 逐筆) */
   setRawAngles(raw: RawAngles): void
   /** 顯示用角度 + 保持進度的節流同步(單一 set,一次重繪);hold=null 表示進度不變 */
@@ -204,6 +214,7 @@ export const useStore = create<StoreState>()(
       deviceName: null,
       statusText: 'Disconnected',
       hardwareError: null,
+      linkTruncated: false,
 
       angles: null,
       rawAngles: null,
@@ -237,6 +248,8 @@ export const useStore = create<StoreState>()(
       setStatus: (text) => set({ statusText: text }),
 
       setHardwareError: (code) => set({ hardwareError: code }),
+
+      setLinkTruncated: (truncated) => set({ linkTruncated: truncated }),
 
       setRawAngles: (raw) => set({ rawAngles: raw }),
 

@@ -23,6 +23,8 @@ export class BluetoothService {
   private manualDisconnect = false
   private packetCount = 0
   private malformedCount = 0
+  /** 已就本次連線回報過截斷,避免 25Hz 的資料流把同一件事洗滿日誌 */
+  private truncationReported = false
   private smoother = new AngleSmoother()
 
   /** 每筆有效角度更新後呼叫(由 sessionController 設定),供達標判定與資料緩衝 */
@@ -37,6 +39,9 @@ export class BluetoothService {
 
   async connect(): Promise<void> {
     this.manualDisconnect = false
+    // 截斷是「這條鏈路這一次」的性質:重連可能協商到不同的 MTU,舊旗標不得沿用
+    this.truncationReported = false
+    useStore.getState().setLinkTruncated(false)
     if (this.store.isConnected) {
       this.disconnect()
       return
@@ -159,6 +164,17 @@ export class BluetoothService {
 
     this.packetCount++
     if (this.packetCount % 30 === 1) this.store.log(`Packet #${this.packetCount}: "${value}"`)
+
+    // 鏈路截斷:MTU 沒協商到 128,notify 承載停在預設的 20 bytes。判定只讀 Pitch 而
+    // T:/S: 必定在切點內存活,所以療程照常進行——但 Roll 一路是 0,3D 姿態與校準
+    // 精靈的外展步驟會靜靜地用假值算下去。只回報一次,持續狀態交給 store 的旗標。
+    if (parsed.truncated && !this.truncationReported) {
+      this.truncationReported = true
+      useStore.getState().setLinkTruncated(true)
+      this.store.log(
+        `BLE MTU too small — packet truncated to ${value.length} bytes, roll axes unavailable: "${value}"`
+      )
+    }
 
     // rawAngles 全速進 store(校準精靈逐筆取樣);顯示用 angles 由
     // sessionController 統一節流同步,這裡只交給判定管線
