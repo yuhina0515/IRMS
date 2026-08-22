@@ -299,4 +299,6 @@ O 撤回原提案的核心並改提結構修正。
 
 ## ✅ 執行結果
 
-*(裁決第 1 項落地中——見後續 commit 與本檔更新)*
+- **裁決第 1 項(offset → zeroRaw)**:已落地,見
+  [[log_20260814_offset_zeroraw_reparam|2026-08-14 日誌]]。144 → 147 tests,`npm run ci` 全綠。
+- 第 2–5 項(migration 6、session 中凍結校準、縮小版零位檢查、元件測試基建否決保留)尚未動工。

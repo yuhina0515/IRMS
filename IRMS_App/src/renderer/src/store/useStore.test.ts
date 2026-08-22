@@ -2,19 +2,20 @@
 import { describe, expect, it } from 'vitest'
 import type { CustomAction } from '@shared/types'
 import type { LiveAngles } from '@shared/protocol'
+import { effectiveRaw } from '../services/calibration'
 import { applyCalibration, migrateSettings, reconcileSelection, useStore, type Settings } from './useStore'
 
 const BASE_SETTINGS: Settings = {
   thighAxisSwap: false,
   shinAxisSwap: false,
   thighInvert: false,
-  thighOffset: 0,
+  thighZeroRaw: 0,
   shinInvert: false,
-  shinOffset: 0,
+  shinZeroRaw: 0,
   thighRollInvert: false,
-  thighRollOffset: 0,
+  thighRollZeroRaw: 0,
   shinRollInvert: false,
-  shinRollOffset: 0,
+  shinRollZeroRaw: 0,
   thighRollVerified: false,
   shinRollVerified: false,
   protocol: 'knee',
@@ -25,10 +26,10 @@ const BASE_SETTINGS: Settings = {
 
 describe('migrateSettings', () => {
   it('v0 舊 settings 補齊新欄位,保留使用者既有校準值', () => {
-    const old = { settings: { thighInvert: true, thighOffset: -12.5, protocol: 'elbow' } }
+    const old = { settings: { thighInvert: true, thighZeroRaw: -12.5, protocol: 'elbow' } }
     const { settings } = migrateSettings(old)
     expect(settings.thighInvert).toBe(true)
-    expect(settings.thighOffset).toBe(-12.5)
+    expect(settings.thighZeroRaw).toBe(-12.5)
     expect(settings.protocol).toBe('elbow')
     expect(settings.lastCalibratedAt).toBeNull() // 新欄位補預設
     expect(settings.flushIntervalSec).toBe(2)
@@ -39,6 +40,41 @@ describe('migrateSettings', () => {
   it('空/毀損的 persist 資料回退為完整預設值', () => {
     expect(migrateSettings(undefined).settings.protocol).toBe('knee')
     expect(migrateSettings({}).settings.maxChartPoints).toBe(50)
+  })
+
+  it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {
+    // invert=false:zeroRaw = -offset × 1
+    const notInverted = migrateSettings({ settings: { thighInvert: false, thighOffset: 20 } })
+    expect(notInverted.settings.thighZeroRaw).toBe(-20)
+
+    // invert=true:zeroRaw = -offset × -1 = offset
+    const inverted = migrateSettings({ settings: { thighInvert: true, thighOffset: -12.5 } })
+    expect(inverted.settings.thighZeroRaw).toBe(-12.5)
+
+    // 四軸都換算,且換算後 applyCalibration 在原校準姿勢下仍讀 0(可逆性的直接證明)
+    const legacy = migrateSettings({
+      settings: {
+        thighInvert: true,
+        thighOffset: -12.5,
+        shinInvert: false,
+        shinOffset: 20,
+        thighRollInvert: true,
+        thighRollOffset: 8,
+        shinRollInvert: false,
+        shinRollOffset: -6
+      }
+    }).settings
+    // 每軸的 raw 就是其換算後的 zeroRaw(thigh -12.5、shin -20、thighRoll 8、shinRoll 6)
+    const out = applyCalibration({ thigh: -12.5, shin: -20, thighRoll: 8, shinRoll: 6 }, legacy)
+    expect(out.thigh).toBeCloseTo(0)
+    expect(out.shin).toBeCloseTo(0)
+    expect(out.thighRoll).toBeCloseTo(0)
+    expect(out.shinRoll).toBeCloseTo(0)
+  })
+
+  it('已是新格式(有 zeroRaw)時不套用舊換算,原樣保留', () => {
+    const { settings } = migrateSettings({ settings: { thighZeroRaw: 42 } })
+    expect(settings.thighZeroRaw).toBe(42)
   })
 })
 
@@ -51,24 +87,67 @@ describe('applyCalibration', () => {
     expect(out.kneeRoll).toBe(-3) // 2 - 5:小腿較大腿偏內 → 內翻(負)
   })
 
-  it('axisSwap:貼歪 90° 的肢段 pitch/roll 對調後再套 invert/offset', () => {
-    const s = { ...BASE_SETTINGS, thighAxisSwap: true, thighOffset: -10 }
+  it('axisSwap:貼歪 90° 的肢段 pitch/roll 對調後再套 invert/zeroRaw', () => {
+    const s = { ...BASE_SETTINGS, thighAxisSwap: true, thighZeroRaw: 10 }
     const out = applyCalibration({ thigh: 3, shin: 0, thighRoll: 50, shinRoll: 0 }, s)
-    expect(out.thigh).toBe(40) // 取 thighRoll 50 → offset -10
+    expect(out.thigh).toBe(40) // 取 thighRoll 50 → (50 - 10) * 1
     expect(out.thighRoll).toBe(3)
   })
 
-  it('反相先乘、偏移後加(順序不可顛倒)', () => {
-    const s = { ...BASE_SETTINGS, thighInvert: true, thighOffset: 10 }
+  it('先減零位、再反相(順序不可顛倒)', () => {
+    const s = { ...BASE_SETTINGS, thighInvert: true, thighZeroRaw: 10 }
     const out = applyCalibration({ thigh: 30, shin: 0, thighRoll: 0, shinRoll: 0 }, s)
-    expect(out.thigh).toBe(-20) // 30 * -1 + 10
+    expect(out.thigh).toBe(-20) // (30 - 10) * -1
   })
 
   it('raw* 欄位保留未校準原始值(供校準 UI 顯示)', () => {
-    const s = { ...BASE_SETTINGS, thighInvert: true, thighOffset: 99 }
+    const s = { ...BASE_SETTINGS, thighInvert: true, thighZeroRaw: 99 }
     const out = applyCalibration({ thigh: 30, shin: 1, thighRoll: 2, shinRoll: 3 }, s)
     expect(out.rawThigh).toBe(30)
     expect(out.rawShin).toBe(1)
+  })
+})
+
+describe('applyCalibration — zeroRaw 不變式(2026-08-12 會議:由建構保證)', () => {
+  it('∀ axisSwap/invert 組合(2⁶=64 種):zeroRaw 對應的原始姿勢一律讀 0,即使 invert 事後翻轉', () => {
+    // 173/-168 刻意跨 ±180 分支切點,連帶驗證 wraparound 不會破壞不變式
+    const zeroEff = { thigh: 11, shin: -47, thighRoll: 173, shinRoll: -168 }
+    const bools = [false, true]
+    let cases = 0
+    for (const thighAxisSwap of bools) {
+      for (const shinAxisSwap of bools) {
+        for (const thighInvert of bools) {
+          for (const shinInvert of bools) {
+            for (const thighRollInvert of bools) {
+              for (const shinRollInvert of bools) {
+                cases++
+                const mapping = { thighAxisSwap, shinAxisSwap }
+                const s: Settings = {
+                  ...BASE_SETTINGS,
+                  ...mapping,
+                  thighInvert,
+                  shinInvert,
+                  thighRollInvert,
+                  shinRollInvert,
+                  thighZeroRaw: zeroEff.thigh,
+                  shinZeroRaw: zeroEff.shin,
+                  thighRollZeroRaw: zeroEff.thighRoll,
+                  shinRollZeroRaw: zeroEff.shinRoll
+                }
+                // effectiveRaw 是自身的反函式(swap 是對合),故用它把「有效值」還原成 raw
+                const rawPose = effectiveRaw(zeroEff, mapping)
+                const out = applyCalibration(rawPose, s)
+                expect(out.thigh).toBeCloseTo(0, 9)
+                expect(out.shin).toBeCloseTo(0, 9)
+                expect(out.thighRoll).toBeCloseTo(0, 9)
+                expect(out.shinRoll).toBeCloseTo(0, 9)
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(cases).toBe(64)
   })
 })
 

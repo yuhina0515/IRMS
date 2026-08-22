@@ -143,6 +143,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   → session 中凍結校準(實測證明沒它 migration 6 不健全)→ migration 6 單一 JSON 欄位
   → 縮小版零位檢查。**否決** raw 角度欄位(三方實跑證明可逆,+54MB/百場買零資訊)
   與元件測試基建(兩個真實缺陷都在純函式層可捕捉)
+- **2026-08-14 offset 重新參數化為 zeroRaw**([[log_20260814_offset_zeroraw_reparam|日誌]]):
+  落地 08-12 會議裁決第 1 項——校準四軸 offset 的「符號摺疊」表示法(`offset = -(zeroRaw×sign)`)
+  改存 `zeroRaw`,判定改為 `(raw − zeroRaw) × sign`。此舉消滅已隨 v1.0.1 出貨的缺陷:進階手動
+  校準翻轉 invert 開關時 offset 不重算,校準姿勢殘差變成 `2×offset`,`segment_extension` 下
+  會把方向做錯的療程記錄成達標。`buildCalibrationPatch`/`buildQuickZeroPatch` 寫入端同步簡化
+  (快速歸零不再需要讀 invert);persist v3→v4,`migrateSettings` 補上舊格式換算;新增掃過
+  全部 64 種 axisSwap/invert 組合、含跨 ±180 切點案例的由建構不變式測試。**144 → 147 tests**,
+  `npm run ci` 全綠。下一項(依會議裁決順序):session 中凍結校準
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌面燒錄 + ±180° 旋轉記錄、[#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E、
   [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration。

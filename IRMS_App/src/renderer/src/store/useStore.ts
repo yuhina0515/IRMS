@@ -16,13 +16,16 @@ export interface Settings {
   thighAxisSwap: boolean
   shinAxisSwap: boolean
   thighInvert: boolean
-  thighOffset: number
+  /** 校準姿勢(視為 0°)當下、經 axisSwap 對調後的原始讀值——不折算 invert 符號。
+   *  判定為 (raw − zeroRaw) × sign,故事後翻轉 invert 不會使零位偏移
+   *  (2026-08-12 會議:舊「符號摺疊」offset 表示法在 invert 翻轉時會產生雙倍偏差,已隨 v1.0.1 出貨)。 */
+  thighZeroRaw: number
   shinInvert: boolean
-  shinOffset: number
+  shinZeroRaw: number
   thighRollInvert: boolean
-  thighRollOffset: number
+  thighRollZeroRaw: number
   shinRollInvert: boolean
-  shinRollOffset: number
+  shinRollZeroRaw: number
   /** 大腿/小腿 roll 方向是否曾由精靈第 5 步(外展)實測驗證過;false = 仍在沿用預設或跳過時的舊值,內外翻方向可能相反 */
   thighRollVerified: boolean
   shinRollVerified: boolean
@@ -57,13 +60,13 @@ const DEFAULT_SETTINGS: Settings = {
   thighAxisSwap: false,
   shinAxisSwap: false,
   thighInvert: false,
-  thighOffset: 0,
+  thighZeroRaw: 0,
   shinInvert: false,
-  shinOffset: 0,
+  shinZeroRaw: 0,
   thighRollInvert: false,
-  thighRollOffset: 0,
+  thighRollZeroRaw: 0,
   shinRollInvert: false,
-  shinRollOffset: 0,
+  shinRollZeroRaw: 0,
   thighRollVerified: false,
   shinRollVerified: false,
   protocol: 'knee',
@@ -265,16 +268,43 @@ export const useStore = create<StoreState>()(
       partialize: (state) => ({ settings: state.settings }),
       // ⚠ zustand persist 為 shallow merge:舊 localStorage 的 settings 物件會整包
       // 蓋掉新增欄位。新增 Settings 欄位時必須遞增 version 並經 migrateSettings 補齊預設值。
-      version: 3, // v3:新增 thighRollVerified/shinRollVerified(外展方向是否已實測驗證)
+      version: 4, // v4:offset 改參數化為 zeroRaw,消滅 invert 事後翻轉造成雙倍偏差的缺陷(2026-08-12 會議)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )
 )
 
-/** persist 遷移:以 DEFAULT_SETTINGS 補齊缺漏欄位,保留使用者既有(手動校準)值。export 供測試。 */
+/** v3 及更早版本使用的「符號摺疊」offset 欄位——已被 zeroRaw 取代,僅遷移時讀取 */
+interface LegacyOffsetFields {
+  thighOffset?: number
+  shinOffset?: number
+  thighRollOffset?: number
+  shinRollOffset?: number
+}
+
+/** persist 遷移:以 DEFAULT_SETTINGS 補齊缺漏欄位,保留使用者既有(手動校準)值。export 供測試。
+ *  v4:額外把舊版的符號摺疊 offset 換算成 zeroRaw——換算公式與 calibration.ts 寫入端相同的
+ *  可逆關係:zeroRaw = -offset × (invert ? -1 : 1)(見 buildCalibrationPatch/buildQuickZeroPatch)。 */
 export function migrateSettings(persisted: unknown): { settings: Settings } {
-  const p = (persisted ?? {}) as { settings?: Partial<Settings> }
-  return { settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) } }
+  const p = (persisted ?? {}) as { settings?: Partial<Settings> & LegacyOffsetFields }
+  const { thighOffset, shinOffset, thighRollOffset, shinRollOffset, ...rest } = p.settings ?? {}
+
+  const sign = (invert: boolean | undefined): number => (invert ? -1 : 1)
+  const legacyZeroRaw: Partial<Settings> = {}
+  if (typeof thighOffset === 'number' && rest.thighZeroRaw == null) {
+    legacyZeroRaw.thighZeroRaw = -thighOffset * sign(rest.thighInvert)
+  }
+  if (typeof shinOffset === 'number' && rest.shinZeroRaw == null) {
+    legacyZeroRaw.shinZeroRaw = -shinOffset * sign(rest.shinInvert)
+  }
+  if (typeof thighRollOffset === 'number' && rest.thighRollZeroRaw == null) {
+    legacyZeroRaw.thighRollZeroRaw = -thighRollOffset * sign(rest.thighRollInvert)
+  }
+  if (typeof shinRollOffset === 'number' && rest.shinRollZeroRaw == null) {
+    legacyZeroRaw.shinRollZeroRaw = -shinRollOffset * sign(rest.shinRollInvert)
+  }
+
+  return { settings: { ...DEFAULT_SETTINGS, ...rest, ...legacyZeroRaw } }
 }
 
 /**
@@ -291,12 +321,13 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   const rawShin = s.shinAxisSwap ? raw.shinRoll : raw.shin
   const rawShinRoll = s.shinAxisSwap ? raw.shin : raw.shinRoll
 
-  // 反相與位移之後必須重新正規化回 (-180, 180]:offset 相加可以把值推出值域,
-  // 之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
-  const thigh = normalizeDeg(rawThigh * (s.thighInvert ? -1 : 1) + s.thighOffset)
-  const shin = normalizeDeg(rawShin * (s.shinInvert ? -1 : 1) + s.shinOffset)
-  const thighRoll = normalizeDeg(rawThighRoll * (s.thighRollInvert ? -1 : 1) + s.thighRollOffset)
-  const shinRoll = normalizeDeg(rawShinRoll * (s.shinRollInvert ? -1 : 1) + s.shinRollOffset)
+  // 先減零位、再反相(順序不可顛倒——顛倒等於回到會被 invert 事後翻轉破壞的舊
+  // 「符號摺疊」offset 表示法)。減法與乘法之後必須重新正規化回 (-180, 180]:
+  // 結果可能被推出值域,之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
+  const thigh = normalizeDeg((rawThigh - s.thighZeroRaw) * (s.thighInvert ? -1 : 1))
+  const shin = normalizeDeg((rawShin - s.shinZeroRaw) * (s.shinInvert ? -1 : 1))
+  const thighRoll = normalizeDeg((rawThighRoll - s.thighRollZeroRaw) * (s.thighRollInvert ? -1 : 1))
+  const shinRoll = normalizeDeg((rawShinRoll - s.shinRollZeroRaw) * (s.shinRollInvert ? -1 : 1))
 
   return {
     thigh,

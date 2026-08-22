@@ -159,7 +159,9 @@ export function buildCalibrationPatch(
     }
   }
 
-  // 4. offset:站直四軸歸零(以有效軸 + 已定符號計算)
+  // 4. zeroRaw:站直姿勢(有效軸)本身就是零位讀值,不折算 invert 符號——
+  //    判定端以 (raw − zeroRaw) × sign 求值,故事後翻轉 invert 不會擾動零位
+  //    (2026-08-12 會議:舊「符號摺疊」offset 表示法在 invert 翻轉時會產生雙倍偏差)
   const patch: Partial<Settings> = {
     ...mapping,
     thighInvert,
@@ -168,19 +170,21 @@ export function buildCalibrationPatch(
     shinRollInvert,
     thighRollVerified,
     shinRollVerified,
-    thighOffset: -(effBase.thigh * (thighInvert ? -1 : 1)),
-    shinOffset: -(effBase.shin * (shinInvert ? -1 : 1)),
-    thighRollOffset: -(effBase.thighRoll * (thighRollInvert ? -1 : 1)),
-    shinRollOffset: -(effBase.shinRoll * (shinRollInvert ? -1 : 1))
+    thighZeroRaw: effBase.thigh,
+    shinZeroRaw: effBase.shin,
+    thighRollZeroRaw: effBase.thighRoll,
+    shinRollZeroRaw: effBase.shinRoll
   }
   return { ok: true, patch }
 }
 
 /**
- * 快速歸零:沿用現有 axisSwap/invert 設定,只用「當下姿勢 = 0°」重算四個 offset。
+ * 快速歸零:沿用現有 axisSwap/invert 設定,只用「當下姿勢 = 0°」重設四個 zeroRaw。
  * 必須先套用 effectiveRaw 做軸對調——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
- * 否則貼歪 90° 的感測器會把 offset 算在錯的物理軸上(2026-08-07 會議發現,SettingsView
+ * 否則貼歪 90° 的感測器會把零位算在錯的物理軸上(2026-08-07 會議發現,SettingsView
  * 原本直接用 raw.thigh/raw.thighRoll,略過了這一步)。
+ * zeroRaw 不折算 invert 符號,故不需要讀取 invert 設定——這正是 2026-08-12 會議裁定的
+ * 重新參數化收益:invert 從「翻轉即雙倍偏差的地雷」變成不擾動零位的獨立控制項。
  */
 export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial<Settings> {
   const eff = effectiveRaw(raw, {
@@ -188,9 +192,9 @@ export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial
     shinAxisSwap: settings.shinAxisSwap
   })
   return {
-    thighOffset: -(eff.thigh * (settings.thighInvert ? -1 : 1)),
-    shinOffset: -(eff.shin * (settings.shinInvert ? -1 : 1)),
-    thighRollOffset: -(eff.thighRoll * (settings.thighRollInvert ? -1 : 1)),
-    shinRollOffset: -(eff.shinRoll * (settings.shinRollInvert ? -1 : 1))
+    thighZeroRaw: eff.thigh,
+    shinZeroRaw: eff.shin,
+    thighRollZeroRaw: eff.thighRoll,
+    shinRollZeroRaw: eff.shinRoll
   }
 }

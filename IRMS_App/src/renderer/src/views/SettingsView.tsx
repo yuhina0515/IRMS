@@ -105,17 +105,21 @@ export function SettingsView(): JSX.Element {
 
         <details className="adv-fold">
           <summary>進階手動校準(一般情況請使用精靈)</summary>
+        <p className="field-hint">
+          Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用下方
+          「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
+        </p>
         <div className="row">
-          <NumField label="Thigh Offset (°)" value={settings.thighOffset} onChange={(v) => set('thighOffset', v)} />
-          <NumField label="Shin Offset (°)" value={settings.shinOffset} onChange={(v) => set('shinOffset', v)} />
+          <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} />
+          <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 14 }}>
           <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} />
           <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} />
         </div>
         <div className="row">
-          <NumField label="Thigh Roll Offset (°)" value={settings.thighRollOffset} onChange={(v) => set('thighRollOffset', v)} />
-          <NumField label="Shin Roll Offset (°)" value={settings.shinRollOffset} onChange={(v) => set('shinRollOffset', v)} />
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 16 }}>
           <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} />
