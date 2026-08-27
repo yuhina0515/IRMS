@@ -91,7 +91,7 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
   * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
   * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:SYNC,大腿offset,小腿offset`
 
-### 4.3 SQLite Schema(目前 `user_version = 5`)
+### 4.3 SQLite Schema(目前 `user_version = 7`)
 
 > 權威來源為 [`IRMS_App/src/main/migrations.ts`](../IRMS_App/src/main/migrations.ts) 的 `MIGRATIONS` 陣列;
 > DB 檔存於 Electron `userData` 目錄(不進版控)。
@@ -116,9 +116,17 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
     `protocol` (TEXT), `repsCompleted` (INTEGER),
     `abandoned` (INTEGER NOT NULL DEFAULT 0 — migration 3),
     `triggerType` (TEXT, nullable 快照 — migration 4),
-    `safetyLimit` (REAL, nullable — migration 5)
+    `safetyLimit` (REAL, nullable — migration 5),
+    `calibration` (TEXT, nullable — migration 6,當場生效的校準轉換 JSON 快照;
+    單一欄位而非攤平,因為校準欄位本身仍在演進),
+    `source` (TEXT NOT NULL DEFAULT `'device'` CHECK IN (`'device'`,`'demo'`) — migration 7)
   * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
     歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
+  * ⚠ **`source` 刻意不採「NULL = 舊行為」慣例**(migration 4/5/6 都採)。那三次的 NULL
+    意思是「我們確實不知道當時是什麼」;`source` 我們知道——示範模式在那些列被寫入時
+    還不存在。更關鍵的是失效模式:可為 NULL 的欄位其失效表現恰好是**靜默地呈現為真實
+    資料**,而這個欄位存在的唯一目的就是防止那件事。`SessionSource` 在
+    `SessionStartInput` 上設為**必填**,讓 TypeScript 拒絕編譯任何沒做決定的路徑。
 * **資料表 `sensor_data`** (高頻 6 軸角度數據)：
   * 欄位：`id` (PK), `sessionId` (外鍵 → `sessions.id`, `ON DELETE CASCADE`), `timestamp` (TEXT), `kneeAngle` (REAL), `thighAngle` (REAL), `shinAngle` (REAL), `kneeRoll` (REAL), `thighRoll` (REAL), `shinRoll` (REAL)
   * 索引：`idx_sensor_data_sessionId` on `sensor_data(sessionId)`

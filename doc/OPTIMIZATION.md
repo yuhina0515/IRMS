@@ -72,7 +72,21 @@
 - [x] React ErrorBoundary 包裹各視圖(2026-08-01)
 - [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
 - [x] `escapeStack` 巢狀 modal Esc 分派層(2026-08-03)
-- [x] Vitest 測試基建:目前 **144 tests / 14 files**;`npm run ci` = typecheck + test + build
+- [x] Vitest 測試基建:**雙 project(node / dom)**,目前 **246 tests / 21 files**;
+      `npm run ci` = typecheck + test + build(2026-08-27 由單一 node project 改制)
+- [x] **無硬體演練基建**(2026-08-27):單一 `ingest(text)` 注入接縫(2026-08-03 會議裁定)、
+      純函式模擬來源(封包編碼器逐位元對齊韌體 snprintf,含往返閘門測試)、六個具名情境、
+      模擬鏈路 `beginSimulated`/`endSimulated`。**校準精靈自此可在桌前跑完**
+      (此前被 `isConnected` 閘門鎖住,2026-08-03 會議記為「永遠看不到」)
+- [x] **示範模式(出貨版)**(2026-08-27):migration 7 的 `sessions.source` 帶 CHECK、
+      型別層必填、進行中不可切換、四個讀取面標記、一鍵清除示範紀錄
+
+### 已修缺陷(2026-08-27,由新測試抓到)
+- [x] **達標 LED 從第一下卡亮到 Session 結束**:`onRepCompleted` 未熄燈,引擎轉入
+      `restPending` 後再次進區的 `LED_ON` 被去重吃掉。第 2..N 下患者無任何區間回饋,
+      且 store 的 `inZone:false` 與 GPIO 實際狀態分歧
+- [x] **`linkTruncated` 永久卡在 true**:`attemptReconnect` 繞過 `connect()` 直呼
+      `connectGATT()`,重設從未執行。重設已移進 `connectGATT()`
 
 ---
 
@@ -92,9 +106,15 @@
 - [ ] ~~**復健評分模型**~~:**2026-08-03 會議否決**——平穩度需要角速度,但 BLE 協定只傳
       融合後的角度、沒有陀螺通道,且封包量化底線 0.1°;用差分角度反推的「平穩度」量到的
       主要是量化雜訊,會產出一個看起來客觀的假分數寫進病歷。要做必須先改協定。
-- [ ] 🔴 **判定路徑的元件測試**:目前 144 tests 全是純函式層;`SettingsView`/精靈這類
-      「會寫進 settings 再餵給判定」的元件無覆蓋——2026-08-07 的快速歸零缺陷正是死在這個
-      缺口(2026-08-03 會議裁定順位,只鎖臨床輸出面,不做全面元件測試)
+- [x] 🔴 **判定路徑的元件測試**:2026-08-27 建立 vitest 雙 project(node/dom)。舊設定的
+      `include: ['src/**/*.test.ts']` **不匹配 `.tsx`**,元件測試會被靜默忽略而非失敗——
+      正是 2026-08-07 快速歸零缺陷死掉的那個缺口。現以副檔名分流,該陷阱不可能再出現。
+      已落地 `MetricGauge`(鎖住 2026-08-03 目視驗收的兩個迴歸)與 `HistoryView` 示範標記。
+- [x] 🔴 **回饋/警報鏈的指令稽核測試**(2026-08-27):`sessionController` 此前 368 行零覆蓋。
+      以 `vi.spyOn(bluetoothService, 'send')` 取得有序指令稽核,涵蓋超限→靜音→自動重新武裝、
+      未開始 Session 不得鳴響、`ERR:` 強制關閉並繞過去重、達標序列、斷線重連、MTU 截斷。
+      當場抓到兩個既有缺陷(見下方「已修缺陷」)。**注意:這證明的是 App 送出正確的字串
+      與順序,不證明它們真的驅動 GPIO——issue #3 仍完全開啟。**
 
 ### 🟡 P1 — 效能
 - [x] LiveChart 高頻更新:25Hz 封包流以 `UI_SYNC_MS = 80` 尾緣節流同步 UI(≈12.5fps,

@@ -202,6 +202,24 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   這份記錄要驗證的對象,邏輯上循環。**163 → 173 tests**,`npm run ci` 全綠;韌體以
   `arduino-cli compile --fqbn esp32:esp32:esp32` 改動前後各驗證一次,皆 exit 0、85% flash。
   issue #2 唯一剩下的是實機旋轉記錄本身。⚠ 韌體改動尚未燒錄實測
+- **2026-08-27 ingest 注入接縫 + 模擬器 + 示範模式**([[log_20260827_ingest_seam_simulator_demo_mode|日誌]]):
+  落地 2026-08-03 裁定卻一直 `⏳ 未動工` 的單一 `ingest(text)` 管線(全 repo grep 零命中),
+  並在其上建立**無硬體演練基建**。① vitest 改雙 project——舊設定的
+  `include: ['src/**/*.test.ts']` **不匹配 `.tsx`**,元件測試會被靜默忽略而非失敗,
+  正是 08-07 快速歸零缺陷死掉的缺口;現以副檔名分流,先寫一個故意失敗的探針確認 `.tsx`
+  真的會跑。② 模擬來源全純函式,封包編碼器逐位元對齊韌體 snprintf(**含 `K:`/`KR:` 兩個
+  被解析器忽略的欄位——長度決定 MTU 截斷切點**),往返測試為閘門。③ 示範模式**出貨版**:
+  migration 7 的 `sessions.source` 帶 CHECK、**刻意不採 NULL=舊行為慣例**(可為 NULL 的
+  失效模式恰好是「靜默呈現為真實資料」)、型別層必填讓 TS 拒編任何沒做決定的路徑、
+  進行中不可切換、四個讀取面標記、示範列不隱藏但可一鍵清除。
+  **首次為 CMD: 回饋鏈建立指令稽核,當場抓到兩個既有缺陷**:達標 LED 從第一下卡亮到
+  Session 結束(第 2..N 下患者無區間回饋,store 與 GPIO 分歧)、`attemptReconnect` 繞過
+  `connect()` 導致 `linkTruncated` 永久卡 true。自我審查發現**原本的 T5 並未測到它宣稱的
+  東西**(拿掉重連重設仍全綠),補上真正該鎖的情境:重連時憑斷線前的保持計時憑空計出一下。
+  **校準精靈自此可在桌前跑完**(08-03 記為「永遠看不到」)。**173 → 246 tests / 21 files**,
+  `npm run ci` 全綠;打包後以隔離 `--user-data-dir` 實際啟動,七個 migration 在真正的
+  better-sqlite3 上全部套用成功,使用者真實 DB 的 md5 前後相同。
+  ⚠ UI 未經目視驗收(本次環境無法截圖);實機仍未驗證,issue #3 完全未動
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄(App 端診斷與韌體端遙測已於 2026-08-22 就緒,剩實機擷取)、
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
