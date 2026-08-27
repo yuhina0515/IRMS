@@ -1,7 +1,7 @@
 ---
 tags: [irms, roadmap]
 date: 2026-08-12
-description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-12 對齊現況)
+description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-27 對齊現況)
 ---
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
@@ -68,11 +68,13 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 - [x] 🖥 導入 **Vitest**:`triggerEngine`(狀態機邊界:進出區間/維持/休息/超限)、
       `parseAnglePacket`(6軸/舊格式/ERR/malformed)、`applyCalibration`、`reconcileSelection`
       (2026-07-03,22 tests;`npm run ci` = typecheck+test+build)。
-      此後逐批擴充,**2026-08-12 現況為 144 tests / 14 files**
+      此後逐批擴充,**2026-08-27 現況為 281 tests / 25 files**(雙 project:node 純邏輯 + dom 元件)
 - [ ] 🖥 ESLint + Prettier;`npm run ci` = lint + typecheck + test + build(2026-08-01 會議明確延後)
-- [ ] 🖥 **判定路徑的元件測試**(2026-08-03 裁定順位,只鎖臨床輸出面)。
+- [x] 🖥 **判定路徑的元件測試**(2026-08-03 裁定順位,只鎖臨床輸出面)。
       2026-08-07 的快速歸零缺陷正是死在這個缺口:純函式層全綠,但把值寫進 settings 的
-      那個元件沒有任何覆蓋
+      那個元件沒有任何覆蓋。2026-08-27 落地:vitest 改雙 project(node/dom),原
+      `include: ['src/**/*.test.ts']` 不匹配 `.tsx`,元件測試會被靜默忽略而非失敗,
+      正是此缺口的成因;同時建立整條 `CMD:` 回饋鏈的指令稽核測試
 - [x] 🖥 React ErrorBoundary 包各 view,防單點白屏(2026-08-01)
 - [x] 🖥 DB migration 機制(`user_version`,見 D4)(2026-08-01,含 v1.0.1 升級路徑測試)
 
@@ -88,8 +90,15 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 - [~] 🖥 ~~復健評分模型 → `sessions.qualityScore`~~:**2026-08-03 會議否決**。BLE 協定沒有
       陀螺通道(只傳融合後角度)、封包量化底線 0.1°,以差分角度反推的「平穩度」量到的
       主要是量化雜訊。要做必須先擴充協定,屆時重開決策
-- [ ] 🖥 圖表 Roll 曲線切換、側欄收合持久化、重連視覺提示
-- [ ] 🖥 i18n(繁中/EN)、淺色主題、快捷鍵(P2 全項見 [[OPTIMIZATION]])
+- [x] 🖥 圖表 Roll 曲線切換、重連視覺提示(2026-08-27,見 [[OPTIMIZATION]] P2;
+      重連進度同時修掉一個從 2026-06-27 起從未被看見過的缺陷——計數器寫進
+      `statusText` 卻在同一次嘗試內被 `connectGATT()` 的 `'Connecting...'` 蓋掉)
+- [~] ~~🖥 側欄收合持久化~~:**已無意義**——左側 Sidebar 於 2026-07-14 改版時整個移除,
+      改為底部導覽列(見 `log_20260714_bottombar_layout`),沒有側欄可收合
+- [x] 🖥 動作卡片排序/搜尋/分組、鍵盤快捷鍵(2026-08-27,見 [[OPTIMIZATION]] P2)
+- [x] 🖥 淺色主題:已於 2026-07-12 完成(雙主題跟隨系統,Apple Liquid Glass token 架構)
+- [ ] 🖥 i18n(繁中/EN),目前介面中英混用(依專案規則 #2 明確延後;
+      2026-08-27 使用者再次裁定不納入)
 
 ### Phase 5|泛化與發布
 - [ ] 🖥 多關節泛化(依 D3 順序:型別 → migration → UI → 判定)
@@ -172,3 +181,29 @@ schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。
 五點」意味著**韌體 v3 已燒錄、BLE 實機連線已成功、校準已在真裝置上跑過**。issues #2/#3 與
 本文件先前的「硬體從未驗證」敘述據此已過時,已於 2026-08-12 更正。仍未驗證的是**回饋與
 警報鏈**(達標音 → 超限長鳴 → 斷線收尾)——也就是引擎唯一會主動對患者發指令的部分。
+
+---
+
+## 七、2026-08-27 無硬體演練基建 + P2 backlog 清空 + 目視驗收
+
+三份日誌:[[log_20260827_ingest_seam_simulator_demo_mode]] ·
+[[log_20260827_stage2_ux_backlog]] · [[log_20260827_visual_verification]]。
+
+落地本文件早已裁定、卻標記 `⏳ 未動工` 的單一 `ingest(text)` 注入管線
+(2026-08-03 會議裁定,§五),並在其上一次做完三件事:
+
+1. **測試基建**:vitest 改雙 project(node/dom),補上上方「仍未驗證的回饋與警報鏈」——
+   以 `vi.spyOn(bluetoothService, 'send')` 建立有序指令稽核,首次為這條鏈找到兩個既有缺陷
+   (達標 LED 卡亮、`linkTruncated` 卡在 true)。**注意**:稽核證明的是 App 送出正確的
+   字串與順序,不證明它們真的驅動 GPIO——回饋鏈在實機上的驗證(issue #3)依然完全開啟,
+   本節不改變上方那句話的結論。
+2. **示範模式(出貨版)**:migration 7 的 `sessions.source`,結構性防止模擬資料被當成
+   療程紀錄,而非僅靠 UI 標籤。
+3. **P2 backlog 清空**([[OPTIMIZATION]] §二):Roll 曲線切換、動作排序/搜尋/分組、
+   重連進度、鍵盤快捷鍵。i18n 依會議裁決維持延後。
+
+四(§4)之後隨即目視驗收整條示範模式路徑,示範模式的四個讀取面標記(徽章/橫幅/
+CSV 表頭/CSV 檔名)取得實機截圖證據。173 → **281 tests / 25 files**,`npm run ci` 全綠。
+
+**桌面端目前無已知的、合理的、非延後項的剩餘工作。** 下一個有價值的動作是拿到裝置,
+跑 Stage 1 日誌記載的那份 ~30 分鐘固定驗證腳本。
