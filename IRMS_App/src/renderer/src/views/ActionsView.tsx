@@ -2,7 +2,19 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
-import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput } from '@shared/types'
+import {
+  JOINT_PROTOCOLS,
+  TRIGGER_TYPES,
+  type CustomAction,
+  type CustomActionInput,
+  type TriggerType
+} from '@shared/types'
+import {
+  countActions,
+  filterSortGroupActions,
+  type ActionGroupBy,
+  type ActionSortBy
+} from '../services/actionQuery'
 import { GlassDropdown } from '../components/GlassDropdown'
 import {
   HOLD_TIME_BOUND,
@@ -26,6 +38,11 @@ const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   triggerType: 'joint_angle',
   safetyLimit: null
 })
+
+/** 分組標題用可讀標籤,而不是 'segment_elevation' 這種內部識別字 */
+function triggerLabel(t: TriggerType): string {
+  return TRIGGER_TYPES.find((x) => x.value === t)?.label ?? t
+}
 
 export function ActionsView(): JSX.Element {
   const actions = useStore((s) => s.customActions)
@@ -52,7 +69,20 @@ export function ActionsView(): JSX.Element {
   // 編輯中才綁 Esc(未開啟表單時 Esc 不應有作用)
   useEscapeKey(form ? () => setForm(null) : null)
 
-  const filtered = actions.filter((a) => a.protocol === protocol)
+  // 協定篩選是既有行為(每個協定只看得到自己的動作),查詢/排序/分組疊在它之上。
+  // 查詢邏輯放 actionQuery.ts:這個檔案已經 306 行,再塞一個狀態機進來就只剩
+  // 「把 app 開起來一個一個點」能驗證它。
+  const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState<ActionSortBy>('name')
+  const [groupBy, setGroupBy] = useState<ActionGroupBy>('none')
+
+  const groups = filterSortGroupActions(
+    actions.filter((a) => a.protocol === protocol),
+    { query, sortBy, groupBy }
+  )
+  const total = countActions(groups)
+  /** 這個協定底下總共有幾個動作(未套用搜尋)——用來區分「沒有動作」與「搜尋無結果」 */
+  const totalInProtocol = actions.filter((a) => a.protocol === protocol).length
 
   const reload = async (): Promise<void> => {
     setCustomActions(await window.irms.actions.list())
@@ -127,17 +157,68 @@ export function ActionsView(): JSX.Element {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {/* 搜尋 / 排序 / 分組。只有這個協定底下真的有動作時才顯示——
+          一個空清單上方擺著搜尋框,是在請使用者搜尋一個他已經知道是空的集合。 */}
+      {totalInProtocol > 0 && (
+        <div className="row" style={{ marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
+          <input
+            type="search"
+            className="action-search"
+            placeholder="搜尋名稱或說明…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div style={{ width: 150 }}>
+            <GlassDropdown
+              value={sortBy}
+              onChange={(v) => setSortBy(v as ActionSortBy)}
+              options={[
+                { value: 'name', label: '依名稱' },
+                { value: 'target', label: '依目標角度' },
+                { value: 'created', label: '依建立順序' }
+              ]}
+            />
+          </div>
+          <div style={{ width: 150 }}>
+            <GlassDropdown
+              value={groupBy}
+              onChange={(v) => setGroupBy(v as ActionGroupBy)}
+              options={[
+                { value: 'none', label: '不分組' },
+                { value: 'triggerType', label: '依判定型別' }
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {total === 0 ? (
         <div className="empty glass panel">
-          <p>此協定尚無動作範本</p>
-          <button className="btn btn-secondary" onClick={() => void restoreDefaults()}>
-            載入預設範本
-          </button>
+          {/* 「沒有動作」與「搜尋不到」是兩件事,給的出口也不同:前者要載入範本,
+              後者要清掉搜尋字串。混成同一句會讓使用者按下一個幫不上忙的按鈕。 */}
+          {totalInProtocol === 0 ? (
+            <>
+              <p>此協定尚無動作範本</p>
+              <button className="btn btn-secondary" onClick={() => void restoreDefaults()}>
+                載入預設範本
+              </button>
+            </>
+          ) : (
+            <>
+              <p>找不到符合「{query.trim()}」的動作</p>
+              <button className="btn btn-secondary" onClick={() => setQuery('')}>
+                清除搜尋
+              </button>
+            </>
+          )}
         </div>
       ) : (
-        <div className="grid cards">
-          {filtered.map((a) => (
-            <div key={a.id} className="action-card glass">
+        groups.map((group) => (
+          <div key={group.key ?? '__all__'}>
+            {group.key && <h4 className="action-group-heading">{triggerLabel(group.key)}</h4>}
+            <div className="grid cards">
+              {group.actions.map((a) => (
+                <div key={a.id} className="action-card glass">
               <h4>{a.name}</h4>
               <span className="badge">{a.triggerType}</span>
               <div className="meta">
@@ -158,9 +239,11 @@ export function ActionsView(): JSX.Element {
                   Delete
                 </button>
               </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ))
       )}
 
       {form && (

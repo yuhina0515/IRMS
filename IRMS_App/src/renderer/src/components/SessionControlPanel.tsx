@@ -1,4 +1,5 @@
 // renderer/components/SessionControlPanel.tsx
+import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
@@ -52,6 +53,16 @@ export function SessionControlPanel(): JSX.Element {
     const ended = await sessionController.endSession()
     if (ended) showToast('Session ended and saved.', 'success')
   }
+
+  // Ctrl/Cmd+Enter 開始或結束 Session。
+  // **刻意走與按鈕完全相同的 canStart 守衛**:快捷鍵若自己再判斷一次條件,
+  // 兩邊遲早會分歧,而分歧的方向通常是快捷鍵比較寬鬆——於是未支援協定的封鎖
+  // 被繞過,產生一場資料與標籤對不上的紀錄。handler 為 null 時 hook 根本不掛
+  // listener,「現在不可用」因此是結構性的,不是 handler 裡的一個 if。
+  useGlobalShortcut(
+    { key: 'Enter' },
+    running ? () => void handleEnd() : canStart ? () => void handleStart() : null
+  )
 
   return (
     <div className="panel glass">

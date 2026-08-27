@@ -3,6 +3,7 @@
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
+import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import logoIcon from '../assets/logo-icon-only.png'
 
 export function TopHeader(): JSX.Element {
@@ -10,6 +11,10 @@ export function TopHeader(): JSX.Element {
   const statusText = useStore((s) => s.statusText)
   const demoMode = useUiStore((s) => s.demoMode)
   const reconnect = useStore((s) => s.reconnect)
+
+  // Ctrl/Cmd+K 連線切換。守衛與按鈕的 disabled 同一條(demoMode),
+  // 快捷鍵不得成為繞過示範模式互斥的後門。
+  useGlobalShortcut({ key: 'k' }, demoMode ? null : () => void bluetoothService.connect())
 
   return (
     <header className="top-header glass">

@@ -1240,6 +1240,23 @@ details.adv-fold summary {
   cursor: help;
 }
 
+/* 動作搜尋框。flex:1 讓它吃掉排序/分組下拉之外的所有寬度,
+   因為搜尋字串可能很長而下拉的選項是固定的。 */
+.action-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* 分組標題。刻意做得比卡片標題輕:它是分隔線的角色,不該與動作名稱競爭注意力 */
+.action-group-heading {
+  margin: 4px 0 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
 /* 重連進度。確定性的軌道+填充,而不是無限旋轉的 spinner:
    spinner 只說「正在忙」,而使用者真正要判斷的是「還會不會好、還是該去看裝置」,
    那取決於還剩幾次嘗試。 */
