@@ -199,6 +199,17 @@ export function SettingsView(): JSX.Element {
             onChange={(v) => set('flushIntervalSec', Math.max(1, Math.round(v)))}
           />
         </div>
+        <div style={{ marginTop: 12 }}>
+          <Toggle
+            label="即時圖表加畫內外翻(Varus/Valgus)曲線"
+            checked={settings.showKneeRoll}
+            onChange={(v) => set('showKneeRoll', v)}
+          />
+          <p className="field-hint" style={{ marginTop: 6 }}>
+            走右側獨立刻度(±20°),正 = 外翻 valgus、負 = 內翻 varus。
+            <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
+          </p>
+        </div>
       </div>
 
       <DemoModePanel />

@@ -29,6 +29,7 @@ const BASE_SETTINGS: Settings = {
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
+  showKneeRoll: false,
   lastCalibratedAt: null
 }
 
@@ -48,6 +49,27 @@ describe('migrateSettings', () => {
   it('空/毀損的 persist 資料回退為完整預設值', () => {
     expect(migrateSettings(undefined).settings.protocol).toBe('knee')
     expect(migrateSettings({}).settings.maxChartPoints).toBe(50)
+  })
+
+  // v4→v5 的迴歸鎖。這個測試真正在保護的不是 migrateSettings(它是
+  // {...DEFAULT_SETTINGS, ...rest},本來就補得了),而是**「新增欄位必須 bump
+  // persist version」這條規則**:migrate 只在 persisted version < current 時才會被
+  // 呼叫,版本不動就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件整個
+  // 蓋掉初始值,新欄位變成 undefined,而 UI 上的表現是開關永遠打不開又沒有錯誤。
+  it('v4 的 persist 資料補上 v5 新欄位 showKneeRoll,且不動使用者既有值', () => {
+    const v4 = {
+      settings: {
+        protocol: 'knee',
+        maxChartPoints: 120,
+        thighZeroRaw: -8.25,
+        thighInvert: true
+      }
+    }
+    const { settings } = migrateSettings(v4)
+    expect(settings.showKneeRoll).toBe(false) // 新欄位補預設
+    expect(settings.maxChartPoints).toBe(120) // 使用者既有值不被覆蓋
+    expect(settings.thighZeroRaw).toBe(-8.25)
+    expect(settings.thighInvert).toBe(true)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {

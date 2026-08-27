@@ -32,6 +32,17 @@ export interface Settings {
   protocol: JointProtocol
   maxChartPoints: number
   flushIntervalSec: number
+  /**
+   * 即時折線圖是否加畫內外翻(kneeRoll)曲線。
+   *
+   * 只畫 kneeRoll 而不是三條 roll 全上:kneeRoll 是帶符號的
+   * `shinRoll − thighRoll`(正 = 外翻 valgus、負 = 內翻 varus),
+   * 也就是臨床上真正被判讀的那個量;個別肢段的 roll 只是它的組成成分。
+   *
+   * ⚠ 它**不參與任何達標/超限判定**(判定只讀 Pitch),純粹是給督導看的顯示。
+   * 預設關閉,避免在預設畫面上多一條與判定無關的線,讓人以為它會影響結果。
+   */
+  showKneeRoll: boolean
   /** 校準精靈最近一次完成套用的 ISO 時間;null 表示從未跑過精靈 */
   lastCalibratedAt: string | null
 }
@@ -72,6 +83,7 @@ const DEFAULT_SETTINGS: Settings = {
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
+  showKneeRoll: false,
   lastCalibratedAt: null
 }
 
@@ -134,6 +146,16 @@ interface StoreState {
   isConnected: boolean
   deviceName: string | null
   statusText: string
+  /**
+   * 自動重連進行中的第幾次嘗試;null = 沒有在重連。
+   *
+   * 為什麼不重用 statusText:`attemptReconnect` 本來就會寫
+   * 「Reconnecting (n/5)...」,但它下一行呼叫的 `connectGATT()` 開頭就是
+   * `setStatus('Connecting...')`,**同一次嘗試內就把計數蓋掉了**;
+   * `setConnection` 也會無條件覆寫 statusText。也就是說那個計數器從來沒有被看見過。
+   * 進度是結構化狀態,不是一段會被別人覆寫的文字。
+   */
+  reconnect: { attempt: number; max: number } | null
   /** 硬體錯誤代碼(如 'ERR:1'),null 表示正常 */
   hardwareError: string | null
   /**
@@ -169,6 +191,8 @@ interface StoreState {
   // ── actions ──
   setConnection(isConnected: boolean, deviceName: string | null): void
   setStatus(text: string): void
+  /** 設定重連進度;null = 結束重連(成功、耗盡、或手動斷線) */
+  setReconnect(state: { attempt: number; max: number } | null): void
   setHardwareError(code: string | null): void
   setLinkTruncated(truncated: boolean): void
   /** 原始角度全速更新(校準精靈取樣依賴 25Hz 逐筆) */
@@ -213,6 +237,7 @@ export const useStore = create<StoreState>()(
       isConnected: false,
       deviceName: null,
       statusText: 'Disconnected',
+      reconnect: null,
       hardwareError: null,
       linkTruncated: false,
 
@@ -242,10 +267,15 @@ export const useStore = create<StoreState>()(
         set({
           isConnected,
           deviceName,
-          statusText: isConnected ? `Connected to ${deviceName}` : 'Disconnected'
+          statusText: isConnected ? `Connected to ${deviceName}` : 'Disconnected',
+          // 連上了就不再是「重連中」。放在這裡而不是只靠 bluetooth.ts 呼叫,
+          // 是因為 connectGATT 成功的路徑只會走到 setConnection,不會回到重連迴圈。
+          ...(isConnected ? { reconnect: null } : {})
         }),
 
       setStatus: (text) => set({ statusText: text }),
+
+      setReconnect: (reconnect) => set({ reconnect }),
 
       setHardwareError: (code) => set({ hardwareError: code }),
 
@@ -346,7 +376,12 @@ export const useStore = create<StoreState>()(
       partialize: (state) => ({ settings: state.settings }),
       // ⚠ zustand persist 為 shallow merge:舊 localStorage 的 settings 物件會整包
       // 蓋掉新增欄位。新增 Settings 欄位時必須遞增 version 並經 migrateSettings 補齊預設值。
-      version: 4, // v4:offset 改參數化為 zeroRaw,消滅 invert 事後翻轉造成雙倍偏差的缺陷(2026-08-12 會議)
+      // v5:新增 showKneeRoll。**新增欄位一定要 bump version**——不是因為
+      // migrateSettings 補不了(它是 {...DEFAULT_SETTINGS, ...rest},補得了),
+      // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
+      // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
+      // 整個蓋掉初始值,新欄位變成 undefined。
+      version: 5, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

@@ -31,6 +31,9 @@
   --danger: #ff3b30;
   --thigh: #ff9500;
   --shin: #34c759;
+  /* 內外翻(kneeRoll)曲線。刻意選在 thigh/shin 色相之外的紫,因為它量的是
+     另一個平面(冠狀面),不是那兩條矢狀面曲線的同類 */
+  --roll: #af52de;
 
   /* ── 材質 ── */
   --radius: 18px;
@@ -105,6 +108,7 @@
     --danger: #ff453a;
     --thigh: #ff9f0a;
     --shin: #30d158;
+    --roll: #bf5af2;
 
     --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
     --blob-opacity: 0.18;
@@ -1234,6 +1238,43 @@ details.adv-fold summary {
   background: color-mix(in srgb, var(--warning) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
   cursor: help;
+}
+
+/* 重連進度。確定性的軌道+填充,而不是無限旋轉的 spinner:
+   spinner 只說「正在忙」,而使用者真正要判斷的是「還會不會好、還是該去看裝置」,
+   那取決於還剩幾次嘗試。 */
+.reconnect-track {
+  display: inline-block;
+  width: 46px;
+  height: 3px;
+  margin-left: 8px;
+  vertical-align: middle;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-dim) 30%, transparent);
+  overflow: hidden;
+}
+
+.reconnect-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--warning);
+  transition: width 240ms ease;
+}
+
+.dot.retrying {
+  background: var(--warning);
+  animation: reconnect-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes reconnect-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 /* 示範資料徽章。用 accent 而非 danger:這不是「出事了」,是「這一列不是真的」

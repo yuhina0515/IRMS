@@ -9,6 +9,7 @@ export function TopHeader(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const statusText = useStore((s) => s.statusText)
   const demoMode = useUiStore((s) => s.demoMode)
+  const reconnect = useStore((s) => s.reconnect)
 
   return (
     <header className="top-header glass">
@@ -20,8 +21,22 @@ export function TopHeader(): JSX.Element {
       </div>
 
       <div className="conn">
-        <span className={`dot${isConnected ? ' on' : ''}`} />
-        <span className="conn-text">{statusText}</span>
+        <span className={`dot${isConnected ? ' on' : ''}${reconnect ? ' retrying' : ''}`} />
+        {/* 重連中顯示確定性進度而非一句籠統的狀態文字:使用者要判斷的是
+            「還會不會好」還是「該去看裝置了」,而那取決於還剩幾次。 */}
+        {reconnect ? (
+          <span className="conn-text">
+            重新連線中 {reconnect.attempt}/{reconnect.max}
+            <span className="reconnect-track" aria-hidden>
+              <span
+                className="reconnect-fill"
+                style={{ width: `${(reconnect.attempt / reconnect.max) * 100}%` }}
+              />
+            </span>
+          </span>
+        ) : (
+          <span className="conn-text">{statusText}</span>
+        )}
       </div>
 
       {/* 示範模式下停用真實連線,並把理由講出來而不是留一個按不動的按鈕

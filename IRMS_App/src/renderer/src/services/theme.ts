@@ -25,6 +25,8 @@ export function chartTheme(): {
   kneeFill: string
   thigh: string
   shin: string
+  /** 內外翻(kneeRoll)曲線 */
+  roll: string
   /** 安全上限等警示線 */
   danger: string
 } {
@@ -37,6 +39,7 @@ export function chartTheme(): {
     kneeFill: `${knee}1f`, // ~12% alpha(8 位 hex)
     thigh: themeToken('--thigh'),
     shin: themeToken('--shin'),
+    roll: themeToken('--roll'),
     danger: themeToken('--danger')
   }
 }

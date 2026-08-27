@@ -178,10 +178,17 @@ export class BluetoothService {
 
   private async attemptReconnect(): Promise<void> {
     for (let attempt = 1; attempt <= MAX_RECONNECT_ATTEMPTS; attempt++) {
-      if (this.store.isConnected || this.manualDisconnect) return
+      if (this.store.isConnected || this.manualDisconnect) {
+        useStore.getState().setReconnect(null)
+        return
+      }
+      // 進度走結構化欄位而不是 statusText:後者在下一行的 connectGATT() 裡
+      // 就會被 'Connecting...' 蓋掉,使用者從來看不到自己在第幾次。
+      useStore.getState().setReconnect({ attempt, max: MAX_RECONNECT_ATTEMPTS })
       useStore.getState().setStatus(`Reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`)
       try {
         await this.connectGATT()
+        // 成功:setConnection(true) 已在 connectGATT 裡把 reconnect 清掉
         return
       } catch (err) {
         this.store.log(`Reconnect attempt ${attempt} failed: ${(err as Error).message}`)
@@ -190,6 +197,7 @@ export class BluetoothService {
         }
       }
     }
+    useStore.getState().setReconnect(null)
     if (!this.store.isConnected) {
       useStore.getState().setStatus('Disconnected')
       this.store.log('Auto-reconnect exhausted all attempts.')

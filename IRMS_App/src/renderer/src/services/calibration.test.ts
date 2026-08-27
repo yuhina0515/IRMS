@@ -46,6 +46,7 @@ const SETTINGS: Settings = {
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
+  showKneeRoll: false,
   lastCalibratedAt: null
 }
 
