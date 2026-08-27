@@ -8,6 +8,7 @@ import { BleCommand } from '@shared/protocol'
 import type { SensorReading, TriggerType } from '@shared/types'
 import { clampTriggerParams } from '@shared/validation'
 import { useStore } from '../store/useStore'
+import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from './bluetooth'
 import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
@@ -275,7 +276,11 @@ class SessionController {
         safetyLimit: action?.safetyLimit ?? null,
         // 快照當場生效的校準轉換。校準在 Session 進行中被凍結(見 CALIBRATION_KEYS),
         // 所以「開始時擷取一次」對整場都成立,不需要逐筆存原始值。
-        calibration: buildCalibrationSnapshot(state.settings)
+        calibration: buildCalibrationSnapshot(state.settings),
+        // 「這場算不算真實量測」的唯一決策點。示範模式無法在 Session 進行中切換
+        // (useUiStore.setDemoMode 會拒絕),所以這裡戳一次就對整場成立,
+        // 不可能出現前半真、後半假的紀錄。
+        source: useUiStore.getState().demoMode ? 'demo' : 'device'
       })
 
       this.buffer = []

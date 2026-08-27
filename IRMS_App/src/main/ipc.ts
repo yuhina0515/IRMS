@@ -22,6 +22,7 @@ export function registerIpcHandlers(): void {
     sessionsRepo.getData(sessionId, maxPoints)
   )
   ipcMain.handle(IpcChannel.SESSION_DELETE, (_e, sessionId: number) => sessionsRepo.delete(sessionId))
+  ipcMain.handle(IpcChannel.SESSION_PURGE_DEMO, () => sessionsRepo.purgeDemo())
 
   // Sensor data
   ipcMain.handle(IpcChannel.DATA_APPEND_BATCH, (_e, sessionId: number, readings: SensorReading[]) =>

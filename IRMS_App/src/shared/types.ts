@@ -61,6 +61,15 @@ export interface CustomAction {
 /** 建立/更新動作的輸入(無 id) */
 export type CustomActionInput = Omit<CustomAction, 'id'>
 
+/**
+ * 這場 Session 的資料來源。
+ *
+ * `demo` = 示範模式下由模擬器產生的資料,不是真實量測。它會寫進與真實紀錄
+ * **同一個**資料表(demo 需要真的 sessionId 才跑得完整條鏈),所以區分只能靠這個欄位——
+ * 每一個讀取面(History 列表、分析 modal、CSV 表頭、CSV 檔名)都必須標示出來。
+ */
+export type SessionSource = 'device' | 'demo'
+
 /** 復健歷程(sessions 資料表) */
 export interface Session {
   id: number
@@ -90,6 +99,8 @@ export interface Session {
    * UI 必須標示出來,而不是把 0 當成事實呈現。
    */
   abandoned: 0 | 1
+  /** 資料來源;migration 7 之前的列一律為 'device'(那時示範模式還不存在) */
+  source: SessionSource
 }
 
 /**
@@ -133,6 +144,12 @@ export interface SessionStartInput {
   safetyLimit: number | null
   /** 當場校準快照 */
   calibration: CalibrationSnapshot
+  /**
+   * 刻意設為**必填**:TypeScript 於是拒絕編譯任何「沒有決定這場算不算真實量測」
+   * 的路徑。少了這個約束,新增一條開 session 的程式路徑時很容易忘記標記,
+   * 而忘記的後果是一場模擬資料靜靜地以真實紀錄的身分存在。
+   */
+  source: SessionSource
 }
 
 /** 單筆高頻角度讀數(sensor_data 資料表) */
@@ -167,6 +184,8 @@ export interface IrmsApi {
     /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
     getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
     delete(sessionId: number): Promise<{ success: true }>
+    /** 刪除所有示範模式紀錄;回傳實際刪掉的列數 */
+    purgeDemo(): Promise<{ deleted: number }>
   }
   data: {
     appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>

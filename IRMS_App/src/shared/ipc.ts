@@ -10,6 +10,7 @@ export const IpcChannel = {
   SESSION_LIST: 'session:list',
   SESSION_GET_DATA: 'session:getData',
   SESSION_DELETE: 'session:delete',
+  SESSION_PURGE_DEMO: 'session:purgeDemo',
 
   DATA_APPEND_BATCH: 'data:appendBatch',
 

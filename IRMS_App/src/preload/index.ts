@@ -22,7 +22,8 @@ const api: IrmsApi = {
     list: () => ipcRenderer.invoke(IpcChannel.SESSION_LIST),
     getData: (sessionId: number, maxPoints?: number) =>
       ipcRenderer.invoke(IpcChannel.SESSION_GET_DATA, sessionId, maxPoints),
-    delete: (sessionId: number) => ipcRenderer.invoke(IpcChannel.SESSION_DELETE, sessionId)
+    delete: (sessionId: number) => ipcRenderer.invoke(IpcChannel.SESSION_DELETE, sessionId),
+    purgeDemo: () => ipcRenderer.invoke(IpcChannel.SESSION_PURGE_DEMO)
   },
   data: {
     appendBatch: (sessionId: number, readings: SensorReading[]) =>

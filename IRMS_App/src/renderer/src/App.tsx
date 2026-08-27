@@ -20,9 +20,19 @@ const VIEW_NAMES: Record<string, string> = {
 
 export default function App(): JSX.Element {
   const view = useUiStore((s) => s.view)
+  const demoMode = useUiStore((s) => s.demoMode)
 
   return (
     <>
+      {/* 示範模式的全域橫幅,刻意不可關閉、且渲染在最外層而非任何單一視圖裡。
+          少了它,一張 Dashboard 的截圖與真實量測的截圖完全無法區分——而 demo 模式
+          存在的理由正是「拿去給人看」,所以截圖被誤認的機率不是理論風險。 */}
+      {demoMode && (
+        <div className="demo-banner" role="status">
+          ⚠ 示範模式 — 畫面上的資料由模擬器產生,不是真實量測
+        </div>
+      )}
+
       {/* Liquid Glass 背景:色彩 blob 網格,極慢漂移(transform-only,GPU 合成) */}
       <div className="bg-scene" aria-hidden>
         <div className="blob b1" />

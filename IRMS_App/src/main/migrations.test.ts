@@ -156,27 +156,90 @@ describe('CHECK 約束是最後一道防線', () => {
   })
 })
 
+describe('migration 7 — sessions.source', () => {
+  /** 造一個「已升到 v6」的資料庫,用來模擬既有安裝的升級路徑 */
+  function atVersion6(): SqlDriver {
+    const db = fresh()
+    applyMigrations(db, () => {}, MIGRATIONS.filter((m) => m.version <= 6))
+    expect(getSchemaVersion(db)).toBe(6)
+    return db
+  }
+
+  it('全新安裝:未指定 source 的列預設為 device', () => {
+    const db = fresh()
+    applyMigrations(db)
+    db.prepare(`INSERT INTO sessions (actionName) VALUES (?)`).run('全新')
+    const row = db.prepare('SELECT source FROM sessions').get() as { source: string }
+    expect(row.source).toBe('device')
+  })
+
+  // 這是這個 migration 真正的風險所在:既有安裝已經有一堆列,而那些列都是
+  // 真實裝置錄的(示範模式當時還不存在)。若把欄位設成可為 NULL,它們會以
+  // 「來源不明」呈現,而 UI 對不明來源最自然的處理正是「當成真實的」——
+  // 恰好是這個欄位要防的那件事。
+  it('自 v6 升級:既有的列一律回填為 device,不是 NULL', () => {
+    const db = atVersion6()
+    db.prepare(`INSERT INTO sessions (actionName) VALUES (?)`).run('升級前就存在')
+    db.prepare(`INSERT INTO sessions (actionName) VALUES (?)`).run('升級前就存在2')
+
+    expect(applyMigrations(db)).toEqual([7])
+
+    const rows = db.prepare('SELECT source FROM sessions').all() as { source: string }[]
+    expect(rows).toHaveLength(2)
+    expect(rows.every((r) => r.source === 'device')).toBe(true)
+    expect(rows.some((r) => r.source == null)).toBe(false)
+  })
+
+  it('demo 是合法值', () => {
+    const db = fresh()
+    applyMigrations(db)
+    expect(() =>
+      db.prepare(`INSERT INTO sessions (actionName, source) VALUES (?, ?)`).run('示範', 'demo')
+    ).not.toThrow()
+  })
+
+  it('CHECK 讓第三種值在結構上不可能寫入', () => {
+    const db = fresh()
+    applyMigrations(db)
+    expect(() =>
+      db.prepare(`INSERT INTO sessions (actionName, source) VALUES (?, ?)`).run('壞的', 'whatever')
+    ).toThrow()
+  })
+
+  it('purgeDemo 的刪除條件只命中 demo 列(sensor_data 由 CASCADE 連動)', () => {
+    const db = fresh()
+    applyMigrations(db)
+    db.exec('PRAGMA foreign_keys = ON')
+    const ins = db.prepare(`INSERT INTO sessions (actionName, source) VALUES (?, ?)`)
+    ins.run('真實', 'device')
+    ins.run('示範', 'demo')
+    const demoId = (
+      db.prepare(`SELECT id FROM sessions WHERE source='demo'`).get() as { id: number }
+    ).id
+    db.prepare(`INSERT INTO sensor_data (sessionId, timestamp, kneeAngle) VALUES (?, ?, ?)`).run(
+      demoId,
+      '2026-08-27T10:00:00.000Z',
+      90
+    )
+
+    db.exec(`DELETE FROM sessions WHERE source = 'demo'`)
+
+    const remaining = db.prepare('SELECT source FROM sessions').all() as { source: string }[]
+    expect(remaining).toEqual([{ source: 'device' }])
+    expect(db.prepare('SELECT COUNT(*) AS n FROM sensor_data').get()).toEqual({ n: 0 })
+  })
+})
+
 describe('applyMigrations — 失敗時整版回滾', () => {
   it('壞掉的 migration 不會讓 user_version 前進', () => {
     const db = fresh()
     applyMigrations(db)
     const before = getSchemaVersion(db)
     const bad = [{ version: 99, name: 'broken', up: (d: SqlDriver) => d.exec('THIS IS NOT SQL') }]
-    // 直接呼叫 runner 的內部流程:用一份只含壞 migration 的清單
-    expect(() => {
-      const current = getSchemaVersion(db)
-      for (const m of bad.filter((x) => x.version > current)) {
-        db.exec('BEGIN')
-        try {
-          m.up(db)
-          db.exec(`PRAGMA user_version = ${m.version}`)
-          db.exec('COMMIT')
-        } catch (e) {
-          db.exec('ROLLBACK')
-          throw e
-        }
-      }
-    }).toThrow()
+    // 呼叫**真正的** runner 並注入壞清單。
+    // 舊版在這裡手抄了一份迴圈,於是斷言的是複製品而非出貨程式碼——
+    // 那份複製品會永遠通過,即使 applyMigrations 本身的回滾壞掉。
+    expect(() => applyMigrations(db, () => {}, bad)).toThrow()
     expect(getSchemaVersion(db)).toBe(before)
   })
 })

@@ -179,6 +179,27 @@ export const MIGRATIONS: Migration[] = [
     // 校準轉換可逆,存原始值等於 +54MB/百場買到零資訊。要回推原始值,
     // 用這個快照反算即可。
     up: (db) => db.exec(`ALTER TABLE sessions ADD COLUMN calibration TEXT;`)
+  },
+  {
+    version: 7,
+    name: 'sessions: source (device / demo) so simulated data cannot pass as clinical',
+    // 示範模式會出貨,理由是「不帶硬體也能把完整流程演示給人看」。代價是模擬資料
+    // 會真的寫進同一個資料庫——demo 需要真的 sessionId 才能跑完緩衝、reps 持久化、
+    // History 與 CSV,假造一個 id 等於把 demo 砍成只剩半套。
+    //
+    // 刻意**不**沿用 migration 4/5/6 的「NULL = 舊行為」慣例。那三次的 NULL 意思是
+    // 「我們確實不知道當時是什麼,照舊行為」;這裡我們知道——示範模式在那些列
+    // 被寫入時根本還不存在,所以每一列都是真實裝置的 session。NOT NULL DEFAULT
+    // 記錄的是事實,不是猜測。
+    //
+    // 更關鍵的是失效模式:這個欄位存在的唯一目的就是攔截「假資料被當成療程紀錄」,
+    // 而可為 NULL 的欄位其失效模式恰好是**靜默地呈現為真實資料**——正是要防的那件事。
+    // CHECK 讓第三種值在結構上不可能出現(ADD COLUMN 帶 CHECK 已於 node:sqlite 實測有效)。
+    up: (db) =>
+      db.exec(
+        `ALTER TABLE sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'device'
+           CHECK (source IN ('device','demo'));`
+      )
   }
 ]
 
@@ -194,11 +215,18 @@ export function getSchemaVersion(db: SqlDriver): number {
  * 補跑所有尚未套用的 migration。
  * 每一版包在自己的交易裡:中途失敗就回滾該版,user_version 停在前一版,
  * 下次啟動會從同一版重試,不會留下半套 schema。
+ * @param migrations 預設為出貨的 MIGRATIONS;可注入以測試 runner 本身的行為
+ *   (例如回滾)。此前回滾測試手抄了一份迴圈,斷言的是複製品而不是這段程式碼——
+ *   複製品永遠會通過,即使真正的 runner 壞掉。
  * @returns 實際套用的版本號清單
  */
-export function applyMigrations(db: SqlDriver, log: (m: string) => void = () => {}): number[] {
+export function applyMigrations(
+  db: SqlDriver,
+  log: (m: string) => void = () => {},
+  migrations: Migration[] = MIGRATIONS
+): number[] {
   const current = getSchemaVersion(db)
-  const pending = MIGRATIONS.filter((m) => m.version > current).sort((a, b) => a.version - b.version)
+  const pending = migrations.filter((m) => m.version > current).sort((a, b) => a.version - b.version)
   const applied: number[] = []
 
   for (const m of pending) {

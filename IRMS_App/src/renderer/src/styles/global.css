@@ -1236,6 +1236,45 @@ details.adv-fold summary {
   cursor: help;
 }
 
+/* 示範資料徽章。用 accent 而非 danger:這不是「出事了」,是「這一列不是真的」
+   ——與 2026-08-01 會議「非阻斷性警告不做視覺化緊急」的決議一致。
+   但用實心底色而非只有外框,因為它必須在一整列文字裡第一眼就被看見。 */
+.badge-demo {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  cursor: help;
+}
+
+/* 示範模式的全域橫幅。渲染在 App.tsx 與 ErrorOverlay 同層,所以四個視圖都看得到——
+   少了它,Dashboard 的截圖與真實量測的截圖完全無法區分。 */
+.demo-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+  pointer-events: none;
+}
+
 /* Record Pose:動作編輯器內的即時角度 + 一鍵擷取(回補 v1 遺失功能) */
 .record-pose {
   display: flex;

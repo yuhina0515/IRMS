@@ -7,6 +7,8 @@ import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
+import { SCENARIOS } from '../services/simulation/scenarios'
+import { deviceSimulator } from '../services/simulation/simulator'
 
 function NumField({
   label,
@@ -198,6 +200,117 @@ export function SettingsView(): JSX.Element {
           />
         </div>
       </div>
+
+      <DemoModePanel />
     </>
+  )
+}
+
+/**
+ * 示範模式面板。
+ *
+ * 這個模式**會出貨**,理由是不帶硬體也要能把完整流程演示給人看。代價是模擬資料
+ * 真的會寫進與療程紀錄同一個資料表(demo 需要真的 sessionId 才跑得完緩衝、reps
+ * 持久化、History 與 CSV)。所以防護不能只是一個 UI 標籤,必須是結構性的:
+ *   - sessions.source 欄位帶 CHECK 約束,型別層設為必填(migration 7)
+ *   - Session 進行中不可切換,source 在 start() 戳定一次
+ *   - History 列表、分析 modal、CSV 表頭、CSV 檔名四處標示
+ *   - 全域橫幅(App.tsx),讓截圖也分得出來
+ *   - 一鍵清除,讓「這個資料庫乾不乾淨」是個回答得了的問題
+ */
+function DemoModePanel(): JSX.Element {
+  const demoMode = useUiStore((s) => s.demoMode)
+  const setDemoMode = useUiStore((s) => s.setDemoMode)
+  const requestConfirm = useUiStore((s) => s.requestConfirm)
+  const showToast = useUiStore((s) => s.showToast)
+  const sessionRunning = useStore((s) => s.session.running)
+  const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id)
+  const [busy, setBusy] = useState(false)
+
+  const toggleDemo = async (): Promise<void> => {
+    if (demoMode) {
+      deviceSimulator.stop()
+      setDemoMode(false)
+      return
+    }
+    const ok = await requestConfirm(
+      '啟用示範模式?',
+      '此模式的資料由模擬器產生,不是真實量測。產生的 Session 會標記為「示範資料」並寫入資料庫,' +
+        '可隨時以下方按鈕清除。示範模式期間無法連線真實裝置。'
+    )
+    if (!ok) return
+    setDemoMode(true)
+  }
+
+  const purge = async (): Promise<void> => {
+    const ok = await requestConfirm(
+      '清除所有示範紀錄?',
+      '將永久刪除所有標記為「示範資料」的 Session 及其感測資料。真實量測的紀錄不受影響。'
+    )
+    if (!ok) return
+    setBusy(true)
+    try {
+      const { deleted } = await window.irms.sessions.purgeDemo()
+      showToast(deleted > 0 ? `已清除 ${deleted} 筆示範紀錄` : '沒有示範紀錄需要清除', 'success')
+    } catch (err) {
+      showToast(`清除失敗:${(err as Error).message}`, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="panel glass">
+      <h3 style={{ marginBottom: 14 }}>Demo Mode 示範模式</h3>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 12 }}>
+        不需要硬體即可演練完整流程:即時量表、達標判定、超限警報、校準精靈、歷史與匯出。
+        資料由模擬器產生並明確標記,不會被誤認為真實量測。
+      </p>
+
+      <div className="row" style={{ gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="field" style={{ flex: 1, minWidth: 220 }}>
+          <label>情境</label>
+          <GlassDropdown
+            value={scenarioId}
+            disabled={demoMode}
+            options={SCENARIOS.map((s) => ({ value: s.id, label: s.label }))}
+            onChange={setScenarioId}
+          />
+        </div>
+        <button
+          className={demoMode ? 'btn btn-danger-ghost' : 'btn btn-primary'}
+          disabled={sessionRunning}
+          onClick={() => void toggleDemo()}
+        >
+          {demoMode ? '結束示範模式' : '啟用示範模式'}
+        </button>
+        {demoMode && (
+          <button
+            className="btn btn-secondary"
+            disabled={deviceSimulator.running}
+            onClick={() => deviceSimulator.start(scenarioId)}
+          >
+            開始播放
+          </button>
+        )}
+      </div>
+
+      {/* 停用理由必須看得見,不能只是一個按不動的按鈕(沿用本檔既有慣例) */}
+      {sessionRunning && (
+        <p className="field-hint" style={{ marginTop: 8 }}>
+          Session 進行中無法切換示範模式——一場紀錄的來源必須全程一致,否則資料庫裡會出現
+          前半真實、後半模擬卻只有單一標記的 Session。請先結束 Session。
+        </p>
+      )}
+
+      <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--border)' }} />
+      <button className="btn btn-danger-ghost" disabled={busy} onClick={() => void purge()}>
+        清除所有示範紀錄
+      </button>
+      <p className="field-hint" style={{ marginTop: 8 }}>
+        示範紀錄刻意不從歷史列表隱藏——藏起來的資料在任何一份資料庫副本裡依然存在,只是更難察覺。
+        這個按鈕讓「資料庫裡還有沒有假資料」變成一個回答得了的問題。
+      </p>
+    </div>
   )
 }

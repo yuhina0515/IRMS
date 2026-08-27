@@ -112,8 +112,8 @@ export const sessionsRepo = {
   start(input: SessionStartInput): { sessionId: number } {
     const info = db
       .prepare(
-        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit, calibration)
-         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit, @calibration)`
+        `INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit, calibration, source)
+         VALUES (@targetAngle, @tolerance, @holdTimeMs, @actionId, @actionName, @protocol, @triggerType, @safetyLimit, @calibration, @source)`
       )
       // 校準快照在 DB 層只是一段字串:主進程不解讀它的內容,欄位形狀日後演進
       // 也不必再動 schema。序列化放在這裡而非呼叫端,是為了讓 renderer 送出的
@@ -131,6 +131,18 @@ export const sessionsRepo = {
   updateReps(sessionId: number, repsCompleted: number): { success: true } {
     db.prepare('UPDATE sessions SET repsCompleted = ? WHERE id = ?').run(repsCompleted, sessionId)
     return { success: true }
+  },
+
+  /**
+   * 刪除所有示範模式產生的紀錄(sensor_data 由外鍵 CASCADE 連動)。
+   *
+   * 存在的理由:示範資料在 History 裡是**看得見**的(刻意不隱藏——藏起來的列在
+   * 任何一份資料庫副本裡依然存在,只是更難察覺)。看得見就需要一個把它清乾淨的
+   * 動作,否則「這個資料庫還有沒有假資料」永遠只能靠逐列檢查來回答。
+   */
+  purgeDemo(): { deleted: number } {
+    const info = db.prepare(`DELETE FROM sessions WHERE source = 'demo'`).run()
+    return { deleted: Number(info.changes) }
   },
 
   end(sessionId: number, repsCompleted: number): { success: true } {

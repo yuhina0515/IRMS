@@ -132,6 +132,9 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     const full = await window.irms.sessions.getData(session.id)
     // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
     const meta = [
+      // source 放**第一行**:匯出的 CSV 常常被寄出或丟進別的工具,
+      // 讀到它的人未必知道這個 app 有示範模式。放在最前面才不會被當成一般欄位跳過。
+      `# source,${session.source}`,
       `# session,${session.id}`,
       `# action,${session.actionName ?? ''}`,
       `# protocol,${session.protocol ?? ''}`,
@@ -160,7 +163,12 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `irms_session_${session.id}.csv`
+    // 檔名比表頭重要:檔案會被寄出、被丟進試算表,沒有人會讀到第 12 行,
+    // 但每一個人都會看到檔名。
+    a.download =
+      session.source === 'demo'
+        ? `irms_DEMO_session_${session.id}.csv`
+        : `irms_session_${session.id}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -169,7 +177,10 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     <div className="overlay" onClick={onClose}>
       <div className="modal glass" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Session #{session.id} Analysis</h3>
+          <h3>
+            Session #{session.id} Analysis
+            {session.source === 'demo' && <span className="badge-demo">示範資料</span>}
+          </h3>
           <button className="close-x" onClick={onClose}>
             ×
           </button>
@@ -179,6 +190,14 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
         </div>
         {/* 非阻斷性提示,刻意不用實心警示色:這不是「出事了」,是「解讀這張圖前要知道的事」
             (沿用 2026-08-01 會議「非阻斷性警告不做視覺化緊急」的決議)。 */}
+        {/* 示範資料的警示是**常駐**的,不與校準漂移提示互斥:漂移提示回答
+            「這條曲線能不能跟別場比」,這一條回答「這條曲線是不是真的量到的」。
+            後者一旦被前者的分支蓋掉,一張模擬資料的圖就會看起來完全像病歷。 */}
+        {session.source === 'demo' && (
+          <p className="field-hint" style={{ marginTop: 10, color: 'var(--warning)' }}>
+            ⚠ 這是示範模式產生的模擬資料,不是真實量測,不可作為臨床判讀依據。
+          </p>
+        )}
         {snapshot == null ? (
           <p className="field-hint" style={{ marginTop: 10 }}>
             這場沒有校準快照(建立於本功能之前),無法確認它與目前設定是否為同一組轉換。
@@ -254,7 +273,20 @@ export function HistoryView(): JSX.Element {
                 <tr key={s.id}>
                   <td>#{s.id}</td>
                   <td>{new Date(s.startTime).toLocaleString()}</td>
-                  <td>{s.actionName ?? '—'}</td>
+                  <td>
+                    {s.actionName ?? '—'}
+                    {/* 示範資料刻意**不從列表隱藏**:藏起來的列在任何一份資料庫副本裡
+                        依然存在,只是更難察覺。顯示出來、大聲標示,再配合 Settings 的
+                        「清除所有示範紀錄」,才回答得了「這個資料庫乾不乾淨」。 */}
+                    {s.source === 'demo' && (
+                      <span
+                        className="badge-demo"
+                        title="這場是示範模式產生的模擬資料,不是真實量測"
+                      >
+                        示範資料
+                      </span>
+                    )}
+                  </td>
                   <td>
                     {s.repsCompleted}
                     {/* 非正常結束的 Session:結束時間是啟動時推估的,reps 可能少計。
