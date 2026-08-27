@@ -236,6 +236,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   若當初把測試寫成通過就會得到一個假信心的綠燈;改為同時查最近的 contenteditable 祖先。
   **253 → 281 tests / 25 files**,`npm run ci` 全綠;打包後隔離啟動乾淨無錯誤。
   ⚠ UI 仍未目視驗收;內外翻右側軸範圍 ±20° 未經真實資料驗證
+- **2026-08-27 Stage 1/2 UI 目視驗收**([[log_20260827_visual_verification|日誌]]):
+  前兩份日誌都留下「UI 未經目視驗收」——這次補上。現場搭一支拋棄式 Playwright 驅動腳本
+  (裝在 `--no-save`,用完解除安裝,腳本本身也刪除,從未進版控),對打包後的 app
+  跑完整條示範模式路徑並逐張截圖比對:冷開機量表 `--`、Demo 確認對話框、內外翻切換、
+  即時量表隨情境反應(進區變綠/教練提示)、Actions 搜尋空狀態、**真的按下 Start/End
+  Session**、History 的「示範資料」徽章、分析 modal 常駐橫幅、以及攔截
+  `HTMLAnchorElement.click()` 讀到的實際 CSV 檔名 `irms_DEMO_session_1.csv`——
+  示範模式四個讀取面標記首次拿到實機證據而非僅靠元件測試推論。過程中第一版腳本自己的
+  兩個錯(誤猜底部導覽用中文標籤、未 guard 的 null setter)先被誤以為是 app 問題,
+  看截圖才確認是腳本錯,記錄下來當作「先看證據再下判斷」的例子。
+  ⚠ 重連進度軌道與校準精靈逐步畫面仍未展開驗收(前者需要真實斷線事件)
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄(App 端診斷與韌體端遙測已於 2026-08-22 就緒,剩實機擷取)、
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
