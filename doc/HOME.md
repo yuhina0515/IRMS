@@ -220,6 +220,22 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `npm run ci` 全綠;打包後以隔離 `--user-data-dir` 實際啟動,七個 migration 在真正的
   better-sqlite3 上全部套用成功,使用者真實 DB 的 md5 前後相同。
   ⚠ UI 未經目視驗收(本次環境無法截圖);實機仍未驗證,issue #3 完全未動
+- **2026-08-27 Stage 2:P2 使用者體驗清單清空**([[log_20260827_stage2_ux_backlog|日誌]]):
+  ①**重連進度**——不只是新功能,同時修掉一個從未被發現的缺陷:
+  「Reconnecting (n/5)」寫進 `statusText`,但下一行 `connectGATT()` 的 `'Connecting...'`
+  在同一次嘗試內就蓋掉它,**那個計數器自 2026-06-27 起從來沒有被看見過**。
+  改用結構化 store 欄位 + 確定性軌道(不是 spinner——使用者要判斷的是「還會不會好」,
+  那取決於還剩幾次)。此路徑此前要拔電池才重現得了,測試以注入假裝置驅動私有重連迴圈。
+  ②**內外翻曲線**走獨立右側軸:帶符號、量級只有矢狀面的十分之一,共用刻度會被壓成
+  貼底直線——看起來像「沒有變化」,而那正是它最需要被看見的時候。新增 `Settings` 欄位
+  一併 bump persist version 4→5(`migrate` 只在版本落後時才跑,不 bump 則淺層 merge
+  會讓新欄位變 undefined、開關永遠打不開且無錯誤)。③**動作查詢**抽成純函式,
+  並把「此協定尚無動作」與「搜尋不到」拆成兩種出口。④**快捷鍵**Ctrl+K / Ctrl+Enter,
+  走與按鈕完全相同的守衛,不可用時不掛 listener。自我審查發現
+  **`contenteditable` 守衛在 jsdom 下形同虛設**(jsdom 未實作 `isContentEditable`),
+  若當初把測試寫成通過就會得到一個假信心的綠燈;改為同時查最近的 contenteditable 祖先。
+  **253 → 281 tests / 25 files**,`npm run ci` 全綠;打包後隔離啟動乾淨無錯誤。
+  ⚠ UI 仍未目視驗收;內外翻右側軸範圍 ±20° 未經真實資料驗證
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄(App 端診斷與韌體端遙測已於 2026-08-22 就緒,剩實機擷取)、
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E。
