@@ -65,6 +65,14 @@ class SessionController {
         // 完成瞬間為邊界事件:直寫精確值,並丟棄節流中的舊進度防止蓋回
         this.uiSync.cancel()
         this.pendingHold = null
+        // 達標即離開目標區間(引擎已轉入 restPending),區間 LED 必須跟著熄滅。
+        //
+        // 少了這一行,LED 會從第一下一路亮到 Session 結束:引擎進入 restPending 後
+        // 每筆封包提早 return,onRestCompleted 也不碰 LED,於是患者回位後再次進區時
+        // onZoneEnter 送出的 LED_ON 被 lastLed==='on' 的去重吃掉——第 2 下之後
+        // 完全沒有區間回饋,而 store 卻顯示 inZone:false,軟體狀態與 GPIO 實際狀態分歧。
+        // 兩條路徑都要熄:未開始 Session 時同樣已經離開區間。
+        this.sendLed('off')
         // 僅在 Session 進行中才累計次數與觸發達標音;
         // 連線但未開始時只保留區間 LED 回饋,避免「還沒開始就有 Reps」
         const { session } = useStore.getState()
