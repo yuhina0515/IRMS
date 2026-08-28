@@ -1,6 +1,6 @@
 {
   "name": "irms-app",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "智慧復健監測系統 (IRMS) 桌面監測端 — Electron + React + TypeScript",
   "main": "./out/main/index.js",
   "author": "IRMS Team",
