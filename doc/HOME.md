@@ -247,6 +247,19 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   兩個錯(誤猜底部導覽用中文標籤、未 guard 的 null setter)先被誤以為是 app 問題,
   看截圖才確認是腳本錯,記錄下來當作「先看證據再下判斷」的例子。
   ⚠ 重連進度軌道與校準精靈逐步畫面仍未展開驗收(前者需要真實斷線事件)
+- **2026-08-28 RDP titleBarOverlay 卡死 hotfix(v1.0.4)**([[log_20260828_rdp_titlebar_overlay_hotfix|日誌]]):
+  v1.0.3 發布後使用者立刻回報「跟剛剛一樣,完全沒有畫面」——原以為單例鎖沒修好,
+  追下去才發現是**兩個獨立缺陷疊在同一個症狀上**。埋診斷 log(`ready-to-show`/
+  `did-finish-load` 等事件)才精準定位:renderer 頁面確實載入完成,但
+  `ready-to-show` 永遠不觸發——2026-07-14 做的無邊框視窗
+  `titleBarStyle:'hidden'`+`titleBarOverlay` 依賴 DWM 合成,在使用者這個 RDP
+  session 裡合成該疊層時直接卡死。拿掉這兩個選項後 `ready-to-show` 立刻觸發。
+  修法:偵測 `SESSIONNAME` 是否為 RDP,是則退回一般視窗框(犧牲滿版標題列外觀
+  換取打得開),本機主控台使用者外觀不變。連續 6 輪「開啟→關閉→再開啟」壓力
+  測試全部成功(修復前的程式碼持續失敗)。過程中也排除了「RDP 斷線干擾」
+  (`query session` 一度顯示 Disc,確認 Active 後問題依舊)與「GPU 加速」
+  (v1.0.3 加的 `disableHardwareAcceleration()` 單獨測試沒解決問題,但保留作
+  次要防線)兩個曾經以為是根因的假說
 - **2026-08-28 單例鎖 hotfix(v1.0.3)**([[log_20260828_single_instance_lock_hotfix|日誌]]):
   v1.0.2 發布幾分鐘後使用者回報關閉視窗後打不開、重複點擊在工作管理員疊出多個背景
   process。根因:主進程從未實作 `requestSingleInstanceLock`,每次啟動都是全新 process

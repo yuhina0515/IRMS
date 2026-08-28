@@ -26,6 +26,14 @@ if (!gotSingleInstanceLock) {
   app.quit()
 }
 
+// RDP session:見 createWindow() 的 IS_RDP_SESSION 註解——這裡先關 Chromium 自己的
+// GPU 加速當第二道防線(不是主因,但便宜且無害;主因是 titleBarOverlay 依賴的 DWM
+// 合成在這個 session 裡卡死,那部分的規避在 createWindow())。
+const IS_RDP_SESSION = process.env['SESSIONNAME']?.startsWith('RDP-Tcp') ?? false
+if (IS_RDP_SESSION) {
+  app.disableHardwareAcceleration()
+}
+
 /** 視窗底色/標題列疊層色,跟隨系統主題(對齊 renderer 的 --bg-0/--text) */
 function themeColors(): { bg: string; symbol: string } {
   return nativeTheme.shouldUseDarkColors
@@ -63,9 +71,18 @@ function createWindow(): void {
     autoHideMenuBar: true,
     title: 'IRMS Dashboard',
     // 隱藏標題列與黑邊,只保留右上角原生最小化/最大化/關閉鈕(疊在網頁內容上),
-    // 讓 renderer 的內容一路延伸到視窗頂端(滿版)
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: initial.bg, symbolColor: initial.symbol, height: 40 },
+    // 讓 renderer 的內容一路延伸到視窗頂端(滿版)。
+    // ⚠ titleBarOverlay 靠 DWM 合成畫出那顆疊在網頁上的原生控制鈕——2026-08-28
+    // 實測:這個 session 裡 DWM 合成這個疊層時會直接卡死,連 renderer 都載入完了
+    // (did-finish-load 有觸發),ready-to-show 永遠不來,視窗永遠不會顯示,且不是
+    // Chromium 自己的 GPU 加速問題(關掉 disableHardwareAcceleration 也一樣卡)。
+    // RDP session 一律退回一般視窗框,犧牲滿版標題列的外觀換取「打得開」。
+    ...(IS_RDP_SESSION
+      ? {}
+      : {
+          titleBarStyle: 'hidden' as const,
+          titleBarOverlay: { color: initial.bg, symbolColor: initial.symbol, height: 40 }
+        }),
     // 視窗底色跟隨系統主題,避免載入瞬間閃色
     backgroundColor: initial.bg,
     webPreferences: {
@@ -77,10 +94,11 @@ function createWindow(): void {
   })
 
   // 系統主題切換時,標題列疊層與底色一併跟著換,避免變成唯一沒跟上主題的地方
+  // (RDP session 沒有這個疊層,setTitleBarOverlay 對沒開啟該功能的視窗呼叫無效)
   nativeTheme.on('updated', () => {
     const c = themeColors()
     mainWindow.setBackgroundColor(c.bg)
-    mainWindow.setTitleBarOverlay({ color: c.bg, symbolColor: c.symbol, height: 40 })
+    if (!IS_RDP_SESSION) mainWindow.setTitleBarOverlay({ color: c.bg, symbolColor: c.symbol, height: 40 })
   })
 
   mainWindow.on('ready-to-show', () => mainWindow.show())
