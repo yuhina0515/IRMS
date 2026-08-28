@@ -56,7 +56,8 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
 > 🖥 = 無需硬體即可完成 · 📡 = 需 ESP32 實機
 
 ### Phase 0|驗證與安全收尾(本週,P0)
-- [→] 📡 燒錄韌體 + 實機 E2E → **已移至 GitHub issues [#2](https://github.com/yuhina0515/IRMS/issues/2) / [#3](https://github.com/yuhina0515/IRMS/issues/3)**(硬體阻塞項不再佔用桌面 backlog)
+- [x] 📡 燒錄韌體 + 桌上旋轉記錄 → **[#2](https://github.com/yuhina0515/IRMS/issues/2) 已於 2026-08-28 完成並關閉**
+- [→] 📡 完整實機 E2E → **[#3](https://github.com/yuhina0515/IRMS/issues/3)**(阻塞已解除,硬體阻塞項不再佔用桌面 backlog)
 - [x] 🖥 **ERR 時主動關回饋**:收到 `ERR:` 即下發 `LED_OFF`+`ALARM_OFF`,防蜂鳴器卡死(2026-07-03)
 - [x] 🖥 **斷線 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝(2026-07-03)
 
@@ -137,10 +138,21 @@ Phase 0 的兩個 🖥 項與 Phase 1、2 **不依賴硬體**,裝置未回歸前
 3. **migration runner + session 收尾 + ErrorBoundary** — ✅ 完成(2026-08-01)
 
 **校準快照 migration**:移至 [#4](https://github.com/yuhina0515/IRMS/issues/4)——
-schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。
+schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。#4 已於 2026-08-22 完成關閉。
 
 > **慣例**:需要實機/硬體的工作一律開 GitHub issue,不寫進 ROADMAP。
 > 文件只追蹤「坐在桌前就能推進」的項目,避免硬體滑期時整份 backlog 看起來是空的。
+
+---
+
+## 八、2026-08-28 韌體燒錄 + 旋轉記錄(issue #2 收尾)
+
+[[log_20260828_firmware_flash_rotation_capture|日誌]]。裝置回到手邊,把 08-22 已就緒卻
+無法在無裝置時完成的兩步做完:`arduino-cli` 燒錄現行韌體到真板子(COM7)、擷取桌上
+旋轉記錄驗證 Roll 不再靜默截斷。第一次擷取因開窗時機早於實際動手,數值近乎不動,
+誠實記下未採用;重擷取拿到 65.5s 真實旋轉資料(Roll 193–197°、Pitch 96–97°,零
+`ERR:1`)。**issue #2 已關閉**,#3 的阻塞條件(#1/#2 完成)已解除,下一步是拿 #3 附的
+~30 分鐘 E2E 腳本實測。
 
 ---
 
