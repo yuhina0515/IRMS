@@ -2,7 +2,7 @@
 // --- Electron 主進程進入點 ---
 // 職責:初始化資料庫、註冊 IPC、建立視窗、處理 Web Bluetooth 自動配對。
 
-import { app, shell, screen, BrowserWindow, nativeTheme } from 'electron'
+import { app, shell, screen, BrowserWindow, nativeTheme, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DEVICE_NAME_PREFIX } from '@shared/protocol'
@@ -12,6 +12,19 @@ import { registerIpcHandlers } from './ipc'
 // 啟用 Web Bluetooth(Electron 預設關閉)
 app.commandLine.appendSwitch('enable-web-bluetooth', 'true')
 app.commandLine.appendSwitch('enable-experimental-web-platform-features', 'true')
+
+// 單例鎖:沒有這一段,每次點桌面捷徑都會開一個全新、互不相干的 process,
+// 全部搶著開同一個 better-sqlite3 (WAL) 檔——鎖衝突時 initDatabase() 拋出的例外
+// 原本沒有任何地方接住(見下方 whenReady 的 .catch()),後果是視窗開不出來、
+// 例外被吞掉、process 卻留在背景不會自己關掉,使用者只會看到「點了沒反應」
+// 然後越點越多背景 process(2026-08-28 實測發現,packaged v1.0.2 才第一次被人踩到——
+// dev 模式一次只會有一個 electron-vite 進程,從來不會觸發這條路徑)。
+// 拿不到鎖的 process 必須立刻自我了斷,不能等 whenReady,否則它已經在跟第一個
+// process 搶 DB 檔的路上了。
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+}
 
 /** 視窗底色/標題列疊層色,跟隨系統主題(對齊 renderer 的 --bg-0/--text) */
 function themeColors(): { bg: string; symbol: string } {
@@ -139,25 +152,44 @@ function setupBluetoothAutoPairing(win: BrowserWindow): void {
   })
 }
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.irms.app')
-
-  app.on('browser-window-created', (_e, window) => {
-    optimizer.watchWindowShortcuts(window)
+if (gotSingleInstanceLock) {
+  // 使用者點了第二次捷徑(或雙擊):不開新視窗,把已存在的那個叫到前景。
+  // 沒有這段,單例鎖只會讓第二個 process 悄悄退出,使用者點了還是「沒反應」。
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
   })
 
-  initDatabase(app.getPath('userData'))
-  registerIpcHandlers()
-  createWindow()
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId('com.irms.app')
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    app.on('browser-window-created', (_e, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    initDatabase(app.getPath('userData'))
+    registerIpcHandlers()
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  }).catch((err: unknown) => {
+    // 啟動失敗(例如 DB 開啟時撞上檔案鎖)原本完全沒人接:視窗開不出來、例外變成
+    // 未處理的 rejection 被靜靜吞掉,process 卻留著不退出——使用者只看到「點了
+    // 沒反應」。這裡至少跳個對話框、確保失敗的 process 真的會結束而不是變成
+    // 隱形殭屍。
+    dialog.showErrorBox('IRMS 啟動失敗', String(err))
+    app.quit()
   })
-})
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
 
-// 關閉連線並 checkpoint WAL;不做的話 -wal 檔會跨執行無限增長
-app.on('will-quit', () => closeDatabase())
+  // 關閉連線並 checkpoint WAL;不做的話 -wal 檔會跨執行無限增長
+  app.on('will-quit', () => closeDatabase())
+}

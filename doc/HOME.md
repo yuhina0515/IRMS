@@ -247,6 +247,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   兩個錯(誤猜底部導覽用中文標籤、未 guard 的 null setter)先被誤以為是 app 問題,
   看截圖才確認是腳本錯,記錄下來當作「先看證據再下判斷」的例子。
   ⚠ 重連進度軌道與校準精靈逐步畫面仍未展開驗收(前者需要真實斷線事件)
+- **2026-08-28 單例鎖 hotfix(v1.0.3)**([[log_20260828_single_instance_lock_hotfix|日誌]]):
+  v1.0.2 發布幾分鐘後使用者回報關閉視窗後打不開、重複點擊在工作管理員疊出多個背景
+  process。根因:主進程從未實作 `requestSingleInstanceLock`,每次啟動都是全新 process
+  搶同一個 `irms.sqlite`(WAL),`initDatabase()` 撞鎖拋出的例外原本沒有 `.catch()` 接住,
+  視窗開不出來、process 卻賴著不退出。補上單例鎖 + `second-instance` 聚焦既有視窗 +
+  `whenReady` 鏈的錯誤對話框。隔離 `--user-data-dir` 啟動兩次驗證 process 數維持 4 個
+  不再疊加。**dev 模式從未踩到這個坑**(一次只會有一個 electron-vite 進程),打包後測試
+  也從未涵蓋「開了又關、再開一次」——發布 v1.0.3 頂替
 - **2026-08-28 v1.0.2 發布**([[log_20260828_v1.0.2_release|日誌]]):`feat/no-hardware-exercise-infra`
   (領先本機 main 11 commit,含整個 08-27 批次)fast-forward 併入 main,本機 main 原本又
   領先 origin 4 commit(08-22 校準凍結快照 + MTU 診斷)自 v1.0.1 起從未推送。連同今日的
