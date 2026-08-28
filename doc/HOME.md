@@ -247,6 +247,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   兩個錯(誤猜底部導覽用中文標籤、未 guard 的 null setter)先被誤以為是 app 問題,
   看截圖才確認是腳本錯,記錄下來當作「先看證據再下判斷」的例子。
   ⚠ 重連進度軌道與校準精靈逐步畫面仍未展開驗收(前者需要真實斷線事件)
+- **2026-08-28 v1.0.2 發布**([[log_20260828_v1.0.2_release|日誌]]):`feat/no-hardware-exercise-infra`
+  (領先本機 main 11 commit,含整個 08-27 批次)fast-forward 併入 main,本機 main 原本又
+  領先 origin 4 commit(08-22 校準凍結快照 + MTU 診斷)自 v1.0.1 起從未推送。連同今日的
+  韌體/校準修復一次推送、打包、發布。**144 → 284 tests**,`gh release create v1.0.2`
+  發布,涵蓋 v1.0.1 以來累積的所有工作,release notes 特別點名兩個 v1.0.1 就在出貨的
+  缺陷(幻影 reps、invert 翻轉雙倍偏差)
 - **2026-08-28 校準精靈配戴側 + 確認頁卡頓修復**([[log_20260828_calibration_wearside_and_preview_stutter|日誌]]):
   使用者透過 RDP 拿真人在真裝置上跑校準精靈(對照 v1.0.1)回報兩問題,查證後確認**都不是
   版本落差**(拉 v1.0.1 tag 逐行比對,兩者現行 main 都還在)。①**確認頁卡頓**:元件層級
