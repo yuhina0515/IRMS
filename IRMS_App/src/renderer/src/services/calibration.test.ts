@@ -47,7 +47,8 @@ const SETTINGS: Settings = {
   maxChartPoints: 50,
   flushIntervalSec: 2,
   showKneeRoll: false,
-  lastCalibratedAt: null
+  lastCalibratedAt: null,
+  wearSide: null
 }
 
 describe('computeCaptureStats', () => {

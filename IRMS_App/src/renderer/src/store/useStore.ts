@@ -45,6 +45,15 @@ export interface Settings {
   showKneeRoll: boolean
   /** 校準精靈最近一次完成套用的 ISO 時間;null 表示從未跑過精靈 */
   lastCalibratedAt: string | null
+  /**
+   * 目前感測器配戴在哪一側腿;null = 尚未由精靈詢問過(v5 以前的既有安裝)。
+   *
+   * 只用來偵測「配戴側是否換了」,不參與角度算式——換手/換腳不影響 pitch(前抬/
+   * 後勾在兩側是同一個世界方向),但 roll 的「外側」在左右腿是互為鏡像,精靈第 5 步
+   * (外展)一旦被跳過就會沿用**上一次配戴側**判定出的 roll invert,若那次是另一側,
+   * 内外翻方向會左右相反且沒有任何提示(2026-08-28 實測發現)。
+   */
+  wearSide: 'left' | 'right' | null
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -84,7 +93,8 @@ const DEFAULT_SETTINGS: Settings = {
   maxChartPoints: 50,
   flushIntervalSec: 2,
   showKneeRoll: false,
-  lastCalibratedAt: null
+  lastCalibratedAt: null,
+  wearSide: null
 }
 
 /**
@@ -381,7 +391,7 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 5, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll
+      version: 6, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

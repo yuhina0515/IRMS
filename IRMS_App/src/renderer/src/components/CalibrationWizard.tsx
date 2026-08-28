@@ -19,10 +19,15 @@ import {
   type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
+import { createTrailingThrottle } from '../services/uiThrottle'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const SAMPLE_COUNT = 30
 const CAPTURE_TIMEOUT_MS = 3000
+/** 步驟 6 預覽面板的重繪節流——只是給人看的靜態數字,不是擷取取樣來源(那條路徑
+ * 直接用 useStore.subscribe,不經過 React state),25Hz 全速重繪整個 Liquid Glass
+ * modal(含 backdrop-filter)沒有必要,是「確認頁卡頓」的根因 */
+const PREVIEW_SYNC_MS = 80
 
 /**
  * 免手觸發:姿勢連續穩定這麼久就自動開始擷取。
@@ -49,7 +54,6 @@ interface Props {
 
 export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
-  const rawAngles = useStore((s) => s.rawAngles)
   // BLE MTU 沒協商上去時 Roll 欄位根本沒送到,rawAngles 的兩個 roll 會恆為 0。
   // 這一步校的正是 roll 方向,拿一串 0 去算會得出一份看似成功、實則無意義的校準。
   const linkTruncated = useStore((s) => s.linkTruncated)
@@ -72,6 +76,12 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const cancelledRef = useRef(false)
   /** 已自動嘗試過的步驟——每步只放行一次,避免失敗後立刻重新武裝造成迴圈 */
   const autoTriedRef = useRef<Set<number>>(new Set())
+  /** 步驟 6 預覽用的節流角度——僅在該步驟訂閱,其餘步驟不必為了沒人看的畫面陪著全速重繪 */
+  const [previewRaw, setPreviewRaw] = useState<RawAngles | null>(null)
+  /** 本次配戴側,步驟 1 要求選擇後才能開始 */
+  const [wearSide, setWearSide] = useState<'left' | 'right' | null>(settings.wearSide)
+  /** 進精靈當下已經套用的配戴側(而非本次選的)——用來判斷「這次是不是換邊了」 */
+  const previousWearSideRef = useRef(settings.wearSide)
 
   useEffect(() => {
     // StrictMode(dev)會刻意 mount→unmount→remount 一次來抓漏清理的 bug;
@@ -151,7 +161,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       else if (result.error === 'shinDeltaTooSmall') setStep(3)
       return
     }
-    setPatch(result.patch)
+    setPatch({ ...result.patch, wearSide })
     setStep(5)
   }
 
@@ -225,6 +235,21 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     return unsub
   }, [autoCapture, capturing, step, isConnected])
 
+  // 步驟 6 預覽:節流訂閱 rawAngles,不採用元件層級的全速 hook——擷取步驟(0–4)
+  // 完全不顯示這個值,陪著 25Hz 重繪整個 modal 純屬浪費,正是「確認頁卡頓」的成因
+  useEffect(() => {
+    if (step !== 5) return
+    setPreviewRaw(useStore.getState().rawAngles)
+    const throttle = createTrailingThrottle<RawAngles>(PREVIEW_SYNC_MS, setPreviewRaw)
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.rawAngles && s.rawAngles !== prev.rawAngles) throttle.queue(s.rawAngles)
+    })
+    return () => {
+      unsub()
+      throttle.cancel()
+    }
+  }, [step])
+
   // 擷取進行中不讓 Esc 中斷,避免倒數到一半被誤觸而不知道發生什麼事
   useEscapeKey(capturing ? null : onClose)
 
@@ -236,7 +261,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   }
 
   // 預覽:以暫存 patch 即時換算(尚未寫入 settings)
-  const preview = patch && rawAngles ? applyCalibration(rawAngles, { ...settings, ...patch }) : null
+  const preview = patch && previewRaw ? applyCalibration(previewRaw, { ...settings, ...patch }) : null
 
   const captureButton = (key: 'baseline' | 'thighRaise' | 'kneeFlex', next: number): JSX.Element => (
     <button className="btn btn-primary" disabled={capturing} onClick={() => void handleCapture(key, next)}>
@@ -299,8 +324,31 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
               <b>小腿感測器</b>(0x69)綁於小腿外側。<b>方向與角度不必在意</b>——精靈會
               自動偵測貼歪 90°(軸對調)與方向反相並校正,但過程中感測器不可鬆動移位。
             </p>
+            <p className="desc">
+              請選擇這次配戴的<b>腿側</b>:「外側」在左右腿是互為鏡像的方向,
+              換邊配戴時內外翻(roll)方向可能相反,精靈需要知道才能在第 5 步提醒你。
+            </p>
+            <div className="row">
+              <button
+                className={`btn ${wearSide === 'left' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setWearSide('left')}
+              >
+                左腿
+              </button>
+              <button
+                className={`btn ${wearSide === 'right' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setWearSide('right')}
+              >
+                右腿
+              </button>
+            </div>
             {!isConnected && <p className="wizard-err">⚠ 裝置未連線,請先於頂部連線後再開始。</p>}
-            <button className="btn btn-primary" disabled={!isConnected} onClick={() => setStep(1)}>
+            {isConnected && wearSide == null && <p className="wizard-err">請先選擇配戴側。</p>}
+            <button
+              className="btn btn-primary"
+              disabled={!isConnected || wearSide == null}
+              onClick={() => setStep(1)}
+            >
               開始
             </button>
           </div>
@@ -355,6 +403,14 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
               <b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。大腿與小腿分開判定,
               某一側幅度不足時該側沿用現有設定,不影響另一側。
             </p>
+            {wearSide != null && previousWearSideRef.current != null && wearSide !== previousWearSideRef.current && (
+              <p className="wizard-err">
+                ⚠ 你這次選的是「{wearSide === 'left' ? '左腿' : '右腿'}」,上次校準是「
+                {previousWearSideRef.current === 'left' ? '左腿' : '右腿'}」。「外側」在左右腿是互為鏡像的方向,
+                <b>略過這一步會沿用上次那一側判定出的內外翻方向,現在很可能左右相反</b>
+                (只影響顯示,不影響達標/警報判定)。強烈建議完成這一步。
+              </p>
+            )}
             {linkTruncated && (
               <p className="wizard-err">
                 ⚠ BLE 連線的 MTU 沒有協商成功,冠狀面(roll)資料沒有送達,目前恆為 0°。
