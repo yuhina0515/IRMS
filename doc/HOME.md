@@ -247,6 +247,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   兩個錯(誤猜底部導覽用中文標籤、未 guard 的 null setter)先被誤以為是 app 問題,
   看截圖才確認是腳本錯,記錄下來當作「先看證據再下判斷」的例子。
   ⚠ 重連進度軌道與校準精靈逐步畫面仍未展開驗收(前者需要真實斷線事件)
+- **2026-08-29 Demo Mode 驅動的 issue #3 App 端驗證**([[log_20260829_demo_mode_e2e_verification|日誌]]):
+  使用者臨時離場,改用 2026-08-27 建的無硬體演練基建(Playwright 連上封裝後 app 的 CDP
+  埠驅動,唯讀查真實 DB 客觀驗證)測完達標(reps=10)、超限警報+靜音+30秒重新武裝、
+  ERR:1 遮罩+逃生按鈕、強制關閉 App 後 abandoned+repsCompleted 正確持久化(4/6 項)。
+  過程中排除三個坑:①真實校準套在模擬資料上導致判定通道跑錯軸(測試前提沒滿足,非
+  bug);②發現並修正一個真實文件落差——`REFERENCE_ACTION` 從未被 Demo 面板實際套用,
+  用預設 Squat 動作(hold 3000ms > 情境保持窗 2500ms)測 rep-cycle 會讓 reps 永遠卡 0;
+  ③確認斷線重連無法用模擬器測(`endSimulated()` 繞過 `attemptReconnect()`),如實記錄
+  留給真裝置。收尾完整還原真實校準(含一次「還原被同session其他操作蓋回」的踩坑重做)、
+  清除示範紀錄與測試動作
 - **2026-08-29 會議:校準精靈能否自動化**([[log_20260829_meeting_auto_calibration_feasibility|會議紀錄]]):
   評估「配戴側+固定安裝幾何可否自動推導取代手動校準」。支持方在交叉詰問中完全讓步——
   本專案自己的歷史(08-14 offset 加倍、08-28 wearSide/roll 沿用舊值)證明同一類「固定

@@ -55,8 +55,14 @@ const restFrame = (): string => encodeAnglePacket(REST_POSE)
 /**
  * 參考動作:joint_angle / 目標 90° / 容錯 10° / 保持 2000ms / 安全上限 120°。
  * 由此導出 zone = { min: 80, max: 100, overLimit: 120, rest: 30 }。
- * 情境的角度都是相對這組參數挑的;換動作參數時情境的語意會跑掉,
- * 所以 demo 面板選情境時一併套用這組參數。
+ * 情境的角度都是相對這組參數挑的;換動作參數時情境的語意會跑掉。
+ *
+ * ⚠ 2026-08-29 實測發現:Demo 面板選情境時**不會**自動套用這組參數到
+ * Designated Action——這個對應純粹是「情境作者的假設」,UI 從未真的接線
+ * (只有 demoMode.test.ts 手動 spread 這個常數)。用預設的 `Squat`
+ * (Hold 3000ms > 這裡的 2500ms 保持窗)測 rep-cycle 情境會導致 reps 永遠停在
+ * 0——不是判定邏輯的 bug,是這個常數目前只是文件、沒有被任何地方讀取。
+ * 要讓內建情境如實運作,得手動建立/選擇參數與這裡一致的 Action。
  */
 export const REFERENCE_ACTION = {
   targetAngle: 90,
