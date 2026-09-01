@@ -339,6 +339,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   隔離啟動 + CDP 截圖驗證選單底部(674px)不再與 Demo Mode 標題(921px)重疊。
   `AI_CODING_RULES.md` §3 補一條永久規則,避免同類 bug 在下一個 popover/tooltip 上重演。
   ⚠ 使用者同時提出「UI 整體像 AI 生成」的更大範圍意見,尚待對照真實參考畫面的獨立視覺審查
+- **⚠ 2026-09-01 UI 重建:拆除舊版 Liquid Glass 系統(第一步)**
+  ([[log_20260901_ui_teardown_start|日誌]]):使用者裁定推掉整個手刻 Liquid Glass UI 重來。
+  舊版存證於 `legacy-ui-liquid-glass` branch + `ui-v1-liquid-glass-archive` tag(指在
+  `05abd81`),`main` 上 `main.tsx` 已改成引用新裝的 Tailwind CSS,不再套用
+  `global.css`/`styles/profiles/`(檔案還在,故意留著逐頁重建時再清)。**`main` 目前處於
+  無樣式的過渡狀態**,`AI_CODING_RULES.md`/`PROJECT_STATUS.md` 描述的 Liquid Glass 材質/
+  Appearance 風格設定檔已不符 `main` 現況,新 UI 有內容後才會回頭改寫這些文件。
+  `npm run ci` 全綠,CSS bundle 39.87→15.84 kB 證實舊樣式未再打包,截圖確認畫面回到原始
+  HTML。**下一步待使用者指定方向**:先重建哪個畫面、參考哪些真實 UI(見
+  `E:\Projects\UIReferences\inspiration\`)、色彩/排版語言保留多少
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

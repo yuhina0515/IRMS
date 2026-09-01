@@ -1,0 +1,7 @@
+/* renderer/styles/tailwind.css — replaces global.css as the app's stylesheet entry point.
+   The old hand-rolled Liquid Glass design system (global.css + styles/profiles/) is archived on
+   the `legacy-ui-liquid-glass` branch / `ui-v1-liquid-glass-archive` tag, not deleted — this file
+   starts the rebuild from a blank Tailwind base instead of layering on top of the old tokens. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

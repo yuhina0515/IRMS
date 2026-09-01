@@ -11,7 +11,7 @@ import './services/sessionController'
 // 只引入 wght 軸(不含斜體)——App 全程沒有 italic 文字,index.css 全量會多帶
 // 用不到的 italic 子集。
 import '@fontsource-variable/inter/wght.css'
-import './styles/global.css'
+import './styles/tailwind.css'
 
 // 啟動時載入自訂動作清單
 async function bootstrap(): Promise<void> {
