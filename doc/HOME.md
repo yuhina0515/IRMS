@@ -349,6 +349,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `npm run ci` 全綠,CSS bundle 39.87→15.84 kB 證實舊樣式未再打包,截圖確認畫面回到原始
   HTML。**下一步待使用者指定方向**:先重建哪個畫面、參考哪些真實 UI(見
   `E:\Projects\UIReferences\inspiration\`)、色彩/排版語言保留多少
+- **2026-09-01 UI 重建 Phase 1+2:方向確認 + 設計 Token**([[log_20260901_ui_redesign_phase1_phase2|日誌]]):
+  裝了使用者提供並優化過的 `craft-ui-designer` skill(全域,`~/ClaudeConfigSync/skills/`)。
+  Phase 1 用 `AskUserQuestion` 定案:拿掉底部四分頁改單頁內切換(頂部 segmented control
+  雛型)、**深色高密度數據控制台**調性、**Bento grid** 卡片、正式不再走 Apple 語系。
+  Phase 2 把方向轉成 `tailwind.config.js` 的具體 token(`slate` 中性色 + `cyan` 強調色,
+  皆為 Tailwind 官方調色盤真實 hex 值;深色模式用背景色階+邊框做立體感,不靠陰影),
+  WCAG 對比度**實際算過**(最差 6.96:1,遠高於 4.5:1 門檻),`npm run build` 通過。
+  **Phase 3(版面藍圖)刻意留給下一輪**,等使用者看過這次方向再展開
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
