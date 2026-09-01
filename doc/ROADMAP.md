@@ -98,6 +98,9 @@ Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一�
       改為底部導覽列(見 `log_20260714_bottombar_layout`),沒有側欄可收合
 - [x] 🖥 動作卡片排序/搜尋/分組、鍵盤快捷鍵(2026-08-27,見 [[OPTIMIZATION]] P2)
 - [x] 🖥 淺色主題:已於 2026-07-12 完成(雙主題跟隨系統,Apple Liquid Glass token 架構)
+- [x] 🖥 外觀風格設定檔系統:已於 2026-08-31 完成——雙主題重構為 `styles/profiles/`
+      底下的兩個自足設定檔,Settings 可選固定風格覆蓋系統深淺色(見
+      [[log_20260831_style_profile_system|日誌]])
 - [ ] 🖥 i18n(繁中/EN),目前介面中英混用(依專案規則 #2 明確延後;
       2026-08-27 使用者再次裁定不納入)
 

@@ -310,6 +310,29 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   193–197°、Pitch 擺動 96–97°,證實 08-22 的逐軸降級修法在實機生效——Roll 全程跟隨動作。
   資料存為 `doc/coding log/rotation_capture_20260828.tsv`。**issue #2 兩項驗收(燒錄、
   旋轉記錄)皆達成,已關閉**;issue #3 因韌體已在裝置上而解除阻塞
+- **2026-08-31 外觀風格設定檔系統**([[log_20260831_style_profile_system|日誌]]):
+  把 global.css 原本 `:root`(淺色)+ `prefers-color-scheme: dark` 覆寫的雙主題,重構成
+  `styles/profiles/` 底下兩個自足的 `StyleProfile`(liquidGlassLight.ts/liquidGlassDark.ts),
+  由 `applyStyleProfile.ts` 以 inline custom property 寫上 `<html>`(特異度蓋過 stylesheet,
+  固定風格因此可覆蓋 OS 深淺色),`'system'` 則清掉覆寫退回原本規則。新增
+  `Settings.styleProfileId`(persist v6→v7)+ SettingsView 的 Appearance 面板;
+  `theme.ts` 的 `onSystemThemeChange` 更名/擴充為 `onThemeChange`,額外訂閱手動切換風格
+  觸發的 CustomEvent,讓 Leg3D/LiveChart 這類只能靠 `getComputedStyle` 讀 token 的
+  canvas 元件也能即時反映。global.css 結構/選擇器未動,只把 token 具體值移出。
+  `npm run ci`(typecheck+284 tests+build)全綠;UI 目視驗收留待下次
+- **2026-09-01 外觀風格設定檔系統目視驗收**([[log_20260901_style_profile_visual_verification|日誌]]):
+  補上 08-31 留下的目視驗收。暫裝拋棄式 Playwright 驅動腳本啟動打包產物,截圖+讀
+  `<html>` inline style/computed style 交叉比對三種設定檔:確認選深色時**在 Settings 頁尚未
+  切換畫面就已套用**(非靠重新掛載觸發)、切到 Dashboard 後 `Leg3D` 場景背景與卡片材質確實
+  跟著變黑、切回「跟隨系統」時 inline 屬性清空並正確退回 `global.css` 的 `:root` 規則(本機
+  現行 OS 為淺色,畫面與手動選淺色時一致)。驗收通過,08-31 的程式碼與四份核心文件一併進版控
+- **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
+  評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
+  `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
+  「平放滑動」是平移,不改變裝置相對重力的姿態,連現行擷取有效性門檻都過不了;即使修正成
+  傾斜動作,roll-invert(外展)的「外側」依 README §2.1 需要穿戴者身體中線這個離體裝置沒有的
+  參照物,是範疇錯誤而非精度問題。最初主張建造的與會者讀了韌體原始碼後當場完全讓步。不進
+  backlog;唯一窄範圍可能性(韌體軸線接線的開發者診斷)建議直接沿用既有 Serial 遙測,不需新 UI
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

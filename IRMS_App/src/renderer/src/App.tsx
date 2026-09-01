@@ -1,5 +1,8 @@
 // renderer/App.tsx
+import { useEffect } from 'react'
+import { useStore } from './store/useStore'
 import { useUiStore } from './store/useUiStore'
+import { applyStyleProfile } from './styles/applyStyleProfile'
 import { TopHeader } from './components/TopHeader'
 import { BottomBar } from './components/BottomBar'
 import { ToastHost } from './components/ToastHost'
@@ -21,6 +24,13 @@ const VIEW_NAMES: Record<string, string> = {
 export default function App(): JSX.Element {
   const view = useUiStore((s) => s.view)
   const demoMode = useUiStore((s) => s.demoMode)
+  const styleProfileId = useStore((s) => s.settings.styleProfileId)
+
+  // 套用外觀風格設定檔:含初次載入(讀取持久化設定)與 Settings 頁面切換時。
+  // 'system' 會清掉所有覆寫,交回 global.css 的 :root/媒體查詢自行處理。
+  useEffect(() => {
+    applyStyleProfile(styleProfileId)
+  }, [styleProfileId])
 
   return (
     <>

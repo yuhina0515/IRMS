@@ -14,7 +14,7 @@ import {
   Tooltip
 } from 'chart.js'
 import { useStore } from '../store/useStore'
-import { chartTheme, onSystemThemeChange } from '../services/theme'
+import { chartTheme, onThemeChange } from '../services/theme'
 
 Chart.register(
   LineController,
@@ -83,7 +83,7 @@ export function LiveChart(): JSX.Element {
     chartRef.current = chart
 
     // 系統主題切換 → 重新解析 token 套色
-    const unsubTheme = onSystemThemeChange(() => {
+    const unsubTheme = onThemeChange(() => {
       const n = chartTheme()
       chart.data.datasets[0].borderColor = n.knee
       chart.data.datasets[0].backgroundColor = n.kneeFill

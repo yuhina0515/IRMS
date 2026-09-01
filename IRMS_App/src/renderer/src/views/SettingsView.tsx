@@ -9,6 +9,8 @@ import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
+import { STYLE_PROFILES } from '../styles/profiles/registry'
+import { SYSTEM_STYLE_PROFILE_ID } from '../styles/applyStyleProfile'
 
 function NumField({
   label,
@@ -208,6 +210,24 @@ export function SettingsView(): JSX.Element {
           <p className="field-hint" style={{ marginTop: 6 }}>
             走右側獨立刻度(±20°),正 = 外翻 valgus、負 = 內翻 varus。
             <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
+          </p>
+        </div>
+      </div>
+
+      <div className="panel glass">
+        <h3 style={{ marginBottom: 14 }}>Appearance 外觀</h3>
+        <div className="field">
+          <label>風格設定檔</label>
+          <GlassDropdown
+            value={settings.styleProfileId}
+            onChange={(v) => set('styleProfileId', v)}
+            options={[
+              { value: SYSTEM_STYLE_PROFILE_ID, label: '跟隨系統 (System)' },
+              ...STYLE_PROFILES.map((p) => ({ value: p.id, label: p.name }))
+            ]}
+          />
+          <p className="field-hint" style={{ marginTop: 6 }}>
+            選擇固定風格會覆蓋系統深淺色設定,直到切回「跟隨系統」。
           </p>
         </div>
       </div>

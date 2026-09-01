@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useStore } from '../store/useStore'
-import { onSystemThemeChange, themeToken } from '../services/theme'
+import { onThemeChange, themeToken } from '../services/theme'
 
 const THIGH_LEN = 1.0
 const SHIN_LEN = 0.95
@@ -96,7 +96,7 @@ export function Leg3D(): JSX.Element {
       scene.add(grid)
     }
     applyTheme()
-    const unsubTheme = onSystemThemeChange(applyTheme)
+    const unsubTheme = onThemeChange(applyTheme)
 
     // 由 store 訂閱餵入的目標姿態(rAF 迴圈內做平滑趨近)
     const target = { tp: 0, tr: 0, sp: 0, sr: 0, inZone: false, error: false }

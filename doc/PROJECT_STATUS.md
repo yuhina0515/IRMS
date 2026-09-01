@@ -67,8 +67,10 @@
   主進程 LTTB 抽樣至 1200 點(保留峰值)、安全線用當場生效的 `safetyLimit`、CSV 匯出 6 軸。
 - **健全性**:ErrorBoundary 包裹各視圖、ERR 紅色遮罩(凍結畫面 + 暫停寫入)+ 逃生出口、
   `escapeStack` 巢狀 modal Esc 分派、UI 以 80ms 尾緣節流(判定與 DB 仍全速)。
-- **外觀**:Apple 語意 token 雙主題跟隨系統、Liquid Glass 材質、無邊框視窗
+- **外觀**:Apple 語意 token 雙主題預設跟隨系統、Liquid Glass 材質、無邊框視窗
   (`titleBarStyle:'hidden'` + `titleBarOverlay`,頂列 inset 走 `env(titlebar-area-*)`)。
+  2026-08-31 起可在 Settings 選固定風格設定檔覆蓋系統深淺色(`styles/profiles/`,
+  見 [[log_20260831_style_profile_system|日誌]]),目前僅淺/深兩份。
 
 ---
 

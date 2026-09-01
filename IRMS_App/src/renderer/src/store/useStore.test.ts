@@ -31,7 +31,8 @@ const BASE_SETTINGS: Settings = {
   flushIntervalSec: 2,
   showKneeRoll: false,
   lastCalibratedAt: null,
-  wearSide: null
+  wearSide: null,
+  styleProfileId: 'system'
 }
 
 describe('migrateSettings', () => {

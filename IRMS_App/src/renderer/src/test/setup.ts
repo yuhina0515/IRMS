@@ -11,7 +11,7 @@ import { installIrmsStub } from './irmsStub'
 // 需要斷言特定回傳值的測試自行再呼叫一次 installIrmsStub(overrides) 覆蓋。
 installIrmsStub()
 
-// jsdom 沒有 matchMedia,而 theme.ts 的 onSystemThemeChange 會直接呼叫它。
+// jsdom 沒有 matchMedia,而 theme.ts 的 onThemeChange 會直接呼叫它。
 // 不補的話,任何 import 到 theme 的元件在測試裡會炸在載入階段而非斷言階段,
 // 錯誤訊息會指向完全無關的地方。
 if (!window.matchMedia) {

@@ -1,6 +1,13 @@
-/* renderer/styles/global.css — Apple Liquid Glass 主題(雙主題,跟隨系統) */
-/* Token 架構:語意變數集中於 :root(淺色)+ prefers-color-scheme: dark 覆寫。
-   元件一律引用語意 token;圖表/3D 等 canvas 類由 services/theme.ts 解析同一組 token。
+/* renderer/styles/global.css — Apple Liquid Glass 主題(雙主題,預設跟隨系統) */
+/* Token 架構:此檔的 :root 區塊(淺色)+ prefers-color-scheme: dark 覆寫,是「跟隨系統」
+   (styleProfileId === 'system')狀態下唯二會生效的規則,也是 styles/profiles/ 底下
+   liquidGlassLight.ts / liquidGlassDark.ts 兩份風格設定檔的原始資料來源——新增風格請去
+   那個目錄加一個檔案,不要在這裡加新的色彩區塊。
+   使用者在 Settings 選定固定風格後,styles/applyStyleProfile.ts 會把該設定檔的 token
+   當成同名 inline custom property 寫在 <html> 上,inline style 的特異度必然蓋過這裡的
+   規則,因此固定風格會忽略 OS 深淺色直到切回「跟隨系統」。
+   元件一律引用語意 token;圖表/3D 等 canvas 類由 services/theme.ts 解析同一組 token,
+   並透過 onThemeChange() 同時訂閱 OS 深淺色切換與風格設定檔切換。
    Liquid Glass 材質 = 半透明面 + backdrop-filter 折射 + 頂緣高光 + 柔和外陰影,
    背景鋪柔和色彩漸層供玻璃取樣。 */
 
