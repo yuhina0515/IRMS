@@ -357,6 +357,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   皆為 Tailwind 官方調色盤真實 hex 值;深色模式用背景色階+邊框做立體感,不靠陰影),
   WCAG 對比度**實際算過**(最差 6.96:1,遠高於 4.5:1 門檻),`npm run build` 通過。
   **Phase 3(版面藍圖)刻意留給下一輪**,等使用者看過這次方向再展開
+- **2026-09-01 UI 重建 Phase 3:版面藍圖**([[log_20260901_ui_redesign_phase3_layout|日誌]]):
+  新建活文件 `doc/UI_REDESIGN.md`(Phase 4 起持續更新,不是一次性日誌)。外殼:`TopHeader`
+  不變 + 新的頂部 segmented control 取代 `BottomBar`。Dashboard/Actions/Settings 走 bento
+  排版,**History 刻意不套 bento**(時序列表內容形狀不適合獨立卡片格線)。三組響應式斷點
+  已含手機寬度的單欄規格。純規劃產出,無程式碼變更。Phase 4(元件重建)待使用者指定
+  重建順序
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
