@@ -363,6 +363,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   排版,**History 刻意不套 bento**(時序列表內容形狀不適合獨立卡片格線)。三組響應式斷點
   已含手機寬度的單欄規格。純規劃產出,無程式碼變更。Phase 4(元件重建)待使用者指定
   重建順序
+- **2026-09-01 行動裝置部署技術路線裁決**([[log_20260901_mobile_architecture_decision|日誌]] ·
+  [[ROADMAP#D5|ROADMAP D5]]):查證發現 **iOS Safari/WebKit 完全不支援 Web Bluetooth**,
+  連 Capacitor/Cordova 這類 WKWebView 包裝殼都受限——不論選哪條路,手機版 BLE 層都得重寫,
+  真正的分歧只在 UI 層要不要共用。使用者裁定:**React Native + `react-native-ble-plx`**,
+  UI 層與桌面版 Electron+Tailwind 各自獨立(商業邏輯層 `services/` 純函式兩邊共用不受影響)。
+  **手機作業排在桌面版 Phase 4 完成之後**才開始(Task #10 佔位追蹤,目前阻塞中)。純決策,
+  無程式碼變更
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

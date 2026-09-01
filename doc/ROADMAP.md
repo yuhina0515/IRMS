@@ -49,6 +49,32 @@ elbow/shoulder 沿用 thigh/shin 命名與軸向。泛化時**先改共享型別
 引入 `PRAGMA user_version` 遞增式 migration(目前 CREATE IF NOT EXISTS 無法演進 schema)。
 Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一個消費者。
 
+### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01)
+
+**背景**:桌面版 UI 重建(Phase 1–3,見 [[UI_REDESIGN]])進行中時,使用者提出要準備
+Android/iOS 部署。查證後確認一個決定技術路線的硬限制:**iOS 的 Safari/WebKit 完全不支援
+Web Bluetooth API**,包括任何用 WKWebView 包裝的殼(Capacitor、Cordova 皆同,不是只有
+瀏覽器本身受限)——Apple 官方明講不打算實作
+([caniuse.com/web-bluetooth](https://caniuse.com/web-bluetooth)、
+[WebBluetoothCG implementation-status](https://github.com/WebBluetoothCG/web-bluetooth/blob/main/implementation-status.md))。
+這代表不論選哪條路,BLE 層在手機上都必須重寫,不可能沿用 Electron 現行的
+`navigator.bluetooth`(`bluetoothService.ts`)。真正的分歧點只在 UI 層要不要跟桌面共用。
+
+| 考量 | React Native + ble-plx(採納) | Capacitor 包裝現有 React+Tailwind(否決) |
+|---|---|---|
+| BLE | ✅ 原生模組,兩平台已被大量驗證 | ⚠ 需另裝 Capacitor BLE plugin,同樣要重寫 |
+| 互動手感 | ✅ 真原生 | ⚠ WKWebView 包裝,手感偏網頁 |
+| UI 程式碼共用 | ❌ View/Text 重寫,與桌面版是兩套獨立程式碼 | ✅ 直接沿用 Phase 4 正在建的元件 |
+| 商業邏輯共用 | ✅ store/triggerEngine/calibration 等純 TS 兩邊都能用,不受此決策影響 | ✅ 同左 |
+
+**決策:採 React Native + `react-native-ble-plx`**,UI 層與桌面版 Electron+Tailwind 各自
+獨立實作,以換取原生 BLE 成熟度與真正的原生手感(該框架用途正是持續高頻讀角度資料的
+即時監測,原生互動品質權重高於程式碼重用)。共用的只有純函式商業邏輯層(`services/`
+底下不碰 DOM 的部分),UI 元件本身兩邊各寫各的。
+
+**排序**:桌面版 Phase 4(元件重建)先完成、驗證過,才開始手機端工作
+(使用者 2026-09-01 明確裁定,見 [[log_20260901_ui_redesign_phase3_layout|同日日誌]])。
+
 ---
 
 ## 二、分階段計畫 (Phased Plan)
