@@ -15,7 +15,7 @@
 
 ## 🎯 一句話現況
 
-桌面端功能完整、測試齊備、已發布安裝檔(v1.0.4);硬體迴路的**前半段**(燒錄 → BLE 連線 →
+桌面端功能完整、測試齊備、已發布安裝檔(v1.0.5);硬體迴路的**前半段**(燒錄 → BLE 連線 →
 校準)已於 2026-08-07 / 2026-08-28 / 2026-08-29 在真裝置上驗證正常(issue #2 已關閉,
 校準精靈今天在真人身上完整跑過一輪,含新加的配戴側選擇),**後半段**(達標回饋 → 超限警報 →
 斷線收尾 → abandoned session 復原)仍未驗證,是 issue [#3](https://github.com/yuhina0515/IRMS/issues/3)
@@ -23,8 +23,9 @@
 
 | 項目 | 狀態 |
 |---|---|
-| 應用端版本 | **v1.0.4**(已發布 NSIS 安裝檔,未簽章);v1.0.2 發布後 40 分鐘內連兩次 hotfix
-  (v1.0.3 單例鎖、v1.0.4 RDP titleBarOverlay 卡死),詳見 08-28 三份 hotfix 日誌 |
+| 應用端版本 | **v1.0.5**(已發布 NSIS 安裝檔,未簽章)——新增 Settings > Appearance 外觀風格設定檔;
+  v1.0.2 發布後 40 分鐘內連兩次 hotfix(v1.0.3 單例鎖、v1.0.4 RDP titleBarOverlay 卡死),
+  詳見 08-28 三份 hotfix 日誌與 [[log_20260901_v1.0.5_release\|09-01 發布日誌]] |
 | 自動化測試 | **284 tests / 26 files 全綠**(雙 project:node 純邏輯 + dom 元件);`npm run ci` = typecheck + test + build |
 | DB schema | `user_version = 7`(遞增式 migration),真實預設 profile 已驗證乾淨套用(0 筆 session/sensor_data 殘留) |
 | 無硬體演練 | **已建立**(2026-08-27):單一 `ingest(text)` 注入接縫 + 模擬器 + 出貨版示範模式,整條「封包 → 判定 → 回饋/警報 → DB」可在桌前完整演練 |

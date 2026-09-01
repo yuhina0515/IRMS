@@ -326,6 +326,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   切換畫面就已套用**(非靠重新掛載觸發)、切到 Dashboard 後 `Leg3D` 場景背景與卡片材質確實
   跟著變黑、切回「跟隨系統」時 inline 屬性清空並正確退回 `global.css` 的 `:root` 規則(本機
   現行 OS 為淺色,畫面與手動選淺色時一致)。驗收通過,08-31 的程式碼與四份核心文件一併進版控
+- **2026-09-01 v1.0.5 發布**([[log_20260901_v1.0.5_release|日誌]]):先做完整發版前驗證
+  (CI、打包、隔離 migration、6 輪單例鎖壓力測試、真實 DB 校驗和不變、封裝後 build 上重驗
+  外觀風格設定檔),通過後才 bump 版本、push、打 tag、`gh release create` 附安裝檔。這次
+  發版把 08-31 的外觀風格設定檔系統(Settings > Appearance)正式交到使用者手上,其餘均
+  無功能變動
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
