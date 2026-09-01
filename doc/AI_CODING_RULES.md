@@ -59,6 +59,17 @@
   * 當藍牙連線意外中斷或收到 `ERR:1` 異常時，前端必須凍結角度顯示，暫停資料庫寫入，並彈出**紅色警示遮罩 (Error Overlay)**。待復原後自動解除，防止系統在無有效資料時崩潰或寫入空值。
 * **Chart.js 圖表渲染效能優化 (Chart.js Optimization)**：
   * 即時折線圖必須限制最大顯示點數（如 `maxPoints = 100`），每次有新點進入時，必須呼叫 `chart.data.datasets[i].data.shift()` 移出舊點，避免圖表數據堆積導致瀏覽器渲染引擎崩潰。
+* **浮動選單/彈出面板必須 portal 出去，不可靠祖先 `position:relative` + 子元素 `z-index`
+  (Floating Overlays Must Portal)**：
+  * 本專案所有 `.glass` 卡片都有 `backdrop-filter`，CSS 規範下這會產生新的 stacking
+    context，把子孫的 `z-index` 侷限在該祖先內部——即使子孫寫 `z-index: 9999` 也無法蓋過
+    「DOM 位置更晚的下一張卡片」，因為比較是在祖先那層的 stacking context 發生，不是子孫
+    直接互相比較。2026-09-01 `GlassDropdown` 選單彈出時視覺上被下一張卡片蓋住正是此因
+    （見 [[log_20260901_dropdown_stacking_fix|日誌]]）。
+  * **任何新的下拉選單、tooltip、popover 一律用 `createPortal` 掛到 `document.body`**，
+    用觸發元素的 `getBoundingClientRect()` 量測座標、`position: fixed` 定位，並在開啟期間
+    監聽 `window` 的 `scroll`（capture: true，因為 scroll 不冒泡）與 `resize` 重新量測。
+    不要嘗試用調高 z-index 數值來解決——那是治標不治本，下一次還是會在別的卡片組合下復發。
 
 ---
 

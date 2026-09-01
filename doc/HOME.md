@@ -331,6 +331,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   外觀風格設定檔),通過後才 bump 版本、push、打 tag、`gh release create` 附安裝檔。這次
   發版把 08-31 的外觀風格設定檔系統(Settings > Appearance)正式交到使用者手上,其餘均
   無功能變動
+- **2026-09-01 GlassDropdown stacking context 修復**([[log_20260901_dropdown_stacking_fix|日誌]]):
+  使用者截圖回報 Appearance 下拉選單被下方 Demo Mode 卡片蓋住、字疊字。根因是
+  `backdrop-filter`(所有 `.glass` 卡片都有)產生新 stacking context,把選單的 z-index
+  侷限在自己卡片內,蓋不過下一張卡片——不是 z-index 數字不夠大。改成 `createPortal` 掛到
+  `document.body`、量測座標 `position:fixed` 定位,開啟期間監聽 scroll/resize 重新量測。
+  隔離啟動 + CDP 截圖驗證選單底部(674px)不再與 Demo Mode 標題(921px)重疊。
+  `AI_CODING_RULES.md` §3 補一條永久規則,避免同類 bug 在下一個 popover/tooltip 上重演。
+  ⚠ 使用者同時提出「UI 整體像 AI 生成」的更大範圍意見,尚待對照真實參考畫面的獨立視覺審查
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
