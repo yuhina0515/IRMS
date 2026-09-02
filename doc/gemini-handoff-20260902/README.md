@@ -96,6 +96,9 @@ etc. is actually defined).
 
 ## Files to submit
 
+**Prompt:** `PROMPT.md` — paste this as the instruction text, condenses everything in this README
+into a single self-contained brief for a tool that won't have repo access.
+
 **Screenshots (always include all 4):**
 `01-dashboard.png`, `02-actions.png`, `03-history.png`, `04-settings.png`
 
