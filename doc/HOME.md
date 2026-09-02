@@ -400,6 +400,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   語系/固定深色/bento 方向/單頁殼〕與待外部設計判斷範圍〔排版節奏/色彩組合〕)。
   **Phase 4 剩餘(Actions/History/Dashboard)與 Phase 5 暫停,等使用者帶回外部設計產出
   後再繼續**,不在拿到新方向前繼續憑自己判斷往下蓋
+- **2026-09-02 解除「固定深色主題」鎖定**([[log_20260902_unlock_dark_theme_constraint|日誌]]):
+  使用者糾正「不要執著深色」——09-01 Phase 1 定下的「單一固定深色主題」不該被當成終局答案。
+  更新 handoff README 與 `UI_REDESIGN.md`:深色從「已定調」移到「開放給外部設計判斷」;
+  現有深色 token 與移除 Appearance 面板的程式碼**維持不動**(仍是目前實作狀態,不是這次
+  要改的對象),純粹修正文件對未來方向的宣稱,避免搶在外部設計產出前又自行定案
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

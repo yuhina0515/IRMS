@@ -8,11 +8,16 @@
 
 - **IA**: single view container, no bottom tab bar. A top segmented control switches which
   section is shown — still one section at a time, not everything stacked into one long scroll.
-- **Tone**: dark, high-density lab/monitoring-instrument console. Not clinical-clean, not soft/warm.
+- **Tone**: high-density lab/monitoring-instrument console. Not clinical-clean, not soft/warm.
 - **Visual archetype**: bento-grid cards. No Apple semantics.
 - **Tokens** (Phase 2): `IRMS_App/tailwind.config.js` — `slate` neutrals, `cyan` accent,
   `emerald`/`amber`/`red` semantics, all Tailwind's official palette values. Elevation via
   surface color steps + border, not shadow. WCAG-checked (worst case 6.96:1).
+  ⚠ **2026-09-02: "dark" is no longer a locked requirement** — the user pulled back the earlier
+  fixed-dark-theme decision ("不要執著深色" / don't fixate on dark). The tokens above are still
+  what's implemented today, but light-vs-dark is now open input for the external design pass
+  (see `doc/gemini-handoff-20260902/`), not a settled constraint. Don't re-lock it to dark in
+  Phase 4 work without checking what comes back from that handoff.
 
 ## Shell (Phase 3)
 

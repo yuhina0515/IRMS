@@ -24,9 +24,14 @@ decoration, but "priority over decoration" doesn't mean it has to look unstyled.
 - **No more Apple/Liquid Glass anything.** No frosted blur, no pill-shaped buttons/nav, no soft
   pastel gradients. That entire language is archived (`legacy-ui-liquid-glass` git branch /
   `ui-v1-liquid-glass-archive` tag in `IRMS_App`) and is a closed question, not a design option.
-- **Single fixed dark theme.** No more light/dark switching, no user-selectable style profiles.
 - **Tone: dense, high-tech data console** — closer to a monitoring instrument or a lab/industrial
   control panel than a wellness app. Think measurement and instrumentation, not comfort.
+- **Light vs. dark is explicitly open — don't assume dark.** Earlier rounds locked this to a
+  single fixed dark theme; that lock is lifted. The screenshots below are dark simply because
+  that's what's currently implemented, not because dark is the answer. If a light (or light+dark)
+  version of this same data-console tone reads better, propose it. What's still true: whatever is
+  chosen should be one deliberate, coherent system — this isn't reopening "bring back the
+  user-selectable style-profile switcher," it's "don't treat dark as a foregone conclusion."
 - **Bento-grid card layout** for dashboard-style screens (confirmed direction, not up for debate).
   Whether every screen forces bento is open — History (a chronological list) was deliberately kept
   as a plain list instead of bento cards; that judgment call itself can be revisited if a designer
@@ -37,13 +42,15 @@ decoration, but "priority over decoration" doesn't mean it has to look unstyled.
   functionally settled; visual polish of the segmented control itself is fair game.
 
 What's actually being asked for: layout rhythm, spacing scale, visual hierarchy, color harmony
-(not just individually-valid hex codes), and whatever specific polish makes a dark data-console UI
-read as **deliberately, professionally designed** rather than "dark theme + rounded rectangles."
+(not just individually-valid hex codes), and whatever specific polish makes this data-console UI
+read as **deliberately, professionally designed** rather than "theme + rounded rectangles" —
+regardless of whether the answer ends up light or dark.
 
 ## Current visual language (what exists right now — the baseline to improve on)
 
-Color tokens (`IRMS_App/tailwind.config.js`, `theme.extend.colors`) — all literal values from
-Tailwind's own official palette, not invented:
+Currently implemented as dark (see the theme note above — this is what exists today, not a
+constraint on what comes back). Color tokens (`IRMS_App/tailwind.config.js`,
+`theme.extend.colors`) — all literal values from Tailwind's own official palette, not invented:
 
 | token | role | value | Tailwind source |
 |---|---|---|---|
