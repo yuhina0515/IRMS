@@ -12,6 +12,69 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens — two fixed themes from the external design handoff
+   (doc/gemini-handoff-20260902/), not a returning "pick any color" style-profile system.
+   RGB triplets (space-separated, no `#`) because tailwind.config.js's color functions use
+   Tailwind's `rgb(var(--x) / <alpha-value>)` pattern so opacity modifiers like `border-accent/40`
+   keep working. `:root` defaults to the dark "Data-Console" values so there's no flash of
+   unstyled content before JS applies a theme class; `.theme-light` overrides for "Precision Lab".
+   Toggled by services/theme.ts adding/removing `theme-light` on <html> — see useStore's
+   `settings.themeMode`. */
+:root {
+  --color-canvas: 2 6 23; /* #020617 */
+  --color-surface: 15 23 42; /* #0f172a */
+  --color-surface-raised: 30 41 59; /* #1e293b */
+  --color-border: 51 65 85; /* #334155 — slate-700, solid (not translucent) per handoff */
+  --color-text: 248 250 252; /* #f8fafc */
+  --color-text-dim: 203 213 225; /* #cbd5e1 */
+  --color-text-muted: 148 163 184; /* #94a3b8 */
+  --color-accent: 34 211 238; /* #22d3ee */
+  --color-accent-strong: 6 182 212; /* #06b6d4 */
+  --color-success: 52 211 153; /* #34d399 */
+  --color-warning: 251 191 36; /* #fbbf24 */
+  --color-danger: 248 113 113; /* #f87171 */
+  /* Chart-series colors (LiveChart/HistoryView, not yet rebuilt to the new direction —
+     defined here so those still-mounted components don't render with missing/broken colors
+     in the meantime). Thigh/shin reuse the warning/success hues for consistency rather than
+     inventing new ones; roll gets its own hue (violet) since it's a distinct plane, matching
+     the archived system's convention of keeping it visually separate from thigh/shin/knee. */
+  --chart-grid: 51 65 85; /* = --color-border */
+  --chart-tick: 148 163 184; /* = --color-text-muted */
+  --chart-text: 248 250 252; /* = --color-text */
+  --color-thigh: 251 191 36; /* = --color-warning */
+  --color-shin: 52 211 153; /* = --color-success */
+  --color-roll: 167 139 250; /* violet-400 */
+}
+.theme-light {
+  /* Corrected from the external design handoff's literal hex values — see coding log
+     2026-09-02 "gemini mockup implementation": several of Gemini's light-theme values fail
+     WCAG AA when actually used as text/button-label color (measured, not eyeballed):
+     text-muted 2.34:1, accent 2.43:1, danger 3.76:1, success 2.54:1 white-on-bg — all well
+     under the 4.5:1 (text) / 3:1 (large text, UI components) bars this project already holds
+     the dark theme to. Deepened each by one step on the same hue (still real Tailwind values,
+     not invented) until they measured as passing. Layout/spacing/radii/typography direction
+     from the handoff are otherwise implemented as specified — this is a contrast-only fix. */
+  --color-canvas: 255 255 255; /* #ffffff */
+  --color-surface: 241 245 249; /* #f1f5f9 — slate-100 */
+  --color-surface-raised: 226 232 240; /* #e2e8f0 — slate-200 */
+  --color-border: 226 232 240; /* #e2e8f0 */
+  --color-text: 2 6 23; /* #020617 */
+  --color-text-dim: 71 85 105; /* #475569 — slate-600 */
+  --color-text-muted: 100 116 139; /* #64748b — slate-500 (was slate-400 #94a3b8, 2.34:1, failed) */
+  --color-accent: 14 116 144; /* #0e7490 — cyan-700 (was cyan-600 #06b6d4, 2.43:1, failed) */
+  --color-accent-strong: 21 94 117; /* #155e75 — cyan-800, one step darker than accent */
+  --color-success: 4 120 87; /* #047857 — emerald-700 (was #10b981, 2.54:1 as white-on-bg, failed) */
+  --color-warning: 180 83 9; /* #b45309 — amber-700 (was #f59e0b, precautionary — not yet used
+    as text/button anywhere reachable, but Dashboard's safety-limit alerts will need it) */
+  --color-danger: 220 38 38; /* #dc2626 — red-600 (was #ef4444, 3.76:1, failed) */
+  --chart-grid: 226 232 240; /* = --color-border */
+  --chart-tick: 100 116 139; /* = --color-text-muted */
+  --chart-text: 2 6 23; /* = --color-text */
+  --color-thigh: 180 83 9; /* = --color-warning */
+  --color-shin: 4 120 87; /* = --color-success */
+  --color-roll: 124 58 237; /* violet-600 */
+}
+
 @layer base {
   body {
     @apply bg-canvas text-text;
@@ -19,15 +82,35 @@
 }
 
 @layer components {
-  /* ── shell ── */
+  /* ── shell (dual-layer nav per doc/gemini-handoff-20260902/: sidebar + top segmented
+     control, both drive the same view state — see Sidebar.tsx / SegmentedControl.tsx) ── */
   .app {
-    @apply flex flex-col h-screen gap-3 px-3 py-4;
+    @apply flex h-screen gap-3 px-3 py-4;
+  }
+  .app-column {
+    @apply flex flex-col flex-1 gap-3 min-w-0;
   }
   .main {
     @apply flex-1 overflow-y-auto pr-1;
   }
   .segmented-row {
     @apply flex;
+  }
+  .sidebar {
+    @apply flex flex-col gap-1 w-48 shrink-0 bg-surface border border-border rounded-card p-3;
+  }
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-control text-text-muted border-none
+      bg-transparent cursor-pointer transition-colors duration-150 w-full text-left;
+  }
+  .sidebar-item:hover {
+    @apply text-text bg-surface-raised;
+  }
+  .sidebar-item.active {
+    @apply text-canvas bg-accent;
+  }
+  html:not(.theme-light) .sidebar-item.active {
+    @apply shadow-glow-accent;
   }
 
   /* ── layout helpers ── */
@@ -56,7 +139,7 @@
   /* ── surfaces (was "glass", now a flat dark data-console card) ── */
   .panel,
   .glass {
-    @apply bg-surface border border-border rounded-card p-[18px];
+    @apply bg-surface border border-border rounded-card p-4;
   }
   .glass-elevated {
     @apply bg-surface-raised shadow-floating;
@@ -84,6 +167,12 @@
   .top-header .conn {
     @apply flex items-center gap-2 text-xs text-text-muted;
   }
+  .reconnect-track {
+    @apply inline-block w-[46px] h-[3px] ml-2 align-middle rounded-control overflow-hidden bg-text-muted/30;
+  }
+  .reconnect-fill {
+    @apply block h-full rounded-control bg-warning transition-[width] duration-200;
+  }
   /* header button stays compact regardless of the app-wide .btn size —
      a dense top bar shouldn't carry the same button scale as page content */
   .top-header button.btn {
@@ -99,11 +188,17 @@
   .dot.retrying {
     @apply bg-warning;
   }
+  /* "Lighting" from the design handoff: active/ON elements glow instead of reading as a flat
+     shape — dark theme only, a glow on a white canvas just looks like a blur artifact rather
+     than an instrument light. */
+  html:not(.theme-light) .dot.on {
+    @apply shadow-glow-success;
+  }
 
   /* ── buttons — rectangular (rounded-control), not pill: this direction dropped the
      Apple-capsule language on purpose (ROADMAP D5 / the Bento+data-console brief) ── */
   button.btn {
-    @apply border-none rounded-control px-[18px] py-2.5 font-semibold cursor-pointer text-canvas
+    @apply border-none rounded-control px-4 py-2.5 font-semibold cursor-pointer text-canvas
       transition-[transform,opacity,filter] duration-150;
   }
   button.btn:hover {
@@ -127,14 +222,20 @@
   button.btn-danger-ghost:hover {
     @apply bg-danger/10;
   }
-  .btn-secondary {
+  /* button.btn-secondary (not .btn-secondary alone) to match button.btn's specificity —
+     .btn-secondary is a neutral-bg variant so it needs its OWN text color, but a bare class
+     selector loses the cascade fight against button.btn's `text-canvas` (element+class beats
+     class alone) regardless of source order. Same trap the archived codebase's comments
+     document for .btn-danger-ghost; missed applying it here in the first Phase 4 pass —
+     caught via screenshot when the theme-toggle icon rendered white-on-white in light mode. */
+  button.btn-secondary {
     @apply bg-surface-raised text-text border border-border;
   }
   .btn-success {
     @apply bg-success;
   }
   .btn-sm {
-    @apply px-[11px] py-1.5 text-[0.82rem];
+    @apply px-3 py-1.5 text-[0.82rem];
   }
   .btn-block {
     @apply w-full;
@@ -155,12 +256,20 @@
     @apply bg-surface-raised border border-border rounded-control px-3 py-2.5 text-text outline-none
       transition-[border-color,box-shadow] duration-150;
   }
+  /* Numeric fields go mono per the design handoff ("all numeric readings and sensor codes") —
+     applies to editable number inputs too, not just passive readouts (Dashboard doesn't have
+     any built yet; this covers what exists today, e.g. Settings' calibration/chart-tuning
+     fields). */
+  input[type='number'] {
+    @apply font-mono;
+  }
   input::placeholder {
     @apply text-text-muted opacity-100;
   }
   input:focus,
   select:focus {
-    @apply border-accent shadow-[0_0_0_3px_rgba(34,211,238,0.22)];
+    @apply border-accent;
+    box-shadow: 0 0 0 3px rgb(var(--color-accent) / 0.22);
   }
 
   /* ── misc form bits ── */
@@ -231,7 +340,7 @@
     @apply fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[1100];
   }
   .dialog {
-    @apply w-[min(440px,92vw)] p-[22px];
+    @apply w-[min(440px,92vw)] p-6;
   }
   .dialog h3 {
     @apply mb-2.5;
@@ -245,7 +354,7 @@
 
   /* ── toast ── */
   .toast-host {
-    @apply fixed top-[18px] right-[18px] flex flex-col gap-2.5 z-[1000];
+    @apply fixed top-4 right-4 flex flex-col gap-2.5 z-[1000];
   }
   .toast {
     @apply flex items-center gap-2.5 min-w-[240px] px-3.5 py-3 rounded-control bg-surface-raised
@@ -264,7 +373,7 @@
   /* ── internal tab switcher (kept for Dashboard's secondary-visualization card,
      see doc/UI_REDESIGN.md — same interaction pattern, re-skinned) ── */
   .tabs {
-    @apply relative inline-flex gap-0.5 mb-3.5 p-[3px] rounded-control bg-surface-raised;
+    @apply relative inline-flex gap-0.5 mb-3.5 p-1 rounded-control bg-surface-raised;
   }
   .tab-btn {
     @apply relative z-[1] border-none bg-transparent text-text-muted text-[0.88rem] font-medium
@@ -279,7 +388,7 @@
 
   /* ── segmented control (NEW — replaces BottomBar, see doc/UI_REDESIGN.md shell) ── */
   .segmented {
-    @apply relative inline-flex gap-0.5 p-[3px] rounded-control bg-surface border border-border;
+    @apply relative inline-flex gap-0.5 p-1 rounded-control bg-surface border border-border;
   }
   .segmented-item {
     @apply relative z-[1] border-none bg-transparent text-text-muted text-sm font-medium
@@ -312,6 +421,10 @@
   .liquid-knob-shape {
     @apply w-full h-full rounded-control bg-accent;
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* "Lighting" from the design handoff — dark theme only (see .dot.on above for why) */
+  html:not(.theme-light) .liquid-knob-shape {
+    @apply shadow-glow-accent;
   }
   .liquid-knob-track.dragging .liquid-knob-shape {
     transition: none;

@@ -11,6 +11,10 @@ import './services/sessionController'
 // 只引入 wght 軸(不含斜體)——App 全程沒有 italic 文字,index.css 全量會多帶
 // 用不到的 italic 子集。
 import '@fontsource-variable/inter/wght.css'
+// 數據讀數專用等寬字(外部設計 handoff,doc/gemini-handoff-20260902/):「所有數值讀數
+// 改用 mono 字體,這一項改動就能做到一半把 wellness app 感跟 lab instrument 感區分開」。
+// 同樣只引入 wght 軸,同樣自架(SIL OFL)。
+import '@fontsource-variable/jetbrains-mono/wght.css'
 import './styles/tailwind.css'
 
 // 啟動時載入自訂動作清單

@@ -405,6 +405,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   更新 handoff README 與 `UI_REDESIGN.md`:深色從「已定調」移到「開放給外部設計判斷」;
   現有深色 token 與移除 Appearance 面板的程式碼**維持不動**(仍是目前實作狀態,不是這次
   要改的對象),純粹修正文件對未來方向的宣稱,避免搶在外部設計產出前又自行定案
+- **2026-09-02 實作 Gemini 設計 mockup:雙主題 + 側邊導覽**
+  ([[log_20260902_gemini_mockup_implementation|日誌]]):使用者帶回 Gemini 兩套 mockup
+  (深色 Data-Console / 淺色 Precision Lab),裁定「兩個都走」(重新引入可切換主題)+
+  「採用側邊欄+頂部雙層導覽」。實作:CSS variable 雙主題架構(`tailwind.config.js`/
+  `tailwind.css`)、新 `Sidebar.tsx`(還原封存分支 `NavIcons.tsx`)與 `SegmentedControl`
+  同步驅動同一個 view 狀態、深色限定發光效果、自架 JetBrains Mono 套用數值輸入。
+  **量出 Gemini 淺色規格 5 個顏色未過 WCAG**(text-muted/accent/danger/success/warning),
+  同色相加深一階修正,深色規格全數過關不需修正。截圖驗證時抓到真實 bug:`.btn-secondary`
+  文字色被 `button.btn` 的更高特異度蓋掉,主題切換鈕在淺色模式下完全看不見,修法比照
+  `.btn-danger-ghost` 已有的 `button.` 前綴慣例。`npm run ci` 全綠,雙主題+側欄截圖驗證
+  通過。⚠ `Leg3D.tsx`(3D 視圖)的舊版 CSS 變數讀取尚未修(teardown 以來就存在的既有缺陷,
+  留給 Dashboard 重建時處理)。Phase 4 剩餘:Actions/History/Dashboard 依新規範繼續重建
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

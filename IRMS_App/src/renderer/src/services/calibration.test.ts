@@ -49,7 +49,7 @@ const SETTINGS: Settings = {
   showKneeRoll: false,
   lastCalibratedAt: null,
   wearSide: null,
-  styleProfileId: 'system'
+  themeMode: 'dark'
 }
 
 describe('computeCaptureStats', () => {

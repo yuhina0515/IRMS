@@ -10,33 +10,48 @@
   section is shown — still one section at a time, not everything stacked into one long scroll.
 - **Tone**: high-density lab/monitoring-instrument console. Not clinical-clean, not soft/warm.
 - **Visual archetype**: bento-grid cards. No Apple semantics.
-- **Tokens** (Phase 2): `IRMS_App/tailwind.config.js` — `slate` neutrals, `cyan` accent,
-  `emerald`/`amber`/`red` semantics, all Tailwind's official palette values. Elevation via
-  surface color steps + border, not shadow. WCAG-checked (worst case 6.96:1).
-  ⚠ **2026-09-02: "dark" is no longer a locked requirement** — the user pulled back the earlier
-  fixed-dark-theme decision ("不要執著深色" / don't fixate on dark). The tokens above are still
-  what's implemented today, but light-vs-dark is now open input for the external design pass
-  (see `doc/gemini-handoff-20260902/`), not a settled constraint. Don't re-lock it to dark in
-  Phase 4 work without checking what comes back from that handoff.
+- **Tokens** (Phase 2, superseded 2026-09-02 — see below): originally `slate` neutrals + `cyan`
+  accent only, single fixed dark theme.
+- **2026-09-02 — dual theme, implemented**: external design handoff (`doc/gemini-handoff-20260902/`)
+  came back with two directions ("Data-Console Dark" and "Precision Lab Light"); user picked
+  **both** ("兩個都走") rather than choosing one. `IRMS_App/tailwind.config.js` colors now
+  resolve through CSS variables (`rgb(var(--color-x) / <alpha-value>)`); `tailwind.css` defines
+  the dark set on `:root` and the light set on `.theme-light`, toggled via
+  `services/theme.ts`'s `applyThemeMode()` and persisted as `settings.themeMode`. A handful of
+  the handoff's light-theme hex values failed WCAG when measured (not eyeballed) and were
+  deepened one Tailwind step on the same hue — see the 2026-09-02 "gemini mockup implementation"
+  coding log for the exact before/after numbers. Radii tightened (card 12px, control 6px, was
+  16/8) per the handoff spec, same for both themes.
+- **Dual-layer nav, implemented**: user also asked to adopt the handoff's sidebar, in addition to
+  (not instead of) the top segmented control — both drive the same view state and stay in sync.
+  `Sidebar.tsx` (left, icon+label, reuses `NavIcons.tsx` restored from the archived branch) +
+  `SegmentedControl.tsx` (unchanged from Phase 4(1)).
+- **"Glow" on active elements, dark theme only**: per the handoff's "lighting" note — a soft
+  accent/success box-shadow on the active nav item / sliding indicator / connected-state dot.
+  Not applied in light theme (a glow on white reads as a blur artifact, not an instrument light).
+- **Numeric readouts go mono**: `JetBrains Mono Variable` self-hosted, wired to number inputs so
+  far (Dashboard doesn't have live readout components yet).
 
-## Shell (Phase 3)
+## Shell (Phase 3, revised 2026-09-02 for dual-layer nav)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [logo] IRMS.              ● Disconnected        [Connect Device]  │ <- TopHeader, unchanged role
-├──────────────────────────────────────────────────────────────────┤
-│      ( Dashboard │ Actions │ History │ Settings )                 │ <- NEW: top segmented
-├──────────────────────────────────────────────────────────────────┤ control, replaces BottomBar
-│                                                                    │
-│                    active section's bento grid                    │
-│                                                                    │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────┬─────────────────────────────────────────────────────┐
+│  [≡] IRMS  │ [logo] IRMS.        ● Disconnected   [☀/🌙][Connect] │ <- TopHeader
+│            ├─────────────────────────────────────────────────────┤
+│ ▸Dashboard │      ( Dashboard │ Actions │ History │ Settings )     │ <- top segmented control
+│  Actions   ├─────────────────────────────────────────────────────┤
+│  History   │                                                      │
+│  Settings  │                    active section's bento grid       │
+│            │                                                      │
+└────────────┴─────────────────────────────────────────────────────┘
+  Sidebar        .app-column (TopHeader / segmented-row / main)
 ```
 
-`BottomBar.tsx` / `LiquidKnob`-driven pill nav is retired with this — the segmented control is a
-new component (Phase 4), not a re-skin of `BottomBar`. `TopHeader` keeps its current job
-(identity + connection state) unchanged; the segmented control is a second row under it, not
-merged into it — connection state needs to stay visible regardless of which section is active.
+`BottomBar.tsx` / `LiquidKnob`-driven pill nav from the original teardown is retired — replaced
+first by the top segmented control alone (Phase 4(1)), then joined by `Sidebar.tsx` per the
+2026-09-02 design handoff ("採用,新增側邊欄+頂部雙層導覽"). Both nav surfaces drive the same
+`useUiStore` `view` state and stay in sync — clicking either updates both. `TopHeader` keeps its
+job (identity + connection state + theme toggle) unchanged in role.
 
 **Note for the mobile prep (see coding log for 2026-09-01 pt.2):** this shell already assumes a
 narrow-viewport-first layout (segmented control instead of a bottom bar reads fine at phone width;
