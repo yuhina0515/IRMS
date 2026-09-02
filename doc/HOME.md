@@ -389,6 +389,9 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   解析度撐滿頂列,吃光所有頁面可視內容空間——這其實是上一批就存在的缺陷,只是當時截圖
   剛好只看到頂部。補回 `height:28px` 後重新截圖,所有頁面可視空間恢復正常。`npm run ci`
   全綠
+- **2026-09-02 TopHeader 收緊尺寸**([[log_20260902_ui_redesign_compact_header|日誌]]):
+  使用者反饋頂列偏大,收緊 logo/標題/連線文字/內距,header 內按鈕另開專屬尺寸(不動全域
+  `.btn`)。截圖確認頂列明顯收緊、SegmentedControl 與內容不受影響
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

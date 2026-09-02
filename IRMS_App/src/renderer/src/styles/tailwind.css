@@ -65,24 +65,29 @@
      kept as a harmless no-op selector so call sites using it don't need to be touched. */
 
   .top-header {
-    @apply bg-surface border-b border-border flex items-center justify-between px-5 py-3;
+    @apply bg-surface border-b border-border flex items-center justify-between px-4 py-2;
   }
   .top-header .logo {
     @apply flex items-center gap-2;
   }
   .logo-mark {
-    height: 28px;
+    height: 20px;
     width: auto;
     display: block;
   }
   .top-header .logo h1 {
-    @apply text-lg font-bold;
+    @apply text-sm font-bold;
   }
   .top-header .logo span {
     @apply text-accent;
   }
   .top-header .conn {
-    @apply flex items-center gap-2 text-sm text-text-muted;
+    @apply flex items-center gap-2 text-xs text-text-muted;
+  }
+  /* header button stays compact regardless of the app-wide .btn size —
+     a dense top bar shouldn't carry the same button scale as page content */
+  .top-header button.btn {
+    @apply px-3 py-1.5 text-sm;
   }
 
   .dot {
