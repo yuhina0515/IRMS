@@ -83,13 +83,18 @@ selecting a row opens the existing analysis modal.
 
 ## Settings — one bento card per settings group
 
+Only two groups now, not three — the Appearance/style-profile card is retired along with it
+(Phase 4, 2026-09-02): this direction is a single fixed dark theme, there's no more light/dark
+profile picker to expose. `applyStyleProfile.ts`/`styles/profiles/` are dead code left in place
+for now (same treatment as `global.css`), not yet deleted.
+
 ```
-┌───────────────┬───────────────┬────────────────┐
-│  Calibration   │  General       │  Appearance     │
-├───────────────┴───────────────┴────────────────┤
-│  Demo Mode (full width — more controls than the  │
-│  other groups, doesn't fit a 1/3 cell)            │
-└───────────────────────────────────────────────┘
+┌────────────────────┬────────────────────┐
+│  Calibration         │  General             │
+├────────────────────┴────────────────────┤
+│  Demo Mode (full width — more controls than  │
+│  the other groups, doesn't fit a half cell)   │
+└──────────────────────────────────────────┘
 ```
 
 ## Responsive breakpoints

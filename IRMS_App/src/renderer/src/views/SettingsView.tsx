@@ -9,8 +9,6 @@ import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
-import { STYLE_PROFILES } from '../styles/profiles/registry'
-import { SYSTEM_STYLE_PROFILE_ID } from '../styles/applyStyleProfile'
 
 function NumField({
   label,
@@ -100,139 +98,125 @@ export function SettingsView(): JSX.Element {
         <p>感測器校準與系統參數</p>
       </header>
 
-      <div className="panel glass" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginBottom: 14 }}>Sensor Calibration 校準</h3>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 12 }}>
-          {settings.lastCalibratedAt
-            ? `上次精靈校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
-            : '尚未執行校準精靈——建議先跑一次,自動判斷佩戴方向並歸零'}
-        </p>
-        {/* 語意由「方向未驗證(暗示判定不可信)」改為「僅影響顯示」:
-            roll 不參與任何達標/超限判定,外展步驟校準的是 3D 模型與圖表的正負號。
-            外展是全精靈唯一需要單腳站立的步驟,對平衡受限的患者最困難——
-            不該用一個看起來像判定風險的警告去催促他們反覆嘗試。 */}
-        {settings.lastCalibratedAt != null &&
-          (!settings.thighRollVerified || !settings.shinRollVerified) && (
-            <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 12 }}>
-              ℹ 內外翻(roll)顯示方向未經外展步驟驗證:
-              {!settings.thighRollVerified && '大腿'}
-              {!settings.thighRollVerified && !settings.shinRollVerified && '、'}
-              {!settings.shinRollVerified && '小腿'}
-              ——<strong>不影響達標與超限判定</strong>,僅可能讓 3D 姿態、內外翻數值與圖表的
-              正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'start' }}>
+        <div className="panel glass">
+          <h3 style={{ marginBottom: 14 }}>Sensor Calibration 校準</h3>
+          <p className="text-text-muted text-sm mb-3">
+            {settings.lastCalibratedAt
+              ? `上次精靈校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
+              : '尚未執行校準精靈——建議先跑一次,自動判斷佩戴方向並歸零'}
+          </p>
+          {/* 語意由「方向未驗證(暗示判定不可信)」改為「僅影響顯示」:
+              roll 不參與任何達標/超限判定,外展步驟校準的是 3D 模型與圖表的正負號。
+              外展是全精靈唯一需要單腳站立的步驟,對平衡受限的患者最困難——
+              不該用一個看起來像判定風險的警告去催促他們反覆嘗試。 */}
+          {settings.lastCalibratedAt != null &&
+            (!settings.thighRollVerified || !settings.shinRollVerified) && (
+              <p className="text-text-muted text-[0.8rem] mb-3">
+                ℹ 內外翻(roll)顯示方向未經外展步驟驗證:
+                {!settings.thighRollVerified && '大腿'}
+                {!settings.thighRollVerified && !settings.shinRollVerified && '、'}
+                {!settings.shinRollVerified && '小腿'}
+                ——<strong>不影響達標與超限判定</strong>,僅可能讓 3D 姿態、內外翻數值與圖表的
+                正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
+              </p>
+            )}
+          <button
+            className="btn btn-primary"
+            disabled={!isConnected || calibrationLocked}
+            onClick={() => setWizardOpen(true)}
+          >
+            啟動校準精靈
+          </button>
+          {/* 停用理由必須看得見。原本只放在 title 裡:tooltip 要滑鼠停留才出現、觸控
+              裝置根本叫不出來、螢幕閱讀器也不一定會念,於是按鈕看起來只是「按了沒反應」。
+              App 其他地方(Record Pose、未支援協定的開始鈕)都已改用可見說明,這裡跟上。 */}
+          {!isConnected && (
+            <p className="field-hint" style={{ marginTop: 8 }}>
+              校準需要即時感測器數值,請先於頂部連線裝置。
             </p>
           )}
-        <button
-          className="btn btn-primary"
-          disabled={!isConnected || calibrationLocked}
-          onClick={() => setWizardOpen(true)}
-        >
-          啟動校準精靈
-        </button>
-        {/* 停用理由必須看得見。原本只放在 title 裡:tooltip 要滑鼠停留才出現、觸控
-            裝置根本叫不出來、螢幕閱讀器也不一定會念,於是按鈕看起來只是「按了沒反應」。
-            App 其他地方(Record Pose、未支援協定的開始鈕)都已改用可見說明,這裡跟上。 */}
-        {!isConnected && (
-          <p className="field-hint" style={{ marginTop: 8 }}>
-            校準需要即時感測器數值,請先於頂部連線裝置。
-          </p>
-        )}
-        {calibrationLocked && (
-          <p className="field-hint" style={{ marginTop: 8 }}>
-            Session 進行中無法變更校準——這一場的資料必須全程由同一組轉換產生,
-            紀錄裡才存得下一份說得通的校準快照。請先結束 Session。
-          </p>
-        )}
+          {calibrationLocked && (
+            <p className="field-hint" style={{ marginTop: 8 }}>
+              Session 進行中無法變更校準——這一場的資料必須全程由同一組轉換產生,
+              紀錄裡才存得下一份說得通的校準快照。請先結束 Session。
+            </p>
+          )}
 
-        <details className="adv-fold">
-          <summary>進階手動校準(一般情況請使用精靈)</summary>
-        <p className="field-hint">
-          Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用下方
-          「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
-        </p>
-        <div className="row">
-          <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} disabled={calibrationLocked} />
+          <details className="adv-fold">
+            <summary>進階手動校準(一般情況請使用精靈)</summary>
+          <p className="field-hint">
+            Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用下方
+            「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
+          </p>
+          <div className="row">
+            <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} disabled={calibrationLocked} />
+          </div>
+          <div className="row" style={{ gap: 24, marginBottom: 14 }}>
+            <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} disabled={calibrationLocked} />
+          </div>
+          <div className="row">
+            <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} disabled={calibrationLocked} />
+          </div>
+          <div className="row" style={{ gap: 24, marginBottom: 16 }}>
+            <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Shin Roll" checked={settings.shinRollInvert} onChange={(v) => set('shinRollInvert', v)} disabled={calibrationLocked} />
+          </div>
+          <div className="row">
+            <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
+              快速歸零
+            </button>
+          </div>
+          <p className="text-text-muted text-[0.8rem] mt-2">
+            校準完全在 App 端套用;韌體僅回傳原始角度,無需同步。
+          </p>
+          </details>
         </div>
-        <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-          <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} disabled={calibrationLocked} />
-          <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} disabled={calibrationLocked} />
+
+        <div className="panel glass">
+          <h3 style={{ marginBottom: 14 }}>General 一般</h3>
+          <div className="field">
+            <label>Default Protocol 預設協定</label>
+            <GlassDropdown
+              value={settings.protocol}
+              onChange={(v) => set('protocol', v as Settings['protocol'])}
+              options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
+            />
+          </div>
+          <div className="row">
+            <NumField
+              label="Chart Max Points 圖表最大點數"
+              value={settings.maxChartPoints}
+              onChange={(v) => set('maxChartPoints', Math.max(10, Math.round(v)))}
+            />
+            <NumField
+              label="Flush Interval 寫入間隔 (秒)"
+              value={settings.flushIntervalSec}
+              onChange={(v) => set('flushIntervalSec', Math.max(1, Math.round(v)))}
+            />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Toggle
+              label="即時圖表加畫內外翻(Varus/Valgus)曲線"
+              checked={settings.showKneeRoll}
+              onChange={(v) => set('showKneeRoll', v)}
+            />
+            <p className="field-hint" style={{ marginTop: 6 }}>
+              走右側獨立刻度(±20°),正 = 外翻 valgus、負 = 內翻 varus。
+              <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
+            </p>
+          </div>
         </div>
-        <div className="row">
-          <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} disabled={calibrationLocked} />
-        </div>
-        <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-          <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} disabled={calibrationLocked} />
-          <Toggle label="Invert Shin Roll" checked={settings.shinRollInvert} onChange={(v) => set('shinRollInvert', v)} disabled={calibrationLocked} />
-        </div>
-        <div className="row">
-          <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
-            快速歸零
-          </button>
-        </div>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 8 }}>
-          校準完全在 App 端套用;韌體僅回傳原始角度,無需同步。
-        </p>
-        </details>
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
 
-      <div className="panel glass">
-        <h3 style={{ marginBottom: 14 }}>General 一般</h3>
-        <div className="field">
-          <label>Default Protocol 預設協定</label>
-          <GlassDropdown
-            value={settings.protocol}
-            onChange={(v) => set('protocol', v as Settings['protocol'])}
-            options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
-          />
-        </div>
-        <div className="row">
-          <NumField
-            label="Chart Max Points 圖表最大點數"
-            value={settings.maxChartPoints}
-            onChange={(v) => set('maxChartPoints', Math.max(10, Math.round(v)))}
-          />
-          <NumField
-            label="Flush Interval 寫入間隔 (秒)"
-            value={settings.flushIntervalSec}
-            onChange={(v) => set('flushIntervalSec', Math.max(1, Math.round(v)))}
-          />
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <Toggle
-            label="即時圖表加畫內外翻(Varus/Valgus)曲線"
-            checked={settings.showKneeRoll}
-            onChange={(v) => set('showKneeRoll', v)}
-          />
-          <p className="field-hint" style={{ marginTop: 6 }}>
-            走右側獨立刻度(±20°),正 = 外翻 valgus、負 = 內翻 varus。
-            <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
-          </p>
-        </div>
+      <div style={{ marginTop: 16 }}>
+        <DemoModePanel />
       </div>
-
-      <div className="panel glass">
-        <h3 style={{ marginBottom: 14 }}>Appearance 外觀</h3>
-        <div className="field">
-          <label>風格設定檔</label>
-          <GlassDropdown
-            value={settings.styleProfileId}
-            onChange={(v) => set('styleProfileId', v)}
-            options={[
-              { value: SYSTEM_STYLE_PROFILE_ID, label: '跟隨系統 (System)' },
-              ...STYLE_PROFILES.map((p) => ({ value: p.id, label: p.name }))
-            ]}
-          />
-          <p className="field-hint" style={{ marginTop: 6 }}>
-            選擇固定風格會覆蓋系統深淺色設定,直到切回「跟隨系統」。
-          </p>
-        </div>
-      </div>
-
-      <DemoModePanel />
     </>
   )
 }
@@ -293,7 +277,7 @@ function DemoModePanel(): JSX.Element {
   return (
     <div className="panel glass">
       <h3 style={{ marginBottom: 14 }}>Demo Mode 示範模式</h3>
-      <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 12 }}>
+      <p className="text-text-muted text-sm mb-3">
         不需要硬體即可演練完整流程:即時量表、達標判定、超限警報、校準精靈、歷史與匯出。
         資料由模擬器產生並明確標記,不會被誤認為真實量測。
       </p>
@@ -334,7 +318,7 @@ function DemoModePanel(): JSX.Element {
         </p>
       )}
 
-      <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--border)' }} />
+      <hr className="my-4 border-0 border-t border-border" />
       <button className="btn btn-danger-ghost" disabled={busy} onClick={() => void purge()}>
         清除所有示範紀錄
       </button>

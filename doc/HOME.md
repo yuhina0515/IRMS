@@ -380,6 +380,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   三頁外殼與分段切換正確,並修掉截圖抓到的真實 bug(`BottomBar` 缺
   `position:relative` 導致滑動指示塊跑出容器撐滿螢幕)。Phase 4 剩餘:bento 卡片元件 +
   各頁 grid 排版,下一批繼續
+- **2026-09-02 UI 重建 Phase 4(二):Settings 頁 + 全域 logo 尺寸 bug**
+  ([[log_20260902_ui_redesign_phase4_settings_and_logo_fix|日誌]]):Settings 重建為
+  Calibration/General 雙欄 bento + Demo Mode 全寬,**移除 Appearance 面板**(新方向固定
+  深色主題,不再需要風格切換;底層 `applyStyleProfile.ts`/`styles/profiles/` 暫留待整批
+  清理)。補齊上一批漏掉的 `.glass-dropdown*` 樣式(全域通用元件,非 Appearance 死系統
+  一部分)。**發現並修復影響全部畫面的 bug**:`.logo-mark` 完全沒有尺寸限制,PNG 以原生
+  解析度撐滿頂列,吃光所有頁面可視內容空間——這其實是上一批就存在的缺陷,只是當時截圖
+  剛好只看到頂部。補回 `height:28px` 後重新截圖,所有頁面可視空間恢復正常。`npm run ci`
+  全綠
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
