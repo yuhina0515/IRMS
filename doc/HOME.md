@@ -370,6 +370,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   UI 層與桌面版 Electron+Tailwind 各自獨立(商業邏輯層 `services/` 純函式兩邊共用不受影響)。
   **手機作業排在桌面版 Phase 4 完成之後**才開始(Task #10 佔位追蹤,目前阻塞中)。純決策,
   無程式碼變更
+- **2026-09-02 UI 重建 Phase 4(一):基礎元件層 + 新導覽**
+  ([[log_20260902_ui_redesign_phase4_foundation_and_nav|日誌]]):`tailwind.css` 新增
+  `@layer components`,把舊 `global.css` 的 class 詞彙(panel/glass/btn/field/dialog/
+  toast/tabs...)用新深色/bento token 重新定義,多數畫面零改 JSX 就套新外觀;按鈕形狀
+  改直角(`rounded-control`),不再是 999px 膠囊。新建 `SegmentedControl`(重用
+  `useLiquidKnob` 定位邏輯)取代 `BottomBar`,渲染位置移到 `TopHeader` 下方;
+  `BottomBar.tsx`/`NavIcons.tsx` 確認無其他引用後刪除。`npm run ci` 全綠,截圖驗證
+  三頁外殼與分段切換正確,並修掉截圖抓到的真實 bug(`BottomBar` 缺
+  `position:relative` 導致滑動指示塊跑出容器撐滿螢幕)。Phase 4 剩餘:bento 卡片元件 +
+  各頁 grid 排版,下一批繼續
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

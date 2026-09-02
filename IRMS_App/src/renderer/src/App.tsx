@@ -4,7 +4,7 @@ import { useStore } from './store/useStore'
 import { useUiStore } from './store/useUiStore'
 import { applyStyleProfile } from './styles/applyStyleProfile'
 import { TopHeader } from './components/TopHeader'
-import { BottomBar } from './components/BottomBar'
+import { SegmentedControl } from './components/SegmentedControl'
 import { ToastHost } from './components/ToastHost'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorOverlay } from './components/ErrorOverlay'
@@ -89,6 +89,9 @@ export default function App(): JSX.Element {
 
       <div className="app">
         <TopHeader />
+        <div className="segmented-row">
+          <SegmentedControl />
+        </div>
         <main className="main">
           {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
           <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
@@ -98,7 +101,6 @@ export default function App(): JSX.Element {
             {view === 'settings' && <SettingsView />}
           </ErrorBoundary>
         </main>
-        <BottomBar />
       </div>
 
       <ToastHost />

@@ -1,7 +1,283 @@
 /* renderer/styles/tailwind.css — replaces global.css as the app's stylesheet entry point.
    The old hand-rolled Liquid Glass design system (global.css + styles/profiles/) is archived on
-   the `legacy-ui-liquid-glass` branch / `ui-v1-liquid-glass-archive` tag, not deleted — this file
-   starts the rebuild from a blank Tailwind base instead of layering on top of the old tokens. */
+   the `legacy-ui-liquid-glass` branch / `ui-v1-liquid-glass-archive` tag, not deleted.
+
+   Phase 4 strategy: redefine the SAME class vocabulary most view/component files already use
+   (.panel, .btn, .field, .dialog, .toast, .tabs...) as Tailwind component classes built on the
+   new dark/bento tokens (tailwind.config.js), instead of touching every call site. This gets the
+   whole app to the new look immediately; only the classes that need to change SHAPE, not just
+   skin (nav → SegmentedControl, per-view grid layout), get bespoke JSX work. See
+   doc/UI_REDESIGN.md for the layout blueprint and ROADMAP.md D5 for why no Apple/glass language. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas text-text;
+  }
+}
+
+@layer components {
+  /* ── shell ── */
+  .app {
+    @apply flex flex-col h-screen gap-4 p-4;
+  }
+  .main {
+    @apply flex-1 overflow-y-auto pr-1;
+  }
+  .segmented-row {
+    @apply flex;
+  }
+
+  /* ── layout helpers ── */
+  .row {
+    @apply flex items-center gap-2.5;
+  }
+  /* raw CSS, not @apply — .grid colliding with Tailwind's own `grid` utility name would
+     otherwise create a circular @apply dependency */
+  .grid {
+    display: grid;
+    gap: 1rem;
+  }
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .page-header {
+    @apply mb-4;
+  }
+  .page-header h2 {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  .page-header p {
+    @apply text-text-muted text-sm;
+  }
+
+  /* ── surfaces (was "glass", now a flat dark data-console card) ── */
+  .panel,
+  .glass {
+    @apply bg-surface border border-border rounded-card p-[18px];
+  }
+  .glass-elevated {
+    @apply bg-surface-raised shadow-floating;
+  }
+  /* .glass-warp was the SVG liquid-distortion filter hook — no equivalent in this direction,
+     kept as a harmless no-op selector so call sites using it don't need to be touched. */
+
+  .top-header {
+    @apply bg-surface border-b border-border flex items-center justify-between px-5 py-3;
+  }
+  .top-header .logo {
+    @apply flex items-center gap-2;
+  }
+  .top-header .logo h1 {
+    @apply text-lg font-bold;
+  }
+  .top-header .logo span {
+    @apply text-accent;
+  }
+  .top-header .conn {
+    @apply flex items-center gap-2 text-sm text-text-muted;
+  }
+
+  .dot {
+    @apply w-2.5 h-2.5 rounded-full bg-danger;
+  }
+  .dot.on {
+    @apply bg-success;
+  }
+  .dot.retrying {
+    @apply bg-warning;
+  }
+
+  /* ── buttons — rectangular (rounded-control), not pill: this direction dropped the
+     Apple-capsule language on purpose (ROADMAP D5 / the Bento+data-console brief) ── */
+  button.btn {
+    @apply border-none rounded-control px-[18px] py-2.5 font-semibold cursor-pointer text-canvas
+      transition-[transform,opacity,filter] duration-150;
+  }
+  button.btn:hover {
+    @apply brightness-110;
+  }
+  button.btn:active {
+    @apply scale-[0.98] brightness-90;
+  }
+  button.btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-accent;
+  }
+  .btn-danger {
+    @apply bg-danger;
+  }
+  button.btn-danger-ghost {
+    @apply bg-transparent text-danger border border-danger/50;
+  }
+  button.btn-danger-ghost:hover {
+    @apply bg-danger/10;
+  }
+  .btn-secondary {
+    @apply bg-surface-raised text-text border border-border;
+  }
+  .btn-success {
+    @apply bg-success;
+  }
+  .btn-sm {
+    @apply px-[11px] py-1.5 text-[0.82rem];
+  }
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* ── forms ── */
+  .field {
+    @apply flex flex-col gap-1.5 mb-3.5;
+  }
+  .field label {
+    @apply text-[0.82rem] text-text-muted font-medium;
+  }
+  .field-hint {
+    @apply text-[0.82rem] text-text-muted;
+  }
+  input,
+  select {
+    @apply bg-surface-raised border border-border rounded-control px-3 py-2.5 text-text outline-none
+      transition-[border-color,box-shadow] duration-150;
+  }
+  input::placeholder {
+    @apply text-text-muted opacity-100;
+  }
+  input:focus,
+  select:focus {
+    @apply border-accent shadow-[0_0_0_3px_rgba(34,211,238,0.22)];
+  }
+
+  /* ── overlay / dialog (ConfirmDialog etc.) ── */
+  .overlay {
+    @apply fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[1100];
+  }
+  .dialog {
+    @apply w-[min(440px,92vw)] p-[22px];
+  }
+  .dialog h3 {
+    @apply mb-2.5;
+  }
+  .dialog p {
+    @apply text-text-muted mb-4;
+  }
+  .dialog .actions {
+    @apply flex justify-end gap-2.5;
+  }
+
+  /* ── toast ── */
+  .toast-host {
+    @apply fixed top-[18px] right-[18px] flex flex-col gap-2.5 z-[1000];
+  }
+  .toast {
+    @apply flex items-center gap-2.5 min-w-[240px] px-3.5 py-3 rounded-control bg-surface-raised
+      border border-border border-l-4 border-l-accent shadow-floating;
+  }
+  .toast.success {
+    @apply border-l-success;
+  }
+  .toast.error {
+    @apply border-l-danger;
+  }
+  .toast.warning {
+    @apply border-l-warning;
+  }
+
+  /* ── internal tab switcher (kept for Dashboard's secondary-visualization card,
+     see doc/UI_REDESIGN.md — same interaction pattern, re-skinned) ── */
+  .tabs {
+    @apply relative inline-flex gap-0.5 mb-3.5 p-[3px] rounded-control bg-surface-raised;
+  }
+  .tab-btn {
+    @apply relative z-[1] border-none bg-transparent text-text-muted text-[0.88rem] font-medium
+      px-4 py-1.5 rounded-control cursor-pointer transition-colors duration-150;
+  }
+  .tab-btn:hover {
+    @apply text-text;
+  }
+  .tab-btn.active {
+    @apply text-canvas;
+  }
+
+  /* ── segmented control (NEW — replaces BottomBar, see doc/UI_REDESIGN.md shell) ── */
+  .segmented {
+    @apply relative inline-flex gap-0.5 p-[3px] rounded-control bg-surface border border-border;
+  }
+  .segmented-item {
+    @apply relative z-[1] border-none bg-transparent text-text-muted text-sm font-medium
+      px-4 py-2 rounded-control cursor-pointer transition-colors duration-150 whitespace-nowrap;
+  }
+  .segmented-item:hover {
+    @apply text-text;
+  }
+  .segmented-item.active {
+    @apply text-canvas;
+  }
+
+  /* ── sliding indicator (useLiquidKnob — positioning/drag-physics hook reused as-is;
+     only the shape's skin changes here: rectangular accent block, not a soft glass pill,
+     and the gooey SVG distortion filter is dropped, not carried into this direction) ── */
+  .liquid-knob-track {
+    @apply absolute z-0 pointer-events-none;
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+      height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .liquid-knob-track.dragging {
+    transition: none;
+  }
+  .liquid-knob-track.horizontal {
+    @apply top-0 bottom-0 left-0;
+  }
+  .liquid-knob-track.vertical {
+    @apply left-0 right-0 top-0;
+  }
+  .liquid-knob-shape {
+    @apply w-full h-full rounded-control bg-accent;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .liquid-knob-track.dragging .liquid-knob-shape {
+    transition: none;
+  }
+  .liquid-knob-track.horizontal .liquid-knob-shape.morph {
+    animation: knob-stretch-x 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .liquid-knob-track.vertical .liquid-knob-shape.morph {
+    animation: knob-stretch-y 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+}
+
+@keyframes knob-stretch-x {
+  0% {
+    transform: scaleX(1);
+  }
+  40% {
+    transform: scaleX(1.08);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes knob-stretch-y {
+  0% {
+    transform: scaleY(1);
+  }
+  40% {
+    transform: scaleY(1.08);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liquid-knob-track {
+    transition: none;
+  }
+  .liquid-knob-shape.morph {
+    animation: none;
+  }
+}
