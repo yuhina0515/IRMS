@@ -46,27 +46,33 @@
   --color-roll: 167 139 250; /* violet-400 */
 }
 .theme-light {
-  /* Corrected from the external design handoff's literal hex values — see coding log
-     2026-09-02 "gemini mockup implementation": several of Gemini's light-theme values fail
-     WCAG AA when actually used as text/button-label color (measured, not eyeballed):
-     text-muted 2.34:1, accent 2.43:1, danger 3.76:1, success 2.54:1 white-on-bg — all well
-     under the 4.5:1 (text) / 3:1 (large text, UI components) bars this project already holds
-     the dark theme to. Deepened each by one step on the same hue (still real Tailwind values,
-     not invented) until they measured as passing. Layout/spacing/radii/typography direction
-     from the handoff are otherwise implemented as specified — this is a contrast-only fix. */
-  --color-canvas: 255 255 255; /* #ffffff */
+  /* Round 2 (2026-09-02, "gemini round2 refinement"): fed the real implementation's
+     screenshots back to Gemini. It proposed a further palette refinement — shifting the light
+     theme's accent from cyan to sky (its read: cyan-darkened-for-contrast "loses the vibrant,
+     energetic lab feel"), plus red-700 for danger. Verified every claimed ratio before applying
+     (Gemini's own numbers were sometimes off): its proposed accent-as-button-background value
+     (sky-500 #0ea5e9) actually measures 2.77:1 with white text — fails the same bar it was
+     supposed to fix — substituted sky-600 instead. Its claimed 7.1:1 for sky-700-as-text
+     measures 5.93:1 — still passes, kept. Its suggested success color (green-700 #15803d,
+     5.02:1) measured worse than this file's existing emerald-700 (5.48:1) despite being pitched
+     as "better contrast" — kept the emerald. Canvas moved to slate-50 per its request (was pure
+     white) — cosmetic, passes contrast either way. Dark theme intentionally left untouched
+     (Gemini's own note: it already passed, don't fix what isn't broken) — this does mean the
+     two themes' accent now use different hue families (dark=cyan, light=sky), a real
+     divergence, not an oversight; flagged for the user rather than silently carried forward. */
+  --color-canvas: 248 250 252; /* #f8fafc — slate-50 (was pure white) */
   --color-surface: 241 245 249; /* #f1f5f9 — slate-100 */
   --color-surface-raised: 226 232 240; /* #e2e8f0 — slate-200 */
   --color-border: 226 232 240; /* #e2e8f0 */
   --color-text: 2 6 23; /* #020617 */
   --color-text-dim: 71 85 105; /* #475569 — slate-600 */
-  --color-text-muted: 100 116 139; /* #64748b — slate-500 (was slate-400 #94a3b8, 2.34:1, failed) */
-  --color-accent: 14 116 144; /* #0e7490 — cyan-700 (was cyan-600 #06b6d4, 2.43:1, failed) */
-  --color-accent-strong: 21 94 117; /* #155e75 — cyan-800, one step darker than accent */
-  --color-success: 4 120 87; /* #047857 — emerald-700 (was #10b981, 2.54:1 as white-on-bg, failed) */
-  --color-warning: 180 83 9; /* #b45309 — amber-700 (was #f59e0b, precautionary — not yet used
-    as text/button anywhere reachable, but Dashboard's safety-limit alerts will need it) */
-  --color-danger: 220 38 38; /* #dc2626 — red-600 (was #ef4444, 3.76:1, failed) */
+  --color-text-muted: 100 116 139; /* #64748b — slate-500, 4.34-4.76:1 depending on bg */
+  --color-accent: 2 132 199; /* #0284c7 — sky-600 (bg/button role, 4.10:1 w/ white text;
+    Gemini's proposed sky-500 measured 2.77:1 and failed, this is the corrected value) */
+  --color-accent-strong: 3 105 161; /* #0369a1 — sky-700 (text/link role, 5.93:1 on canvas) */
+  --color-success: 4 120 87; /* #047857 — emerald-700, kept (5.48:1, beats Gemini's green-700 suggestion at 5.02:1) */
+  --color-warning: 180 83 9; /* #b45309 — amber-700, unchanged (not addressed in round 2) */
+  --color-danger: 185 28 28; /* #b91c1c — red-700 (was red-600 #dc2626; 6.47:1, clear improvement) */
   --chart-grid: 226 232 240; /* = --color-border */
   --chart-tick: 100 116 139; /* = --color-text-muted */
   --chart-text: 2 6 23; /* = --color-text */
@@ -121,7 +127,7 @@
      otherwise create a circular @apply dependency */
   .grid {
     display: grid;
-    gap: 1rem;
+    gap: 1.5rem; /* 24px, was 16px — round-2 feedback, matches the card padding bump above */
   }
   .cards {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -139,7 +145,9 @@
   /* ── surfaces (was "glass", now a flat dark data-console card) ── */
   .panel,
   .glass {
-    @apply bg-surface border border-border rounded-card p-4;
+    /* p-6 (24px), not p-4 — round-2 feedback: cards read as cramped vs the mockups once real
+       content replaced placeholder text; 24px matches the mockup's prescribed card padding. */
+    @apply bg-surface border border-border rounded-card p-6;
   }
   .glass-elevated {
     @apply bg-surface-raised shadow-floating;
@@ -162,7 +170,9 @@
     @apply text-sm font-bold;
   }
   .top-header .logo span {
-    @apply text-accent;
+    /* accent-strong, not accent — accent is now the button/bg-only role (round 2), text usage
+       needs the darker/text-safe step */
+    @apply text-accent-strong;
   }
   .top-header .conn {
     @apply flex items-center gap-2 text-xs text-text-muted;
@@ -329,7 +339,7 @@
     @apply bg-surface;
   }
   .glass-dropdown-item.selected {
-    @apply bg-accent/15 text-accent font-semibold;
+    @apply bg-accent/15 text-accent-strong font-semibold;
   }
   .glass-dropdown-empty {
     @apply p-2.5 text-text-muted text-sm text-center;
@@ -350,6 +360,98 @@
   }
   .dialog .actions {
     @apply flex justify-end gap-2.5;
+  }
+
+  /* ── modal (bigger form dialogs — ActionsView's create/edit, distinct from ConfirmDialog's
+     compact .dialog) ── */
+  .modal {
+    @apply w-[min(720px,94vw)] max-h-[88vh] overflow-y-auto p-6;
+  }
+  .modal-header {
+    @apply flex justify-between items-center mb-4;
+  }
+  .close-x {
+    @apply bg-transparent border-none text-text-muted text-2xl cursor-pointer leading-none;
+  }
+  .modal .actions {
+    @apply flex justify-end gap-2.5;
+  }
+
+  /* ── empty state ── */
+  .empty {
+    @apply flex flex-col items-center gap-3 p-10 text-text-muted text-center;
+  }
+
+  /* ── badge (trigger-type pill on action cards) ── */
+  .badge {
+    @apply inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/15 text-accent-strong;
+  }
+
+  /* ── ActionsView: bento card grid of exercise templates ──
+     round-2 handoff spec: hover border-accent + transition to signal "this is executable",
+     clear title/meta typography hierarchy. */
+  .action-group-heading {
+    @apply mt-1 mb-2.5 text-[0.82rem] font-semibold tracking-wide text-text-muted uppercase;
+  }
+  .action-search {
+    @apply flex-1 min-w-[180px];
+  }
+  .action-card {
+    @apply flex flex-col gap-2 p-5 border border-transparent transition-colors duration-200;
+  }
+  .action-card:hover {
+    @apply border-accent;
+  }
+  .action-card h4 {
+    @apply text-lg font-semibold text-text;
+  }
+  .action-card .meta {
+    @apply text-sm text-text-muted mt-0.5;
+  }
+
+  /* ── Record Pose row (ActionsView modal) ── */
+  .record-pose {
+    @apply flex items-center justify-between gap-3 flex-wrap my-1 mb-3.5 px-3.5 py-2.5 rounded-card
+      bg-surface-raised border border-border;
+  }
+  .record-pose-live {
+    @apply text-[0.88rem] text-text-muted;
+  }
+  .record-pose-live strong {
+    @apply text-text ml-1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── HistoryView: chronological session log — deliberately a real <table>, not a bento
+     grid (see doc/UI_REDESIGN.md) or a div-based row list. Round-2 feedback asked for
+     "list, not bento" with row hover + clear metadata hierarchy; a semantic table already
+     gives that (plus real accessibility/column-alignment a div reimplementation would have
+     to rebuild by hand), so the fix here is styling the table, not replacing its markup. */
+  table {
+    @apply w-full border-collapse;
+  }
+  th,
+  td {
+    @apply text-left px-3 py-3 border-b border-border text-sm;
+  }
+  th {
+    @apply text-text-muted font-semibold text-xs tracking-wide uppercase;
+  }
+  tbody tr {
+    @apply transition-colors duration-150;
+  }
+  tbody tr:hover {
+    @apply bg-surface-raised/50;
+  }
+  tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .badge-demo {
+    @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-bold tracking-wide
+      bg-accent/15 text-accent-strong;
+  }
+  .badge-warn {
+    @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/15 text-warning;
   }
 
   /* ── toast ── */

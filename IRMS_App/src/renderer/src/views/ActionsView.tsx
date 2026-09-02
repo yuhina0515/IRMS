@@ -219,26 +219,26 @@ export function ActionsView(): JSX.Element {
             <div className="grid cards">
               {group.actions.map((a) => (
                 <div key={a.id} className="action-card glass">
-              <h4>{a.name}</h4>
-              <span className="badge">{a.triggerType}</span>
-              <div className="meta">
-                Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
-              </div>
-              <div className="meta">
-                安全上限{' '}
-                {a.safetyLimit != null
-                  ? `${a.safetyLimit}°`
-                  : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
-              </div>
-              {a.description && <div className="meta">{a.description}</div>}
-              <div className="row" style={{ marginTop: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
-                  Edit
-                </button>
-                <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(a)}>
-                  Delete
-                </button>
-              </div>
+                  <h4>{a.name}</h4>
+                  <span className="badge">{triggerLabel(a.triggerType)}</span>
+                  <div className="meta">
+                    Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
+                  </div>
+                  <div className="meta">
+                    安全上限{' '}
+                    {a.safetyLimit != null
+                      ? `${a.safetyLimit}°`
+                      : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
+                  </div>
+                  {a.description && <div className="meta">{a.description}</div>}
+                  <div className="row" style={{ marginTop: 8 }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
+                      Edit
+                    </button>
+                    <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(a)}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

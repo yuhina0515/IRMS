@@ -423,6 +423,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `PROMPT.md`,誠實列出 5 個因 WCAG 對比度修正而偏離原規格的顏色數值,請 Gemini 評判
   修正是否得當、並針對 Actions/History/Dashboard 剩餘區塊給下一步規格。純文件產出,
   等使用者帶回第二輪回饋
+- **2026-09-02 Gemini 第二輪回饋實作**([[log_20260902_gemini_round2_implementation|日誌]]):
+  逐項查證 Gemini 的對比度聲明(同一套紀律套在它自己身上)——它建議的淺色 accent 按鈕底色
+  sky-500 實測 2.77:1 不過關,改用 sky-600;它說 green-700 比現有 emerald-700 對比度好,
+  實測相反,**保留原值**。採用:accent 拆成 `accent`(背景)/`accent-strong`(文字)兩角色、
+  淺色主題 accent 改 sky 色系(深色刻意不動,兩主題從此不同色系)、danger 加深一階、
+  卡片內距與格線間距 16px→24px。**重建 Actions**(bento 卡片 + hover 邊框,順手修
+  badge 顯示原始識別字而非人類標籤的缺陷)與 **History**(維持語意 `<table>` 不改 div 列表,
+  同樣視覺效果但保留無障礙語意)。**刻意不做** Gemini「拿掉頂部 SegmentedControl」的建議
+  ——牴觸使用者上一輪明確裁定的雙層導覽,留給使用者重新確認。`npm run ci` 全綠,雙主題
+  截圖驗證通過。Dashboard 即時資料區(最大最複雜的剩餘部分)留給下一輪獨立處理
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

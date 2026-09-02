@@ -194,7 +194,7 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             「這條曲線能不能跟別場比」,這一條回答「這條曲線是不是真的量到的」。
             後者一旦被前者的分支蓋掉,一張模擬資料的圖就會看起來完全像病歷。 */}
         {session.source === 'demo' && (
-          <p className="field-hint" style={{ marginTop: 10, color: 'var(--warning)' }}>
+          <p className="field-hint text-warning" style={{ marginTop: 10 }}>
             ⚠ 這是示範模式產生的模擬資料,不是真實量測,不可作為臨床判讀依據。
           </p>
         )}
@@ -203,13 +203,13 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             這場沒有校準快照(建立於本功能之前),無法確認它與目前設定是否為同一組轉換。
           </p>
         ) : drift.length > 0 ? (
-          <p className="field-hint" style={{ marginTop: 10, color: 'var(--warning)' }}>
+          <p className="field-hint text-warning" style={{ marginTop: 10 }}>
             ⚠ 這場的校準與目前設定不同({drift.join('、')}),曲線的零點或正負方向可能
             與現在不一致,請勿與近期紀錄直接比較。
           </p>
         ) : null}
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-dim)' }}>
+          <span className="text-text-dim">
             {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps
           </span>
           <button className="btn btn-secondary" onClick={() => void exportCsv()} disabled={readings.length === 0}>

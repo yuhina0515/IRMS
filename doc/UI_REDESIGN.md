@@ -58,6 +58,27 @@ narrow-viewport-first layout (segmented control instead of a bottom bar reads fi
 a bottom bar would have needed a native tab-bar equivalent anyway). That's a happy accident, not a
 substitute for actual mobile interaction design — see that section for what's still open.
 
+## Round 2 (2026-09-02) — real-implementation feedback loop
+
+Fed real screenshots (not mockups) back to Gemini for critique. Landed:
+- **Card padding 16px→24px, grid gaps 16px→24px** — round 1's cards read as cramped once real
+  content replaced mockup placeholder text.
+- **Light-theme accent shifted from cyan to sky** (`#0284c7`/`#0369a1`, bg/text roles) — Gemini's
+  read was that the round-1 WCAG-darkened cyan (`#0e7490`) lost the "vibrant lab" mood. Verified
+  Gemini's own proposed fix before applying it: its suggested button-bg value (sky-500 `#0ea5e9`)
+  actually measured 2.77:1 with white text and failed the same bar it was meant to fix —
+  substituted sky-600 (`#0284c7`, 4.10:1) instead. **Dark theme's accent stays cyan** (Gemini's
+  own call, "don't fix what already passed") — the two themes now use different accent hue
+  families, a real divergence, not an oversight.
+- **`accent` split into two roles**: `accent` = background/button only, `accent-strong` = text/
+  link (needs the darker step to stay readable as text on its own). Every `text-accent` call site
+  updated to `text-accent-strong`.
+- **danger deepened** red-600→red-700 (`#b91c1c`, 6.47:1) — Gemini's suggestion, verified better
+  than round 1's fix.
+- **success kept as-is** (emerald-700) — Gemini suggested green-700 as "better contrast," measured
+  it and it's actually worse (5.02:1 vs emerald-700's 5.48:1); kept the existing value.
+- **Canvas** dark→pure-white shifted to slate-50 (`#f8fafc`) per request, cosmetic.
+
 ## Dashboard — highest density, 25Hz live data
 
 Not everything gets exploded into separate always-visible bento cells — the secondary
@@ -77,7 +98,7 @@ narrow viewports for content only one of which is useful at a time.
 └─────────────────────────────────────────────────────┘
 ```
 
-## Actions — browse/select
+## Actions — browse/select (rebuilt 2026-09-02)
 
 ```
 ┌────────────────────────────────────────────────────┐
@@ -87,11 +108,23 @@ narrow viewports for content only one of which is useful at a time.
 └───────────┴───────────┴───────────┴──────────────────┘     column count responsive
 ```
 
-## History — deliberately NOT bento
+Cards get a hover state (`border-accent` + color transition) per round-2 feedback — signals
+"this is an executable template," not just a static info card. Deliberately did **not** add a
+Gemini-suggested "Start" button per card — that's a new feature (jump straight to Dashboard with
+this action pre-selected), not a restyle of what exists; noted for a future ask, not implemented
+speculatively.
+
+## History — deliberately NOT bento (rebuilt 2026-09-02)
 
 A chronological session log reads as a list, not independent cards — forcing it into bento grid
 would be applying the archetype where the content shape doesn't fit it. Keep a row-based list;
 selecting a row opens the existing analysis modal.
+
+Round-2 feedback agreed with this call and asked for a div-based row list; implemented as a
+**styled semantic `<table>` instead** — same visual outcome (hover background shift, clear
+metadata hierarchy) with real column alignment and table accessibility semantics a hand-rolled div
+grid would have to reimplement. A deliberate deviation from the literal suggested markup, not the
+visual intent.
 
 ```
 ┌────────────────────────────────────────────────────┐

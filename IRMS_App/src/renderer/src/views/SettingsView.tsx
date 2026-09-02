@@ -214,7 +214,7 @@ export function SettingsView(): JSX.Element {
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 24 }}>
         <DemoModePanel />
       </div>
     </>
