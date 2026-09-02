@@ -391,7 +391,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   全綠
 - **2026-09-02 TopHeader 收緊尺寸**([[log_20260902_ui_redesign_compact_header|日誌]]):
   使用者反饋頂列偏大,收緊 logo/標題/連線文字/內距,header 內按鈕另開專屬尺寸(不動全域
-  `.btn`)。截圖確認頂列明顯收緊、SegmentedControl 與內容不受影響
+  `.btn`);同日追加「左右縮」,`.app`/`.top-header` 水平內距一併收緊
+- **⚠ 2026-09-02 轉向外部設計支援**([[log_20260902_design_handoff_pivot|日誌]]):
+  使用者回饋 Phase 4 進度「太醜了,不管是UI設計還是色彩」,根因是色票雖錨定 Tailwind
+  官方調色盤真實值,但排版節奏/視覺層次/整體組合從未對照真正做得好的設計實例。使用者
+  選定「改用專門 AI 設計工具出 mockup,我對照忠實實作」,比照 08-20 已有慣例建立
+  `doc/gemini-handoff-20260902/`(4 張現況截圖 + README,明確劃出已定調範圍〔不用 Apple
+  語系/固定深色/bento 方向/單頁殼〕與待外部設計判斷範圍〔排版節奏/色彩組合〕)。
+  **Phase 4 剩餘(Actions/History/Dashboard)與 Phase 5 暫停,等使用者帶回外部設計產出
+  後再繼續**,不在拿到新方向前繼續憑自己判斷往下蓋
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
