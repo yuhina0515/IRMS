@@ -21,11 +21,17 @@ summary: "使用者反饋頂部 TopHeader 偏大,收緊尺寸:logo 28px→20px�
 (`px-3 py-1.5 text-sm`),**不改動全域 `.btn`**——頂列需要更緊湊,不代表其他頁面內容區的
 按鈕也該跟著縮小。
 
+**追加(同日)**:使用者接著回饋「左右縮」——比照垂直軸的收緊邏輯套用到水平軸:
+`.app` 外距 `p-4`(四邊 16px)拆開,水平收到 `px-3`、垂直維持 `py-4`;`.top-header`
+內距 `px-4→px-3`。整個外殼(頂列 + SegmentedControl + 內容區,三者都在 `.app` 的
+padding 範圍內)左右邊距一起收緊,不是只動 header 一處。
+
 ## ✅ 驗證
 
 - [x] `npm run ci`:typecheck、**284 tests**、build 全綠
 - [x] 隔離啟動 + 截圖比對:頂列明顯收緊,`SegmentedControl` 與下方內容未受影響(只動了
       使用者指名的「上面的 bar」,範圍沒有溢出)
+- [x] 「左右縮」後重新截圖:整個外殼左右邊距一起變窄,`npm run ci` 全綠
 
 ## 🔎 自我審查
 
