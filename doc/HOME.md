@@ -417,6 +417,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `.btn-danger-ghost` 已有的 `button.` 前綴慣例。`npm run ci` 全綠,雙主題+側欄截圖驗證
   通過。⚠ `Leg3D.tsx`(3D 視圖)的舊版 CSS 變數讀取尚未修(teardown 以來就存在的既有缺陷,
   留給 Dashboard 重建時處理)。Phase 4 剩餘:Actions/History/Dashboard 依新規範繼續重建
+- **2026-09-02 Gemini 第二輪回饋套件**([[log_20260902_gemini_round2_feedback_package|日誌]]):
+  把真實實作結果(非 mockup)回報給 Gemini。`doc/gemini-handoff-20260902/round2/` 新增
+  6 張真實 app 截圖(深/淺 Dashboard/Settings + 深色 Actions/History 標明未重建)+
+  `PROMPT.md`,誠實列出 5 個因 WCAG 對比度修正而偏離原規格的顏色數值,請 Gemini 評判
+  修正是否得當、並針對 Actions/History/Dashboard 剩餘區塊給下一步規格。純文件產出,
+  等使用者帶回第二輪回饋
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的
