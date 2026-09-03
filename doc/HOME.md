@@ -462,6 +462,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   傾斜動作,roll-invert(外展)的「外側」依 README §2.1 需要穿戴者身體中線這個離體裝置沒有的
   參照物,是範疇錯誤而非精度問題。最初主張建造的與會者讀了韌體原始碼後當場完全讓步。不進
   backlog;唯一窄範圍可能性(韌體軸線接線的開發者診斷)建議直接沿用既有 Serial 遙測,不需新 UI
+- **2026-09-03 UI 重建 Phase 5:文件/死碼整頓**([[log_20260903_ui_rebuild_phase5_doc_sync|日誌]]):
+  Phase 4 完成後,`PROJECT_STATUS.md`/`OPTIMIZATION.md`/`UI_REDESIGN.md` 三份核心文件仍描述
+  已拆除的 Apple Liquid Glass/Appearance 風格設定檔系統(決策 D2:程式為準,修文件)。
+  刪除確認未被引用的死檔 `styles/global.css`,修正 `GlassDropdown.tsx`/`LiquidKnob.tsx`
+  指向它的過時註解;`PROJECT_STATUS.md` 外觀/檔案清單段落改寫為現行 Tailwind 雙主題/
+  bento/側欄導覽現況並修正一併發現的韌體「待燒錄」舊敘述;`OPTIMIZATION.md` 風格設定檔
+  項標記為「非否決、被整批取代」保留歷史;`UI_REDESIGN.md`(living blueprint)修正與
+  Phase 3 修訂版矛盾的 Phase 1 雙層導覽敘述,「Open for Phase 4」章節改為 Phase 4 完成
+  + Phase 5 現況。`npm run ci`(284 tests)全綠,證實死檔刪除未破壞建置。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

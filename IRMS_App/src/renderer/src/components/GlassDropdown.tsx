@@ -1,7 +1,7 @@
 // renderer/components/GlassDropdown.tsx
 // 自訂下拉選單:取代原生 <select>,點擊觸發(非 hover)彈出玻璃選單面板,
 // 開啟時由小長大、關閉時由大縮小(dropdown-grow/dropdown-shrink keyframes,
-// 詳見 global.css)—— 縮小動畫播完才真正卸載 DOM,而非關閉瞬間直接消失。
+// 詳見 tailwind.css)—— 縮小動畫播完才真正卸載 DOM,而非關閉瞬間直接消失。
 //
 // 選單面板以 createPortal 掛到 document.body、用量測出來的座標 position:fixed 定位,
 // 不能像一般 dropdown 一樣單純 position:absolute 掛在觸發按鈕底下:任何祖先只要有

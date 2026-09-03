@@ -126,10 +126,15 @@
 
 ### 🟢 P2 — 使用者體驗
 - [x] ~~淺色主題(目前僅深色)~~:**已於 2026-07-12 完成**——雙主題跟隨系統(Apple Liquid Glass token 架構)。
-- [x] 外觀風格設定檔系統:**已於 2026-08-31 完成**——把上述雙主題重構為 `styles/profiles/`
+      ⚠ **2026-09-01 UI 全面重建取代**:整套 Apple Liquid Glass 系統(含此項)已拆除,見下。
+- [x] ~~外觀風格設定檔系統~~:**已於 2026-08-31 完成**,把上述雙主題重構為 `styles/profiles/`
       底下的兩個自足 `StyleProfile`(見 [[log_20260831_style_profile_system|日誌]]),
-      Settings 新增 Appearance 面板可選固定風格覆蓋系統深淺色;基建可直接加新設定檔
-      擴充,本次未新增額外美術風格(依專案規則 #3,使用者只要求建系統)。
+      Settings 新增 Appearance 面板可選固定風格覆蓋系統深淺色。**⚠ 2026-09-01 移除**:
+      使用者裁定推掉整個手刻 Liquid Glass UI 重來(非會議否決,是被整批取代),
+      Appearance 面板與 `applyStyleProfile.ts`/`styles/profiles/` 隨之退場,新 UI
+      改採 Tailwind CSS variable 雙主題(`applyThemeMode`,見 [[log_20260901_ui_teardown_start|
+      拆除日誌]] 與 09-02 Gemini mockup 實作日誌)。保留本項紀錄避免「加設定檔切換」
+      的提案未來被當成全新點子重新提出——它已經做過又被整批換掉,不是沒人想到。
 - [x] 圖表可切換顯示 Roll(內外翻)曲線。(2026-08-27)走**獨立右側 y 軸**——帶符號且量級
       只有矢狀面的十分之一,共用刻度會被壓成貼底直線,看起來像「沒有變化」。
       新增 `Settings` 欄位一併把 persist version 4→5(`migrate` 只在版本落後時才會跑,

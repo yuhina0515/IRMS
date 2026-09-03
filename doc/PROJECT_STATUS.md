@@ -4,8 +4,8 @@
 
 ## 📅 更新日期
 
-**2026-08-29**(v1.0.2–v1.0.4 三次發布 + issue #3 校準子項完成 + 校準自動化評估會議;
-上一次全面更新為 2026-08-12)
+**2026-09-03**(UI 重建 Phase 4 完成 + Phase 5 文件/死碼整頓;上一次全面更新為 2026-08-29,
+硬體相關內容自該版起未變)
 
 > 本檔提供**階段性總覽**。逐次變更的細節在 [[HOME|doc/HOME.md]] 的「目前狀態速記」與
 > [`doc/coding log/`](coding%20log/);待辦與階段順序在 [[ROADMAP]] 與 [[OPTIMIZATION]]。
@@ -23,9 +23,12 @@
 
 | 項目 | 狀態 |
 |---|---|
-| 應用端版本 | **v1.0.5**(已發布 NSIS 安裝檔,未簽章)——新增 Settings > Appearance 外觀風格設定檔;
-  v1.0.2 發布後 40 分鐘內連兩次 hotfix(v1.0.3 單例鎖、v1.0.4 RDP titleBarOverlay 卡死),
-  詳見 08-28 三份 hotfix 日誌與 [[log_20260901_v1.0.5_release\|09-01 發布日誌]] |
+| 應用端版本 | **v1.0.5**(已發布 NSIS 安裝檔,未簽章;v1.0.2 發布後 40 分鐘內連兩次 hotfix
+  ——v1.0.3 單例鎖、v1.0.4 RDP titleBarOverlay 卡死,詳見 08-28 三份 hotfix 日誌與
+  [[log_20260901_v1.0.5_release\|09-01 發布日誌]])。⚠ **`main` 現況已領先此版**:
+  09-01→09-02 整套 UI 從 Liquid Glass 重建為 Tailwind 深/淺雙主題 + bento + 側欄導覽
+  (見下方外觀說明),含 v1.0.5 才新增的 Appearance 風格設定檔在內都已隨重建移除;
+  尚未包成新安裝檔發布 |
 | 自動化測試 | **284 tests / 26 files 全綠**(雙 project:node 純邏輯 + dom 元件);`npm run ci` = typecheck + test + build |
 | DB schema | `user_version = 7`(遞增式 migration),真實預設 profile 已驗證乾淨套用(0 筆 session/sensor_data 殘留) |
 | 無硬體演練 | **已建立**(2026-08-27):單一 `ingest(text)` 注入接縫 + 模擬器 + 出貨版示範模式,整條「封包 → 判定 → 回饋/警報 → DB」可在桌前完整演練 |
@@ -68,10 +71,15 @@
   主進程 LTTB 抽樣至 1200 點(保留峰值)、安全線用當場生效的 `safetyLimit`、CSV 匯出 6 軸。
 - **健全性**:ErrorBoundary 包裹各視圖、ERR 紅色遮罩(凍結畫面 + 暫停寫入)+ 逃生出口、
   `escapeStack` 巢狀 modal Esc 分派、UI 以 80ms 尾緣節流(判定與 DB 仍全速)。
-- **外觀**:Apple 語意 token 雙主題預設跟隨系統、Liquid Glass 材質、無邊框視窗
-  (`titleBarStyle:'hidden'` + `titleBarOverlay`,頂列 inset 走 `env(titlebar-area-*)`)。
-  2026-08-31 起可在 Settings 選固定風格設定檔覆蓋系統深淺色(`styles/profiles/`,
-  見 [[log_20260831_style_profile_system|日誌]]),目前僅淺/深兩份。
+- **外觀**(2026-09-01→09-02 全面重建,取代舊版 Apple Liquid Glass 系統):Tailwind
+  CSS variable 雙主題(深色 Data-Console / 淺色 Precision Lab,兩者色相刻意不同、皆通過
+  WCAG AA)、bento grid 卡片排版、側邊欄為唯一主導覽(頂部 SegmentedControl 已刪除)、
+  自架 JetBrains Mono 數值字型;無邊框視窗設定不變(`titleBarStyle:'hidden'` +
+  `titleBarOverlay`,頂列 inset 走 `env(titlebar-area-*)`)。主題固定二選一切換,
+  **不再跟隨系統**、**不再有 Settings > Appearance 風格設定檔選擇器**(v1.0.5 剛發布的
+  這個功能已隨重建移除)。設計由 Gemini 3.1 Pro 產出 mockup、人工比對忠實實作
+  (`doc/gemini-handoff-20260902/`),詳見 [[log_20260902_ui_design_delegated_nav_cockpit|
+  Phase 4 完成日誌]]。
 
 ---
 
@@ -159,7 +167,8 @@
 
 ### 邊緣端 (ESP32)
 
-- `IRMS_Sensor/IRMS_Sensor.ino` + `config.h` + `imu.h`(v3 模組化,**待燒錄**)
+- `IRMS_Sensor/IRMS_Sensor.ino` + `config.h` + `imu.h`(v3 模組化,**已燒錄現行版本**,
+  2026-08-28 含 08-22 MTU 診斷 + Serial 遙測重新燒錄)
 - `IRMS_Sensor/IRMS_Sensor_Full.bak`(v1 含 Task_Logic/NVS 的舊版,保留供 D1 後果條款參考)
 - `I2C_Scanner/I2C_Scanner.ino`(接線檢測工具)
 
@@ -175,4 +184,5 @@
     `smoothing` / `guidance` / `uiThrottle` / `escapeStack` / `bluetooth` /
     `sessionController` / `theme`
   - `components/` 與 `views/`:Dashboard / Actions / History / Settings 四視圖及共用元件
-  - `styles/global.css`:Liquid Glass 主題與版面
+  - `styles/tailwind.css`:Tailwind 雙主題 token + `@layer components` 元件詞彙
+    (bento/panel/btn/field/dialog/toast/glass-dropdown...)

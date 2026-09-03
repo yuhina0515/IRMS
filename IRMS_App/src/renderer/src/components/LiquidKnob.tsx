@@ -1,6 +1,6 @@
 // renderer/components/LiquidKnob.tsx
 // 液態黏滯滑動指示器:量測容器內目前 active 項目的位置/尺寸,讓指示塊平滑滑過去,
-// 到位時觸發一次性拉伸回彈(knob-stretch keyframe,見 global.css),
+// 到位時觸發一次性拉伸回彈(knob-stretch keyframe,見 tailwind.css),
 // 套用 SVG 黏滯濾鏡(#liquid-gooey-filter,定義於 App.tsx)讓拉伸邊緣呈現液態感。
 //
 // 可直接「抓住」指示塊拖曳切換:指示塊視覺上永遠疊在目前選中項的按鈕正下方,
@@ -19,7 +19,7 @@
 //
 // 用法:呼叫端容器需 position:relative,每個可選項按鈕上加 data-knob-key,
 // 並把 knobElement 當作容器的「第一個子元素」渲染(不需要 z-index,按鈕自然
-// 疊在指示塊之上,只要按鈕本身也是 position:relative 的——見 global.css 的
+// 疊在指示塊之上,只要按鈕本身也是 position:relative 的——見 tailwind.css 的
 // stacking 說明)。
 import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 

@@ -6,8 +6,10 @@
 
 ## Direction (Phase 1, confirmed 2026-09-01)
 
-- **IA**: single view container, no bottom tab bar. A top segmented control switches which
-  section is shown — still one section at a time, not everything stacked into one long scroll.
+- **IA**: single view container, no bottom tab bar. One section shown at a time, not everything
+  stacked into one long scroll — navigation is the left sidebar (see "Shell" below; the original
+  Phase 1 top segmented control was tried, then deleted 2026-09-02 once Gemini's review of the
+  real implementation called dual-layer nav redundant).
 - **Tone**: high-density lab/monitoring-instrument console. Not clinical-clean, not soft/warm.
 - **Visual archetype**: bento-grid cards. No Apple semantics.
 - **Tokens** (Phase 2, superseded 2026-09-02 — see below): originally `slate` neutrals + `cyan`
@@ -22,10 +24,10 @@
   deepened one Tailwind step on the same hue — see the 2026-09-02 "gemini mockup implementation"
   coding log for the exact before/after numbers. Radii tightened (card 12px, control 6px, was
   16/8) per the handoff spec, same for both themes.
-- **Dual-layer nav, implemented**: user also asked to adopt the handoff's sidebar, in addition to
-  (not instead of) the top segmented control — both drive the same view state and stay in sync.
-  `Sidebar.tsx` (left, icon+label, reuses `NavIcons.tsx` restored from the archived branch) +
-  `SegmentedControl.tsx` (unchanged from Phase 4(1)).
+- **Sidebar nav**: `Sidebar.tsx` (left, icon+label, reuses `NavIcons.tsx` restored from the
+  archived branch) is the sole primary nav. Briefly went through a dual-layer phase (sidebar +
+  top `SegmentedControl`, both driving the same view state) per the 09-02 handoff, but Gemini's
+  own review of the real implementation called that redundant — see "Shell" below.
 - **"Glow" on active elements, dark theme only**: per the handoff's "lighting" note — a soft
   accent/success box-shadow on the active nav item / sliding indicator / connected-state dot.
   Not applied in light theme (a glow on white reads as a blur artifact, not an instrument light).
@@ -148,9 +150,11 @@ visual intent.
 ## Settings — one bento card per settings group
 
 Only two groups now, not three — the Appearance/style-profile card is retired along with it
-(Phase 4, 2026-09-02): this direction is a single fixed dark theme, there's no more light/dark
-profile picker to expose. `applyStyleProfile.ts`/`styles/profiles/` are dead code left in place
-for now (same treatment as `global.css`), not yet deleted.
+(Phase 4, 2026-09-02): the app now ships two fixed themes (dark/light, user-toggled, not
+OS-follow), there's no more separate style-profile picker to expose. The dead
+`applyStyleProfile.ts`/`styles/profiles/`/`global.css` system was removed in the Phase 5
+doc/dead-code sync (2026-09-03) — `theme.ts`'s `applyThemeMode()` is the only theming code path
+now.
 
 ```
 ┌────────────────────┬────────────────────┐
@@ -163,16 +167,25 @@ for now (same treatment as `global.css`), not yet deleted.
 
 ## Responsive breakpoints
 
-- **Mobile (<640px)**: everything single-column. Segmented control becomes a horizontally
-  scrollable pill row. Dashboard stacks in priority order: gauge → progress/reps → session
-  controls → secondary-visualization card.
+- **Mobile (<640px)**: everything single-column, Dashboard stacks in priority order:
+  gauge → progress/reps → session controls → secondary-visualization card. ⚠ Sidebar's own
+  narrow-viewport behavior is undefined/unimplemented (no responsive classes in `Sidebar.tsx`
+  as of 2026-09-03) — desktop mobile-width testing hasn't needed it yet, and the actual phone
+  UI is a separate React Native build per [[ROADMAP#D5]], not this sidebar component.
 - **Tablet (768–1024px)**: 2-column bento where content allows (Actions, Settings). Dashboard
   keeps its 2-column split (gauge | progress+controls stacked).
 - **Wide desktop (>1280px)**: layouts as sketched above; Actions can go 3–4 columns.
 
-## Open for Phase 4
+## Phase 4 — complete (2026-09-02)
 
-- Segmented-control component itself (visual spec + interaction states).
-- Bento card base component (the shared shell: surface/surface-raised, border, `rounded-card`,
-  padding scale) that every section's cards build on.
-- Per-view rebuild order — not yet decided, ask before starting Phase 4.
+All four views (Dashboard/Actions/History/Settings) rebuilt on the Tailwind token system above,
+sidebar-only nav and the Dashboard Cockpit layout both landed per Gemini's design-delegation
+calls. See [[log_20260902_ui_design_delegated_nav_cockpit|Phase 4 completion log]].
+
+## Phase 5 — doc/dead-code sync (2026-09-03)
+
+No open design questions carried over from Phase 4. Phase 5 was reconciling this doc and the
+other three core docs (`PROJECT_STATUS.md`/`OPTIMIZATION.md`/`AI_CODING_RULES.md`) with the
+now-completed rebuild, and deleting the dead `global.css` file — see
+[[log_20260903_ui_rebuild_phase5_doc_sync|Phase 5 log]]. Next open UI work, if any, starts fresh
+from a new user-specified direction rather than a carried-over Phase 4 backlog.
