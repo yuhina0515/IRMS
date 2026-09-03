@@ -488,6 +488,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   從未落地成文件。使用者選擇「先記錄候查,不馬上動工」,已寫入 OPTIMIZATION P4 並
   列出動工前需先評估的三個問題(BLE vs Wi-Fi OTA、partition table 改造、更新失敗
   的復原機制)。純文件記錄,無程式碼變更
+- **2026-09-04 OTA 構想三個開放問題方向拍板**([[OPTIMIZATION#⚪ P4 — 打包與部署|OPTIMIZATION P4]]):
+  使用者回覆:傳輸方式選 BLE OTA;partition table 需改雙 app partition 一事確認屬實但
+  不構成阻礙;更新失敗復原機制判斷非疑慮。三個問題方向已定,但仍是構想層級回覆,尚未
+  展開 BLE OTA library 選型、partition scheme 設計等具體技術規劃,動工前仍需要那一輪
+  設計工作。純文件記錄,無程式碼變更
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
