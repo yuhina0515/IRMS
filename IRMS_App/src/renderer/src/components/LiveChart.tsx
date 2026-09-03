@@ -143,8 +143,13 @@ export function LiveChart(): JSX.Element {
     }
   }, [])
 
+  // Fills whatever height the flex parent (.cockpit-content) actually has — was a flat
+  // `height: 280` until 2026-09-03, which couldn't shrink on short windows regardless of how
+  // much the rest of the Dashboard layout tried to adapt. Chart.js's `responsive: true` +
+  // `maintainAspectRatio: false` (set above) resize the canvas to match this div via its own
+  // ResizeObserver, so a plain fill-parent div is all this needs.
   return (
-    <div style={{ height: 280 }}>
+    <div className="w-full h-full min-h-0">
       <canvas ref={canvasRef} />
     </div>
   )

@@ -471,6 +471,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   項標記為「非否決、被整批取代」保留歷史;`UI_REDESIGN.md`(living blueprint)修正與
   Phase 3 修訂版矛盾的 Phase 1 雙層導覽敘述,「Open for Phase 4」章節改為 Phase 4 完成
   + Phase 5 現況。`npm run ci`(284 tests)全綠,證實死檔刪除未破壞建置。
+- **2026-09-03 Dashboard 無捲軸自適應版面**([[log_20260903_dashboard_no_scroll_layout|日誌]]):
+  使用者要求 Dashboard 不用滾輪、卡片自適應。摘要列+Cockpit 改共享視窗高度預算
+  (`.dash-shell` flex 鏈,`min-h-0` 全程貫穿)、量表/進度環改 vh 相對單位、`LiveChart`
+  拿掉寫死的 `height:280`、ProgressRing 併入 SessionControlPanel 同一張卡片省一整列
+  高度。過程中揪出一個真實 CSS Grid 陷阱:`1.6fr 1fr` 沒加 `minmax(0,...)` 時內容會把
+  grid 撐寬過容器,子元素自己量不出來,只有量容器才看得到。實測 1280×820(`main` 算出
+  的實際預設視窗尺寸)與 1600×900 皆完全零捲軸,雙主題截圖驗證;900px 寬度斷點的單欄
+  堆疊與 1093×614 最壞案例筆電仍保留捲動(前者是既有寬度斷點行為非本次迴歸,後者
+  已投入合理精力但需要更大的 IA 改動才可能消除,留給後續)。範圍刻意排除 Settings/
+  Actions/History——表單與清單類內容擠壓會犧牲可讀性,捲軸是這類畫面的正常行為。
+  `npm run ci`(284 tests)全綠
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

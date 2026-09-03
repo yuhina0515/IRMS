@@ -94,7 +94,7 @@ export function DashboardView(): JSX.Element {
     hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
 
   return (
-    <>
+    <div className="dash-shell">
       <header className="page-header">
         <h2>Guided Monitoring</h2>
         <p>圍繞當前動作的主指標即時引導復健</p>
@@ -133,22 +133,23 @@ export function DashboardView(): JSX.Element {
           <CoachHint phase={session.phase} text={hintText} tone={tone} />
         </div>
 
-        <div className="grid" style={{ gap: 24 }}>
-          <div className="panel glass" style={{ textAlign: 'center' }}>
-            <ProgressRing percent={session.holdProgress} reps={session.reps} />
-            {session.alarmActive && (
-              <div style={{ marginTop: 10 }}>
-                <p className="text-danger" style={{ fontWeight: 600, marginBottom: 8 }}>
-                  ⚠ 超限警報
-                </p>
-                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
-                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
-                  🔕 靜音 30 秒
-                </button>
-              </div>
-            )}
-          </div>
-          <SessionControlPanel />
+        {/* Single panel (2026-09-03, was two stacked panels) — ProgressRing now sits inline
+            beside the Designated Action dropdown (via SessionControlPanel's `ring` prop)
+            instead of getting its own full-width row, saving a whole row out of the
+            Dashboard's fixed-height budget. */}
+        <div className="panel glass">
+          {session.alarmActive && (
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+              <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>
+                ⚠ 超限警報
+              </p>
+              {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
+              <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
+                🔕 靜音 30 秒
+              </button>
+            </div>
+          )}
+          <SessionControlPanel ring={<ProgressRing percent={session.holdProgress} reps={session.reps} />} />
         </div>
       </div>
 
@@ -171,26 +172,28 @@ export function DashboardView(): JSX.Element {
               </button>
             ))}
           </div>
-          {leftTab === 'chart' && <LiveChart />}
-          {leftTab === 'detail' && (
-            <div className="grid cards">
-              <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-              <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
-              <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
-              <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
-              <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
-              <Stat
-                label="Varus/Valgus 內外翻"
-                value={
-                  hardwareError
-                    ? 'ERR'
-                    : angles == null
-                      ? '--'
-                      : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
-                }
-              />
-            </div>
-          )}
+          <div className="cockpit-content">
+            {leftTab === 'chart' && <LiveChart />}
+            {leftTab === 'detail' && (
+              <div className="grid cards w-full">
+                <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
+                <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
+                <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
+                <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
+                <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
+                <Stat
+                  label="Varus/Valgus 內外翻"
+                  value={
+                    hardwareError
+                      ? 'ERR'
+                      : angles == null
+                        ? '--'
+                        : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
+                  }
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="cockpit-panel cockpit-panel-3d panel glass">
@@ -208,12 +211,14 @@ export function DashboardView(): JSX.Element {
               </button>
             ))}
           </div>
-          {rightTab === '3d' && <Leg3D />}
-          {rightTab === '2d' && <AngleVisualizer />}
+          <div className="cockpit-content">
+            {rightTab === '3d' && <Leg3D />}
+            {rightTab === '2d' && <AngleVisualizer />}
+          </div>
         </div>
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
-    </>
+    </div>
   )
 }

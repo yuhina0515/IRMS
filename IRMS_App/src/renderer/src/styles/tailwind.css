@@ -453,8 +453,22 @@
   }
 
   /* ── DashboardView ── */
+  /* Fills `.main`'s full height and never lets the page itself scroll (2026-09-03, user
+     request: gauge/chart/3D are visual content that can gracefully scale down to any window
+     size, unlike Settings' form fields or Actions/History's unbounded lists — those keep
+     normal scroll-when-needed behavior, this view doesn't need to). `min-h-0` at every level
+     of this chain is load-bearing: without it a flex child's default `min-height:auto` refuses
+     to shrink below its content size and the whole point of this section is defeated. */
+  .dash-shell {
+    @apply flex flex-col h-full min-h-0;
+  }
   .dashboard-grid {
-    grid-template-columns: 1.6fr 1fr;
+    @apply shrink-0;
+    /* minmax(0, ...) not bare `1.6fr` (2026-09-03) — fr tracks have an implicit min-width:auto
+       (= content's min-content width) unless capped; a column whose content wants to be wider
+       than its fair share otherwise drags the whole grid wider than its container, showing up
+       as horizontal overflow with no single element individually "overflowing" its own box. */
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     align-items: start;
   }
   @media (max-width: 900px) {
@@ -468,10 +482,16 @@
      the two panels are the actual cards. 8:4 column ratio; each panel keeps its own small
      tab switcher for its sibling view (chart↔detail-numbers, 3D↔2D) instead of losing that
      content — Gemini's spec didn't address where those go, this is the judgment call for
-     that gap. */
+     that gap. `flex-1 min-h-0` (2026-09-03): takes exactly what's left after the summary row
+     above, instead of growing to its content's natural size and pushing the page taller than
+     the window. */
   .cockpit {
-    @apply grid gap-6 mt-6 pt-6 border-t border-border;
-    grid-template-columns: 1.6fr 1fr;
+    @apply grid gap-6 mt-6 pt-6 border-t border-border flex-1 min-h-0;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    /* Without a floor, flex-shrink can crush this to "just the tab buttons, no chart" on
+       tight windows instead of leaving the summary row to give up the space — a chart with
+       zero visible height isn't "adaptively sized," it's hidden. */
+    min-height: min(260px, 30vh);
   }
   @media (max-width: 900px) {
     .cockpit {
@@ -479,7 +499,13 @@
     }
   }
   .cockpit-panel {
-    @apply flex flex-col;
+    @apply flex flex-col h-full min-h-0 min-w-0;
+  }
+  /* Wraps each panel's actual tab content (chart/stat-grid, 3D/2D) — takes the remaining
+     height below the tab switcher and centers content that has its own aspect ratio (leg3d,
+     2D SVG) rather than stretching it. */
+  .cockpit-content {
+    @apply flex-1 min-h-0 flex flex-col items-center justify-center overflow-hidden;
   }
   .metric-action {
     @apply text-lg font-bold;
@@ -487,8 +513,13 @@
   .metric-sub {
     @apply text-text-muted text-sm;
   }
+  /* max-width mixes an absolute cap (don't blow up on huge monitors) with a vh-relative one
+     (shrink on short windows) — same pattern already used by .leg3d-viewport/.visualizer
+     below; this one was still a flat 420px until 2026-09-03, which is what let the summary
+     row alone push the page taller than short windows regardless of everything below it. */
   .metric-gauge svg {
-    @apply w-full max-w-[420px] block mx-auto;
+    @apply w-full block mx-auto;
+    max-width: min(420px, 30vh);
   }
   .metric-gauge.muted {
     opacity: 0.45;
@@ -531,11 +562,20 @@
   .calib-chip:hover {
     @apply bg-warning/20;
   }
+  /* vh-aware like .metric-gauge svg (2026-09-03) — was a flat 180x180, one of the biggest
+     single contributors to the summary row not fitting short windows. */
+  /* Sized to sit beside the Designated Action dropdown row rather than as its own hero
+     element (2026-09-03) — smaller than the original 180px hero size, with the percent text
+     scaled down to match via clamp() instead of a flat rem value that would overflow a
+     compact circle. */
   .ring-wrap {
-    @apply relative w-[180px] h-[180px] mx-auto;
+    @apply relative shrink-0;
+    width: min(104px, 13vh);
+    height: min(104px, 13vh);
   }
   .ring-wrap .pct {
-    @apply absolute inset-0 flex flex-col items-center justify-center text-[1.8rem] font-bold;
+    @apply absolute inset-0 flex flex-col items-center justify-center font-bold;
+    font-size: clamp(0.85rem, 1.4vh, 1.3rem);
   }
   /* Real bug found via screenshot: no width cap meant this SVG (viewBox 200x200) scaled to
      the full panel width — at typical panel widths that's 1000px+, so the square viewBox
@@ -547,11 +587,18 @@
   .visualizer svg {
     width: 100%;
     max-width: min(42vh, 380px);
+    max-height: 100%;
     height: auto;
   }
+  /* max-height: 100% (2026-09-03) — .leg3d-viewport now sits in a height-constrained flex
+     box (.cockpit-content, itself sized by .cockpit's flex-1 min-h-0) instead of an
+     unconstrained column. Without it, aspect-ratio only ever derives height from the vh-based
+     max-width above and can still exceed the box on short windows; combined with max-height
+     the browser fits both constraints and shrinks whichever axis is binding. */
   .leg3d-viewport {
     width: 100%;
     max-width: calc(min(42vh, 380px) * 4 / 3);
+    max-height: 100%;
     aspect-ratio: 4 / 3;
     @apply rounded-card overflow-hidden border border-border;
   }

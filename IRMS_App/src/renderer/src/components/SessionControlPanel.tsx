@@ -1,4 +1,5 @@
 // renderer/components/SessionControlPanel.tsx
+import type { ReactNode } from 'react'
 import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
@@ -21,7 +22,14 @@ function formatClock(sec: number): string {
   return `${h}:${m}:${s}`
 }
 
-export function SessionControlPanel(): JSX.Element {
+interface Props {
+  /** Rendered beside the Designated Action dropdown instead of its own row (2026-09-03) —
+      DashboardView passes <ProgressRing/> here so the ring doesn't cost a whole extra row of
+      the Dashboard's fixed-height budget. */
+  ring?: ReactNode
+}
+
+export function SessionControlPanel({ ring }: Props): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const params = useStore((s) => s.params)
   const setParams = useStore((s) => s.setParams)
@@ -64,20 +72,27 @@ export function SessionControlPanel(): JSX.Element {
     running ? () => void handleEnd() : canStart ? () => void handleStart() : null
   )
 
+  // No self-wrapping .panel here (2026-09-03) — DashboardView composes this together with
+  // ProgressRing inside a single shared panel to save one card's worth of padding+gap in the
+  // Dashboard's fixed-height budget. This is the only call site (grep confirmed), so the
+  // wrapper was never load-bearing for reuse elsewhere.
   return (
-    <div className="panel glass">
-      <div className="field">
-        <label>Designated Action (指定動作)</label>
-        <GlassDropdown
-          value={selectedActionId != null ? String(selectedActionId) : ''}
-          disabled={running}
-          placeholder={filtered.length === 0 ? '本協定尚無動作' : '請選擇動作'}
-          onChange={(v) => selectAction(v ? Number(v) : null)}
-          options={filtered.map((a) => ({ value: String(a.id), label: a.name }))}
-        />
+    <>
+      <div className="row" style={{ gap: 16, alignItems: 'center' }}>
+        {ring}
+        <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+          <label>Designated Action (指定動作)</label>
+          <GlassDropdown
+            value={selectedActionId != null ? String(selectedActionId) : ''}
+            disabled={running}
+            placeholder={filtered.length === 0 ? '本協定尚無動作' : '請選擇動作'}
+            onChange={(v) => selectAction(v ? Number(v) : null)}
+            options={filtered.map((a) => ({ value: String(a.id), label: a.name }))}
+          />
+        </div>
       </div>
 
-      <div className="row">
+      <div className="row" style={{ marginTop: 14 }}>
         {/* 鉗制在 blur 而非每次按鍵:打字打到一半的中間值(例如輸入 100 的第一個 1)
             不該被跳改。真正的保證在 sessionController.currentConfig(),引擎永遠拿不到
             超出界限的參數。 */}
@@ -147,6 +162,6 @@ export function SessionControlPanel(): JSX.Element {
           在此協定下開始 Session 會把腿的資料錄成該關節的紀錄,故先行擋下。
         </p>
       )}
-    </div>
+    </>
   )
 }
