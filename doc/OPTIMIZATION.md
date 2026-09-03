@@ -165,6 +165,19 @@
 - [ ] Windows 程式碼簽章(目前所有產出皆未簽章,安裝時會跳 SmartScreen 警告)。
 - [ ] 自動更新 (electron-updater)。
 - [ ] 跨平台 target(目前僅 Windows NSIS)。
+- [ ] **裝置韌體 OTA 更新**(構想,使用者以照片提議、確切提出時間不確定,推測 08 月下旬,
+      2026-09-03 記錄以候查,**尚未評估**):讓 IRMS App 能把新韌體推送到 ESP32,取代
+      現行每次都要 USB 接 COM7 跑 `arduino-cli upload` 的手動流程(見
+      [[log_20260828_firmware_flash_rotation_capture]])。與上面「自動更新
+      (electron-updater)」是兩件事——那項是 Electron App 自己的更新機制,這項是
+      App 更新**穿戴式感測器**的韌體。動工前至少需要先過以下未評估的問題:
+      - BLE OTA(免額外連線設定,但傳輸慢、易受連線品質影響)vs Wi-Fi OTA(快但
+        裝置需先接上 Wi-Fi,多一層設定門檻)。
+      - ESP32 partition table 需改成雙 app partition 才能做 OTA(現行單一 partition
+        配置無法原地轉換),且很可能仍需先用 USB 燒一次新的 partition scheme,
+        無法完全跳過實體接線這一步。
+      - 更新失敗時的復原機制——裝置戴在患者身上,若更新中斷變磚等於整套硬體報廢,
+        風險層級跟 App 端的 auto-update 完全不同,不能照搬同一套機制。
 
 ### 🧩 多關節協定泛化 (Phase 5)
 

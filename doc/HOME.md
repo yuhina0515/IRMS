@@ -482,6 +482,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   已投入合理精力但需要更大的 IA 改動才可能消除,留給後續)。範圍刻意排除 Settings/
   Actions/History——表單與清單類內容擠壓會犧牲可讀性,捲軸是這類畫面的正常行為。
   `npm run ci`(284 tests)全綠
+- **2026-09-03 記錄構想:裝置韌體 OTA 更新**([[OPTIMIZATION#⚪ P4 — 打包與部署|OPTIMIZATION P4]]):
+  使用者回想起先前(推測 08 月下旬)曾以照片提議「IRMS App 支援 IRMS 裝置 OTA 更新」,
+  當時未被記錄。查證 ROADMAP/OPTIMIZATION/coding log/GitHub issues 確認此構想過去
+  從未落地成文件。使用者選擇「先記錄候查,不馬上動工」,已寫入 OPTIMIZATION P4 並
+  列出動工前需先評估的三個問題(BLE vs Wi-Fi OTA、partition table 改造、更新失敗
+  的復原機制)。純文件記錄,無程式碼變更
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
