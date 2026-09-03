@@ -500,6 +500,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   限制是空間:單一 app slot 1,310,720 bytes,現行韌體 1,122,799 bytes(85%),OTA
   程式碼與傳輸緩衝只剩約 188KB(14%)可用。已同步修正 OPTIMIZATION.md 對應段落
   (加註 2026-09-04 查證修正,而非直接覆蓋抹去原記錄)。純文件記錄,無程式碼變更
+- **2026-09-04 OTA Phase A(設計研究)完成**([[OPTIMIZATION#⚪ P4 — 打包與部署|OPTIMIZATION P4]]):
+  查證 otadata 免初始化(ESP-IDF bootloader 內建 fallback boot ota_0);找到兩個 BLE
+  OTA 傳輸方案——手刻(用內建 `Update.h`,零授權疑慮、零額外 flash)vs
+  [gb88/BLEOTA](https://github.com/gb88/BLEOTA)(現成、支援 Bluedroid,但 AGPL-3.0
+  授權,是否接受屬使用者的商業/散布考量,尚未拍板)。暫定手刻為 B1 預設工作假設,
+  Phase B(韌體實作)開始前使用者仍可改選。純文件記錄,無程式碼變更
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

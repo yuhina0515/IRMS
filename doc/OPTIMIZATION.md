@@ -189,6 +189,31 @@
       三個問題方向皆已拍板,但仍是構想層級的回覆,尚未展開具體技術規劃(如 BLE OTA
       傳輸協定設計、flash headroom 內的程式碼瘦身),動工前仍需要那一輪設計工作。
 
+      **2026-09-04 Phase A(設計研究)完成,結論如下:**
+      - **otadata 免初始化**:查證 ESP-IDF bootloader 文件,partition table 沒有
+        `factory` slot 時,bootloader 在 `otadata` 空白/未初始化時會直接 fallback
+        boot 第一個可用的 OTA slot(`ota_0`)——這是內建行為,不需額外程式或燒錄步驟
+        觸發。現行裝置(單一 app 版本、從未呼叫過 OTA API)開機能正常運作,本身就是
+        這個 fallback 在生效的證明。
+      - **BLE OTA 傳輸方案,兩個候選(不含第三方庫的 footprint 都還沒扣):**
+        1. **手刻(建議預設)**:在現有 `IRMS_SERVICE_UUID` 底下新增控制/資料兩個
+           characteristic,直接呼叫 Arduino ESP32 core 內建的 `Update.h`
+           (`esp_ota_ops` 包裝)寫入非現行 slot。零額外函式庫、零授權疑慮、
+           可與現有 `BLEServer` 共用同一顆 server,但分包/CRC/重傳協定需要自己設計。
+        2. **[gb88/BLEOTA](https://github.com/gb88/BLEOTA)**:79 星、2026-04 仍在維護,
+           明確支援 classic ESP32 的 Bluedroid stack(與現行韌體相同),內建 4KB
+           分包 + CRC-16 + 失敗自動重傳,不獨佔 `BLEServer`(可與既有服務並存)。
+           **⚠ 授權為 AGPL-3.0**(強著佐權,衍生作品需以相同授權釋出)——是否接受
+           這個授權條件是使用者需要自己決定的商業/散布考量,不是技術問題,尚未拍板。
+           實際 flash/RAM footprint 官方文件未載明,若考慮採用需先實測是否塞得進
+           剩餘 188KB headroom。
+        暫以方案 1(手刻)作為 B1 的預設工作假設往下推進,原因:zero 授權風險、
+        zero 額外 flash 佔用,且此專案目前傾向自行掌握全部程式碼。若使用者之後
+        傾向改用 gb88/BLEOTA 換取更快開發速度,B1 開始前都還能改。
+      - 另找到 [Raghav117/bluetooth_ota_firmware_update](https://github.com/Raghav117/bluetooth_ota_firmware_update)
+        與 [AvinasheeTech/ESP32-IDF-BLE-OTA](https://github.com/bheesma-10/ESP32-BLE-OTA)
+        兩個候選,後者是 ESP-IDF 而非 Arduino API,尚未深入評估,列在此供日後參考。
+
 ### 🧩 多關節協定泛化 (Phase 5)
 
 > 現況:elbow / shoulder 已在 2026-08-01 **明確擋下**(判定仍讀腿部感測器,擋下後
