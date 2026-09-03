@@ -88,8 +88,9 @@
 }
 
 @layer components {
-  /* ── shell (dual-layer nav per doc/gemini-handoff-20260902/: sidebar + top segmented
-     control, both drive the same view state — see Sidebar.tsx / SegmentedControl.tsx) ── */
+  /* ── shell (sidebar-only primary nav — 2026-09-02, per Gemini design judgment removed the
+     briefly-coexisting top SegmentedControl: two nav surfaces driving the same state was
+     redundant and visually confusing. See Sidebar.tsx.) ── */
   .app {
     @apply flex h-screen gap-3 px-3 py-4;
   }
@@ -98,9 +99,6 @@
   }
   .main {
     @apply flex-1 overflow-y-auto pr-1;
-  }
-  .segmented-row {
-    @apply flex;
   }
   .sidebar {
     @apply flex flex-col gap-1 w-48 shrink-0 bg-surface border border-border rounded-card p-3;
@@ -454,11 +452,7 @@
     @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/15 text-warning;
   }
 
-  /* ── DashboardView: styling the existing structure (gauge | progress+session-control,
-     tabbed secondary visualization below) with the new tokens — NOT yet restructured to the
-     round-2 handoff's proposed always-visible 2-column "Cockpit" split. That's an open IA
-     question (bundled with the still-open sidebar-vs-segmented-control question), not
-     something to decide unilaterally while just fixing styling/broken color refs. ── */
+  /* ── DashboardView ── */
   .dashboard-grid {
     grid-template-columns: 1.6fr 1fr;
     align-items: start;
@@ -467,6 +461,25 @@
     .dashboard-grid {
       grid-template-columns: 1fr;
     }
+  }
+  /* Cockpit — always-visible 2-column live-data area (2026-09-02, per Gemini round-2 spec,
+     replaces the old 4-way tab switcher). Outer container has no card background (sits
+     directly on canvas per spec) and a border-top separator from the summary cards above;
+     the two panels are the actual cards. 8:4 column ratio; each panel keeps its own small
+     tab switcher for its sibling view (chart↔detail-numbers, 3D↔2D) instead of losing that
+     content — Gemini's spec didn't address where those go, this is the judgment call for
+     that gap. */
+  .cockpit {
+    @apply grid gap-6 mt-6 pt-6 border-t border-border;
+    grid-template-columns: 1.6fr 1fr;
+  }
+  @media (max-width: 900px) {
+    .cockpit {
+      grid-template-columns: 1fr;
+    }
+  }
+  .cockpit-panel {
+    @apply flex flex-col;
   }
   .metric-action {
     @apply text-lg font-bold;
@@ -592,20 +605,6 @@
     @apply text-canvas;
   }
 
-  /* ── segmented control (NEW — replaces BottomBar, see doc/UI_REDESIGN.md shell) ── */
-  .segmented {
-    @apply relative inline-flex gap-0.5 p-1 rounded-control bg-surface border border-border;
-  }
-  .segmented-item {
-    @apply relative z-[1] border-none bg-transparent text-text-muted text-sm font-medium
-      px-4 py-2 rounded-control cursor-pointer transition-colors duration-150 whitespace-nowrap;
-  }
-  .segmented-item:hover {
-    @apply text-text;
-  }
-  .segmented-item.active {
-    @apply text-canvas;
-  }
 
   /* ── sliding indicator (useLiquidKnob — positioning/drag-physics hook reused as-is;
      only the shape's skin changes here: rectangular accent block, not a soft glass pill,

@@ -32,26 +32,28 @@
 - **Numeric readouts go mono**: `JetBrains Mono Variable` self-hosted, wired to number inputs so
   far (Dashboard doesn't have live readout components yet).
 
-## Shell (Phase 3, revised 2026-09-02 for dual-layer nav)
+## Shell (Phase 3, revised 2026-09-02 — sidebar-only nav)
 
 ```
 ┌────────────┬─────────────────────────────────────────────────────┐
 │  [≡] IRMS  │ [logo] IRMS.        ● Disconnected   [☀/🌙][Connect] │ <- TopHeader
 │            ├─────────────────────────────────────────────────────┤
-│ ▸Dashboard │      ( Dashboard │ Actions │ History │ Settings )     │ <- top segmented control
-│  Actions   ├─────────────────────────────────────────────────────┤
-│  History   │                                                      │
-│  Settings  │                    active section's bento grid       │
+│ ▸Dashboard │                                                      │
+│  Actions   │                                                      │
+│  History   │                    active section's bento grid       │
+│  Settings  │                                                      │
 │            │                                                      │
 └────────────┴─────────────────────────────────────────────────────┘
-  Sidebar        .app-column (TopHeader / segmented-row / main)
+  Sidebar        .app-column (TopHeader / main)
 ```
 
-`BottomBar.tsx` / `LiquidKnob`-driven pill nav from the original teardown is retired — replaced
-first by the top segmented control alone (Phase 4(1)), then joined by `Sidebar.tsx` per the
-2026-09-02 design handoff ("採用,新增側邊欄+頂部雙層導覽"). Both nav surfaces drive the same
-`useUiStore` `view` state and stay in sync — clicking either updates both. `TopHeader` keeps its
-job (identity + connection state + theme toggle) unchanged in role.
+`BottomBar.tsx` / `LiquidKnob`-driven pill nav from the original teardown is retired. Briefly went
+through a dual-layer phase (sidebar + top `SegmentedControl`, both driving the same view state) per
+that day's design handoff, but Gemini's own review of the real implementation called that
+redundant and confusing — sidebar is now the sole primary nav, `SegmentedControl.tsx` deleted (see
+2026-09-02 "ui design delegated nav cockpit" log — this project now implements Gemini's UI/IA
+calls directly rather than re-litigating them with the user). `TopHeader` keeps its job (identity +
+connection state + theme toggle) unchanged in role.
 
 **Note for the mobile prep (see coding log for 2026-09-01 pt.2):** this shell already assumes a
 narrow-viewport-first layout (segmented control instead of a bottom bar reads fine at phone width;
@@ -81,21 +83,18 @@ Fed real screenshots (not mockups) back to Gemini for critique. Landed:
 
 ## Dashboard — highest density, 25Hz live data
 
-**Status (2026-09-02):** styled with the new tokens and three real pre-existing bugs fixed
+**Status (2026-09-02):** styled with the new tokens, three real pre-existing bugs fixed
 (gauge/ring/2D-visualizer were reading dead CSS variable names since the 09-01 teardown — the
 "two black rectangles" seen in early screenshots; `Leg3D.tsx`'s 3D view background was rendering
 white because `THREE.Color()` can't parse CSS4 space-separated `rgb()` syntax, only comma syntax;
-the 2D visualizer SVG had no width cap and rendered mostly off-screen). All three confirmed fixed
-via before/after screenshots, not code inspection alone — see the "dashboard bugfixes and
-styling" coding log. **Layout structure below is still the original tab-based design, NOT yet
-Gemini round-2's proposed always-visible 2-column split** — that's an open IA question bundled
-with the sidebar-vs-segmented-control question, pending user confirmation before either gets
-implemented.
+the 2D visualizer SVG had no width cap and rendered mostly off-screen — all three confirmed via
+before/after screenshots), **and restructured to Gemini's always-visible 2-column "Cockpit"**
+(implemented directly per the design-delegation call — see the 2026-09-02 "ui design delegated
+nav cockpit" log).
 
-Not everything gets exploded into separate always-visible bento cells — the secondary
-visualization (chart/3D/2D/detail) stays a single card with an internal switcher, same pattern as
-today's tabs, just re-skinned. Exploding it into 4 permanent cards would blow the layout budget on
-narrow viewports for content only one of which is useful at a time.
+The summary row (primary gauge | progress ring + session controls) is unchanged. Below it, the
+old 4-way tab card (chart/3D/2D/detail) is gone — replaced by two always-visible panels, each
+keeping its own small internal switcher for content Gemini's spec didn't explicitly place:
 
 ```
 ┌────────────────────────────────┬───────────────────┐
@@ -103,10 +102,11 @@ narrow viewports for content only one of which is useful at a time.
 │  target-zone arc + coach hint   │  ring              │
 │                                  ├───────────────────┤
 │                                  │  Session controls  │
-├──────────────┬───────────────────┴───────────────────┤
-│  Secondary visualization card (chart/3D/2D/detail,     │
-│  internal tab switcher — same pattern as today)        │
-└─────────────────────────────────────────────────────┘
+├─ border-t separator, no card bg on this outer row ───┤
+│  Chart panel (8 cols)            │  3D panel (4 cols)  │
+│  toggle: 趨勢圖 / 詳細數值        │  toggle: 3D / 2D    │
+└──────────────────────────────────┴────────────────────┘
+   .cockpit-panel                    .cockpit-panel-3d
 ```
 
 ## Actions — browse/select (rebuilt 2026-09-02)

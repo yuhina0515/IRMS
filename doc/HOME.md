@@ -444,6 +444,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   **沒有採用** Gemini 建議的「2 欄常駐 Cockpit」版面——跟側邊欄/頂部雙導覽的問題一起
   留給使用者確認,不在改樣式的範疇裡一併決定。`npm run ci` 全綠,雙主題四頁籤截圖驗證通過。
   Phase 4 到此四個畫面都已套上新設計系統基礎樣式,剩兩個 IA 決策待確認
+- **2026-09-02 UI 設計委任 Gemini:移除雙導覽 + Dashboard Cockpit 版面**
+  ([[log_20260902_ui_design_delegated_nav_cockpit|日誌]]):使用者對上一批留下的兩個
+  IA 待確認問題裁定「以後 UI 設計全權交給 Gemini」。落地:①刪除頂部
+  `SegmentedControl.tsx`(非留死碼,連帶清掉專屬 CSS),側邊欄成為唯一主導覽;
+  ②Dashboard 次要視覺化從四選一 tab 卡片改成 Gemini round-2 規格的常駐 2 欄
+  Cockpit(左:趨勢圖/詳細數值,右:3D/2D 姿態),兩個小切換器各自獨立一份
+  `useLiquidKnob` 實例避免互相干擾。存了 feedback 記憶記下這個委任決定的範圍(僅
+  IRMS UI/IA 判斷,可查證事實仍要驗證)。`npm run ci` 全綠(284 tests,打包模組數
+  88→87 確認移除生效),雙主題隔離截圖驗證通過,含左右切換器獨立運作的實測、以及
+  排查一個看似橫向捲軸的畫面元素(量測確認非真溢出)。**Phase 4 至此完成**——四個
+  畫面結構樣式與兩個先前待確認 IA 問題都已對齊 Gemini 方向
 - **2026-08-31 會議:「A面校正功能」可行性評估**([[log_20260831_meeting_face_a_calibration_feasibility|會議紀錄]]):
   評估使用者提出的「裝置離體平放桌面、左右滑動校正方向」新校準構想。**裁決:否決**——
   `IRMS_Sensor/imu.h` 的 `accPitch`/`accRoll` 是 `atan2f` 算出的重力參考傾角,筆記字面描述的

@@ -1,6 +1,7 @@
 // renderer/components/Sidebar.tsx
-// 左側導覽欄——外部設計 handoff(doc/gemini-handoff-20260902/)採用的雙層導覽:側欄 +
-// 頂部 SegmentedControl 共同驅動同一個 view 狀態,兩者保持同步,不是各自獨立的導覽來源。
+// 左側導覽欄——唯一的主導覽介面(2026-09-02:依 Gemini 設計判斷移除原本並存的頂部
+// SegmentedControl,雙層導覽功能重複又視覺混淆;IRMS UI 設計全權交給 Gemini,見
+// memory feedback_irms_ui_design_delegated_to_gemini)。
 import { useUiStore } from '../store/useUiStore'
 import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon } from './NavIcons'
 

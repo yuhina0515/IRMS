@@ -1,6 +1,7 @@
 // renderer/views/DashboardView.tsx
-// 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;
-// 折線圖 / 3D / 2D / 詳細數值收進次要 tab(單一掛載,省 GPU/CPU)。
+// 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;下方是
+// Gemini round-2 規格的「Cockpit」即時資料區(2026-09-02,取代原本 4 選 1 的單一 tab
+// 卡片):左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排,不再是四選一。
 import { useRef, useState } from 'react'
 import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
@@ -17,13 +18,16 @@ import { CalibrationWizard } from '../components/CalibrationWizard'
 import { useLiquidKnob } from '../components/LiquidKnob'
 import { sessionController } from '../services/sessionController'
 
-type Tab = 'chart' | '3d' | '2d' | 'detail'
+type LeftTab = 'chart' | 'detail'
+type RightTab = '3d' | '2d'
 
-const TABS: { id: Tab; label: string }[] = [
+const LEFT_TABS: { id: LeftTab; label: string }[] = [
   { id: 'chart', label: '趨勢圖' },
-  { id: '3d', label: '3D 姿態' },
-  { id: '2d', label: '2D 姿態' },
   { id: 'detail', label: '詳細數值' }
+]
+const RIGHT_TABS: { id: RightTab; label: string }[] = [
+  { id: '3d', label: '3D 姿態' },
+  { id: '2d', label: '2D 姿態' }
 ]
 
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }): JSX.Element {
@@ -45,14 +49,22 @@ export function DashboardView(): JSX.Element {
   const protocol = useStore((s) => s.settings.protocol)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
 
-  const [tab, setTab] = useState<Tab>('chart')
+  const [leftTab, setLeftTab] = useState<LeftTab>('chart')
+  const [rightTab, setRightTab] = useState<RightTab>('3d')
   const [wizardOpen, setWizardOpen] = useState(false)
-  const tabsRef = useRef<HTMLDivElement>(null)
-  const { knobElement, getItemProps } = useLiquidKnob({
-    containerRef: tabsRef,
-    activeKey: tab,
+  const leftTabsRef = useRef<HTMLDivElement>(null)
+  const rightTabsRef = useRef<HTMLDivElement>(null)
+  const left = useLiquidKnob({
+    containerRef: leftTabsRef,
+    activeKey: leftTab,
     orientation: 'horizontal',
-    onSelect: (key) => setTab(key as Tab)
+    onSelect: (key) => setLeftTab(key as LeftTab)
+  })
+  const right = useLiquidKnob({
+    containerRef: rightTabsRef,
+    activeKey: rightTab,
+    orientation: 'horizontal',
+    onSelect: (key) => setRightTab(key as RightTab)
   })
 
   const triggerType = action?.triggerType ?? 'joint_angle'
@@ -140,43 +152,65 @@ export function DashboardView(): JSX.Element {
         </div>
       </div>
 
-      <div className="panel glass" style={{ marginTop: 24 }}>
-        <div className="tabs" ref={tabsRef}>
-          {knobElement}
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              data-knob-key={t.id}
-              className={`tab-btn${tab === t.id ? ' active' : ''}`}
-              onClick={() => setTab(t.id)}
-              {...getItemProps(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {tab === 'chart' && <LiveChart />}
-        {tab === '3d' && <Leg3D />}
-        {tab === '2d' && <AngleVisualizer />}
-        {tab === 'detail' && (
-          <div className="grid cards">
-            <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-            <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
-            <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
-            <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
-            <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
-            <Stat
-              label="Varus/Valgus 內外翻"
-              value={
-                hardwareError
-                  ? 'ERR'
-                  : angles == null
-                    ? '--'
-                    : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
-              }
-            />
+      {/* Cockpit:常駐並排,不再是四選一的單一卡片(Gemini round-2 規格)。外層容器
+          刻意不掛卡片背景,直接坐在畫面底色上,靠上方 border-t 跟上面的摘要卡片分隔;
+          左右兩欄各自才是真正的卡片容器。 */}
+      <div className="cockpit">
+        <div className="cockpit-panel panel glass">
+          <div className="tabs" ref={leftTabsRef}>
+            {left.knobElement}
+            {LEFT_TABS.map((t) => (
+              <button
+                key={t.id}
+                data-knob-key={t.id}
+                className={`tab-btn${leftTab === t.id ? ' active' : ''}`}
+                onClick={() => setLeftTab(t.id)}
+                {...left.getItemProps(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-        )}
+          {leftTab === 'chart' && <LiveChart />}
+          {leftTab === 'detail' && (
+            <div className="grid cards">
+              <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
+              <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
+              <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
+              <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
+              <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
+              <Stat
+                label="Varus/Valgus 內外翻"
+                value={
+                  hardwareError
+                    ? 'ERR'
+                    : angles == null
+                      ? '--'
+                      : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
+                }
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="cockpit-panel cockpit-panel-3d panel glass">
+          <div className="tabs" ref={rightTabsRef}>
+            {right.knobElement}
+            {RIGHT_TABS.map((t) => (
+              <button
+                key={t.id}
+                data-knob-key={t.id}
+                className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
+                onClick={() => setRightTab(t.id)}
+                {...right.getItemProps(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {rightTab === '3d' && <Leg3D />}
+          {rightTab === '2d' && <AngleVisualizer />}
+        </div>
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
