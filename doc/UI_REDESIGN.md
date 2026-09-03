@@ -81,6 +81,17 @@ Fed real screenshots (not mockups) back to Gemini for critique. Landed:
 
 ## Dashboard — highest density, 25Hz live data
 
+**Status (2026-09-02):** styled with the new tokens and three real pre-existing bugs fixed
+(gauge/ring/2D-visualizer were reading dead CSS variable names since the 09-01 teardown — the
+"two black rectangles" seen in early screenshots; `Leg3D.tsx`'s 3D view background was rendering
+white because `THREE.Color()` can't parse CSS4 space-separated `rgb()` syntax, only comma syntax;
+the 2D visualizer SVG had no width cap and rendered mostly off-screen). All three confirmed fixed
+via before/after screenshots, not code inspection alone — see the "dashboard bugfixes and
+styling" coding log. **Layout structure below is still the original tab-based design, NOT yet
+Gemini round-2's proposed always-visible 2-column split** — that's an open IA question bundled
+with the sidebar-vs-segmented-control question, pending user confirmation before either gets
+implemented.
+
 Not everything gets exploded into separate always-visible bento cells — the secondary
 visualization (chart/3D/2D/detail) stays a single card with an internal switcher, same pattern as
 today's tabs, just re-skinned. Exploding it into 4 permanent cards would blow the layout budget on

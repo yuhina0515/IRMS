@@ -6,9 +6,20 @@
 const THEME_CHANGE_EVENT = 'irms:theme-changed'
 const LIGHT_THEME_CLASS = 'theme-light'
 
-/** 解析單一 CSS 變數的目前值(隨主題即時變化) */
+/** 解析單一 CSS 變數的目前值(隨主題即時變化)。回傳的是 tailwind.css 裡儲存的原始格式
+ *  ——空白分隔的 RGB triplet(如 "34 211 238"),不是完整的 CSS 顏色字串。 */
 export function themeToken(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+/** 跟 themeToken() 一樣,但包成 `rgb(...)`——可以直接餵給任何吃得下標準 CSS 顏色字串的
+ *  地方(Three.js 的 `THREE.Color()`、Chart.js 的顏色欄位、行內 SVG 屬性)。
+ *  刻意用逗號分隔(`rgb(15,23,42)`)而非 CSS4 的空白分隔(`rgb(15 23 42)`)——
+ *  Three.js 的 `Color.setStyle()` 正規表示式只認舊式逗號語法,餵空白語法會解析失敗、
+ *  靜默退回預設白色(3D 視圖背景變白就是這樣 debug 出來的,不是用猜的)。逗號語法
+ *  兩邊都吃,Chart.js/SVG 也不受影響。 */
+export function themeColor(name: string): string {
+  return `rgb(${themeToken(name).split(/\s+/).join(',')})`
 }
 
 /** 主題切換時回呼,回傳解除訂閱函式。目前唯一來源是 applyThemeMode(),
@@ -51,19 +62,16 @@ export function chartTheme(): {
   /** 安全上限等警示線 */
   danger: string
 } {
-  // 2026-09-02:token 改存 RGB triplet(如 "34 211 238"),配合 tailwind.config.js 的
-  // rgb(var(--x) / <alpha-value>) 用法——這裡自己組 rgb()/rgba() 字串供 Chart.js 消費。
-  const rgb = (name: string): string => `rgb(${themeToken(name)})`
-  const knee = rgb('--color-accent')
+  const knee = themeColor('--color-accent')
   return {
-    grid: rgb('--chart-grid'),
-    tick: rgb('--chart-tick'),
-    text: rgb('--chart-text'),
+    grid: themeColor('--chart-grid'),
+    tick: themeColor('--chart-tick'),
+    text: themeColor('--chart-text'),
     knee,
     kneeFill: `rgb(${themeToken('--color-accent')} / 0.12)`,
-    thigh: rgb('--color-thigh'),
-    shin: rgb('--color-shin'),
-    roll: rgb('--color-roll'),
-    danger: rgb('--color-danger')
+    thigh: themeColor('--color-thigh'),
+    shin: themeColor('--color-shin'),
+    roll: themeColor('--color-roll'),
+    danger: themeColor('--color-danger')
   }
 }

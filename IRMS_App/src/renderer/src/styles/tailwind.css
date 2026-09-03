@@ -454,6 +454,110 @@
     @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/15 text-warning;
   }
 
+  /* ── DashboardView: styling the existing structure (gauge | progress+session-control,
+     tabbed secondary visualization below) with the new tokens — NOT yet restructured to the
+     round-2 handoff's proposed always-visible 2-column "Cockpit" split. That's an open IA
+     question (bundled with the still-open sidebar-vs-segmented-control question), not
+     something to decide unilaterally while just fixing styling/broken color refs. ── */
+  .dashboard-grid {
+    grid-template-columns: 1.6fr 1fr;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .metric-action {
+    @apply text-lg font-bold;
+  }
+  .metric-sub {
+    @apply text-text-muted text-sm;
+  }
+  .metric-gauge svg {
+    @apply w-full max-w-[420px] block mx-auto;
+  }
+  .metric-gauge.muted {
+    opacity: 0.45;
+    filter: grayscale(0.8);
+  }
+  .metric-gauge-notice {
+    @apply text-center mt-1 text-[0.78rem] font-semibold text-warning;
+  }
+  .knee-badge {
+    @apply mx-auto mt-1.5 w-fit px-3 py-1 rounded-full text-sm font-medium bg-danger/15 text-danger;
+  }
+  .knee-badge.ok {
+    @apply bg-success/15 text-success;
+  }
+  .coach-hint {
+    @apply flex items-center gap-3 mt-3.5 px-4 py-3 rounded-card bg-surface-raised;
+  }
+  .coach-hint .coach-text {
+    @apply text-xl font-semibold;
+  }
+  .coach-hint.success .coach-text {
+    @apply text-success;
+  }
+  .coach-hint.danger .coach-text {
+    @apply text-danger;
+  }
+  .phase-badge {
+    @apply shrink-0 px-3.5 py-1.5 rounded-full text-sm font-bold bg-accent/15 text-accent-strong;
+  }
+  .phase-badge.holding {
+    @apply bg-success/15 text-success;
+  }
+  .phase-badge.restPending {
+    @apply bg-warning/15 text-warning;
+  }
+  .calib-chip {
+    @apply flex items-center gap-2.5 px-4 py-2.5 mb-4 rounded-card border border-warning/40
+      bg-warning/10 cursor-pointer transition-colors duration-150;
+  }
+  .calib-chip:hover {
+    @apply bg-warning/20;
+  }
+  .ring-wrap {
+    @apply relative w-[180px] h-[180px] mx-auto;
+  }
+  .ring-wrap .pct {
+    @apply absolute inset-0 flex flex-col items-center justify-center text-[1.8rem] font-bold;
+  }
+  /* Real bug found via screenshot: no width cap meant this SVG (viewBox 200x200) scaled to
+     the full panel width — at typical panel widths that's 1000px+, so the square viewBox
+     rendered far larger than the viewport and only a sliver was ever visible. Cap it like
+     .leg3d-viewport's equivalent constraint. */
+  .visualizer {
+    @apply flex justify-center;
+  }
+  .visualizer svg {
+    width: 100%;
+    max-width: min(42vh, 380px);
+    height: auto;
+  }
+  .leg3d-viewport {
+    width: 100%;
+    max-width: calc(min(42vh, 380px) * 4 / 3);
+    aspect-ratio: 4 / 3;
+    @apply rounded-card overflow-hidden border border-border;
+  }
+  .stat .label {
+    @apply text-text-muted text-xs uppercase tracking-wide font-semibold;
+  }
+  .stat .value {
+    @apply text-3xl font-bold mt-1 font-mono;
+  }
+  .color-thigh {
+    @apply text-thigh;
+  }
+  .color-shin {
+    @apply text-shin;
+  }
+  .color-accent {
+    @apply text-accent-strong;
+  }
+
   /* ── toast ── */
   .toast-host {
     @apply fixed top-4 right-4 flex flex-col gap-2.5 z-[1000];

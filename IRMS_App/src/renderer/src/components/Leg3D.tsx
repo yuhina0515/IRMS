@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useStore } from '../store/useStore'
-import { onThemeChange, themeToken } from '../services/theme'
+import { onThemeChange, themeColor } from '../services/theme'
 
 const THIGH_LEN = 1.0
 const SHIN_LEN = 0.95
@@ -74,14 +74,17 @@ export function Leg3D(): JSX.Element {
     // 主題 token → 場景配色;膝點三態色由 rAF 迴圈每幀套用
     const kneePalette = { idle: new THREE.Color(), inZone: new THREE.Color(), error: new THREE.Color() }
     let grid: THREE.GridHelper | null = null
+    // leg3d-bg/grid-major/grid-minor 沒有各自獨立的 token——直接沿用 surface/border/
+    // text-muted,跟 Gemini round-2 spec 的「3D Pose Container」規格一致
+    // (dark: bg=slate-900=surface, border=slate-800=surface-raised; light: bg=slate-100=surface)。
     const applyTheme = (): void => {
-      scene.background = new THREE.Color(themeToken('--leg3d-bg'))
-      thighMat.color.set(themeToken('--thigh'))
-      shinMat.color.set(themeToken('--shin'))
-      jointMat.color.set(themeToken('--text-dim'))
-      kneePalette.idle.set(themeToken('--accent'))
-      kneePalette.inZone.set(themeToken('--success'))
-      kneePalette.error.set(themeToken('--danger'))
+      scene.background = new THREE.Color(themeColor('--color-surface'))
+      thighMat.color.set(themeColor('--color-thigh'))
+      shinMat.color.set(themeColor('--color-shin'))
+      jointMat.color.set(themeColor('--color-text-dim'))
+      kneePalette.idle.set(themeColor('--color-accent'))
+      kneePalette.inZone.set(themeColor('--color-success'))
+      kneePalette.error.set(themeColor('--color-danger'))
       if (grid) {
         scene.remove(grid)
         grid.geometry.dispose()
@@ -90,8 +93,8 @@ export function Leg3D(): JSX.Element {
       grid = new THREE.GridHelper(
         4,
         20,
-        new THREE.Color(themeToken('--leg3d-grid-major')),
-        new THREE.Color(themeToken('--leg3d-grid-minor'))
+        new THREE.Color(themeColor('--color-border')),
+        new THREE.Color(themeColor('--color-text-muted'))
       )
       scene.add(grid)
     }

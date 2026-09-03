@@ -121,12 +121,12 @@ export function DashboardView(): JSX.Element {
           <CoachHint phase={session.phase} text={hintText} tone={tone} />
         </div>
 
-        <div className="grid" style={{ gap: 16 }}>
+        <div className="grid" style={{ gap: 24 }}>
           <div className="panel glass" style={{ textAlign: 'center' }}>
             <ProgressRing percent={session.holdProgress} reps={session.reps} />
             {session.alarmActive && (
               <div style={{ marginTop: 10 }}>
-                <p style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: 8 }}>
+                <p className="text-danger" style={{ fontWeight: 600, marginBottom: 8 }}>
                   ⚠ 超限警報
                 </p>
                 {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
@@ -140,7 +140,7 @@ export function DashboardView(): JSX.Element {
         </div>
       </div>
 
-      <div className="panel glass" style={{ marginTop: 16 }}>
+      <div className="panel glass" style={{ marginTop: 24 }}>
         <div className="tabs" ref={tabsRef}>
           {knobElement}
           {TABS.map((t) => (

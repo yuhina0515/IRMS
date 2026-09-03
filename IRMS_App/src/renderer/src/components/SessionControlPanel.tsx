@@ -123,8 +123,10 @@ export function SessionControlPanel(): JSX.Element {
       {running ? (
         <>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ color: 'var(--text-dim)' }}>Recording</span>
-            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(session.elapsedSec)}</strong>
+            <span className="text-text-dim">Recording</span>
+            <strong className="font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatClock(session.elapsedSec)}
+            </strong>
           </div>
           <button className="btn btn-danger-ghost btn-block" onClick={() => void handleEnd()}>
             End Session

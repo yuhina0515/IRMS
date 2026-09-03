@@ -27,7 +27,12 @@ module.exports = {
         'accent-strong': withOpacity('--color-accent-strong'),
         success: withOpacity('--color-success'),
         warning: withOpacity('--color-warning'),
-        danger: withOpacity('--color-danger')
+        danger: withOpacity('--color-danger'),
+        // Chart/angle-visualizer series colors (thigh/shin/roll planes) — see tailwind.css's
+        // --chart-grid comment for why these reuse the warning/success hues.
+        thigh: withOpacity('--color-thigh'),
+        shin: withOpacity('--color-shin'),
+        roll: withOpacity('--color-roll')
       },
       fontFamily: {
         // sans reuses the Inter Variable already self-hosted via @fontsource-variable/inter

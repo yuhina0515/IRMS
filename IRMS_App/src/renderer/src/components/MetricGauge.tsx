@@ -71,7 +71,12 @@ export function MetricGauge({
   const value = sample ? clamp(sample.value) : 0
   const bandMax = Math.min(zone.max, zone.overLimit)
 
-  const valueColor = error || alarm ? 'var(--danger)' : phase === 'holding' ? 'var(--success)' : 'var(--accent)'
+  const valueColor =
+    error || alarm
+      ? 'rgb(var(--color-danger))'
+      : phase === 'holding'
+        ? 'rgb(var(--color-success))'
+        : 'rgb(var(--color-accent))'
   // 大字取整數:0.1° 位在即時流下每筆都在變,只會傳達「不穩」而非資訊
   const display = error ? 'ERR' : sample ? sample.value.toFixed(0) : '--'
   const targetText =
@@ -80,21 +85,21 @@ export function MetricGauge({
   return (
     <div className={`metric-gauge${notice ? ' muted' : ''}`}>
       <svg viewBox="0 0 240 150">
-        <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="var(--gauge-track)" strokeWidth="14" strokeLinecap="round" />
-        <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="var(--gauge-band)" strokeWidth="14" strokeLinecap="butt" />
+        <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="rgb(var(--color-border))" strokeWidth="14" strokeLinecap="round" />
+        <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="rgb(var(--color-accent) / 0.25)" strokeWidth="14" strokeLinecap="butt" />
         {value > 0 && (
           <path d={arc(0, value, R, domainMax)} fill="none" stroke={valueColor} strokeWidth="7" strokeLinecap="round" />
         )}
-        <path d={tick(clamp(zone.rest), domainMax)} stroke="var(--text-dim)" strokeWidth="2" strokeDasharray="3 3" />
-        <path d={tick(clamp(zone.overLimit), domainMax)} stroke="var(--danger)" strokeWidth="3" />
-        <text x={CX} y={92} textAnchor="middle" fontSize="34" fontWeight="700" fill={valueColor}>
+        <path d={tick(clamp(zone.rest), domainMax)} stroke="rgb(var(--color-text-dim))" strokeWidth="2" strokeDasharray="3 3" />
+        <path d={tick(clamp(zone.overLimit), domainMax)} stroke="rgb(var(--color-danger))" strokeWidth="3" />
+        <text x={CX} y={92} textAnchor="middle" fontSize="34" fontWeight="700" fill={valueColor} fontFamily="'JetBrains Mono Variable', monospace">
           {display}
         </text>
-        <text x={CX} y={116} textAnchor="middle" fontSize="12" fill="var(--text-dim)">
+        <text x={CX} y={116} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
           {info.label}(°)
         </text>
-        <text x={CX} y={140} textAnchor="middle" fontSize="12" fill="var(--text-dim)">
-          {targetText} · 回位 ≤ {zone.rest}° · <tspan fill="var(--danger)">超限 {zone.overLimit}°</tspan>
+        <text x={CX} y={140} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
+          {targetText} · 回位 ≤ {zone.rest}° · <tspan fill="rgb(var(--color-danger))">超限 {zone.overLimit}°</tspan>
         </text>
       </svg>
       {notice && <div className="metric-gauge-notice">{notice}</div>}

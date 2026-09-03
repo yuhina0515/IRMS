@@ -9,12 +9,17 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export function ProgressRing({ percent, reps }: Props): JSX.Element {
   const offset = CIRCUMFERENCE - (Math.min(100, Math.max(0, percent)) / 100) * CIRCUMFERENCE
-  const color = percent >= 100 ? 'var(--success)' : percent > 0 ? 'var(--accent)' : 'var(--ring-idle)'
+  const color =
+    percent >= 100
+      ? 'rgb(var(--color-success))'
+      : percent > 0
+        ? 'rgb(var(--color-accent))'
+        : 'rgb(var(--color-text-muted))'
 
   return (
     <div className="ring-wrap">
       <svg viewBox="0 0 180 180">
-        <circle cx="90" cy="90" r={RADIUS} fill="none" stroke="var(--ring-track)" strokeWidth="12" />
+        <circle cx="90" cy="90" r={RADIUS} fill="none" stroke="rgb(var(--color-border))" strokeWidth="12" />
         <circle
           cx="90"
           cy="90"
@@ -30,8 +35,10 @@ export function ProgressRing({ percent, reps }: Props): JSX.Element {
         />
       </svg>
       <div className="pct">
-        <span>{Math.round(percent)}%</span>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{reps} reps</span>
+        <span className="font-mono">{Math.round(percent)}%</span>
+        <span className="font-mono text-text-dim" style={{ fontSize: '0.8rem' }}>
+          {reps} reps
+        </span>
       </div>
     </div>
   )

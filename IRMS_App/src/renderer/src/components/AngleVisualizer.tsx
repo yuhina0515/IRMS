@@ -56,11 +56,11 @@ export function AngleVisualizer(): JSX.Element {
   return (
     <div className="visualizer">
       <svg viewBox="0 0 200 200">
-        <circle cx={CENTER} cy={CENTER} r="6" fill="var(--accent)" />
+        <circle cx={CENTER} cy={CENTER} r="6" fill="rgb(var(--color-accent))" />
         <path
           d={describeArc(arcR, startA, endA)}
           fill="none"
-          stroke={inZone ? 'var(--success)' : 'var(--arc-idle)'}
+          stroke={inZone ? 'rgb(var(--color-success))' : 'rgb(var(--color-border))'}
           strokeWidth={isSegment ? 8 : 14}
           strokeLinecap="round"
         />
@@ -69,7 +69,7 @@ export function AngleVisualizer(): JSX.Element {
           y1={CENTER}
           x2={thighEnd.x}
           y2={thighEnd.y}
-          stroke="var(--thigh)"
+          stroke="rgb(var(--color-thigh))"
           strokeWidth="7"
           strokeLinecap="round"
         />
@@ -78,7 +78,7 @@ export function AngleVisualizer(): JSX.Element {
           y1={CENTER}
           x2={shinEnd.x}
           y2={shinEnd.y}
-          stroke="var(--shin)"
+          stroke="rgb(var(--color-shin))"
           strokeWidth="7"
           strokeLinecap="round"
         />
