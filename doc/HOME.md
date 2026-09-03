@@ -488,11 +488,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   從未落地成文件。使用者選擇「先記錄候查,不馬上動工」,已寫入 OPTIMIZATION P4 並
   列出動工前需先評估的三個問題(BLE vs Wi-Fi OTA、partition table 改造、更新失敗
   的復原機制)。純文件記錄,無程式碼變更
-- **2026-09-04 OTA 構想三個開放問題方向拍板**([[OPTIMIZATION#⚪ P4 — 打包與部署|OPTIMIZATION P4]]):
-  使用者回覆:傳輸方式選 BLE OTA;partition table 需改雙 app partition 一事確認屬實但
-  不構成阻礙;更新失敗復原機制判斷非疑慮。三個問題方向已定,但仍是構想層級回覆,尚未
-  展開 BLE OTA library 選型、partition scheme 設計等具體技術規劃,動工前仍需要那一輪
-  設計工作。純文件記錄,無程式碼變更
+- **2026-09-04 OTA 構想三個開放問題方向拍板,並開始動工(Phase A 設計研究)**
+  ([[OPTIMIZATION#⚪ P4 — 打包與部署|OPTIMIZATION P4]]):使用者回覆傳輸方式選 BLE OTA、
+  partition table 疑慮判斷不構成阻礙、更新失敗復原機制判斷非疑慮,三個方向拍板後決定
+  開始動工。用 Claude Code 內建 Tasks 功能(非 Plan mode)拆出 A(設計研究)→B(韌體
+  OTA 實作)→C(App 端推送)→D(整測驗證)四階段、共 15 個細顆粒度任務並以 blockedBy
+  串相依順序。**A2 完成時發現並修正一項錯誤假設**:查 `IRMS_Sensor` 實際編譯設定
+  (`esp32:esp32:esp32` FQBN)後確認現行 `PartitionScheme=default` 本來就內建
+  `ota_0`/`ota_1`/`otadata`,裝置**已經是雙 app partition 佈局**,不需要重新設計
+  partition table 或多一次過渡燒錄——這點推翻了 09-03 記錄與此條目原本的說法。真正的
+  限制是空間:單一 app slot 1,310,720 bytes,現行韌體 1,122,799 bytes(85%),OTA
+  程式碼與傳輸緩衝只剩約 188KB(14%)可用。已同步修正 OPTIMIZATION.md 對應段落
+  (加註 2026-09-04 查證修正,而非直接覆蓋抹去原記錄)。純文件記錄,無程式碼變更
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

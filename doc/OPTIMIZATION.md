@@ -174,13 +174,20 @@
       App 更新**穿戴式感測器**的韌體。三個開放問題現況:
       - **傳輸方式:已選定 BLE OTA**。免額外連線設定;傳輸慢、易受連線品質影響這個
         取捨使用者評估後接受。
-      - **Partition table 需改成雙 app partition**(現行單一 partition 配置無法原地
-        轉換,很可能仍需先用 USB 燒一次新的 partition scheme,無法完全跳過實體接線
-        這一步)——使用者確認此限制屬實,但判斷不構成阻礙,可接受。
+      - ~~Partition table 需改成雙 app partition⋯~~ **2026-09-04 查證後修正**:
+        `IRMS_Sensor` 現行編譯用的 `esp32:esp32:esp32` FQBN 預設
+        `PartitionScheme=default`(Arduino ESP32 core「4MB with spiffs」),此 scheme
+        本來就內建 `ota_0`/`ota_1`/`otadata`——裝置**已經是雙 app partition 佈局**,
+        不需要重新設計 partition table,也不需要為了改 partition scheme 而多一次
+        USB 過渡燒錄。真正的限制是**空間**:單一 app slot 為 1,310,720 bytes,現行
+        韌體 `.bin` 為 1,122,799 bytes(85%),OTA 相關程式碼與傳輸緩衝區只剩約
+        188KB(14%)可用,選型/實作時需把這個headroom 當硬限制,而非「partition
+        改造」本身。
       - **更新失敗復原機制**(裝置戴在患者身上,若更新中斷變磚風險層級跟 App 端
-        auto-update 不同)——使用者判斷非疑慮,暫不需額外設計。
+        auto-update 不同)——使用者判斷非疑慮,暫不需額外設計;仍排入後續整測
+        (實際切斷電源驗證 ESP32 內建 OTA rollback 機制,而非僅憑判斷跳過)。
       三個問題方向皆已拍板,但仍是構想層級的回覆,尚未展開具體技術規劃(如 BLE OTA
-      library 選型、partition scheme 設計),動工前仍需要那一輪設計工作。
+      傳輸協定設計、flash headroom 內的程式碼瘦身),動工前仍需要那一輪設計工作。
 
 ### 🧩 多關節協定泛化 (Phase 5)
 
