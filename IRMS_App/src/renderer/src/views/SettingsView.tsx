@@ -238,6 +238,12 @@ export function SettingsView(): JSX.Element {
 function FirmwareOtaPanel(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const isSimulated = bluetoothService.isSimulated
+  // 比照本檔 calibrationLocked/sessionRunning 的既有慣例:Session 進行中鎖定危險操作。
+  // OTA 特有的理由更硬——Update.write() 觸發的 flash 寫入會讓 ESP32 兩顆核心短暫
+  // 停頓(SPI flash 操作需要暫停 cache),Task_Sensor 的 50Hz 取樣與 Task_Comm 的
+  // 25Hz BLE 推播都會跟著卡頓。療程進行中出現這種卡頓,輕則資料出現偽影,重則
+  // 讓正在半蹲/外展的患者因為回饋延遲而失去平衡——這是本檔其他鎖定沒有的傷害路徑。
+  const sessionRunning = useStore((s) => s.session.running)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
 
@@ -252,7 +258,9 @@ function FirmwareOtaPanel(): JSX.Element {
     ? '需要先於頂部連線真實裝置'
     : isSimulated
       ? 'Demo 模式沒有真實裝置,無法更新韌體'
-      : null
+      : sessionRunning
+        ? 'Session 進行中無法更新韌體——flash 寫入會讓感測器取樣與回饋短暫卡頓,患者仍佩戴著裝置時不能冒這個險。請先結束 Session。'
+        : null
 
   const checkVersion = async (): Promise<void> => {
     setCheckingVersion(true)
