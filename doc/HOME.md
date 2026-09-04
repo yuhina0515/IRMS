@@ -527,13 +527,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   系統別再手調數字」兩點合併,並把今天這次溢出迴歸寫成具體案例)。GitHub 自動更新
   排入下一步。`npm run ci` 全綠,隔離 Playwright 啟動實測(非僅程式碼推論)確認溢出
   已修、標題列雙主題正常。
-- **2026-09-05 App 自動更新實作完成,卡在 repo private 的架構決策**
+- **2026-09-05 App 自動更新實作完成並驗證成功**
   ([[log_20260905_auto_update_electron_updater|完整日誌]]):electron-updater 靜默
-  背景下載/無安裝精靈/重啟套用的流程都寫完、`npm run ci` 全綠,但拿打包後的真實
-  exe 實測發現 GitHub Releases API 對這個 App 一律 404——追查到 `IRMS` repo 是
-  private,已發行的 App 沒有(也不該有)驗證憑證。已用 `curl` + `gh auth token`
-  交叉驗證這是 repo 可見性造成的,不是程式碼問題。三條路(repo 改 public / App 內嵌
-  可反解的唯讀 token / 換一個不需要公開 repo 的發布機制)留給使用者選,沒有自行決定。
+  背景下載/無安裝精靈/重啟套用流程寫完後,實測連續踩到兩個真實架構問題——
+  (1) `IRMS` repo 原本 private,GitHub Releases API 對已發行的 App(無驗證憑證)
+  一律 404,使用者選擇改成 **public**(動手前先掃過整個 git 歷史確認沒有金鑰/憑證/
+  患者資料外洩疑慮,只有一份早期誤 commit 的空白測試用 sqlite);(2) repo 轉 public
+  後仍然抓不到,追查發現 09-04 那次 beta 是手動 `gh release create` 上傳,沒有
+  `electron-builder --publish` 自動產生的 `latest.yml`,三種檔名規則(本地/GitHub/
+  yml 內宣告)還互不一致——刪掉重來,改用 `electron-builder --publish always` 正確
+  發布。最終隔離啟動打包後的 exe 拿到正確的 `not-available` 結果(目前就是最新版),
+  證實整條檢查/比對流程真的能動。**連帶更正了 [[irms-project-conventions]] 的 beta
+  發版慣例**:往後一律要用 `electron-builder --publish`,不能再手動拼湊。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。

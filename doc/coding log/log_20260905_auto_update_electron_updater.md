@@ -1,6 +1,6 @@
 ---
 tags: [coding-log, electron, ci-cd]
-summary: "electron-updater 自動更新實作完成(靜默背景下載、無安裝精靈、重啟套用),但實機驗證發現卡在一個架構性問題:IRMS repo 是 private,已發佈的 App 沒有 token,GitHub Releases API 對它一律回 404——需要使用者決定要不要開公開 repo 或接受內嵌 token 的風險,不是程式碼問題"
+summary: "electron-updater 自動更新實作完成並驗證成功。過程中連續發現兩個真實的架構性問題(而非程式碼邏輯錯誤):IRMS repo 原本 private 導致 Releases API 404(使用者選擇改 public 解決)、手動 gh release create 上傳的 beta 資產缺少 electron-builder 自動產生的 latest.yml 且檔名格式不一致(改用 electron-builder --publish 重新發布解決)。修完後隔離啟動打包後的 exe 實測拿到正確的 not-available 結果,證實整條檢查→比對版本的流程真的能動"
 date: 2026-09-05
 ---
 
@@ -54,37 +54,75 @@ App 二進位檔裡沒有(也不該有)任何驗證憑證**,而 private repo 的
 邏輯完全正確,只是 electron-updater 這個機制的前提(GitHub Releases 要嘛公開、要嘛
 App 端內嵌一組有讀取權限的憑證)在目前的 repo 設定下不成立。
 
-## 📝 待使用者決定,未擅自選擇
+## ✅ 使用者決策:repo 改為 public
 
-三條路都有明顯代價,选哪一條是使用者的商業/風險判斷,不是技術對錯問題:
+三條路(repo 改 public / App 內嵌可反解的唯讀 token / 換一個不需要公開 repo 的
+發布機制)列給使用者,**由使用者選擇**,不是我自己決定——選了「repo 改 public」。
 
-1. **把 repo 改成 public**——最簡單、電洞不需要多做任何事,electron-updater 原生
-   支援。代價:原始碼(含所有 commit 歷史)公開。
-2. **在 App 裡內嵌一組 fine-grained PAT**(只給 Releases 讀取權限、無其他 scope)
-   ——repo 保持 private,但 App 二進位檔可被任何人反解出這組 token,等於這組 token
-   實質上是半公開的,只能靠「scope 夠窄」限制風險,不能真的防止洩漏。
-3. **換一個不需要公開 repo 的發布機制**(例如自架一個小型更新伺服器、用 S3 之類的
-   物件儲存搭配 `generic` provider)——repo 保持完全 private 且不內嵌任何憑證,但要
-   自己維運另一個服務,是比前兩者都大的額外工程。
+**動手前先做安全掃描,不是選了就直接切**:公開後任何原本存在的洩漏都算是曝光過了,
+所以先掃過整個 git 歷史再執行:
+- `git log --all --pretty=format: --name-only --diff-filter=A` 找有沒有可疑檔名
+  (`.env`/`secret`/`credential`/`token`/`.pem`/`.key`/`password`)——沒有。
+- `git log --all -p` 對常見金鑰格式(AWS `AKIA...`、`BEGIN PRIVATE KEY`、
+  Discord webhook URL、Slack `xox...`、GitHub PAT `ghp_.../github_pat_...`)全文掃描
+  ——沒有。
+- 發現歷史上曾經誤 commit 過一份 `IRMS_App/irms.sqlite`(早期 `.gitignore` 還沒排除
+  `*.sqlite` 之前留下的)。抓出該次 commit 的檔案內容檢查:`sessions`/`sensor_data`
+  兩張表都是 0 筆,`custom_actions` 只有 4 筆通用運動範本(二頭肌彎舉等),沒有任何
+  患者/個人資料。確認乾淨後才執行 `gh repo edit --visibility public`。
+
+`gh repo view` 確認 `isPrivate:false`,`curl` 不帶任何驗證的請求也能正常取得
+release 資料——repo 可見性這個問題到此解決。
+
+## 🐛 第二個真實問題:手動發布的 beta release 缺 `latest.yml`
+
+repo 轉 public 後重新實測,404 變成一個新錯誤:
+```
+Cannot find latest.yml in the latest release artifacts
+(.../releases/download/v1.1.0-beta.1/latest.yml): 404
+```
+追查發現:09-04 那次 beta 發版是手動 `gh release create` + 手動上傳 `.exe`/
+`.exe.blockmap`,從來沒有跑過 `electron-builder --publish`——後者才會自動產生並
+上傳 `latest.yml`(electron-updater 比對版本、下載檔案都靠這份中繼資料,不是只看
+有沒有 `.exe`)。順帶發現另一個命名不一致:本地檔名帶空白
+(`IRMS Dashboard Setup 1.1.0-beta.1.exe`),`gh release create` 上傳後 GitHub 把
+空白換成句點,而 `latest.yml` 裡宣告的又是連字號版本——三種命名互不相同,就算補上
+`latest.yml` 也對不上實際資產檔名。
+
+**修法**:`gh release delete v1.1.0-beta.1 --yes --cleanup-tag` 刪掉這個手動拼湊的
+release,改用 `GH_TOKEN=$(gh auth token) npx electron-builder --publish always
+-c.publish.releaseType=prerelease` 整個重新發布——這個指令會一次把 build、簽章
+(跳過,未簽章)、打包、上傳 `.exe`/`.exe.blockmap`/`latest.yml` 三個檔案都用同一套
+命名規則做完,不會再有三種命名互不匹配的問題。**這連帶更正了 09-04 才剛定案的 beta
+發版慣例**([[irms-project-conventions]] memory 那條)——往後包含 beta 在內的所有
+發版都必須用 `electron-builder --publish`,不能再用手動 `gh release create` +
+手動上傳檔案這個路徑,即使只是為了讓人先裝來測都不行,因為那樣產生的 release 沒有
+`latest.yml`,之後即使 repo 是 public,自動更新一樣抓不到。
 
 ## ✅ 驗證方式
 
 - [x] `npm run ci`(typecheck + 285 tests + build)全綠。
-- [x] `npm run dist` 打包,確認 `release/win-unpacked/resources/app-update.yml` 存在
-      (electron-updater 運作必須的中繼資料檔)。
-- [x] 隔離 Playwright 啟動**真正打包後的 exe**(非開發模式,`is.dev` 判斷依賴
-      `app.isPackaged`,兩種啟動方式的行為不同,這次特地換成打包後的路徑測試):
-      `window.irms.updates.getCurrentVersion()` 正確回傳 `1.1.0-beta.1`;`checkNow()`
-      觸發真實的網路請求並收到上述 404,而非假設「應該會動」。
-  - [x] 用 `curl` + `gh auth token` 交叉驗證 404 的真正成因是 private repo 而非
-        程式碼設定錯誤(有 token 時同一個 API 端點正常回傳)。
-- [ ] 更新流程的下載/安裝/重啟完整迴圈——需要 repo 可被存取後才有意義驗證,目前卡在
-      上述架構決策,暫不執行。
+- [x] `npm run dist` 打包,確認 `release/win-unpacked/resources/app-update.yml` 存在。
+- [x] 隔離 Playwright 啟動**真正打包後的 exe**(而非開發模式的 `out/main/index.js`
+      ——`is.dev` 判斷依賴 `app.isPackaged`,兩種啟動方式行為不同)分三輪量測:
+      1. repo 還是 private 時:量到真實的 404,訊息指向 `releases.atom`。
+      2. repo 轉 public、但 release 資產是手動上傳的:量到不同的 404,訊息指向
+         `latest.yml` 找不到。
+      3. 用 `electron-builder --publish` 重新發布後:`{"state":"checking"}` →
+         `{"state":"not-available"}`——正確結果(目前安裝的就是最新版,理應回報
+         沒有更新),不是憑空假設「這樣應該會動」。
+- [x] 用 `curl` + `gh auth token` 交叉驗證第一個 404 的成因確實是 repo 可見性,
+      不是程式碼設定錯誤。
+- [x] `gh repo view`/`gh release view` 確認最終狀態:repo public、release 資產
+      三個檔案(`.exe`/`.exe.blockmap`/`latest.yml`)命名一致。
+- [ ] 「真的有新版本可下載」這條路徑(`state: 'available'` → `'downloading'` →
+      `'downloaded'` → 按重啟套用)尚未實測——需要真的發一個更新版本並用舊版啟動
+      才測得出來,會多留一次測試用的 release 在正式歷史裡,目前判斷不值得為了這次
+      驗證多做,等下一次真的要發版時自然會走到這條路徑。
 
 ## 📝 後續待辦
 
-- 等待使用者選擇上述三條路其中之一,再繼續驗證完整的下載→重啟→套用迴圈。
-- 這個發現也回頭影響 2026-09-04 剛建立的 beta 發版慣例
-  ([[irms-project-conventions]] memory 記錄的那條)——beta prerelease 目前是
-  `gh release create`,如果 repo 未來改成 public,beta 版仍然預設不會被
-  `electron-updater` 自動抓到(`allowPrerelease` 預設 false),這點不受今天的發現影響。
+- 下次真的發布下一個版本(無論 beta 或正式)時,順便驗證一次完整的
+  下載→通知→重啟→套用迴圈——這是目前唯一還沒實測過的路徑。
+- [[irms-project-conventions]] memory 的 beta 發版慣例已更正為
+  「一律用 `electron-builder --publish`,不要手動 `gh release create` + 手動上傳」。
