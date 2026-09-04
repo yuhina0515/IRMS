@@ -214,6 +214,21 @@
         與 [AvinasheeTech/ESP32-IDF-BLE-OTA](https://github.com/bheesma-10/ESP32-BLE-OTA)
         兩個候選,後者是 ESP-IDF 而非 Arduino API,尚未深入評估,列在此供日後參考。
 
+      **2026-09-04 Phase B(韌體)+ Phase C(App)實作完成**(`/goal` 不中斷模式一路
+      做到底,完整日誌見 [[log_20260904_ble_ota_implementation]]):韌體端新增獨立
+      OTA GATT service(手刻方案,`Update.h` + MD5 驗證,斷線/中止一律 `Update.abort()`
+      確保不會變磚);App 端新增 `BluetoothService.performOtaUpdate()` 與 Settings 的
+      「Firmware Update」面板。`arduino-cli compile` 乾淨(86.3% flash,較 OTA 前只多
+      約 8.2KB)、`npm run ci`(typecheck+284 tests+build)全綠。**誠實的完成度邊界**:
+      以下三步需要實體 USB/BLE 硬體存取,AI 無法遠端執行:
+      - [ ] B4:燒錄一台測試裝置(`arduino-cli upload -p COM7 --fqbn esp32:esp32:esp32
+            IRMS_Sensor`,partition scheme 不變不需額外參數)。
+      - [ ] D1:實機端對端測試(App 觸發更新 → 裝置重開機 → 感測器功能正常)。
+      - [ ] D2:傳輸中途斷電/斷連驗證裝置不會變磚(韌體設計上應該安全,但只有實測
+            過才能真的畫勾)。
+      另外,C1(UI 位置放進既有 Settings 頁)因 `/goal` 不中斷要求跳過了本專案「UI/IA
+      決策交給 Gemini 覆核」的既有慣例,標記待下次覆核 pass 補上。
+
 ### 🧩 多關節協定泛化 (Phase 5)
 
 > 現況:elbow / shoulder 已在 2026-08-01 **明確擋下**(判定仍讀腿部感測器,擋下後

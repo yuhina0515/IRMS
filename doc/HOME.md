@@ -506,6 +506,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   [gb88/BLEOTA](https://github.com/gb88/BLEOTA)(現成、支援 Bluedroid,但 AGPL-3.0
   授權,是否接受屬使用者的商業/散布考量,尚未拍板)。暫定手刻為 B1 預設工作假設,
   Phase B(韌體實作)開始前使用者仍可改選。純文件記錄,無程式碼變更
+- **2026-09-04 OTA Phase B/C(韌體+App 實作)完成,`/goal` 不中斷模式一路做到底**
+  ([[log_20260904_ble_ota_implementation|完整日誌]]):韌體端(`IRMS_Sensor`)新增
+  獨立 OTA GATT service,手刻方案用內建 `Update.h`,斷線/中止一律 `Update.abort()`
+  確保不會變磚;App 端(`IRMS_App`)新增 `BluetoothService.performOtaUpdate()` 與
+  Settings 的「Firmware Update」面板。`arduino-cli compile`(86.3% flash)與
+  `npm run ci`(typecheck+284 tests+build)全綠。**誠實的完成度邊界**:B4(燒錄測試
+  裝置)、D1(實機端對端測試)、D2(斷電復原驗證)三步需要實體 USB/BLE 硬體存取,
+  AI 無法遠端執行,已在 Tasks 與日誌中列出確切指令,待使用者實體操作後回報結果。
+  C1(UI 位置放 Settings)因 `/goal` 不中斷要求而跳過了「UI 交給 Gemini 覆核」的
+  既有慣例,已標記待下次覆核 pass 補上。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
