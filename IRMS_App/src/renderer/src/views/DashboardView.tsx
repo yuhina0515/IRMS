@@ -48,9 +48,16 @@ export function DashboardView(): JSX.Element {
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
   const protocol = useStore((s) => s.settings.protocol)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
+  // 2026-09-04:兩者預設收起(見 useStore.ts 的欄位註解),Settings 可個別開啟
+  const showTrendChart = useStore((s) => s.settings.showTrendChart)
+  const show3D2DPose = useStore((s) => s.settings.show3D2DPose)
 
   const [leftTab, setLeftTab] = useState<LeftTab>('chart')
   const [rightTab, setRightTab] = useState<RightTab>('3d')
+  // 趨勢圖被關掉時,「chart」根本不在可見分頁清單裡——不額外用 useEffect 同步
+  // leftTab state,單純渲染時算出「實際要顯示哪一個」,設定切回開啟時自然復原。
+  const visibleLeftTabs = showTrendChart ? LEFT_TABS : LEFT_TABS.filter((t) => t.id !== 'chart')
+  const effectiveLeftTab: LeftTab = !showTrendChart && leftTab === 'chart' ? 'detail' : leftTab
   const [wizardOpen, setWizardOpen] = useState(false)
   const leftTabsRef = useRef<HTMLDivElement>(null)
   const rightTabsRef = useRef<HTMLDivElement>(null)
@@ -156,25 +163,27 @@ export function DashboardView(): JSX.Element {
       {/* Cockpit:常駐並排,不再是四選一的單一卡片(Gemini round-2 規格)。外層容器
           刻意不掛卡片背景,直接坐在畫面底色上,靠上方 border-t 跟上面的摘要卡片分隔;
           左右兩欄各自才是真正的卡片容器。 */}
-      <div className="cockpit">
+      <div className={`cockpit${show3D2DPose ? '' : ' cockpit-single'}`}>
         <div className="cockpit-panel panel glass">
-          <div className="tabs" ref={leftTabsRef}>
-            {left.knobElement}
-            {LEFT_TABS.map((t) => (
-              <button
-                key={t.id}
-                data-knob-key={t.id}
-                className={`tab-btn${leftTab === t.id ? ' active' : ''}`}
-                onClick={() => setLeftTab(t.id)}
-                {...left.getItemProps(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {visibleLeftTabs.length > 1 && (
+            <div className="tabs" ref={leftTabsRef}>
+              {left.knobElement}
+              {visibleLeftTabs.map((t) => (
+                <button
+                  key={t.id}
+                  data-knob-key={t.id}
+                  className={`tab-btn${effectiveLeftTab === t.id ? ' active' : ''}`}
+                  onClick={() => setLeftTab(t.id)}
+                  {...left.getItemProps(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="cockpit-content">
-            {leftTab === 'chart' && <LiveChart />}
-            {leftTab === 'detail' && (
+            {effectiveLeftTab === 'chart' && <LiveChart />}
+            {effectiveLeftTab === 'detail' && (
               <div className="grid cards w-full">
                 <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
                 <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
@@ -196,26 +205,28 @@ export function DashboardView(): JSX.Element {
           </div>
         </div>
 
-        <div className="cockpit-panel cockpit-panel-3d panel glass">
-          <div className="tabs" ref={rightTabsRef}>
-            {right.knobElement}
-            {RIGHT_TABS.map((t) => (
-              <button
-                key={t.id}
-                data-knob-key={t.id}
-                className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
-                onClick={() => setRightTab(t.id)}
-                {...right.getItemProps(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
+        {show3D2DPose && (
+          <div className="cockpit-panel cockpit-panel-3d panel glass">
+            <div className="tabs" ref={rightTabsRef}>
+              {right.knobElement}
+              {RIGHT_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  data-knob-key={t.id}
+                  className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
+                  onClick={() => setRightTab(t.id)}
+                  {...right.getItemProps(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="cockpit-content">
+              {rightTab === '3d' && <Leg3D />}
+              {rightTab === '2d' && <AngleVisualizer />}
+            </div>
           </div>
-          <div className="cockpit-content">
-            {rightTab === '3d' && <Leg3D />}
-            {rightTab === '2d' && <AngleVisualizer />}
-          </div>
-        </div>
+        )}
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}

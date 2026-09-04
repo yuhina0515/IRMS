@@ -43,6 +43,18 @@ export interface Settings {
    * 預設關閉,避免在預設畫面上多一條與判定無關的線,讓人以為它會影響結果。
    */
   showKneeRoll: boolean
+  /**
+   * Dashboard 的 Cockpit 左欄是否顯示「趨勢圖」分頁(2026-09-04,使用者要求預設收起
+   * 非必要的視覺化內容,讓畫面在任何視窗尺寸下都不需要捲動)。關閉時左欄只剩
+   * 「詳細數值」,不需要分頁切換 UI。趨勢圖資料仍持續累積,開啟後立刻有歷史曲線
+   * ——比照 showKneeRoll 的既有慣例,隱藏不等於停止收集。
+   */
+  showTrendChart: boolean
+  /**
+   * Cockpit 右欄(3D/2D 姿態顯示)是否顯示,同一次改動、同一個理由。關閉時右欄
+   * 整個不佔版面,左欄改為獨佔寬度,而不是留一塊空白卡片。
+   */
+  show3D2DPose: boolean
   /** 校準精靈最近一次完成套用的 ISO 時間;null 表示從未跑過精靈 */
   lastCalibratedAt: string | null
   /**
@@ -96,6 +108,8 @@ const DEFAULT_SETTINGS: Settings = {
   maxChartPoints: 50,
   flushIntervalSec: 2,
   showKneeRoll: false,
+  showTrendChart: false,
+  show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark'
@@ -395,9 +409,10 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 8, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 9, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
+      // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

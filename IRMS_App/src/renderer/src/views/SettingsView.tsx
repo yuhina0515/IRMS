@@ -211,6 +211,22 @@ export function SettingsView(): JSX.Element {
               <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
             </p>
           </div>
+          <div style={{ marginTop: 12 }}>
+            <Toggle
+              label="Dashboard 顯示趨勢圖分頁"
+              checked={settings.showTrendChart}
+              onChange={(v) => set('showTrendChart', v)}
+            />
+            <Toggle
+              label="Dashboard 顯示 3D/2D 姿態"
+              checked={settings.show3D2DPose}
+              onChange={(v) => set('show3D2DPose', v)}
+            />
+            <p className="field-hint" style={{ marginTop: 6 }}>
+              兩者預設關閉,讓 Dashboard 在任何視窗尺寸下都不需要捲動;關閉不影響資料
+              收集,開啟後立刻看得到累積的歷史曲線/姿態。
+            </p>
+          </div>
         </div>
       </div>
 

@@ -47,6 +47,8 @@ const SETTINGS: Settings = {
   maxChartPoints: 50,
   flushIntervalSec: 2,
   showKneeRoll: false,
+  showTrendChart: false,
+  show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark'

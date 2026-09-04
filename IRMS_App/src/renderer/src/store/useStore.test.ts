@@ -30,6 +30,8 @@ const BASE_SETTINGS: Settings = {
   maxChartPoints: 50,
   flushIntervalSec: 2,
   showKneeRoll: false,
+  showTrendChart: false,
+  show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark'
@@ -72,6 +74,21 @@ describe('migrateSettings', () => {
     expect(settings.maxChartPoints).toBe(120) // 使用者既有值不被覆蓋
     expect(settings.thighZeroRaw).toBe(-8.25)
     expect(settings.thighInvert).toBe(true)
+  })
+
+  it('v8 的 persist 資料補上 v9 新欄位 showTrendChart/show3D2DPose,且不動使用者既有值', () => {
+    const v8 = {
+      settings: {
+        protocol: 'knee',
+        maxChartPoints: 80,
+        showKneeRoll: true
+      }
+    }
+    const { settings } = migrateSettings(v8)
+    expect(settings.showTrendChart).toBe(false) // 新欄位補預設(收起)
+    expect(settings.show3D2DPose).toBe(false)
+    expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
+    expect(settings.showKneeRoll).toBe(true)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {

@@ -490,13 +490,25 @@
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     /* Without a floor, flex-shrink can crush this to "just the tab buttons, no chart" on
        tight windows instead of leaving the summary row to give up the space — a chart with
-       zero visible height isn't "adaptively sized," it's hidden. */
-    min-height: min(260px, 30vh);
+       zero visible height isn't "adaptively sized," it's hidden.
+       2026-09-04: lowered 260px/30vh → 200px/24vh after finding a real 17.6px page-scroll
+       regression at the actual default window size (1280×820) — the old floor never
+       accounted for the conditional calib-chip banner (~61px, shown on every first-ever
+       launch, uncalibrated profile). This is exactly the kind of magic-number-per-scenario
+       tuning the adaptive-layout redesign (see doc/gemini-handoff for the eventual system)
+       is meant to replace; treat this constant as provisional. */
+    min-height: min(200px, 24vh);
   }
   @media (max-width: 900px) {
     .cockpit {
       grid-template-columns: 1fr;
     }
+  }
+  /* 2026-09-04:show3D2DPose 關閉時右欄整個不渲染(見 DashboardView.tsx),左欄改
+     獨佔寬度而不是留一塊空白——所以這裡要把兩欄的 grid-template-columns 收成一欄,
+     不能只是讓右邊的 grid item 消失、左欄仍卡在 1.6fr 的比例寬度上。 */
+  .cockpit-single {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   .cockpit-panel {
     @apply flex flex-col h-full min-h-0 min-w-0;
