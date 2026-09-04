@@ -289,6 +289,12 @@ function FirmwareOtaPanel(): JSX.Element {
 
   const startUpdate = async (): Promise<void> => {
     if (!firmware) return
+    // 空檔案交給韌體端的 OTA:ERROR:BAD_START 擋也擋得住,但那則訊息寫的是「App 端 bug,
+    // 不應該發生」——選到空檔案是使用者操作,不是 bug,在這裡先攔下來給看得懂的訊息。
+    if (firmware.size === 0) {
+      showToast('選擇的檔案是空的,請重新選擇 .bin', 'error')
+      return
+    }
     const sizeKb = (firmware.size / 1024).toFixed(0)
     const warnLine = versionsMatch
       ? `\n⚠ 填寫的版本標籤與裝置目前版本相同(${deviceVersion}),確定仍要重新燒錄?`
