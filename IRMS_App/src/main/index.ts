@@ -9,6 +9,7 @@ import { IpcChannel } from '@shared/ipc'
 import { DEVICE_NAME_PREFIX } from '@shared/protocol'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
+import { setupAutoUpdater } from './updater'
 
 // 啟用 Web Bluetooth(Electron 預設關閉)
 app.commandLine.appendSwitch('enable-web-bluetooth', 'true')
@@ -100,6 +101,7 @@ function createWindow(): void {
   })
 
   registerWindowControlHandlers(mainWindow)
+  setupAutoUpdater(mainWindow)
   setupBluetoothAutoPairing(mainWindow)
 
   // electron-vite:開發模式載入 dev server,正式模式載入打包後的 HTML

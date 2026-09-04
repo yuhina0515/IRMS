@@ -16,3 +16,12 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+# electron-updater 讀這裡決定去哪裡找新版——GitHub Releases 的 public feed,
+# 不需要 token 就能檢查/下載(token 只有 `electron-builder --publish` 發版當下才需要)。
+# beta 版(vX.Y.Z-beta.N + gh release --prerelease)預設不會被一般使用者的 App 自動抓到:
+# electron-updater 預設 allowPrerelease:false,除非使用者自己在正式版裡手動選過 beta
+# channel(這個 App 目前沒有做那個切換 UI,等於永遠只走正式版)。
+publish:
+  provider: github
+  owner: yuhina0515
+  repo: IRMS

@@ -28,7 +28,13 @@ export const IpcChannel = {
   WINDOW_IS_MAXIMIZED: 'window:isMaximized',
   WINDOW_HAS_CUSTOM_TITLEBAR: 'window:hasCustomTitlebar',
   /** main → renderer 推播頻道(非 invoke/handle 的請求-回應模式),視窗最大化狀態改變時觸發 */
-  WINDOW_MAXIMIZED_CHANGED: 'window:maximizedChanged'
+  WINDOW_MAXIMIZED_CHANGED: 'window:maximizedChanged',
+
+  UPDATE_GET_CURRENT_VERSION: 'update:getCurrentVersion',
+  UPDATE_CHECK_NOW: 'update:checkNow',
+  UPDATE_RESTART_NOW: 'update:restartNow',
+  /** main → renderer 推播頻道,electron-updater 生命週期事件 */
+  UPDATE_STATUS_CHANGED: 'update:statusChanged'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]

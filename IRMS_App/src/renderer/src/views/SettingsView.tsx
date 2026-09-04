@@ -1,5 +1,5 @@
 // renderer/views/SettingsView.tsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS } from '@shared/types'
@@ -233,12 +233,56 @@ export function SettingsView(): JSX.Element {
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
 
       <div style={{ marginTop: 24 }}>
+        <SoftwareUpdatePanel />
+      </div>
+      <div style={{ marginTop: 24 }}>
         <FirmwareOtaPanel />
       </div>
       <div style={{ marginTop: 24 }}>
         <DemoModePanel />
       </div>
     </>
+  )
+}
+
+/**
+ * App 軟體更新面板(2026-09-05)。更新流程本身(背景下載/重啟套用)完全靜默——見
+ * `UpdateBanner.tsx`,只有「已下載完成」才會冒出來。這裡只放版本顯示與手動檢查按鈕,
+ * 不重複顯示下載進度(那是 UpdateBanner 的責任,兩處各管各的狀態沒有必要疊在一起)。
+ */
+function SoftwareUpdatePanel(): JSX.Element {
+  const showToast = useUiStore((s) => s.showToast)
+  const [version, setVersion] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
+
+  useEffect(() => {
+    window.irms.updates.getCurrentVersion().then(setVersion)
+  }, [])
+
+  const checkNow = async (): Promise<void> => {
+    setChecking(true)
+    try {
+      await window.irms.updates.checkNow()
+      showToast('已送出檢查請求——若有新版本,會在背景下載,完成後畫面下方會出現重啟提示', 'info')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <div className="panel glass">
+      <h3 style={{ marginBottom: 14 }}>Software Update 軟體更新</h3>
+      <p className="text-text-muted text-sm mb-3">
+        新版本會在背景自動下載,不會跳出安裝精靈;下載完成後畫面下方會出現提示,按下重啟即可套用
+        (或直接關閉 App,下次啟動時自動套用)。
+      </p>
+      <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+        {version && <span className="text-sm text-text-muted">目前版本:{version}</span>}
+        <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
+          {checking ? '檢查中…' : '立即檢查更新'}
+        </button>
+      </div>
+    </div>
   )
 }
 

@@ -674,6 +674,14 @@
     @apply border-l-warning;
   }
 
+  /* ── update banner ── 持續顯示直到使用者重啟或這次執行期結束(不像 toast 會自動消失)
+     ——這是一個需要使用者決定「現在」還是「等一下」的動作,不是純資訊通知。 */
+  .update-banner {
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3.5
+      px-4 py-3 rounded-control bg-surface-raised border border-border border-l-4 border-l-success
+      shadow-floating text-sm;
+  }
+
   /* ── internal tab switcher (kept for Dashboard's secondary-visualization card,
      see doc/UI_REDESIGN.md — same interaction pattern, re-skinned) ── */
   .tabs {

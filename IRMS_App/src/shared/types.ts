@@ -182,6 +182,15 @@ export interface FirmwareBinary {
   data: Uint8Array
 }
 
+/** electron-updater 生命週期狀態,main 透過 UPDATE_STATUS_CHANGED 推播給 renderer */
+export type UpdateStatus =
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'not-available' }
+  | { state: 'downloading'; percent: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string }
+
 /**
  * preload 透過 contextBridge 暴露給 renderer 的型別安全 API。
  * renderer 以 window.irms 存取,完全取代舊版的 HTTP fetch。
@@ -223,5 +232,15 @@ export interface IrmsApi {
     hasCustomTitlebar(): Promise<boolean>
     /** 訂閱最大化/還原狀態改變,回傳取消訂閱函式 */
     onMaximizedChange(cb: (maximized: boolean) => void): () => void
+  }
+  updates: {
+    /** 目前已安裝的 App 版本(`app.getVersion()`,即 package.json 的 version) */
+    getCurrentVersion(): Promise<string>
+    /** 手動觸發一次檢查(例如 Settings 的「檢查更新」按鈕);開發模式下為 no-op */
+    checkNow(): Promise<void>
+    /** 已下載完成時呼叫——結束目前 App 並安裝新版,安裝完成後自動重開 */
+    restartNow(): Promise<void>
+    /** 訂閱更新生命週期狀態,回傳取消訂閱函式 */
+    onStatusChange(cb: (status: UpdateStatus) => void): () => void
   }
 }

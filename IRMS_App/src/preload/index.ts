@@ -10,7 +10,8 @@ import type {
   FirmwareBinary,
   IrmsApi,
   SensorReading,
-  SessionStartInput
+  SessionStartInput,
+  UpdateStatus
 } from '@shared/types'
 
 const api: IrmsApi = {
@@ -51,6 +52,16 @@ const api: IrmsApi = {
       const handler = (_event: unknown, maximized: boolean): void => cb(maximized)
       ipcRenderer.on(IpcChannel.WINDOW_MAXIMIZED_CHANGED, handler)
       return () => ipcRenderer.removeListener(IpcChannel.WINDOW_MAXIMIZED_CHANGED, handler)
+    }
+  },
+  updates: {
+    getCurrentVersion: () => ipcRenderer.invoke(IpcChannel.UPDATE_GET_CURRENT_VERSION),
+    checkNow: () => ipcRenderer.invoke(IpcChannel.UPDATE_CHECK_NOW),
+    restartNow: () => ipcRenderer.invoke(IpcChannel.UPDATE_RESTART_NOW),
+    onStatusChange: (cb: (status: UpdateStatus) => void) => {
+      const handler = (_event: unknown, status: UpdateStatus): void => cb(status)
+      ipcRenderer.on(IpcChannel.UPDATE_STATUS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannel.UPDATE_STATUS_CHANGED, handler)
     }
   }
 }

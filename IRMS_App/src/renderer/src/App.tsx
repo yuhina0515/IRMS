@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { ToastHost } from './components/ToastHost'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorOverlay } from './components/ErrorOverlay'
+import { UpdateBanner } from './components/UpdateBanner'
 import { DashboardView } from './views/DashboardView'
 import { ActionsView } from './views/ActionsView'
 import { HistoryView } from './views/HistoryView'
@@ -61,6 +62,7 @@ export default function App(): JSX.Element {
       <ToastHost />
       <ConfirmDialog />
       <ErrorOverlay />
+      <UpdateBanner />
     </>
   )
 }
