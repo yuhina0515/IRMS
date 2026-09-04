@@ -331,7 +331,7 @@ function FirmwareOtaPanel(): JSX.Element {
       <div className="row" style={{ gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
         <button
           className="btn btn-secondary"
-          disabled={!!disabledReason || checkingVersion}
+          disabled={!!disabledReason || checkingVersion || inFlight}
           onClick={() => void checkVersion()}
         >
           {checkingVersion ? '查詢中…' : '查詢裝置目前版本'}
