@@ -213,4 +213,15 @@ export interface IrmsApi {
     /** 開檔對話框選 .bin;使用者取消回傳 null,而非用例外表示一個正常的操作結果 */
     pickBinary(): Promise<FirmwareBinary | null>
   }
+  windowControls: {
+    minimize(): Promise<void>
+    toggleMaximize(): Promise<void>
+    close(): Promise<void>
+    isMaximized(): Promise<boolean>
+    /** RDP session 退回原生視窗框(見 main/index.ts IS_RDP_SESSION 註解),此時
+     *  renderer 不該畫自己的拖曳列/視窗控制鈕——OS 已經給了一份,兩份會疊在一起。 */
+    hasCustomTitlebar(): Promise<boolean>
+    /** 訂閱最大化/還原狀態改變,回傳取消訂閱函式 */
+    onMaximizedChange(cb: (maximized: boolean) => void): () => void
+  }
 }

@@ -2,9 +2,10 @@
 // --- Electron 主進程進入點 ---
 // 職責:初始化資料庫、註冊 IPC、建立視窗、處理 Web Bluetooth 自動配對。
 
-import { app, shell, screen, BrowserWindow, nativeTheme, dialog } from 'electron'
+import { app, shell, screen, ipcMain, BrowserWindow, nativeTheme, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { IpcChannel } from '@shared/ipc'
 import { DEVICE_NAME_PREFIX } from '@shared/protocol'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
@@ -26,19 +27,20 @@ if (!gotSingleInstanceLock) {
   app.quit()
 }
 
-// RDP session:見 createWindow() 的 IS_RDP_SESSION 註解——這裡先關 Chromium 自己的
-// GPU 加速當第二道防線(不是主因,但便宜且無害;主因是 titleBarOverlay 依賴的 DWM
-// 合成在這個 session 裡卡死,那部分的規避在 createWindow())。
+// RDP session:2026-08-28 曾發現這個 session 下 titleBarOverlay 依賴的 DWM 合成會
+// 卡死(ready-to-show 永遠不來),當時關掉 Chromium 自己的 GPU 加速當第二道防線。
+// 2026-09-04 改用 frame:false 完全自訂標題列(見 createWindow())取代 titleBarOverlay
+// 後,已在同一台機器、同一種 RDP session(SESSIONNAME=RDP-Tcp#0)上重新實測三次
+// 啟動,frame:false 不卡——不是理論推測,是同一個曾經壞掉的環境重新跑過。
+// GPU 加速仍先關著,便宜且無害,沒有理由為了這次改動連帶去驗證它是否還需要。
 const IS_RDP_SESSION = process.env['SESSIONNAME']?.startsWith('RDP-Tcp') ?? false
 if (IS_RDP_SESSION) {
   app.disableHardwareAcceleration()
 }
 
-/** 視窗底色/標題列疊層色,跟隨系統主題(對齊 renderer 的 --bg-0/--text) */
-function themeColors(): { bg: string; symbol: string } {
-  return nativeTheme.shouldUseDarkColors
-    ? { bg: '#0b0f1f', symbol: '#ffffff' }
-    : { bg: '#eef2fb', symbol: '#1c1c1e' }
+/** 視窗底色,跟隨系統主題 */
+function themeColors(): { bg: string } {
+  return nativeTheme.shouldUseDarkColors ? { bg: '#0b0f1f' } : { bg: '#eef2fb' }
 }
 
 /**
@@ -70,19 +72,10 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'IRMS Dashboard',
-    // 隱藏標題列與黑邊,只保留右上角原生最小化/最大化/關閉鈕(疊在網頁內容上),
-    // 讓 renderer 的內容一路延伸到視窗頂端(滿版)。
-    // ⚠ titleBarOverlay 靠 DWM 合成畫出那顆疊在網頁上的原生控制鈕——2026-08-28
-    // 實測:這個 session 裡 DWM 合成這個疊層時會直接卡死,連 renderer 都載入完了
-    // (did-finish-load 有觸發),ready-to-show 永遠不來,視窗永遠不會顯示,且不是
-    // Chromium 自己的 GPU 加速問題(關掉 disableHardwareAcceleration 也一樣卡)。
-    // RDP session 一律退回一般視窗框,犧牲滿版標題列的外觀換取「打得開」。
-    ...(IS_RDP_SESSION
-      ? {}
-      : {
-          titleBarStyle: 'hidden' as const,
-          titleBarOverlay: { color: initial.bg, symbolColor: initial.symbol, height: 40 }
-        }),
+    // 完全自訂標題列(2026-09-04,取代先前的 titleBarStyle:'hidden' + titleBarOverlay):
+    // 連 RDP session 都一併適用(見上方 IS_RDP_SESSION 註解,已重新實測)。renderer
+    // 的 TopHeader 自己畫拖曳列與最小化/最大化/關閉鈕(見 window:minimize 等 IPC handler)。
+    frame: false,
     // 視窗底色跟隨系統主題,避免載入瞬間閃色
     backgroundColor: initial.bg,
     webPreferences: {
@@ -93,12 +86,9 @@ function createWindow(): void {
     }
   })
 
-  // 系統主題切換時,標題列疊層與底色一併跟著換,避免變成唯一沒跟上主題的地方
-  // (RDP session 沒有這個疊層,setTitleBarOverlay 對沒開啟該功能的視窗呼叫無效)
+  // 系統主題切換時,視窗底色跟著換,避免變成唯一沒跟上主題的地方
   nativeTheme.on('updated', () => {
-    const c = themeColors()
-    mainWindow.setBackgroundColor(c.bg)
-    if (!IS_RDP_SESSION) mainWindow.setTitleBarOverlay({ color: c.bg, symbolColor: c.symbol, height: 40 })
+    mainWindow.setBackgroundColor(themeColors().bg)
   })
 
   mainWindow.on('ready-to-show', () => mainWindow.show())
@@ -109,6 +99,7 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  registerWindowControlHandlers(mainWindow)
   setupBluetoothAutoPairing(mainWindow)
 
   // electron-vite:開發模式載入 dev server,正式模式載入打包後的 HTML
@@ -118,6 +109,41 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+/**
+ * 自訂標題列的視窗控制 IPC——用 `BrowserWindow.fromWebContents(event.sender)` 取得
+ * 發送請求的那個視窗,而非閉包捕捉 mainWindow,理由與 registerIpcHandlers() 的其他
+ * handler 一致(維持同一種寫法,不為了這幾個 handler 另開一套模式)。
+ * maximize/unmaximize 事件則需要視窗參照本身,綁在這裡(建立當下),而非 ipc.ts。
+ */
+function registerWindowControlHandlers(win: BrowserWindow): void {
+  ipcMain.handle(IpcChannel.WINDOW_MINIMIZE, (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.handle(IpcChannel.WINDOW_TOGGLE_MAXIMIZE, (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender)
+    if (!w) return
+    if (w.isMaximized()) w.unmaximize()
+    else w.maximize()
+  })
+  ipcMain.handle(IpcChannel.WINDOW_CLOSE, (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+  ipcMain.handle(IpcChannel.WINDOW_IS_MAXIMIZED, (event) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false
+  })
+  // 桌面版(frame:false)一律 true。保留這個查詢而非直接刪掉整條路徑,是留給未來
+  // 行動/平板/穿戴平台(使用者規劃中的 Android/iOS/iPadOS/watchOS)——那些平台的
+  // window chrome 概念完全不同,renderer 屆時需要同一種方式判斷「這個平台要不要
+  // 畫自己的拖曳列/控制鈕」。
+  ipcMain.handle(IpcChannel.WINDOW_HAS_CUSTOM_TITLEBAR, () => true)
+
+  const notify = (): void => {
+    win.webContents.send(IpcChannel.WINDOW_MAXIMIZED_CHANGED, win.isMaximized())
+  }
+  win.on('maximize', notify)
+  win.on('unmaximize', notify)
 }
 
 /**

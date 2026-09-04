@@ -40,6 +40,18 @@ const api: IrmsApi = {
   },
   firmware: {
     pickBinary: (): Promise<FirmwareBinary | null> => ipcRenderer.invoke(IpcChannel.FIRMWARE_PICK_BINARY)
+  },
+  windowControls: {
+    minimize: () => ipcRenderer.invoke(IpcChannel.WINDOW_MINIMIZE),
+    toggleMaximize: () => ipcRenderer.invoke(IpcChannel.WINDOW_TOGGLE_MAXIMIZE),
+    close: () => ipcRenderer.invoke(IpcChannel.WINDOW_CLOSE),
+    isMaximized: () => ipcRenderer.invoke(IpcChannel.WINDOW_IS_MAXIMIZED),
+    hasCustomTitlebar: () => ipcRenderer.invoke(IpcChannel.WINDOW_HAS_CUSTOM_TITLEBAR),
+    onMaximizedChange: (cb: (maximized: boolean) => void) => {
+      const handler = (_event: unknown, maximized: boolean): void => cb(maximized)
+      ipcRenderer.on(IpcChannel.WINDOW_MAXIMIZED_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannel.WINDOW_MAXIMIZED_CHANGED, handler)
+    }
   }
 }
 
