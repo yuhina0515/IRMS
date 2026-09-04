@@ -171,6 +171,18 @@ export interface StoredReading extends SensorReading {
 }
 
 /**
+ * 使用者透過檔案選取器挑的韌體 .bin,主行程讀檔 + 算 MD5 後回傳。
+ * MD5 放在主行程算(Node `crypto`),不是因為 renderer 裡的 Web Bluetooth 頁面環境
+ * 算不動,而是避免多引入一個瀏覽器端雜湊函式庫只為了這一個用途。
+ */
+export interface FirmwareBinary {
+  path: string
+  size: number
+  md5: string
+  data: Uint8Array
+}
+
+/**
  * preload 透過 contextBridge 暴露給 renderer 的型別安全 API。
  * renderer 以 window.irms 存取,完全取代舊版的 HTTP fetch。
  */
@@ -196,5 +208,9 @@ export interface IrmsApi {
     update(id: number, input: CustomActionInput): Promise<CustomAction>
     delete(id: number): Promise<{ success: true }>
     restoreDefaults(): Promise<CustomAction[]>
+  }
+  firmware: {
+    /** 開檔對話框選 .bin;使用者取消回傳 null,而非用例外表示一個正常的操作結果 */
+    pickBinary(): Promise<FirmwareBinary | null>
   }
 }

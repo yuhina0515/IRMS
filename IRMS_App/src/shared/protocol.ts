@@ -34,6 +34,39 @@ export const BleCommand = {
 
 export type BleCommand = (typeof BleCommand)[keyof typeof BleCommand]
 
+/**
+ * OTA(2026-09-04,Phase B/C):獨立於上面感測器 service 之外的另一個 GATT service,
+ * 刻意不與 `SERVICE_UUID` 共用——韌體端理由同上,新增 OTA 不動到既有感測器契約一個位元。
+ * 對應韌體端定義見 `IRMS_Sensor/config.h` 的「OTA」區塊,UUID 必須逐字相同。
+ */
+export const OTA_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c3319150'
+
+/** App → ESP32,Write:OTA 控制指令(`OTA:START:<bytes>:<md5hex32>` / `OTA:END` / `OTA:ABORT`) */
+export const CHAR_OTA_CONTROL = 'beb5483e-36e1-4688-b7f5-ea07361b28a8'
+
+/** App → ESP32,Write No Response:韌體二進位分塊,每塊大小受目前協商到的 BLE MTU 限制 */
+export const CHAR_OTA_DATA = 'beb5483f-36e1-4688-b7f5-ea07361b28a8'
+
+/** ESP32 → App,Notify:OTA 進度/結果(`OTA:READY` / `OTA:PROGRESS:<n>` / `OTA:DONE` / `OTA:ERROR:<code>` / `OTA:ABORTED`) */
+export const CHAR_OTA_STATUS = 'beb54840-36e1-4688-b7f5-ea07361b28a8'
+
+/** ESP32 → App,Read:裝置目前已燒錄的韌體版本字串(韌體端 `config.h` 的 `IRMS_FW_VERSION`) */
+export const CHAR_FW_VERSION = 'beb54841-36e1-4688-b7f5-ea07361b28a8'
+
+/**
+ * 韌體端 `Update.end()` 回傳 false 時,`Update.errorString()` 常見值的中文對照——
+ * 給 UI 顯示用,不是拿來做程式判斷的 enum(韌體端本來就是自由文字,不是固定代碼表)。
+ * 沒對到表的一律照原字串顯示,而不是吞掉或顯示「未知錯誤」。
+ */
+export const OTA_ERROR_HINTS: Readonly<Record<string, string>> = {
+  NO_SPACE: '裝置回報空間不足,無法開始寫入新韌體',
+  BAD_START: '啟動參數格式錯誤(App 端 bug,不應該發生)',
+  ALREADY_RUNNING: '裝置已有進行中的更新,請先等待或中止',
+  NOT_STARTED: '尚未送出 OTA:START 就收到 END',
+  SIZE_MISMATCH: '實際收到的位元組數與宣告的大小不符,更新已中止',
+  WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)'
+}
+
 // 已移除:buildSyncCommand / buildProfilePayload。
 // 兩者是 @deprecated 死碼,零呼叫端,卻仍在文件化一份韌體並不實作的協定
 // (現行韌體無 SYNC 解析、無 Task_Logic/NVS,判定 100% 在 App 端 —— ROADMAP 決策 D1)。

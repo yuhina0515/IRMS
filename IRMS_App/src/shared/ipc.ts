@@ -18,7 +18,9 @@ export const IpcChannel = {
   ACTION_CREATE: 'action:create',
   ACTION_UPDATE: 'action:update',
   ACTION_DELETE: 'action:delete',
-  ACTION_RESTORE_DEFAULTS: 'action:restoreDefaults'
+  ACTION_RESTORE_DEFAULTS: 'action:restoreDefaults',
+
+  FIRMWARE_PICK_BINARY: 'firmware:pickBinary'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]

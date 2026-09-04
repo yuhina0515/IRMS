@@ -7,6 +7,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type {
   CustomActionInput,
+  FirmwareBinary,
   IrmsApi,
   SensorReading,
   SessionStartInput
@@ -36,6 +37,9 @@ const api: IrmsApi = {
       ipcRenderer.invoke(IpcChannel.ACTION_UPDATE, id, input),
     delete: (id: number) => ipcRenderer.invoke(IpcChannel.ACTION_DELETE, id),
     restoreDefaults: () => ipcRenderer.invoke(IpcChannel.ACTION_RESTORE_DEFAULTS)
+  },
+  firmware: {
+    pickBinary: (): Promise<FirmwareBinary | null> => ipcRenderer.invoke(IpcChannel.FIRMWARE_PICK_BINARY)
   }
 }
 

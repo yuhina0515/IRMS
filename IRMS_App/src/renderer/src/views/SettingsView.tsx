@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS } from '@shared/types'
+import type { FirmwareBinary } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
+import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 
 function NumField({
   label,
@@ -215,9 +217,187 @@ export function SettingsView(): JSX.Element {
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
 
       <div style={{ marginTop: 24 }}>
+        <FirmwareOtaPanel />
+      </div>
+      <div style={{ marginTop: 24 }}>
         <DemoModePanel />
       </div>
     </>
+  )
+}
+
+/**
+ * 裝置韌體 OTA 更新面板(2026-09-04,Phase C)。
+ *
+ * 放在 Settings 而非另開一個畫面/導覽項目——這是全 App 唯一一處直接操作硬體底層的
+ * 危險操作(校準精靈之外),Settings 本來就是「系統層級設定」的既有心智模型,
+ * 使用者不需要為了一個低頻功能多學一個新的導覽入口。這是本次趕工繞過「UI 設計交給
+ * Gemini 覆核」慣例做的取捨——放在既有分類底下是風險最低的預設選擇,但版面本身
+ * 仍應在下次 Gemini 覆核 pass 一併檢視。
+ */
+function FirmwareOtaPanel(): JSX.Element {
+  const isConnected = useStore((s) => s.isConnected)
+  const isSimulated = bluetoothService.isSimulated
+  const showToast = useUiStore((s) => s.showToast)
+  const requestConfirm = useUiStore((s) => s.requestConfirm)
+
+  const [deviceVersion, setDeviceVersion] = useState<string | null>(null)
+  const [checkingVersion, setCheckingVersion] = useState(false)
+  const [firmware, setFirmware] = useState<FirmwareBinary | null>(null)
+  const [targetLabel, setTargetLabel] = useState('')
+  const [progress, setProgress] = useState<OtaProgress | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const disabledReason = !isConnected
+    ? '需要先於頂部連線真實裝置'
+    : isSimulated
+      ? 'Demo 模式沒有真實裝置,無法更新韌體'
+      : null
+
+  const checkVersion = async (): Promise<void> => {
+    setCheckingVersion(true)
+    try {
+      const v = await bluetoothService.getDeviceFirmwareVersion()
+      setDeviceVersion(v)
+      if (v == null) {
+        showToast('讀取失敗,裝置可能是舊韌體(尚未支援 OTA)', 'warning')
+      }
+    } finally {
+      setCheckingVersion(false)
+    }
+  }
+
+  const pickFile = async (): Promise<void> => {
+    const picked = await window.irms.firmware.pickBinary()
+    if (picked == null) return
+    setFirmware(picked)
+    setProgress(null)
+  }
+
+  // 版本比對僅供使用者確認用的提示,不是自動判斷「要不要更新」的硬性關卡——
+  // .bin 本身沒有可靠讀出的版本中繼資料,標籤是使用者自己填的,不能拿來做程式判斷。
+  const versionsMatch =
+    targetLabel.trim().length > 0 && deviceVersion != null && targetLabel.trim() === deviceVersion
+
+  const startUpdate = async (): Promise<void> => {
+    if (!firmware) return
+    const sizeKb = (firmware.size / 1024).toFixed(0)
+    const warnLine = versionsMatch
+      ? `\n⚠ 填寫的版本標籤與裝置目前版本相同(${deviceVersion}),確定仍要重新燒錄?`
+      : ''
+    const ok = await requestConfirm(
+      '開始更新裝置韌體?',
+      `即將透過 BLE 傳送 ${sizeKb} KB 的韌體到已連線裝置。傳輸中請勿關閉 App 或讓裝置斷電——` +
+        `中途中斷不會讓裝置變磚(新韌體寫入未啟用的分區,失敗時自動維持原本可開機的版本),` +
+        `但這次更新會失敗,需要重新開始。${warnLine}`
+    )
+    if (!ok) return
+
+    setBusy(true)
+    setProgress({ phase: 'starting', bytesSent: 0, totalBytes: firmware.size })
+    const result = await bluetoothService.performOtaUpdate(firmware, setProgress)
+    setBusy(false)
+    showToast(result.message, result.ok ? 'success' : 'error')
+  }
+
+  const abortUpdate = async (): Promise<void> => {
+    await bluetoothService.abortOtaUpdate()
+    setBusy(false)
+    setProgress(null)
+    showToast('已送出中止指令', 'warning')
+  }
+
+  const pct = progress && progress.totalBytes > 0 ? Math.round((progress.bytesSent / progress.totalBytes) * 100) : 0
+  const inFlight = progress != null && ['starting', 'transferring', 'finalizing'].includes(progress.phase)
+
+  return (
+    <div className="panel glass">
+      <h3 style={{ marginBottom: 14 }}>Firmware Update 裝置韌體更新</h3>
+      <p className="text-text-muted text-sm mb-3">
+        透過既有 BLE 連線把新韌體推送到 ESP32,取代原本每次都要拆開裝置、接 USB 到 COM7
+        手動燒錄的流程。傳輸協定與安全性說明見專案文件 OPTIMIZATION.md 的 OTA 條目。
+      </p>
+
+      {disabledReason && <p className="field-hint" style={{ marginBottom: 12 }}>{disabledReason}</p>}
+
+      <div className="row" style={{ gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+        <button
+          className="btn btn-secondary"
+          disabled={!!disabledReason || checkingVersion}
+          onClick={() => void checkVersion()}
+        >
+          {checkingVersion ? '查詢中…' : '查詢裝置目前版本'}
+        </button>
+        {deviceVersion && <span className="text-sm">裝置目前版本:{deviceVersion}</span>}
+      </div>
+
+      <div className="row" style={{ gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+        <button className="btn btn-secondary" disabled={!!disabledReason || inFlight} onClick={() => void pickFile()}>
+          選擇韌體檔案 (.bin)
+        </button>
+        {firmware && (
+          <span className="text-sm text-text-muted">
+            {firmware.path.split(/[\\/]/).pop()} · {(firmware.size / 1024).toFixed(0)} KB · MD5 {firmware.md5.slice(0, 8)}…
+          </span>
+        )}
+      </div>
+
+      {firmware && (
+        <div className="field" style={{ maxWidth: 280, marginBottom: 12 }}>
+          <label>這個檔案的版本標籤(選填,僅供比對提示)</label>
+          <input
+            type="text"
+            value={targetLabel}
+            disabled={inFlight}
+            placeholder="例如 1.0.1"
+            onChange={(e) => setTargetLabel(e.target.value)}
+          />
+        </div>
+      )}
+
+      {progress && (
+        <div style={{ marginBottom: 12 }}>
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+            <span className="text-sm">
+              {progress.phase === 'starting' && '啟動更新…'}
+              {progress.phase === 'transferring' && `傳輸中… ${pct}%`}
+              {progress.phase === 'finalizing' && '寫入完成,裝置驗證中…'}
+              {progress.phase === 'done' && '✅ 完成,裝置重新開機中'}
+              {progress.phase === 'error' && `❌ ${progress.message ?? '更新失敗'}`}
+              {progress.phase === 'aborted' && '已中止'}
+            </span>
+            <span className="text-sm text-text-muted">
+              {(progress.bytesSent / 1024).toFixed(0)} / {(progress.totalBytes / 1024).toFixed(0)} KB
+            </span>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: progress.phase === 'error' ? 'var(--danger)' : 'var(--accent)',
+                transition: 'width 150ms linear'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="row" style={{ gap: 10 }}>
+        <button
+          className="btn btn-primary"
+          disabled={!!disabledReason || !firmware || busy}
+          onClick={() => void startUpdate()}
+        >
+          開始更新
+        </button>
+        {inFlight && (
+          <button className="btn btn-danger-ghost" onClick={() => void abortUpdate()}>
+            中止
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

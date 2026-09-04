@@ -5,7 +5,13 @@
 
 import {
   CHAR_ANGLE_TX,
+  CHAR_FW_VERSION,
+  CHAR_OTA_CONTROL,
+  CHAR_OTA_DATA,
+  CHAR_OTA_STATUS,
   CHAR_PROFILE_RX,
+  OTA_ERROR_HINTS,
+  OTA_SERVICE_UUID,
   SERVICE_UUID,
   parseAnglePacket,
   type LiveAngles
@@ -16,10 +22,27 @@ import { AngleSmoother } from './smoothing'
 const MAX_RECONNECT_ATTEMPTS = 5
 const RECONNECT_DELAY_MS = 3000
 
+/** OTA 分塊大小:對齊韌體 config.h 的 BLE_MTU(128)扣 ATT 3-byte 表頭,同一個數字。 */
+const OTA_CHUNK_SIZE = 125
+/** 每塊之間的節流延遲——Write No Response 沒有 ATT 層 ack,灌太快 Bluedroid send queue 會丟包 */
+const OTA_CHUNK_DELAY_MS = 8
+
+export interface OtaProgress {
+  phase: 'starting' | 'transferring' | 'finalizing' | 'done' | 'error' | 'aborted'
+  bytesSent: number
+  totalBytes: number
+  message?: string
+}
+
 export class BluetoothService {
   private device: BluetoothDevice | null = null
   private angleChar: BluetoothRemoteGATTCharacteristic | null = null
   private profileChar: BluetoothRemoteGATTCharacteristic | null = null
+  /** OTA characteristic 全部延遲取得(僅在使用者真的要更新韌體時才呼叫),
+   *  避免每次正常連線都多一輪 GATT 服務探索的開銷。 */
+  private otaControlChar: BluetoothRemoteGATTCharacteristic | null = null
+  private otaDataChar: BluetoothRemoteGATTCharacteristic | null = null
+  private otaStatusChar: BluetoothRemoteGATTCharacteristic | null = null
   private manualDisconnect = false
   private packetCount = 0
   private malformedCount = 0
@@ -115,7 +138,9 @@ export class BluetoothService {
       this.store.log('Requesting Bluetooth device...')
       this.device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: [SERVICE_UUID]
+        // OTA_SERVICE_UUID 必須在這裡先宣告——Web Bluetooth 不允許事後才存取一個
+        // 沒在 requestDevice() 就列名的 service,就算裝置本身真的有廣播它也一樣。
+        optionalServices: [SERVICE_UUID, OTA_SERVICE_UUID]
       })
       this.store.log(`Device selected: ${this.device.name ?? '(unknown)'}`)
       this.device.addEventListener('gattserverdisconnected', this.onDisconnected)
@@ -287,6 +312,142 @@ export class BluetoothService {
     } catch (err) {
       this.store.log(`Failed to send "${command}": ${(err as Error).message}`)
     }
+  }
+
+  /** 讀取裝置目前已燒錄的韌體版本字串;未連線/模擬模式/舊韌體(無 OTA service)回傳 null */
+  async getDeviceFirmwareVersion(): Promise<string | null> {
+    if (this.simulated || !this.device?.gatt?.connected) return null
+    try {
+      const otaService = await this.device.gatt.getPrimaryService(OTA_SERVICE_UUID)
+      const versionChar = await otaService.getCharacteristic(CHAR_FW_VERSION)
+      const value = await versionChar.readValue()
+      return new TextDecoder().decode(value)
+    } catch (err) {
+      // 最常見的原因是裝置韌體太舊、根本沒有 OTA service——那不是錯誤,是預期狀態
+      this.store.log(`Firmware version read failed (device may predate OTA support): ${(err as Error).message}`)
+      return null
+    }
+  }
+
+  /**
+   * 等待 OTA 狀態 characteristic 送來符合 predicate 的一則通知,逾時則 reject。
+   * 用於「送出控制指令後」等待一次性的確定回覆(READY / DONE / ERROR:...),
+   * 不會跟同一條 characteristic 上持續進來的 PROGRESS 通知互相干擾——
+   * predicate 沒對到的通知直接忽略,不會誤判成逾時或誤判成收到了。
+   */
+  private waitForOtaStatus(predicate: (status: string) => boolean, timeoutMs: number): Promise<string> {
+    const char = this.otaStatusChar
+    if (!char) return Promise.reject(new Error('OTA status characteristic not ready'))
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        char.removeEventListener('characteristicvaluechanged', handler)
+        reject(new Error('OTA status timeout'))
+      }, timeoutMs)
+      const handler = (event: Event): void => {
+        const target = event.target as BluetoothRemoteGATTCharacteristic
+        if (!target.value) return
+        const text = new TextDecoder().decode(target.value)
+        if (!predicate(text)) return
+        clearTimeout(timer)
+        char.removeEventListener('characteristicvaluechanged', handler)
+        resolve(text)
+      }
+      char.addEventListener('characteristicvaluechanged', handler)
+    })
+  }
+
+  /**
+   * 把一份韌體 .bin 透過 BLE OTA 推送到裝置。流程對應韌體端 OtaControlCallbacks:
+   * START(附大小+MD5)→ 韌體 Update.begin() → 逐塊 Data 分包(Write No Response)→
+   * END → 韌體 Update.end() 驗證 + 自動重開機。任何一步失敗都不會讓裝置變磚——
+   * otadata 只有在韌體端 end() 成功時才切換開機目標,見韌體 config.h/OTA 註解。
+   */
+  async performOtaUpdate(
+    firmware: { data: Uint8Array; md5: string },
+    onProgress: (p: OtaProgress) => void
+  ): Promise<{ ok: boolean; message: string }> {
+    if (this.simulated) return { ok: false, message: 'Demo 模式沒有真實裝置,無法更新韌體' }
+    if (!this.device?.gatt?.connected) return { ok: false, message: '裝置未連線' }
+
+    const total = firmware.data.length
+    const emit = (phase: OtaProgress['phase'], bytesSent: number, message?: string): void =>
+      onProgress({ phase, bytesSent, totalBytes: total, message })
+
+    let progressHandler: ((event: Event) => void) | null = null
+    try {
+      const otaService = await this.device.gatt.getPrimaryService(OTA_SERVICE_UUID)
+      this.otaControlChar = await otaService.getCharacteristic(CHAR_OTA_CONTROL)
+      this.otaDataChar = await otaService.getCharacteristic(CHAR_OTA_DATA)
+      this.otaStatusChar = await otaService.getCharacteristic(CHAR_OTA_STATUS)
+      await this.otaStatusChar.startNotifications()
+
+      progressHandler = (event: Event): void => {
+        const target = event.target as BluetoothRemoteGATTCharacteristic
+        if (!target.value) return
+        const text = new TextDecoder().decode(target.value)
+        if (!text.startsWith('OTA:PROGRESS:')) return
+        const n = Number(text.slice('OTA:PROGRESS:'.length))
+        if (Number.isFinite(n)) emit('transferring', n)
+      }
+      this.otaStatusChar.addEventListener('characteristicvaluechanged', progressHandler)
+
+      emit('starting', 0)
+      const readyPromise = this.waitForOtaStatus((s) => s === 'OTA:READY' || s.startsWith('OTA:ERROR:'), 10_000)
+      await this.otaControlChar.writeValue(new TextEncoder().encode(`OTA:START:${total}:${firmware.md5}`))
+      const readyReply = await readyPromise
+      if (readyReply.startsWith('OTA:ERROR:')) {
+        const message = this.describeOtaError(readyReply)
+        emit('error', 0, message)
+        return { ok: false, message }
+      }
+
+      for (let offset = 0; offset < total; offset += OTA_CHUNK_SIZE) {
+        // 用 slice() 而非 subarray():後者共享底層 buffer,型別上仍是「可能是
+        // SharedArrayBuffer」的 ArrayBufferLike,與 Web Bluetooth 要求的具體
+        // ArrayBuffer 對不上;slice() 複製出一段新的、型別明確的 Uint8Array。
+        const chunk = firmware.data.slice(offset, Math.min(offset + OTA_CHUNK_SIZE, total))
+        await this.otaDataChar.writeValueWithoutResponse(new Uint8Array(chunk))
+        await new Promise((r) => setTimeout(r, OTA_CHUNK_DELAY_MS))
+      }
+
+      emit('finalizing', total)
+      const donePromise = this.waitForOtaStatus((s) => s === 'OTA:DONE' || s.startsWith('OTA:ERROR:'), 20_000)
+      await this.otaControlChar.writeValue(new TextEncoder().encode('OTA:END'))
+      const doneReply = await donePromise
+      if (doneReply.startsWith('OTA:ERROR:')) {
+        const message = this.describeOtaError(doneReply)
+        emit('error', total, message)
+        return { ok: false, message }
+      }
+
+      // 韌體端這時已經在呼叫 ESP.restart()——連線會斷,既有的 onDisconnected/
+      // attemptReconnect 邏輯會自動接手,重開機完成後自動連回來,這裡不必多做什麼。
+      emit('done', total, '更新完成,裝置正在重新開機並自動重新連線')
+      return { ok: true, message: '更新完成,裝置正在重新開機' }
+    } catch (err) {
+      const message = (err as Error).message ?? String(err)
+      this.store.log(`OTA update failed: ${message}`)
+      emit('error', 0, message)
+      return { ok: false, message }
+    } finally {
+      if (progressHandler) this.otaStatusChar?.removeEventListener('characteristicvaluechanged', progressHandler)
+    }
+  }
+
+  /** 中止進行中的 OTA。裝置斷線本身就等同中止(見 performOtaUpdate 的安全性註解),
+   *  這裡只是在連線還活著時,讓韌體立刻釋放 Update 物件、不必等逾時。 */
+  async abortOtaUpdate(): Promise<void> {
+    if (!this.otaControlChar) return
+    try {
+      await this.otaControlChar.writeValue(new TextEncoder().encode('OTA:ABORT'))
+    } catch {
+      // 送不到就算了——最壞情況是裝置已經斷線,而斷線本身就已經達成中止的效果
+    }
+  }
+
+  private describeOtaError(statusText: string): string {
+    const code = statusText.slice('OTA:ERROR:'.length)
+    return OTA_ERROR_HINTS[code] ?? `裝置回報錯誤:${code}`
   }
 }
 

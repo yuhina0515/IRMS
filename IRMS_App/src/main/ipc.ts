@@ -3,9 +3,11 @@
 // 將 renderer 透過 window.irms 發起的請求,路由到資料層 repo。
 // 全部為同步 better-sqlite3 呼叫,但以 async handler 包裝以符合 ipcMain.handle 介面。
 
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { IpcChannel } from '@shared/ipc'
-import type { CustomActionInput, SensorReading, SessionStartInput } from '@shared/types'
+import type { CustomActionInput, FirmwareBinary, SensorReading, SessionStartInput } from '@shared/types'
 import { actionsRepo, dataRepo, sessionsRepo } from './db'
 
 export function registerIpcHandlers(): void {
@@ -37,4 +39,21 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannel.ACTION_DELETE, (_e, id: number) => actionsRepo.delete(id))
   ipcMain.handle(IpcChannel.ACTION_RESTORE_DEFAULTS, () => actionsRepo.restoreDefaults())
+
+  // Firmware OTA:讀檔 + 算 MD5 得留在主行程(Node fs/crypto),renderer 的 Web Bluetooth
+  // 頁面環境沒有檔案系統存取權——這正是 preload/contextBridge 這層存在的理由。
+  ipcMain.handle(IpcChannel.FIRMWARE_PICK_BINARY, async (): Promise<FirmwareBinary | null> => {
+    const win = BrowserWindow.getAllWindows()[0]
+    const result = await dialog.showOpenDialog(win, {
+      title: '選擇 IRMS 裝置韌體 (.bin)',
+      filters: [{ name: 'Firmware Binary', extensions: ['bin'] }],
+      properties: ['openFile']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const path = result.filePaths[0]
+    const buffer = await readFile(path)
+    const md5 = createHash('md5').update(buffer).digest('hex')
+    return { path, size: buffer.length, md5, data: new Uint8Array(buffer) }
+  })
 }
