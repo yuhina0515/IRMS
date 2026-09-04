@@ -516,6 +516,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   AI 無法遠端執行,已在 Tasks 與日誌中列出確切指令,待使用者實體操作後回報結果。
   C1(UI 位置放 Settings)因 `/goal` 不中斷要求而跳過了「UI 交給 Gemini 覆核」的
   既有慣例,已標記待下次覆核 pass 補上。
+- **2026-09-05 自訂標題列 + Dashboard 面板預設收起 + Gemini 需求草稿**
+  ([[log_20260905_titlebar_default_hidden_panels_gemini_briefs|完整日誌]]):使用者
+  一次提 8 點需求。已完成:標題列改 `frame:false` 完全自訂(修掉 OS 疊層按鈕與 App
+  自畫列重疊的問題,順便用同一個曾經卡死的 RDP session 重新實測驗證,拿掉了舊的
+  RDP 特例);Dashboard 趨勢圖/3D-2D 姿態預設收起(persist v9),連帶抓到並修掉一個
+  17.6px 的真實溢出迴歸(`.cockpit` 的 `min-height` 下限沒算到 calib-chip banner);
+  `doc/gemini-handoff-20260905/` 整理 4 份分開的 Gemini 設計需求草稿(標題列視覺、
+  導覽視覺、動畫語言 audit、自適應版面系統——最後一份把「任何尺寸不捲動」與「需要
+  系統別再手調數字」兩點合併,並把今天這次溢出迴歸寫成具體案例)。GitHub 自動更新
+  排入下一步。`npm run ci` 全綠,隔離 Playwright 啟動實測(非僅程式碼推論)確認溢出
+  已修、標題列雙主題正常。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
