@@ -163,7 +163,14 @@
 - [x] electron-builder:應用程式圖示 (`build/icon.ico`) 與產品中繼資料
       (`appId`/`productName`);已發布 v1.0.0 / v1.0.1 的 NSIS 安裝檔。(2026-07-14)
 - [ ] Windows 程式碼簽章(目前所有產出皆未簽章,安裝時會跳 SmartScreen 警告)。
-- [ ] 自動更新 (electron-updater)。
+- [ ] **自動更新 (electron-updater)**(2026-09-05 實作完成,**卡在架構性決策未解**,
+      見 [[log_20260905_auto_update_electron_updater]]):靜默背景檢查/下載、無安裝
+      精靈、下載完成後畫面下方提示重啟套用,程式碼與 `npm run ci` 都沒問題。實機打包
+      測試發現 `IRMS` repo 是 **private**,已發行的 App 二進位檔沒有(也不該有)驗證
+      憑證,GitHub Releases API 對它一律 404——這不是我能自己選的技術細節,需要使用者
+      在「repo 改 public」/「App 內嵌一組唯讀 token(可被反解,只能靠窄 scope 降低
+      風險)」/「换一個不需要公開 repo 的發布機制(自架更新伺服器等,額外工程量最大)」
+      三條路之間做選擇。
 - [ ] 跨平台 target(目前僅 Windows NSIS)。
 - [ ] **裝置韌體 OTA 更新**(構想,使用者以照片提議、確切提出時間不確定,推測 08 月下旬,
       2026-09-03 記錄以候查;2026-09-04 使用者對三個開放問題給出方向性回覆,**方向已定,
