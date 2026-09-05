@@ -168,12 +168,13 @@
   .sidebar-toggle:hover {
     color: rgb(var(--sidebar-accent));
   }
+  /* No rotation on collapse (2026-09-06) — a 3-horizontal-line hamburger rotated 90deg just
+     becomes 3 vertical bars, which read as ugly rather than as a meaningful state cue; stays at
+     0deg in both states. Kept as its own class/transition hook (not deleted outright) in case a
+     different icon or a non-rotation transform is wanted here later. */
   .sidebar-toggle-icon {
     @apply flex shrink-0;
     transition: transform 0.25s var(--motion-ease-mechanical);
-  }
-  .sidebar-toggle-icon.collapsed {
-    transform: rotate(90deg);
   }
   .sidebar-nav-group {
     @apply flex flex-col;
