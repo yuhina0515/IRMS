@@ -555,6 +555,19 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   (285 tests),四種視窗尺寸(含先前兩個未解決的 1093×614、1024×600)× 面板開關全組合
   下 Playwright 實測零 page-level overflow。細部視覺密度問題留給 Gemini 01-03 號簡報
   的視覺設計 pass。
+- **2026-09-05 動畫語言全面重調(依 Gemini 03 號簡報)**
+  ([[log_20260905_animation_language_gemini_audit|完整日誌]]):收斂為三組具名
+  motion token(`--motion-ease-mechanical/-enter/-exit`),Tab Switcher 拉伸回彈
+  420ms/1.4x 壓到 220ms/1.15x 且改單階段擠壓鎖定(不再是多階段果凍波動)、
+  GlassDropdown 從「兩階段 scale+fade」改單層 translateY+opacity 微幅位移、Toast
+  與 ConfirmDialog 補上原本完全沒有的進退場動畫、BLE 連線 LED 加 180ms 脈衝且
+  Dashboard 量表面板邊框在斷線時做 200ms 色溫轉移、`prefers-reduced-motion`
+  整併為一個區塊(全域壓到 0.01ms + 對帶語意的狀態變化疊加 80ms 純 opacity 例外)。
+  用 Playwright 對打包後的 App 做真實互動計時斷言時,抓到並修掉一個 Toast 退場
+  動畫的真實 bug——本地鏡像狀態的 `filter` 在把項目標記為 exiting **之前**就先
+  篩掉了它,導致 dismiss 後瞬間消失、120ms 退場動畫完全沒有播放到,只有故意等到
+  3 秒自動 dismiss 那一刻做斷言才會現形。`npm run ci` 全綠(285 tests,bug 修好
+  前後各跑一次)。即時數值/window 最大化兩項稽核後確認本來就正確,無需改動。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
