@@ -568,6 +568,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   篩掉了它,導致 dismiss 後瞬間消失、120ms 退場動畫完全沒有播放到,只有故意等到
   3 秒自動 dismiss 那一刻做斷言才會現形。`npm run ci` 全綠(285 tests,bug 修好
   前後各跑一次)。即時數值/window 最大化兩項稽核後確認本來就正確,無需改動。
+- **2026-09-05 標題列視覺 token 對齊(依 Gemini 圖片參考)**
+  ([[log_20260905_titlebar_visual_gemini_mockup|完整日誌]]):使用者貼了 Gemini
+  給的深/淺主題標題列對照圖,含明確 token 標註。落地兩項:視窗控制鈕閒置色
+  `text-muted`→`text-dim`、關閉鈕 hover 從寫死的 Windows red(`#e81123`,不隨主題
+  變化)改用語意 `--color-danger` token。圖片裡的「0.75rem」間距標註因無法確定精確
+  對應對象、且現行「緊貼視窗右上角」是刻意保留的 Windows 操作慣例,先不猜測實作。
+  同時貼的第二張圖(側欄導覽 + Dashboard 卡片版面)內容含 AI 生成雜訊文字
+  (不存在的裝置/欄位名稱),無法萃取可執行規格,已回頭跟使用者確認是否有配套文字。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
