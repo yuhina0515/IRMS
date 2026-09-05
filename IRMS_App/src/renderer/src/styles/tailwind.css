@@ -178,16 +178,20 @@
   .window-controls {
     @apply flex items-stretch self-stretch -my-2 ml-2;
   }
+  /* Idle/hover tokens per Gemini's titlebar visual mockup (doc/gemini-handoff-20260905/01,
+     2026-09-05): idle icon color is the semantic text-dim (was text-muted, one step dimmer than
+     the mockup's spec), and the close button's hover uses the app's own danger token instead of
+     a hardcoded Windows red — so it actually shifts with the light/dark theme like every other
+     danger-colored element instead of staying a fixed #e81123 regardless of theme. */
   .window-btn {
-    @apply flex items-center justify-center text-text-muted transition-colors;
+    @apply flex items-center justify-center text-text-dim transition-colors;
     width: 46px;
   }
   .window-btn:hover {
     @apply bg-surface-raised text-text;
   }
   .window-btn-close:hover {
-    background-color: #e81123;
-    color: #ffffff;
+    @apply bg-danger text-canvas;
   }
   .top-header .logo {
     @apply flex items-center gap-2;
