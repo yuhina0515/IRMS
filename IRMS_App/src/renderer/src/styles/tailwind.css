@@ -168,13 +168,18 @@
   .sidebar-toggle:hover {
     color: rgb(var(--sidebar-accent));
   }
-  /* No rotation on collapse (2026-09-06) — a 3-horizontal-line hamburger rotated 90deg just
-     becomes 3 vertical bars, which read as ugly rather than as a meaningful state cue; stays at
-     0deg in both states. Kept as its own class/transition hook (not deleted outright) in case a
-     different icon or a non-rotation transform is wanted here later. */
+  /* One-shot 360deg spin on every press (2026-09-06, clarified same day) — NOT a persistent
+     rotated state (first version stayed at 90deg while collapsed: a 3-horizontal-line hamburger
+     rotated 90deg just becomes 3 vertical bars, which read as ugly). Start/end angle are
+     identical; this is purely a press-feedback flourish, replayed on every click regardless of
+     whether the sidebar ends up collapsed or expanded. The `.spin` class + `key` remount in
+     Sidebar.tsx is what makes it replay every time — a CSS animation doesn't restart just because
+     a class is present again unless the element is actually removed and re-added to the DOM. */
   .sidebar-toggle-icon {
     @apply flex shrink-0;
-    transition: transform 0.25s var(--motion-ease-mechanical);
+  }
+  .sidebar-toggle-icon.spin {
+    animation: sidebar-toggle-spin 0.35s var(--motion-ease-mechanical);
   }
   .sidebar-nav-group {
     @apply flex flex-col;
@@ -1007,6 +1012,15 @@
   to {
     opacity: 0;
     transform: scale(0.98);
+  }
+}
+
+@keyframes sidebar-toggle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
