@@ -10,7 +10,13 @@ decided vs. open, and the expected deliverable, following the same format as
   (frame:false + our own minimize/maximize/close buttons, shipped 2026-09-04;
   see `doc/coding log/log_20260904_*` for the plumbing — this brief is about
   how it should *look*, not how it works).
-- `02-navigation.md` — sidebar nav visual redesign.
+- `02-navigation.md` — sidebar nav visual redesign. **Revised 2026-09-05** after the first attempt
+  came back as a single generic dashboard-template image (fabricated multi-device panel, garbled
+  text, scope drift into the main content area) instead of a sidebar-focused spec — see
+  `doc/coding log/log_20260905_titlebar_visual_gemini_mockup.md` for the diagnosis. The revision
+  inlines the token block (no longer depends on cross-conversation memory of `01-titlebar.md`),
+  adds an explicit scope guardrail (sidebar only, single real sensor, no invented panels), and
+  makes the written spec the required deliverable with the mockup image demoted to optional.
 - `03-animations.md` — the app's existing animation/motion language (liquid
   knob tab indicator, morph/stretch physics, toasts, dialogs) — audit + spec
   for what should carry forward vs. change.
