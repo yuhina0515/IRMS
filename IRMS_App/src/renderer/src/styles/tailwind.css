@@ -276,8 +276,14 @@
   }
 
   /* ── forms ── */
+  /* min-w-0 (2026-09-05): found via the Dashboard's narrow preset-B/C ring column — a .field
+     sitting in a flex .row is a flex item, so it inherits the same implicit min-width:auto
+     trap as every other flex-shrink case in this file (see .cockpit-panel etc.) unless capped.
+     Harmless everywhere else: this only changes behavior when the row is genuinely too narrow
+     for its fields' natural width, which previously always meant an unnoticed overflow rather
+     than an intentional fixed size. */
   .field {
-    @apply flex flex-col gap-1.5 mb-3.5;
+    @apply flex flex-col gap-1.5 mb-3.5 min-w-0;
   }
   .field label {
     @apply text-[0.82rem] text-text-muted font-medium;
@@ -479,71 +485,116 @@
   }
 
   /* ── DashboardView ── */
-  /* Fills `.main`'s full height and never lets the page itself scroll (2026-09-03, user
-     request: gauge/chart/3D are visual content that can gracefully scale down to any window
-     size, unlike Settings' form fields or Actions/History's unbounded lists — those keep
-     normal scroll-when-needed behavior, this view doesn't need to). `min-h-0` at every level
-     of this chain is load-bearing: without it a flex child's default `min-height:auto` refuses
-     to shrink below its content size and the whole point of this section is defeated. */
+  /* Fills `.main`'s full height and never lets the page itself scroll. `min-h-0` at every
+     level of this chain is load-bearing: without it a flex child's default `min-height:auto`
+     refuses to shrink below its content size. */
   .dash-shell {
     @apply flex flex-col h-full min-h-0;
   }
+  /* 2026-09-05 rewrite (Gemini adaptive-layout spec, doc/gemini-handoff-20260905/
+     04-adaptive-layout.md) — replaces the 09-03/09-04 approach of hand-tuning
+     min()/clamp() px-vh constants per element, which kept breaking every time a new
+     window-size × content-visibility combination showed up (most recently: a 17.6px overflow
+     from a conditional banner nobody had budgeted height for). The fix is structural, not
+     another constant: `.dashboard-workspace` is the ONE node that absorbs whatever height is
+     left after everything else in `.dash-shell` (header, calib-chip banner, ...) has taken
+     its share — `flex: 1 1 0; min-height: 0` is what makes that "remaining space" concept
+     real instead of "shrink from content size." `container-type: size` turns it into a query
+     container so `.dashboard-grid` below can respond to *its own actual pixel height*, not a
+     guess about the viewport — the calib-chip banner appearing or not changes this container's
+     height automatically, no separate constant to maintain. */
+  .dashboard-workspace {
+    @apply flex-1 min-h-0 min-w-0;
+    container-type: size;
+    container-name: dashboard;
+  }
+  /* Single grid for the whole workspace (gauge/ring/chart/pose/numeric-fallback), replacing
+     the old two-separate-grids split (summary row + cockpit below). One grid is required, not
+     a nice-to-have: the compact preset below needs to lay gauge/ring/cockpit out side-by-side
+     in one row, which two independently-stacked grids can't express. `grid-template-areas`
+     (named cells) rather than raw column/row indices — three very different presets are far
+     easier to read and modify as an ASCII layout each than as a set of `grid-column`/
+     `grid-row` numbers per cell. */
   .dashboard-grid {
-    @apply shrink-0;
-    /* minmax(0, ...) not bare `1.6fr` (2026-09-03) — fr tracks have an implicit min-width:auto
-       (= content's min-content width) unless capped; a column whose content wants to be wider
-       than its fair share otherwise drags the whole grid wider than its container, showing up
-       as horizontal overflow with no single element individually "overflowing" its own box. */
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    align-items: start;
+    @apply grid gap-6 h-full;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: 'gauge ring' 'chart pose';
   }
-  @media (max-width: 900px) {
-    .dashboard-grid {
-      grid-template-columns: 1fr;
-    }
+  /* show3D2DPose off (Settings toggle, independent of container size) — the pose cell isn't
+     rendered at all, so let chart take the full second row instead of leaving it empty. */
+  .dashboard-grid.no-pose {
+    grid-template-areas: 'gauge ring' 'chart chart';
   }
-  /* Cockpit — always-visible 2-column live-data area (2026-09-02, per Gemini round-2 spec,
-     replaces the old 4-way tab switcher). Outer container has no card background (sits
-     directly on canvas per spec) and a border-top separator from the summary cards above;
-     the two panels are the actual cards. 8:4 column ratio; each panel keeps its own small
-     tab switcher for its sibling view (chart↔detail-numbers, 3D↔2D) instead of losing that
-     content — Gemini's spec didn't address where those go, this is the judgment call for
-     that gap. `flex-1 min-h-0` (2026-09-03): takes exactly what's left after the summary row
-     above, instead of growing to its content's natural size and pushing the page taller than
-     the window. */
-  .cockpit {
-    @apply grid gap-6 mt-6 pt-6 border-t border-border flex-1 min-h-0;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    /* Without a floor, flex-shrink can crush this to "just the tab buttons, no chart" on
-       tight windows instead of leaving the summary row to give up the space — a chart with
-       zero visible height isn't "adaptively sized," it's hidden.
-       2026-09-04: lowered 260px/30vh → 200px/24vh after finding a real 17.6px page-scroll
-       regression at the actual default window size (1280×820) — the old floor never
-       accounted for the conditional calib-chip banner (~61px, shown on every first-ever
-       launch, uncalibrated profile). This is exactly the kind of magic-number-per-scenario
-       tuning the adaptive-layout redesign (see doc/gemini-handoff for the eventual system)
-       is meant to replace; treat this constant as provisional. */
-    min-height: min(200px, 24vh);
+  /* min-h-0/min-w-0 on every cell (2026-09-05, found via the same horizontal-overflow
+     signature as an earlier fix): minmax(0, Nfr) on the grid TRACKS only stops the tracks
+     themselves from stretching past their fair share — each grid ITEM still has its own
+     separate implicit min-width/min-height:auto (=content's own minimum) unless the item's
+     own box is also capped. Both traps look identical from the outside (grid quietly wider/
+     taller than its container, no single child individually flagged as overflowing). */
+  .dash-cell-gauge {
+    @apply min-w-0 min-h-0;
+    grid-area: gauge;
   }
-  @media (max-width: 900px) {
-    .cockpit {
-      grid-template-columns: 1fr;
-    }
+  /* overflow-y-auto (2026-09-05): found by measuring, not guessing — at the compact preset's
+     narrow ring column, ring+dropdown+3 number fields genuinely need more height than the row
+     has (392px container, ~558px of real content). `container-type:size` on the ancestor
+     `.dashboard-workspace` forces this cell's overflow to compute as `clip` even though nothing
+     here says so explicitly (CSS Containment spec: size containment forbids `visible` overflow,
+     silently substituting `clip`) — so without an explicit scroll mechanism, the Hold(ms) field
+     and part of this card simply vanish with no way to reach them, not just visually clipped in
+     an acceptable way. A small internal scrollbar here is a worse but honest fallback. */
+  .dash-cell-ring {
+    @apply min-w-0 min-h-0 overflow-y-auto;
+    grid-area: ring;
   }
-  /* 2026-09-04:show3D2DPose 關閉時右欄整個不渲染(見 DashboardView.tsx),左欄改
-     獨佔寬度而不是留一塊空白——所以這裡要把兩欄的 grid-template-columns 收成一欄,
-     不能只是讓右邊的 grid item 消失、左欄仍卡在 1.6fr 的比例寬度上。 */
-  .cockpit-single {
-    grid-template-columns: minmax(0, 1fr) !important;
+  .dash-cell-chart {
+    @apply min-w-0 min-h-0;
+    grid-area: chart;
   }
+  .dash-cell-pose {
+    @apply min-w-0 min-h-0;
+    grid-area: pose;
+  }
+  /* Forced numeric-only fallback for the tightest preset (see the 620px container query
+     below) — hidden by default in the other two presets. Not gated behind show3D2DPose/
+     showTrendChart: at this container height there's no room for a chart or 3D model
+     regardless of what the user asked Settings to show. */
+  .dash-cell-numeric {
+    @apply flex-col min-h-0 min-w-0 p-4;
+    grid-area: numeric;
+    display: none;
+  }
+  /* Its own overflow-y:auto as a pragmatic last resort, not a design goal — 6 stat cards at
+     the app's absolute floor size (1024×600) is a genuinely tight fit. Scoping any scrolling
+     to this small area (rather than the whole page) if content still doesn't fit after
+     shrinking keeps the core "Dashboard never page-scrolls" guarantee intact even in a
+     content-fits-badly edge case Gemini's spec didn't give an exact number for. */
+  .dash-cell-numeric .cards {
+    @apply min-h-0 overflow-y-auto;
+  }
+
   .cockpit-panel {
     @apply flex flex-col h-full min-h-0 min-w-0;
   }
   /* Wraps each panel's actual tab content (chart/stat-grid, 3D/2D) — takes the remaining
      height below the tab switcher and centers content that has its own aspect ratio (leg3d,
-     2D SVG) rather than stretching it. */
+     2D SVG) rather than stretching it.
+     overflow-y-auto, not overflow-hidden (2026-09-05) — chart/3D content already self-fits via
+     their own vh-capped max-width/height rules so this never actually shows a scrollbar for
+     them, but the stat-card grid (DetailStatsGrid) has no such self-shrinking mechanism; at the
+     compact preset's narrow columns 6 cards can need more height than the row has, and hidden
+     silently drops the extra cards with no way to reach them (found by measuring — the same
+     container-type:size-forces-clip interaction as .dash-cell-ring above).
+     justify-content:flex-start, not center (2026-09-05) — `justify-content:center` on a
+     scrollable flex container computes the centered position first and only then clips/scrolls,
+     so an overflowing child's default scroll position (0) lands in the middle of its content,
+     cutting off its *start* rather than its end. Found by screenshot: the first row of stat
+     cards was visibly cropped at the top even though a scrollbar was present. flex-start makes
+     the natural (0) scroll position actually show the beginning of the content — chart/3D
+     content that fits without scrolling is unaffected either way. */
   .cockpit-content {
-    @apply flex-1 min-h-0 flex flex-col items-center justify-center overflow-hidden;
+    @apply flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto;
   }
   .metric-action {
     @apply text-lg font-bold;
@@ -802,5 +853,66 @@
   }
   .liquid-knob-shape.morph {
     animation: none;
+  }
+}
+
+/* ── Dashboard container-query presets (2026-09-05) ──
+   Deliberately UNLAYERED (not inside @layer components), and moved here from where they were
+   originally written right after .dashboard-grid: Tailwind 3.4's @layer processing corrupts an
+   @container at-rule's prelude when it's nested inside @layer components — the compiled output
+   loses the `dashboard (max-height: ...)` condition entirely, leaving a bare `@container {}`
+   that (empirically, via a real Playwright measurement, not just reading the spec) behaves as
+   "always matches," so the narrowest preset silently won at every container size. Verified by
+   inspecting the actual built CSS in out/renderer/assets/*.css, not by guessing from the source.
+   Unlayered CSS always outranks layered CSS regardless of source order or specificity (that's
+   what "unlayered" means per the CSS cascade spec), so placing these here is not a hack that
+   depends on ending up last in the file — it would work the same placed anywhere outside a
+   @layer block.
+
+   Thresholds recalibrated against measured `.dashboard-workspace` heights, not the 700px/620px
+   Gemini's spec estimated from the *window* sizes without seeing this app's actual chrome
+   overhead (title bar + header + the conditional calib-chip banner eat far more than expected —
+   even the widest tested window, 1600×900, only leaves 677.7px of workspace height):
+     1600×900 "wide"          -> 677.7px  (wants the full/default bento layout)
+     1280×820 "default" launch -> 597.7px (wants the full/default bento layout too)
+     1093×614 "tight laptop"  -> 392.0px  (wants the compact horizontal preset)
+     1024×600 "floor"         -> 377.7px  (wants the numeric-only minimal preset)
+   The last two are only ~14px apart in real workspace height, which makes the exact boundary
+   between them inherently fragile (a font-rendering or DPI difference could tip a given real
+   window from one preset to the other) — that fragility comes from how close Gemini's two anchor
+   window sizes are once the app's fixed chrome is subtracted, not from a mistake in these
+   thresholds. It doesn't threaten the actual guarantee (never page-scrolls): every preset here is
+   independently overflow-safe, so landing on either side of that 14px band still means a usable,
+   fully-contained layout, just with chart+pose vs. numeric-only content. */
+@container dashboard (max-height: 450px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'gauge ring chart' 'gauge ring pose';
+  }
+  .dashboard-grid.no-pose {
+    grid-template-areas: 'gauge ring chart' 'gauge ring chart';
+  }
+}
+
+@container dashboard (max-height: 385px) {
+  .dashboard-grid,
+  .dashboard-grid.no-pose {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    /* Both rows minmax(0, Nfr), NOT `auto` for the numeric row — `auto` sizes to the numeric
+       grid's own content, which is exactly the "child pushes the container" anti-pattern this
+       whole rewrite exists to eliminate (found by measuring, not guessing: an earlier `auto`
+       here let a 6-card stat grid stretch this row to 800px in a 375px-tall container). The
+       numeric cell gets a fixed share of the container's real height and must fit inside it. */
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'gauge ring' 'gauge numeric';
+  }
+  .dash-cell-chart,
+  .dash-cell-pose {
+    display: none;
+  }
+  .dash-cell-numeric {
+    display: flex;
+    min-height: 0;
   }
 }

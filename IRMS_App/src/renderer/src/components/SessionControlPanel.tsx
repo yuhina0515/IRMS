@@ -92,11 +92,17 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
         </div>
       </div>
 
-      <div className="row" style={{ marginTop: 14 }}>
+      {/* flexWrap + minWidth (2026-09-05, Dashboard adaptive-layout rewrite): the Cockpit's
+          narrow "ring" column at the compact/minimal container presets isn't wide enough for
+          three side-by-side number fields — without a floor they'd compress until the values
+          inside became unreadable rather than wrapping to a second line. min-w-0 on .field
+          (added the same day) is what makes fields willing to shrink at all; this minWidth is
+          the other half, capping how far before they wrap instead. */}
+      <div className="row" style={{ marginTop: 14, flexWrap: 'wrap' }}>
         {/* 鉗制在 blur 而非每次按鍵:打字打到一半的中間值(例如輸入 100 的第一個 1)
             不該被跳改。真正的保證在 sessionController.currentConfig(),引擎永遠拿不到
             超出界限的參數。 */}
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field" style={{ flex: 1, minWidth: 84 }}>
           <label>Target (°)</label>
           <input
             type="number"
@@ -108,7 +114,7 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
             onBlur={(e) => setParams({ targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
           />
         </div>
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field" style={{ flex: 1, minWidth: 84 }}>
           <label>Tolerance (±°)</label>
           <input
             type="number"
@@ -120,7 +126,7 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
             onBlur={(e) => setParams({ tolerance: clampTolerance(parseFloat(e.target.value)) })}
           />
         </div>
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field" style={{ flex: 1, minWidth: 84 }}>
           <label>Hold (ms)</label>
           <input
             type="number"

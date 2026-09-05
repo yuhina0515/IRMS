@@ -39,6 +39,39 @@ function Stat({ label, value, cls }: { label: string; value: string; cls?: strin
   )
 }
 
+interface DetailStatsGridProps {
+  angles: ReturnType<typeof useStore.getState>['angles']
+  hardwareError: string | null
+}
+
+// 抽成獨立元件(2026-09-05,Gemini adaptive-layout 規格的一部分):同一組數值卡片
+// 現在有兩個各自獨立的出現位置——一般尺寸下作為左欄「詳細數值」分頁的內容,
+// container 極窄時作為強制數字回退(numeric fallback)——抽出來避免兩處各寫一份
+// 一樣的 6 張 Stat 卡片,以後改欄位只需要改一個地方。
+function DetailStatsGrid({ angles, hardwareError }: DetailStatsGridProps): JSX.Element {
+  const fmt = (n: number | undefined): string =>
+    hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
+  return (
+    <div className="grid cards w-full">
+      <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
+      <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
+      <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
+      <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
+      <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
+      <Stat
+        label="Varus/Valgus 內外翻"
+        value={
+          hardwareError
+            ? 'ERR'
+            : angles == null
+              ? '--'
+              : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
+        }
+      />
+    </div>
+  )
+}
+
 export function DashboardView(): JSX.Element {
   const angles = useStore((s) => s.angles)
   const hardwareError = useStore((s) => s.hardwareError)
@@ -97,9 +130,6 @@ export function DashboardView(): JSX.Element {
   const tone: 'normal' | 'success' | 'danger' =
     hardwareError || session.alarmActive ? 'danger' : session.phase === 'holding' ? 'success' : 'normal'
 
-  const fmt = (n: number | undefined): string =>
-    hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
-
   return (
     <div className="dash-shell">
       <header className="page-header">
@@ -119,114 +149,108 @@ export function DashboardView(): JSX.Element {
           使用者忽略警告。roll 影響的僅有 3D 模型、詳細數值、History 疊圖與 CSV,
           該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
 
-      <div className="grid dashboard-grid">
-        <div className="panel glass glass-elevated">
-          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-            <div>
-              <div className="metric-action">{action?.name ?? '未選擇動作'}</div>
-              <div className="metric-sub">主指標:{info.label}</div>
+      {/* 2026-09-05,取代 09-03/09-04 那套「猜視窗尺寸、拿 min()/vh 補洞」的作法
+          (Gemini adaptive-layout 需求的回覆,見 doc/gemini-handoff-20260905/04-*)。
+          由上而下的絕對空間分配:.dashboard-workspace 是唯一吃「剩餘空間」
+          (flex-1 min-h-0)的節點,底下用 container query 依「這個容器實際還剩多少
+          高度」切三種 layout preset,而不是猜視窗總尺寸——calib-chip 這類條件渲染的
+          橫幅多佔的高度,會自動從這個容器的剩餘空間扣掉,不需要另外為它調整任何常數。
+          單一 .dashboard-grid 用 grid-template-areas 佈五個語意格(gauge/ring/
+          chart/pose/numeric),取代原本摘要列+cockpit 兩個各自獨立的 grid——preset B
+          (窄筆電高度)需要把量表、控制環、cockpit 排成同一橫排,兩個分開的 grid
+          做不到這件事。 */}
+      <div className="dashboard-workspace">
+        <div
+          className={`dashboard-grid${show3D2DPose ? '' : ' no-pose'}`}
+        >
+          <div className="dash-cell-gauge panel glass glass-elevated">
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+              <div>
+                <div className="metric-action">{action?.name ?? '未選擇動作'}</div>
+                <div className="metric-sub">主指標:{info.label}</div>
+              </div>
             </div>
+            <MetricGauge
+              sample={sample}
+              zone={zone}
+              info={info}
+              phase={session.phase}
+              alarm={session.alarmActive}
+              error={hardwareError != null}
+              stale={!isConnected}
+              unsupported={!protocolOk}
+            />
+            <CoachHint phase={session.phase} text={hintText} tone={tone} />
           </div>
-          <MetricGauge
-            sample={sample}
-            zone={zone}
-            info={info}
-            phase={session.phase}
-            alarm={session.alarmActive}
-            error={hardwareError != null}
-            stale={!isConnected}
-            unsupported={!protocolOk}
-          />
-          <CoachHint phase={session.phase} text={hintText} tone={tone} />
-        </div>
 
-        {/* Single panel (2026-09-03, was two stacked panels) — ProgressRing now sits inline
-            beside the Designated Action dropdown (via SessionControlPanel's `ring` prop)
-            instead of getting its own full-width row, saving a whole row out of the
-            Dashboard's fixed-height budget. */}
-        <div className="panel glass">
-          {session.alarmActive && (
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-              <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>
-                ⚠ 超限警報
-              </p>
-              {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
-              <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
-                🔕 靜音 30 秒
-              </button>
-            </div>
-          )}
-          <SessionControlPanel ring={<ProgressRing percent={session.holdProgress} reps={session.reps} />} />
-        </div>
-      </div>
-
-      {/* Cockpit:常駐並排,不再是四選一的單一卡片(Gemini round-2 規格)。外層容器
-          刻意不掛卡片背景,直接坐在畫面底色上,靠上方 border-t 跟上面的摘要卡片分隔;
-          左右兩欄各自才是真正的卡片容器。 */}
-      <div className={`cockpit${show3D2DPose ? '' : ' cockpit-single'}`}>
-        <div className="cockpit-panel panel glass">
-          {visibleLeftTabs.length > 1 && (
-            <div className="tabs" ref={leftTabsRef}>
-              {left.knobElement}
-              {visibleLeftTabs.map((t) => (
-                <button
-                  key={t.id}
-                  data-knob-key={t.id}
-                  className={`tab-btn${effectiveLeftTab === t.id ? ' active' : ''}`}
-                  onClick={() => setLeftTab(t.id)}
-                  {...left.getItemProps(t.id)}
-                >
-                  {t.label}
+          <div className="dash-cell-ring panel glass">
+            {session.alarmActive && (
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+                <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>
+                  ⚠ 超限警報
+                </p>
+                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
+                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
+                  🔕 靜音 30 秒
                 </button>
-              ))}
-            </div>
-          )}
-          <div className="cockpit-content">
-            {effectiveLeftTab === 'chart' && <LiveChart />}
-            {effectiveLeftTab === 'detail' && (
-              <div className="grid cards w-full">
-                <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-                <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
-                <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
-                <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
-                <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
-                <Stat
-                  label="Varus/Valgus 內外翻"
-                  value={
-                    hardwareError
-                      ? 'ERR'
-                      : angles == null
-                        ? '--'
-                        : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
-                  }
-                />
               </div>
             )}
+            <SessionControlPanel ring={<ProgressRing percent={session.holdProgress} reps={session.reps} />} />
+          </div>
+
+          <div className="dash-cell-chart cockpit-panel panel glass">
+            {visibleLeftTabs.length > 1 && (
+              <div className="tabs" ref={leftTabsRef}>
+                {left.knobElement}
+                {visibleLeftTabs.map((t) => (
+                  <button
+                    key={t.id}
+                    data-knob-key={t.id}
+                    className={`tab-btn${effectiveLeftTab === t.id ? ' active' : ''}`}
+                    onClick={() => setLeftTab(t.id)}
+                    {...left.getItemProps(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="cockpit-content">
+              {effectiveLeftTab === 'chart' && <LiveChart />}
+              {effectiveLeftTab === 'detail' && <DetailStatsGrid angles={angles} hardwareError={hardwareError} />}
+            </div>
+          </div>
+
+          {show3D2DPose && (
+            <div className="dash-cell-pose cockpit-panel panel glass">
+              <div className="tabs" ref={rightTabsRef}>
+                {right.knobElement}
+                {RIGHT_TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    data-knob-key={t.id}
+                    className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
+                    onClick={() => setRightTab(t.id)}
+                    {...right.getItemProps(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div className="cockpit-content">
+                {rightTab === '3d' && <Leg3D />}
+                {rightTab === '2d' && <AngleVisualizer />}
+              </div>
+            </div>
+          )}
+
+          {/* 只在最窄的 preset(container 高度 ≤620px)顯示,由 CSS 強制切換,跟使用者
+              在 Settings 選了什麼無關——這個高度下已經沒有空間畫 3D 模型或折線圖,
+              治療師需要的是明確角度數字,不是被壓在 150px 高的方塊裡的骨架動畫。 */}
+          <div className="dash-cell-numeric panel glass">
+            <DetailStatsGrid angles={angles} hardwareError={hardwareError} />
           </div>
         </div>
-
-        {show3D2DPose && (
-          <div className="cockpit-panel cockpit-panel-3d panel glass">
-            <div className="tabs" ref={rightTabsRef}>
-              {right.knobElement}
-              {RIGHT_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  data-knob-key={t.id}
-                  className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
-                  onClick={() => setRightTab(t.id)}
-                  {...right.getItemProps(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="cockpit-content">
-              {rightTab === '3d' && <Leg3D />}
-              {rightTab === '2d' && <AngleVisualizer />}
-            </div>
-          </div>
-        )}
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
