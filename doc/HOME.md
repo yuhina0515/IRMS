@@ -577,7 +577,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   同時貼的第二張圖(側欄導覽 + Dashboard 卡片版面)確認 Gemini 這次只回了圖、無
   配套文字,且圖中「Device Connectivity」畫的是 PNS/LFS/Patient/Hawheart 多裝置
   開關,與 IRMS 實際單一 BLE 感測器架構矛盾——判斷為圖像生成雜訊,不依此圖動工,
-  留待 Gemini 之後補上文字規格再排入。
+  重寫 `02-navigation.md`(內嵌 token、加範圍護欄、文字規格列為必要交付物、圖片降級
+  為非必要)並補上真實截圖,交給使用者重新送出。
+- **2026-09-05 側邊欄改版:固定寬度貼邊導覽軌(依 Gemini 02 號簡報第二輪)**
+  ([[log_20260905_sidebar_nav_rail_gemini_round2|完整日誌]]):重寫過的簡報這次拿回
+  逐像素文字規格(不再是圖)。落地:`.app`/`.app-column` 版面重構讓側邊欄從「浮動
+  卡片」變成貼齊視窗左緣的固定 220px 軌道;active 狀態拔掉整塊填色改用左側 3px
+  強調色邊條 + 漸層 wash;新增 `.sidebar-brand` 文字識別。新增 `--sidebar-*` token
+  承接 Gemini 給的深色主題色碼;淺色主題色值是唯一的工程推導(Gemini 只給深色)——
+  沿用既有 Round 2「淺色用 sky、深色用 cyan」的分軌決策,而非照抄深色的青色。
+  `npm run ci` 全綠(285 tests),四種視窗尺寸零溢出迴歸(側欄變寬 28px 屬於會影響
+  版面預算的變更,值得重新確認),深/淺主題截圖確認符合規格。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
