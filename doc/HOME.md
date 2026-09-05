@@ -539,6 +539,22 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   發布。最終隔離啟動打包後的 exe 拿到正確的 `not-available` 結果(目前就是最新版),
   證實整條檢查/比對流程真的能動。**連帶更正了 [[irms-project-conventions]] 的 beta
   發版慣例**:往後一律要用 `electron-builder --publish`,不能再手動拼湊。
+- **2026-09-05 Dashboard 改用 Container Query 自適應版面(依 Gemini 04 號簡報)**
+  ([[log_20260905_dashboard_container_query_adaptive_layout|完整日誌]]):針對「換更小
+  視窗仍爆版、要一套自適應系統別再手調常數」的需求,交給 Gemini 後依其回覆實作
+  `.dashboard-workspace` 上的 CSS Container Query(`container-type:size`),單一
+  `.dashboard-grid` 用 `grid-template-areas` 在三段 preset 間切換,取代舊的
+  vh/min()/clamp() 猜視窗尺寸寫法。過程中反覆用 Playwright 量測真實
+  `scrollHeight`/`clientHeight` 抓到並修掉五個真實 bug:Tailwind `@layer` 會吃掉
+  `@container` 的 condition prelude(改成整段 unlayered)、`auto` row 讓內容撐爆容器
+  (改 `minmax(0,Nfr)`)、grid item 缺 `min-width/height:0` 造成橫向溢出、
+  `container-type:size` 依規格把子孫 `overflow:visible` 強制算成 `clip` 導致內容
+  無捲軸可及(補明確 `overflow-y:auto`)、`justify-content:center` 在可捲動容器上
+  裁掉開頭(改 `flex-start`)。Container query 閾值依實測高度(1600×900 也只有
+  677.7px)重新校準為 450px/385px,不用簡報原始的 700px/620px。`npm run ci` 全綠
+  (285 tests),四種視窗尺寸(含先前兩個未解決的 1093×614、1024×600)× 面板開關全組合
+  下 Playwright 實測零 page-level overflow。細部視覺密度問題留給 Gemini 01-03 號簡報
+  的視覺設計 pass。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
