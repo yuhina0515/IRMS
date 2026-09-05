@@ -51,6 +51,17 @@
   --motion-ease-mechanical: cubic-bezier(0.16, 1, 0.3, 1); /* displacement/snap/solid deformation, no overshoot */
   --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1); /* dropdowns/dialogs/toasts entering */
   --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1); /* closing/dismissing/blurring out */
+
+  /* Sidebar tokens (Gemini navigation-rail redesign, 2026-09-05, doc/gemini-handoff-20260905/02
+     round 2 — literal pixel/hex spec this time, no image). Dark values are exact hex from that
+     spec (#13151A/#232730/#8A919E/#FFFFFF/#00F5FF) — a distinct, slightly more neutral/darker
+     background than --color-surface, deliberately not reusing it, so the nav rail reads as a
+     fixed instrument bezel rather than just another card. */
+  --sidebar-bg: 19 21 26; /* #13151A */
+  --sidebar-border: 35 39 48; /* #232730 */
+  --sidebar-text: 138 145 158; /* #8A919E */
+  --sidebar-text-hover: 255 255 255; /* #FFFFFF */
+  --sidebar-accent: 0 245 255; /* #00F5FF */
 }
 .theme-light {
   /* Round 2 (2026-09-02, "gemini round2 refinement"): fed the real implementation's
@@ -86,6 +97,21 @@
   --color-thigh: 180 83 9; /* = --color-warning */
   --color-shin: 4 120 87; /* = --color-success */
   --color-roll: 124 58 237; /* violet-600 */
+
+  /* Sidebar tokens, light-theme half: Gemini's 2026-09-05 nav-rail spec only covered dark theme
+     (no light values given at all). These aren't invented from scratch — they mirror the same
+     *relationships* the dark spec establishes, using tokens this app already picked for light
+     mode rather than the literal cyan (which was chosen there against a near-black dark
+     background specifically; the light theme already deliberately uses sky, not cyan, as its
+     accent hue per the round-2 divergence noted above, so continuing that split here instead of
+     reintroducing cyan). --sidebar-bg goes one step lighter than --color-surface (mirroring dark's
+     --sidebar-bg sitting one step darker/more neutral than its --color-surface) so the rail still
+     reads as a distinct bezel, not just another card. */
+  --sidebar-bg: 248 250 252; /* = --color-canvas, one step lighter than --color-surface */
+  --sidebar-border: 226 232 240; /* = --color-border */
+  --sidebar-text: 100 116 139; /* = --color-text-muted */
+  --sidebar-text-hover: 2 6 23; /* = --color-text */
+  --sidebar-accent: 3 105 161; /* = --color-accent-strong (sky-700), not the dark spec's literal cyan */
 }
 
 @layer base {
@@ -97,31 +123,74 @@
 @layer components {
   /* ── shell (sidebar-only primary nav — 2026-09-02, per Gemini design judgment removed the
      briefly-coexisting top SegmentedControl: two nav surfaces driving the same state was
-     redundant and visually confusing. See Sidebar.tsx.) ── */
+     redundant and visually confusing. See Sidebar.tsx.)
+     2026-09-05: sidebar moved from a padded/gapped "floating card" (like every other panel) to a
+     flush edge-to-edge rail per Gemini's nav-rail redesign — the padding/gap that used to wrap the
+     whole `.app` (sidebar included) now belongs to `.app-column` alone, since the rail is meant to
+     read as a fixed instrument bezel against the window edge, not another bento card. ── */
   .app {
-    @apply flex h-screen gap-3 px-3 py-4;
+    @apply flex h-screen;
   }
   .app-column {
-    @apply flex flex-col flex-1 gap-3 min-w-0;
+    @apply flex flex-col flex-1 gap-3 px-3 py-4 min-w-0;
   }
   .main {
     @apply flex-1 overflow-y-auto pr-1;
   }
+  /* Fixed 220px, no responsive shrink ("死死釘在左側" per the brief) — width/colors/spacing here
+     are the literal pixel spec Gemini gave (see --sidebar-* tokens above for the light-theme
+     adaptation note), not @apply utility approximations, since the whole point of this rewrite was
+     replacing a vague AI-generated mockup with values precise enough to implement exactly. */
   .sidebar {
-    @apply flex flex-col gap-1 w-48 shrink-0 bg-surface border border-border rounded-card p-3;
+    @apply h-screen shrink-0 flex flex-col;
+    width: 220px;
+    padding: 24px 0;
+    background-color: rgb(var(--sidebar-bg));
+    border-right: 1px solid rgb(var(--sidebar-border));
+  }
+  .sidebar-brand {
+    padding: 0 24px 32px;
+    font-size: 18px;
+    font-weight: 700;
+    color: rgb(var(--sidebar-text-hover));
+    letter-spacing: 0.1em;
+  }
+  .sidebar-nav-group {
+    @apply flex flex-col;
+    gap: 4px;
+    padding: 0 12px;
   }
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-control text-text-muted border-none
-      bg-transparent cursor-pointer transition-colors duration-150 w-full text-left;
+    @apply flex items-center w-full text-left border-none bg-transparent cursor-pointer relative;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    color: rgb(var(--sidebar-text));
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s ease, background-color 0.2s ease;
   }
-  .sidebar-item:hover {
-    @apply text-text bg-surface-raised;
+  .sidebar-item:hover:not(.active) {
+    color: rgb(var(--sidebar-text-hover));
+    background-color: rgb(var(--sidebar-text-hover) / 0.04);
   }
+  /* Discards the old full-block accent-fill active state (read as "cheap" against the Dashboard's
+     bento-grid data, per the brief) for a 3px left accent border + a faint 10%→0% linear wash —
+     enough to mark the active item without competing for visual weight against real measurements. */
   .sidebar-item.active {
-    @apply text-canvas bg-accent;
+    color: rgb(var(--sidebar-accent));
+    background: linear-gradient(90deg, rgb(var(--sidebar-accent) / 0.1) 0%, rgb(var(--sidebar-accent) / 0) 100%);
   }
-  html:not(.theme-light) .sidebar-item.active {
-    @apply shadow-glow-accent;
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -12px; /* reaches past the button's own edge to sit flush against the rail's edge —
+      matches the .sidebar-nav-group padding (12px) exactly, per the literal spec */
+    top: 15%;
+    height: 70%;
+    width: 3px;
+    background-color: rgb(var(--sidebar-accent));
+    border-radius: 0 4px 4px 0;
   }
 
   /* ── layout helpers ── */
