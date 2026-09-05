@@ -588,6 +588,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   沿用既有 Round 2「淺色用 sky、深色用 cyan」的分軌決策,而非照抄深色的青色。
   `npm run ci` 全綠(285 tests),四種視窗尺寸零溢出迴歸(側欄變寬 28px 屬於會影響
   版面預算的變更,值得重新確認),深/淺主題截圖確認符合規格。
+- **2026-09-06 側邊欄新增收合功能**([[log_20260906_collapsible_sidebar|完整日誌]]):
+  使用者直接要求(非 Gemini 簡報)把「IRMS」文字換成選單按鈕,按下後旋轉、側邊欄
+  收合成僅剩圖示的 56px 窄軌,動畫用既有的 `--motion-ease-mechanical` token。收合
+  狀態為本地 `useState`,不寫進 persist。過程中抓到一個真實 flex-shrink bug:圖示
+  沒設 `flex-shrink:0` 時,收合觸發圖示自己縮到寬度 0、反而讓標籤文字殘影透出來
+  (跟預期「只剩圖示」正好相反)——修好後把收合寬度從隨手訂的 64px 微調成精確算出的
+  56px,完全不留文字殘影。`npm run ci` 全綠,四種視窗尺寸 × 收合/展開兩種狀態零
+  溢出迴歸,深/淺主題截圖確認。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
