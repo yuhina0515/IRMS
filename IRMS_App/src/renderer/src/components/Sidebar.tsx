@@ -9,8 +9,16 @@
 // Gemini 範例裡的 props 傳遞(view/onNavigate)——那樣得同步改 App.tsx 的呼叫端,
 // 而這個 self-contained hook 模式跟全站其他元件(TopHeader、SessionControlPanel 等)
 // 一致,不值得為了這個元件另立一套。
+//
+// 2026-09-06:使用者要求把原本的「IRMS」文字識別換成收合按鈕——按下後選單按鈕旋轉、
+// 側邊欄收合成僅剩圖示的窄軌(64px)。收合狀態刻意用純本地 useState(不寫進
+// useStore/settings persist)——這是暫態的畫面偏好,不是需要跨重啟記住的設定,沒有
+// 使用者要求持久化就不擴大範圍。標籤文字收合時不特別做 fade 動畫,靠 .sidebar 本身
+// 的 overflow:hidden 在寬度變窄時自然裁切——比另外寫一組 opacity/width 動畫简单,
+// 效果也一致(見 tailwind.css 的 .sidebar 規則)。
+import { useState } from 'react'
 import { useUiStore } from '../store/useUiStore'
-import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon } from './NavIcons'
+import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon, MenuIcon } from './NavIcons'
 
 const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string; Icon: typeof DashboardIcon }[] = [
   { id: 'dashboard', label: 'Dashboard', Icon: DashboardIcon },
@@ -22,12 +30,21 @@ const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string
 export function Sidebar(): JSX.Element {
   const view = useUiStore((s) => s.view)
   const setView = useUiStore((s) => s.setView)
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <nav className="sidebar">
-      {/* 標題列已經有完整的 logo+圖示識別,這裡刻意只用文字,不重複放一次圖示
-          (見 brief 裡「該不該有自己的識別標記」那題,Gemini 給的答案是要,但用簡約文字)。 */}
-      <div className="sidebar-brand">IRMS</div>
+    <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+      <button
+        type="button"
+        className="sidebar-toggle"
+        aria-label={collapsed ? '展開選單' : '收起選單'}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed((c) => !c)}
+      >
+        <span className={`sidebar-toggle-icon${collapsed ? ' collapsed' : ''}`}>
+          <MenuIcon size={20} />
+        </span>
+      </button>
       <div className="sidebar-nav-group">
         {NAV.map(({ id, label, Icon }) => {
           const isActive = view === id
@@ -37,6 +54,7 @@ export function Sidebar(): JSX.Element {
               className={`sidebar-item${isActive ? ' active' : ''}`}
               onClick={() => setView(id)}
               aria-current={isActive ? 'page' : undefined}
+              title={collapsed ? label : undefined}
             >
               <Icon size={20} />
               <span>{label}</span>

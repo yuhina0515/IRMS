@@ -140,20 +140,40 @@
   /* Fixed 220px, no responsive shrink ("死死釘在左側" per the brief) — width/colors/spacing here
      are the literal pixel spec Gemini gave (see --sidebar-* tokens above for the light-theme
      adaptation note), not @apply utility approximations, since the whole point of this rewrite was
-     replacing a vague AI-generated mockup with values precise enough to implement exactly. */
+     replacing a vague AI-generated mockup with values precise enough to implement exactly.
+     2026-09-06: collapsible via the toggle button below — .collapsed shrinks width to 64px
+     (just enough for the 20px icon + padding). overflow:hidden is what makes the item labels
+     "disappear" as the rail narrows — no separate fade/opacity animation needed, the width
+     transition alone clips them away. */
   .sidebar {
-    @apply h-screen shrink-0 flex flex-col;
+    @apply h-screen shrink-0 flex flex-col overflow-hidden;
     width: 220px;
     padding: 24px 0;
     background-color: rgb(var(--sidebar-bg));
     border-right: 1px solid rgb(var(--sidebar-border));
+    transition: width 0.25s var(--motion-ease-mechanical);
   }
-  .sidebar-brand {
+  /* 56px = group padding(12) + item padding-left(12) + icon(20) + item padding-right(12) — the
+     exact width where the icon is fully visible with its normal right-side breathing room and the
+     label (which starts right after, at 56px) is entirely clipped, not just mostly. */
+  .sidebar.collapsed {
+    width: 56px;
+  }
+  .sidebar-toggle {
+    @apply flex items-center border-none bg-transparent cursor-pointer w-full;
     padding: 0 24px 32px;
-    font-size: 18px;
-    font-weight: 700;
     color: rgb(var(--sidebar-text-hover));
-    letter-spacing: 0.1em;
+    transition: color 0.2s ease;
+  }
+  .sidebar-toggle:hover {
+    color: rgb(var(--sidebar-accent));
+  }
+  .sidebar-toggle-icon {
+    @apply flex shrink-0;
+    transition: transform 0.25s var(--motion-ease-mechanical);
+  }
+  .sidebar-toggle-icon.collapsed {
+    transform: rotate(90deg);
   }
   .sidebar-nav-group {
     @apply flex flex-col;
@@ -168,7 +188,19 @@
     color: rgb(var(--sidebar-text));
     font-size: 14px;
     font-weight: 500;
+    white-space: nowrap; /* prevents the label wrapping onto a second line mid-collapse-transition
+      before .sidebar's overflow:hidden clips it — the item's own box is never actually resized */
     transition: color 0.2s ease, background-color 0.2s ease;
+  }
+  /* Without this, the collapse transition hits the classic flex-shrink trap: once the item's own
+     box (100% of the now-64px rail) is narrower than icon+gap+label combined, a plain flex child
+     with no flex-shrink:0 shrinks — and since the label's white-space:nowrap pins IT at its full
+     content width (a flex item's automatic min-width is its content size when wrapping is
+     disabled), 100% of the available shrinkage lands on the icon instead, collapsing it to 0
+     width. Net effect without this rule: the icon vanishes and the label's leftover text edge
+     peeks out past the clip boundary instead — exactly backwards from "icon-only rail". */
+  .sidebar-item svg {
+    flex-shrink: 0;
   }
   .sidebar-item:hover:not(.active) {
     color: rgb(var(--sidebar-text-hover));

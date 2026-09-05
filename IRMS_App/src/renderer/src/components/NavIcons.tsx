@@ -49,6 +49,14 @@ export function HistoryIcon({ size = 22 }: IconProps): JSX.Element {
   )
 }
 
+export function MenuIcon({ size = 22 }: IconProps): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function SettingsIcon({ size = 22 }: IconProps): JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
