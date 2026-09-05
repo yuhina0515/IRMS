@@ -32,9 +32,12 @@ interface UseLiquidKnobOptions {
   onSelect?: (key: string) => void
 }
 
-const MORPH_DURATION_MS = 420
+// Timing/amplitude retuned 2026-09-05 per Gemini's animation-language audit
+// (doc/gemini-handoff-20260905/03-animations.md response): 420ms/1.4x read as "jelly", not a
+// precision instrument — compressed to 220ms / 1.15x (--motion-ease-mechanical duration range).
+const MORPH_DURATION_MS = 220
 const DRAG_THRESHOLD_PX = 4
-const STRETCH_MAX = 1.4
+const STRETCH_MAX = 1.15
 const STRETCH_VELOCITY_SCALE = 0.015
 
 interface DragState {
@@ -72,6 +75,21 @@ export function useLiquidKnob({
   const morphTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const dragRef = useRef<DragState | null>(null)
   const cleanupDragListenersRef = useRef<(() => void) | null>(null)
+  // prefers-reduced-motion (2026-09-05, Gemini animation audit): read once + subscribe to
+  // changes rather than querying matchMedia on every pointermove — this hook can see 60+
+  // moves/sec during a drag. When set, the velocity-driven stretch calculation below is
+  // short-circuited so the knob does pure 1:1 rigid position tracking with no deformation.
+  const reducedMotionRef = useRef(false)
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    reducedMotionRef.current = mq.matches
+    const onChange = (e: MediaQueryListEvent): void => {
+      reducedMotionRef.current = e.matches
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   useLayoutEffect(() => {
     const measure = (): void => {
@@ -185,7 +203,9 @@ export function useLiquidKnob({
       const velocity = Math.abs(pointerPos - drag.lastPos) / dt
       drag.lastPos = pointerPos
       drag.lastT = now
-      setDragStretch(Math.min(STRETCH_MAX, 1 + velocity * STRETCH_VELOCITY_SCALE))
+      setDragStretch(
+        reducedMotionRef.current ? 1 : Math.min(STRETCH_MAX, 1 + velocity * STRETCH_VELOCITY_SCALE)
+      )
     }
 
     const onWindowPointerUp = (ev: PointerEvent): void => {

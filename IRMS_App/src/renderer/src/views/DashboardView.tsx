@@ -163,7 +163,9 @@ export function DashboardView(): JSX.Element {
         <div
           className={`dashboard-grid${show3D2DPose ? '' : ' no-pose'}`}
         >
-          <div className="dash-cell-gauge panel glass glass-elevated">
+          <div
+            className={`dash-cell-gauge panel glass glass-elevated${isConnected ? '' : ' panel-stale'}`}
+          >
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
               <div>
                 <div className="metric-action">{action?.name ?? '未選擇動作'}</div>

@@ -44,6 +44,13 @@
   --color-thigh: 251 191 36; /* = --color-warning */
   --color-shin: 52 211 153; /* = --color-success */
   --color-roll: 167 139 250; /* violet-400 */
+
+  /* Motion tokens (Gemini animation-language audit, 2026-09-05, doc/gemini-handoff-20260905/03).
+     Same three curves regardless of theme — a mechanical/clinical-instrument motion vocabulary,
+     not per-theme, so defined once here rather than duplicated into .theme-light. */
+  --motion-ease-mechanical: cubic-bezier(0.16, 1, 0.3, 1); /* displacement/snap/solid deformation, no overshoot */
+  --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1); /* dropdowns/dialogs/toasts entering */
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1); /* closing/dismissing/blurring out */
 }
 .theme-light {
   /* Round 2 (2026-09-02, "gemini round2 refinement"): fed the real implementation's
@@ -213,8 +220,11 @@
     @apply px-3 py-1.5 text-sm;
   }
 
+  /* transition (2026-09-05, Gemini animation audit): the LED must never hard-cut between
+     red/amber/green — 180ms color transition on every state swap, mechanical (not bouncy). */
   .dot {
     @apply w-2.5 h-2.5 rounded-full bg-danger;
+    transition: background-color 0.18s var(--motion-ease-mechanical);
   }
   .dot.on {
     @apply bg-success;
@@ -224,9 +234,13 @@
   }
   /* "Lighting" from the design handoff: active/ON elements glow instead of reading as a flat
      shape — dark theme only, a glow on a white canvas just looks like a blur artifact rather
-     than an instrument light. */
+     than an instrument light. The connect moment additionally gets a one-shot 180ms brightness
+     pulse (Gemini animation audit) instead of the glow just silently appearing — it settles back
+     to the plain shadow-glow-success in the keyframe's own end state, so nothing needs to swap
+     classes after the animation finishes. */
   html:not(.theme-light) .dot.on {
     @apply shadow-glow-success;
+    animation: dot-connect-pulse 0.18s var(--motion-ease-mechanical);
   }
 
   /* ── buttons — rectangular (rounded-control), not pill: this direction dropped the
@@ -350,15 +364,17 @@
   .glass-dropdown-trigger .chevron.open {
     @apply rotate-180;
   }
+  /* Retuned 2026-09-05 (Gemini animation audit): was a scale(0.35→1) "grow from a point" —
+     replaced with a single-layer micro-shift (translateY + opacity only) per the spec's request
+     to stop animating container-scale and content-fade as two separate stages. */
   .glass-dropdown-popup {
     position: fixed; /* top/left/width set inline by GlassDropdown.tsx — portaled to body */
     @apply z-[200] max-h-[260px] overflow-y-auto p-1.5 flex flex-col gap-0.5 bg-surface-raised
       border border-border rounded-control;
-    transform-origin: top center;
-    animation: dropdown-grow 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: dropdown-grow 0.14s var(--motion-ease-enter) both;
   }
   .glass-dropdown-popup.closing {
-    animation: dropdown-shrink 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+    animation: dropdown-shrink 0.1s var(--motion-ease-exit) both;
     pointer-events: none;
   }
   .glass-dropdown-item {
@@ -375,12 +391,27 @@
     @apply p-2.5 text-text-muted text-sm text-center;
   }
 
-  /* ── overlay / dialog (ConfirmDialog etc.) ── */
+  /* ── overlay / dialog (ConfirmDialog etc.) ──
+     Timing per 2026-09-05 Gemini animation audit: backdrop is a pure 150ms fade both ways;
+     the dialog body itself gets a 2%-amplitude scale (0.98→1) rather than the more "dramatic"
+     0.95→1 this used to have no animation for at all — the brief's target was to avoid feeling
+     theatrical for a clinical tool, not to remove the entrance affordance entirely. Only
+     ConfirmDialog drives the `.closing` class (mirrored state to let the exit play out before
+     unmount); the other `.overlay` call sites (CalibrationWizard/HistoryView/ActionsView modals)
+     still get the entrance fade for free and simply skip the exit stage on close. */
   .overlay {
     @apply fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[1100];
+    animation: overlay-in 0.15s var(--motion-ease-enter) both;
+  }
+  .overlay.closing {
+    animation: overlay-out 0.15s var(--motion-ease-exit) both;
   }
   .dialog {
     @apply w-[min(440px,92vw)] p-6;
+    animation: dialog-in 0.15s var(--motion-ease-enter) both;
+  }
+  .dialog.closing {
+    animation: dialog-out 0.15s var(--motion-ease-exit) both;
   }
   .dialog h3 {
     @apply mb-2.5;
@@ -535,6 +566,13 @@
   .dash-cell-gauge {
     @apply min-w-0 min-h-0;
     grid-area: gauge;
+    /* 2026-09-05, Gemini animation audit: this is the panel the operator's eyes actually stay
+       on, not the small header .dot — its border does the 200ms color-temp shift to danger on
+       disconnect, pure color change, no positional animation whatsoever. */
+    transition: border-color 0.2s var(--motion-ease-mechanical);
+  }
+  .dash-cell-gauge.panel-stale {
+    border-color: rgb(var(--color-danger));
   }
   /* overflow-y-auto (2026-09-05): found by measuring, not guessing — at the compact preset's
      narrow ring column, ring+dropdown+3 number fields genuinely need more height than the row
@@ -714,6 +752,14 @@
   .toast {
     @apply flex items-center gap-2.5 min-w-[240px] px-3.5 py-3 rounded-control bg-surface-raised
       border border-border border-l-4 border-l-accent shadow-floating;
+    animation: toast-in 0.16s var(--motion-ease-enter) both;
+  }
+  /* Exit is pure opacity, no transform at all (2026-09-05, Gemini animation audit) — a monitoring
+     panel should never sweep laterally as it clears, even the vertical entrance offset is dropped
+     on the way out so nothing competes for attention with live sensor data. */
+  .toast.exiting {
+    animation: toast-out 0.12s var(--motion-ease-exit) both;
+    pointer-events: none;
   }
   .toast.success {
     @apply border-l-success;
@@ -753,10 +799,14 @@
   /* ── sliding indicator (useLiquidKnob — positioning/drag-physics hook reused as-is;
      only the shape's skin changes here: rectangular accent block, not a soft glass pill,
      and the gooey SVG distortion filter is dropped, not carried into this direction) ── */
+  /* Timing retuned 2026-09-05 per Gemini's animation-language audit (0.4s/0.3s read as
+     over-damped "jelly" for a precision instrument's sliding indicator) — track/shape now share
+     --motion-ease-mechanical at 0.22s, and the shape transition drops its elastic overshoot
+     (cubic-bezier(0.34,1.56,0.64,1) has a >1 control point, i.e. bounce) entirely. */
   .liquid-knob-track {
     @apply absolute z-0 pointer-events-none;
-    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-      height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: transform 0.22s var(--motion-ease-mechanical), width 0.22s var(--motion-ease-mechanical),
+      height 0.22s var(--motion-ease-mechanical);
   }
   .liquid-knob-track.dragging {
     transition: none;
@@ -769,7 +819,7 @@
   }
   .liquid-knob-shape {
     @apply w-full h-full rounded-control bg-accent;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.22s var(--motion-ease-mechanical);
   }
   /* "Lighting" from the design handoff — dark theme only (see .dot.on above for why) */
   html:not(.theme-light) .liquid-knob-shape {
@@ -779,80 +829,181 @@
     transition: none;
   }
   .liquid-knob-track.horizontal .liquid-knob-shape.morph {
-    animation: knob-stretch-x 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+    animation: knob-stretch-x 0.22s var(--motion-ease-mechanical);
   }
   .liquid-knob-track.vertical .liquid-knob-shape.morph {
-    animation: knob-stretch-y 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+    animation: knob-stretch-y 0.22s var(--motion-ease-mechanical);
   }
 }
 
 @keyframes dropdown-grow {
   from {
     opacity: 0;
-    transform: scale(0.35);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 @keyframes dropdown-shrink {
   from {
     opacity: 1;
-    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: scale(0.35);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .glass-dropdown-popup {
-    animation: dropdown-fade 0.12s ease both;
-  }
-  .glass-dropdown-popup.closing {
-    animation: dropdown-fade-out 0.1s ease both;
-  }
-}
-@keyframes dropdown-fade {
+@keyframes toast-in {
   from {
     opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-@keyframes dropdown-fade-out {
+@keyframes toast-out {
+  from {
+    opacity: 1;
+  }
   to {
     opacity: 0;
   }
 }
 
-@keyframes knob-stretch-x {
-  0% {
-    transform: scaleX(1);
+@keyframes overlay-in {
+  from {
+    opacity: 0;
   }
-  40% {
-    transform: scaleX(1.08);
+}
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes dot-connect-pulse {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.9));
   }
   100% {
-    transform: scaleX(1);
+    filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+  }
+}
+
+/* Single-stage squash-and-lock (2026-09-05, Gemini audit) — replaces the old multi-stage jelly
+   wobble. Peak amplitude matches STRETCH_MAX in LiquidKnob.tsx (1.15 = 15% axial stretch); the
+   opposite-axis scaleY/scaleX compression at the peak is what reads as a solid material being
+   momentarily deformed rather than a soft blob bouncing. */
+@keyframes knob-stretch-x {
+  0% {
+    transform: scaleX(1) scaleY(1);
+  }
+  45% {
+    transform: scaleX(1.15) scaleY(0.92);
+  }
+  100% {
+    transform: scaleX(1) scaleY(1);
   }
 }
 @keyframes knob-stretch-y {
   0% {
-    transform: scaleY(1);
+    transform: scaleY(1) scaleX(1);
   }
-  40% {
-    transform: scaleY(1.08);
+  45% {
+    transform: scaleY(1.15) scaleX(0.92);
   }
   100% {
-    transform: scaleY(1);
+    transform: scaleY(1) scaleX(1);
+  }
+}
+/* ── prefers-reduced-motion (2026-09-05, Gemini animation audit) ──
+   Vestibular sensitivity / post-concussion / dizziness are plausible in a rehab-monitoring
+   context, for both the operator and the person wearing the sensor — this is treated as a
+   compliance requirement, not an optional nicety. Two-tier strategy:
+   1. Blanket collapse: every animation/transition in the app is squashed to ~0 duration by
+      default. This alone silently handles every transition/animation added above (LiquidKnob
+      morph+drag-stretch, dropdown/toast/dialog/overlay enter-exit, the connect-pulse glow, the
+      gauge panel's disconnect border shift) without needing to enumerate them individually.
+   2. Deliberate exceptions, layered back on top: state changes that carry information (did the
+      dropdown open, did the toast appear, is a destructive-action dialog now showing) still get
+      an 80ms pure-opacity fade so the change stays visually confirmable — motion is what's
+      removed, not all feedback. The sliding tab indicator (`.liquid-knob-track`) is load-bearing
+      (it's how "which tab is active" reads at a glance) so its position must still update, just
+      with zero animated transition instead of a sliding motion. */
+@keyframes fade-in-reduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-out-reduced {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
   .liquid-knob-track {
-    transition: none;
+    transition: transform 0ms, width 0ms, height 0ms !important;
   }
   .liquid-knob-shape.morph {
-    animation: none;
+    animation: none !important;
+  }
+  /* CSS animations can't have a single property (e.g. transform) stripped back out via a plain
+     `!important` override — the active keyframe always wins for that property. So instead of
+     trying to neuter transform/scale on the existing enter/exit keyframes, these swap to a
+     dedicated opacity-only keyframe pair at 80ms: motion removed, the fade itself kept so the
+     state change (dropdown opened, toast appeared, a destructive-action dialog is now showing)
+     stays visually confirmable instead of just popping in/out with no transition at all. */
+  .glass-dropdown-popup,
+  .overlay,
+  .dialog,
+  .toast {
+    animation: fade-in-reduced 80ms linear both !important;
+  }
+  .glass-dropdown-popup.closing,
+  .overlay.closing,
+  .dialog.closing,
+  .toast.exiting {
+    animation: fade-out-reduced 80ms linear both !important;
   }
 }
 
