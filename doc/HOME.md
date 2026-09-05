@@ -574,8 +574,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `text-muted`→`text-dim`、關閉鈕 hover 從寫死的 Windows red(`#e81123`,不隨主題
   變化)改用語意 `--color-danger` token。圖片裡的「0.75rem」間距標註因無法確定精確
   對應對象、且現行「緊貼視窗右上角」是刻意保留的 Windows 操作慣例,先不猜測實作。
-  同時貼的第二張圖(側欄導覽 + Dashboard 卡片版面)內容含 AI 生成雜訊文字
-  (不存在的裝置/欄位名稱),無法萃取可執行規格,已回頭跟使用者確認是否有配套文字。
+  同時貼的第二張圖(側欄導覽 + Dashboard 卡片版面)確認 Gemini 這次只回了圖、無
+  配套文字,且圖中「Device Connectivity」畫的是 PNS/LFS/Patient/Hawheart 多裝置
+  開關,與 IRMS 實際單一 BLE 感測器架構矛盾——判斷為圖像生成雜訊,不依此圖動工,
+  留待 Gemini 之後補上文字規格再排入。
 - **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
   [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
