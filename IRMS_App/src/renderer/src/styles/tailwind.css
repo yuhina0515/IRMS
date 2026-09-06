@@ -45,16 +45,14 @@
   --color-shin: 52 211 153; /* = --color-success */
   --color-roll: 167 139 250; /* violet-400 */
 
-  /* Motion tokens (Gemini animation-language audit, 2026-09-05, doc/gemini-handoff-20260905/03).
-     Same three curves regardless of theme — a mechanical/clinical-instrument motion vocabulary,
-     not per-theme, so defined once here rather than duplicated into .theme-light. */
+  /* Motion tokens: same three curves regardless of theme — a mechanical/clinical-instrument
+     motion vocabulary, not per-theme, so defined once here rather than duplicated into .theme-light. */
   --motion-ease-mechanical: cubic-bezier(0.16, 1, 0.3, 1); /* displacement/snap/solid deformation, no overshoot */
   --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1); /* dropdowns/dialogs/toasts entering */
   --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1); /* closing/dismissing/blurring out */
 
-  /* Sidebar tokens (Gemini navigation-rail redesign, 2026-09-05, doc/gemini-handoff-20260905/02
-     round 2 — literal pixel/hex spec this time, no image). Dark values are exact hex from that
-     spec (#13151A/#232730/#8A919E/#FFFFFF/#00F5FF) — a distinct, slightly more neutral/darker
+  /* Sidebar tokens: dark values are exact hex from the design spec
+     (#13151A/#232730/#8A919E/#FFFFFF/#00F5FF) — a distinct, slightly more neutral/darker
      background than --color-surface, deliberately not reusing it, so the nav rail reads as a
      fixed instrument bezel rather than just another card. */
   --sidebar-bg: 19 21 26; /* #13151A */
@@ -64,20 +62,16 @@
   --sidebar-accent: 0 245 255; /* #00F5FF */
 }
 .theme-light {
-  /* Round 2 (2026-09-02, "gemini round2 refinement"): fed the real implementation's
-     screenshots back to Gemini. It proposed a further palette refinement — shifting the light
-     theme's accent from cyan to sky (its read: cyan-darkened-for-contrast "loses the vibrant,
-     energetic lab feel"), plus red-700 for danger. Verified every claimed ratio before applying
-     (Gemini's own numbers were sometimes off): its proposed accent-as-button-background value
-     (sky-500 #0ea5e9) actually measures 2.77:1 with white text — fails the same bar it was
-     supposed to fix — substituted sky-600 instead. Its claimed 7.1:1 for sky-700-as-text
-     measures 5.93:1 — still passes, kept. Its suggested success color (green-700 #15803d,
-     5.02:1) measured worse than this file's existing emerald-700 (5.48:1) despite being pitched
-     as "better contrast" — kept the emerald. Canvas moved to slate-50 per its request (was pure
-     white) — cosmetic, passes contrast either way. Dark theme intentionally left untouched
-     (Gemini's own note: it already passed, don't fix what isn't broken) — this does mean the
-     two themes' accent now use different hue families (dark=cyan, light=sky), a real
-     divergence, not an oversight; flagged for the user rather than silently carried forward. */
+  /* Light theme's accent shifted from cyan to sky — cyan-darkened-for-contrast loses the vibrant,
+     energetic lab feel in a light theme — plus red-700 for danger. Every contrast ratio here was
+     independently verified, not taken as given: the accent-as-button-background value sky-500
+     #0ea5e9 actually measures 2.77:1 with white text — fails the accessibility bar — substituted
+     sky-600 instead (4.10:1). sky-700-as-text measures 5.93:1, passes. A candidate success color
+     (green-700 #15803d, 5.02:1) measured worse than this file's existing emerald-700 (5.48:1)
+     despite looking like the "better contrast" pick — kept emerald-700. Canvas moved to slate-50
+     (was pure white) — cosmetic, passes contrast either way. Dark theme intentionally left
+     untouched — it already passed. This does mean the two themes' accent now use different hue
+     families (dark=cyan, light=sky), a real divergence, not an oversight. */
   --color-canvas: 248 250 252; /* #f8fafc — slate-50 (was pure white) */
   --color-surface: 241 245 249; /* #f1f5f9 — slate-100 */
   --color-surface-raised: 226 232 240; /* #e2e8f0 — slate-200 */
@@ -98,15 +92,13 @@
   --color-shin: 4 120 87; /* = --color-success */
   --color-roll: 124 58 237; /* violet-600 */
 
-  /* Sidebar tokens, light-theme half: Gemini's 2026-09-05 nav-rail spec only covered dark theme
-     (no light values given at all). These aren't invented from scratch — they mirror the same
-     *relationships* the dark spec establishes, using tokens this app already picked for light
-     mode rather than the literal cyan (which was chosen there against a near-black dark
-     background specifically; the light theme already deliberately uses sky, not cyan, as its
-     accent hue per the round-2 divergence noted above, so continuing that split here instead of
-     reintroducing cyan). --sidebar-bg goes one step lighter than --color-surface (mirroring dark's
-     --sidebar-bg sitting one step darker/more neutral than its --color-surface) so the rail still
-     reads as a distinct bezel, not just another card. */
+  /* Sidebar tokens, light-theme half: the dark-theme spec didn't cover light values, so these
+     mirror the same *relationships* the dark spec establishes, using tokens this app already
+     picked for light mode rather than the literal cyan (chosen there against a near-black dark
+     background specifically; light theme already deliberately uses sky as its accent hue, so
+     this continues that split instead of reintroducing cyan). --sidebar-bg goes one step lighter
+     than --color-surface (mirroring dark's --sidebar-bg sitting one step darker than its
+     --color-surface) so the rail still reads as a distinct bezel, not just another card. */
   --sidebar-bg: 248 250 252; /* = --color-canvas, one step lighter than --color-surface */
   --sidebar-border: 226 232 240; /* = --color-border */
   --sidebar-text: 100 116 139; /* = --color-text-muted */
@@ -121,32 +113,47 @@
 }
 
 @layer components {
-  /* ── shell (sidebar-only primary nav — 2026-09-02, per Gemini design judgment removed the
-     briefly-coexisting top SegmentedControl: two nav surfaces driving the same state was
-     redundant and visually confusing. See Sidebar.tsx.)
-     2026-09-05: sidebar moved from a padded/gapped "floating card" (like every other panel) to a
-     flush edge-to-edge rail per Gemini's nav-rail redesign — the padding/gap that used to wrap the
-     whole `.app` (sidebar included) now belongs to `.app-column` alone, since the rail is meant to
-     read as a fixed instrument bezel against the window edge, not another bento card. ── */
-  .app {
-    @apply flex h-screen;
+  /* ── shell (sidebar-only primary nav — a previously-coexisting top SegmentedControl was
+     removed: two nav surfaces driving the same state was redundant and visually confusing.
+     See Sidebar.tsx.)
+     Sidebar is a flush edge-to-edge rail, not a padded/gapped "floating card" like other panels —
+     the padding/gap that used to wrap the whole `.app` (sidebar included) now belongs to
+     `.app-column` alone, since the rail is meant to read as a fixed instrument bezel against the
+     window edge, not another bento card. ── */
+  /* TopHeader spans the full window width above this row, not just the right column — this is
+     what lets .sidebar start below the titlebar instead of flush against the window's top-left
+     corner. h-screen lives on .app-shell; .app is flex-1/min-h-0 so it fills whatever height the
+     titlebar doesn't take. */
+  .app-shell {
+    @apply flex flex-col h-screen;
   }
+  .app {
+    @apply flex flex-1 min-h-0 relative;
+  }
+  /* margin-left permanently reserves the collapsed rail's width (56px), regardless of whether
+     .sidebar is currently collapsed or expanded — .sidebar is position:absolute (see below) and
+     no longer a flex sibling, so this margin is the ONLY thing controlling how much of .app's
+     width the main content gets. Expanding the sidebar to 220px never touches this margin: the
+     extra 164px overlays on top of the content instead of shoving it sideways — toggling the rail
+     used to resize the whole dashboard grid mid-transition, which made the container-query grid
+     presets flicker between layouts as the width crossed their breakpoints. */
   .app-column {
     @apply flex flex-col flex-1 gap-3 px-3 py-4 min-w-0;
+    margin-left: 56px;
   }
   .main {
     @apply flex-1 overflow-y-auto pr-1;
   }
-  /* Fixed 220px, no responsive shrink ("死死釘在左側" per the brief) — width/colors/spacing here
-     are the literal pixel spec Gemini gave (see --sidebar-* tokens above for the light-theme
-     adaptation note), not @apply utility approximations, since the whole point of this rewrite was
-     replacing a vague AI-generated mockup with values precise enough to implement exactly.
-     2026-09-06: collapsible via the toggle button below — .collapsed shrinks width to 64px
-     (just enough for the 20px icon + padding). overflow:hidden is what makes the item labels
-     "disappear" as the rail narrows — no separate fade/opacity animation needed, the width
+  /* Fixed 220px, no responsive shrink — width/colors/spacing here are the literal pixel spec
+     (see --sidebar-* tokens above for the light-theme adaptation note), not @apply utility
+     approximations, so it reproduces the design spec's exact numbers rather than an approximation.
+     Absolute over .app instead of a flex sibling — expanding it no longer resizes .app-column
+     (see margin-left above), it just overlays on top. z-30 stays under the dropdown/toast/dialog
+     layers (z-200+) but above ordinary page content. overflow:hidden is what makes the item
+     labels "disappear" as the rail narrows — no separate fade/opacity animation needed, the width
      transition alone clips them away. */
   .sidebar {
-    @apply h-screen shrink-0 flex flex-col overflow-hidden;
+    @apply absolute inset-y-0 left-0 z-30 shrink-0 flex flex-col overflow-hidden;
     width: 220px;
     padding: 24px 0;
     background-color: rgb(var(--sidebar-bg));
@@ -155,7 +162,8 @@
   }
   /* 56px = group padding(12) + item padding-left(12) + icon(20) + item padding-right(12) — the
      exact width where the icon is fully visible with its normal right-side breathing room and the
-     label (which starts right after, at 56px) is entirely clipped, not just mostly. */
+     label (which starts right after, at 56px) is entirely clipped, not just mostly. Matches
+     .app-column's margin-left exactly, so the collapsed rail's edge lines up flush with content. */
   .sidebar.collapsed {
     width: 56px;
   }
@@ -168,13 +176,13 @@
   .sidebar-toggle:hover {
     color: rgb(var(--sidebar-accent));
   }
-  /* One-shot 360deg spin on every press (2026-09-06, clarified same day) — NOT a persistent
-     rotated state (first version stayed at 90deg while collapsed: a 3-horizontal-line hamburger
-     rotated 90deg just becomes 3 vertical bars, which read as ugly). Start/end angle are
-     identical; this is purely a press-feedback flourish, replayed on every click regardless of
-     whether the sidebar ends up collapsed or expanded. The `.spin` class + `key` remount in
-     Sidebar.tsx is what makes it replay every time — a CSS animation doesn't restart just because
-     a class is present again unless the element is actually removed and re-added to the DOM. */
+  /* One-shot 360deg spin on every press — NOT a persistent rotated state (first version stayed
+     at 90deg while collapsed: a 3-horizontal-line hamburger rotated 90deg just becomes 3 vertical
+     bars, which read as ugly). Start/end angle are identical; this is purely a press-feedback
+     flourish, replayed on every click regardless of whether the sidebar ends up collapsed or
+     expanded. The `.spin` class + `key` remount in Sidebar.tsx is what makes it replay every
+     time — a CSS animation doesn't restart just because a class is present again unless the
+     element is actually removed and re-added to the DOM. */
   .sidebar-toggle-icon {
     @apply flex shrink-0;
   }
@@ -213,8 +221,8 @@
     background-color: rgb(var(--sidebar-text-hover) / 0.04);
   }
   /* Discards the old full-block accent-fill active state (read as "cheap" against the Dashboard's
-     bento-grid data, per the brief) for a 3px left accent border + a faint 10%→0% linear wash —
-     enough to mark the active item without competing for visual weight against real measurements. */
+     bento-grid data) for a 3px left accent border + a faint 10%→0% linear wash — enough to mark
+     the active item without competing for visual weight against real measurements. */
   .sidebar-item.active {
     color: rgb(var(--sidebar-accent));
     background: linear-gradient(90deg, rgb(var(--sidebar-accent) / 0.1) 0%, rgb(var(--sidebar-accent) / 0) 100%);
@@ -239,7 +247,7 @@
      otherwise create a circular @apply dependency */
   .grid {
     display: grid;
-    gap: 1.5rem; /* 24px, was 16px — round-2 feedback, matches the card padding bump above */
+    gap: 1.5rem; /* 24px, was 16px, matches the card padding bump above */
   }
   .cards {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -257,8 +265,8 @@
   /* ── surfaces (was "glass", now a flat dark data-console card) ── */
   .panel,
   .glass {
-    /* p-6 (24px), not p-4 — round-2 feedback: cards read as cramped vs the mockups once real
-       content replaced placeholder text; 24px matches the mockup's prescribed card padding. */
+    /* p-6 (24px), not p-4 — cards read as cramped once real content replaced placeholder text;
+       24px matches the design spec's prescribed card padding. */
     @apply bg-surface border border-border rounded-card p-6;
   }
   .glass-elevated {
@@ -270,7 +278,7 @@
   .top-header {
     @apply bg-surface border-b border-border flex items-center justify-between px-3 py-2;
   }
-  /* 2026-09-04:自訂標題列(frame:false,見 main/index.ts)。整條 bar 預設可拖曳視窗,
+  /* 自訂標題列(frame:false,見 main/index.ts)。整條 bar 預設可拖曳視窗,
      實際可點擊的子元素(按鈕、視窗控制鈕)逐一標回 no-drag——這個順序(整體 drag、
      互動元素 no-drag)比反過來(整體 no-drag、手動框出可拖曳的空白區)更不容易漏掉
      新增按鈕時忘記處理,新按鈕預設就是「先不能拖」而非「先能拖到擋住點擊」。
@@ -285,11 +293,10 @@
   .window-controls {
     @apply flex items-stretch self-stretch -my-2 ml-2;
   }
-  /* Idle/hover tokens per Gemini's titlebar visual mockup (doc/gemini-handoff-20260905/01,
-     2026-09-05): idle icon color is the semantic text-dim (was text-muted, one step dimmer than
-     the mockup's spec), and the close button's hover uses the app's own danger token instead of
-     a hardcoded Windows red — so it actually shifts with the light/dark theme like every other
-     danger-colored element instead of staying a fixed #e81123 regardless of theme. */
+  /* Idle icon color is the semantic text-dim (one step dimmer than text-muted), and the close
+     button's hover uses the app's own danger token instead of a hardcoded Windows red — so it
+     actually shifts with the light/dark theme like every other danger-colored element instead of
+     staying a fixed #e81123 regardless of theme. */
   .window-btn {
     @apply flex items-center justify-center text-text-dim transition-colors;
     width: 46px;
@@ -312,8 +319,8 @@
     @apply text-sm font-bold;
   }
   .top-header .logo span {
-    /* accent-strong, not accent — accent is now the button/bg-only role (round 2), text usage
-       needs the darker/text-safe step */
+    /* accent-strong, not accent — accent is the button/bg-only role, text usage needs the
+       darker/text-safe step */
     @apply text-accent-strong;
   }
   .top-header .conn {
@@ -331,8 +338,8 @@
     @apply px-3 py-1.5 text-sm;
   }
 
-  /* transition (2026-09-05, Gemini animation audit): the LED must never hard-cut between
-     red/amber/green — 180ms color transition on every state swap, mechanical (not bouncy). */
+  /* The LED must never hard-cut between red/amber/green — 180ms color transition on every
+     state swap, mechanical (not bouncy). */
   .dot {
     @apply w-2.5 h-2.5 rounded-full bg-danger;
     transition: background-color 0.18s var(--motion-ease-mechanical);
@@ -346,9 +353,9 @@
   /* "Lighting" from the design handoff: active/ON elements glow instead of reading as a flat
      shape — dark theme only, a glow on a white canvas just looks like a blur artifact rather
      than an instrument light. The connect moment additionally gets a one-shot 180ms brightness
-     pulse (Gemini animation audit) instead of the glow just silently appearing — it settles back
-     to the plain shadow-glow-success in the keyframe's own end state, so nothing needs to swap
-     classes after the animation finishes. */
+     pulse instead of the glow just silently appearing — it settles back to the plain
+     shadow-glow-success in the keyframe's own end state, so nothing needs to swap classes after
+     the animation finishes. */
   html:not(.theme-light) .dot.on {
     @apply shadow-glow-success;
     animation: dot-connect-pulse 0.18s var(--motion-ease-mechanical);
@@ -401,12 +408,12 @@
   }
 
   /* ── forms ── */
-  /* min-w-0 (2026-09-05): found via the Dashboard's narrow preset-B/C ring column — a .field
-     sitting in a flex .row is a flex item, so it inherits the same implicit min-width:auto
-     trap as every other flex-shrink case in this file (see .cockpit-panel etc.) unless capped.
-     Harmless everywhere else: this only changes behavior when the row is genuinely too narrow
-     for its fields' natural width, which previously always meant an unnoticed overflow rather
-     than an intentional fixed size. */
+  /* min-w-0: found via the Dashboard's narrow preset-B/C ring column — a .field sitting in a
+     flex .row is a flex item, so it inherits the same implicit min-width:auto trap as every
+     other flex-shrink case in this file (see .cockpit-panel etc.) unless capped. Harmless
+     everywhere else: this only changes behavior when the row is genuinely too narrow for its
+     fields' natural width, which previously always meant an unnoticed overflow rather than an
+     intentional fixed size. */
   .field {
     @apply flex flex-col gap-1.5 mb-3.5 min-w-0;
   }
@@ -475,9 +482,9 @@
   .glass-dropdown-trigger .chevron.open {
     @apply rotate-180;
   }
-  /* Retuned 2026-09-05 (Gemini animation audit): was a scale(0.35→1) "grow from a point" —
-     replaced with a single-layer micro-shift (translateY + opacity only) per the spec's request
-     to stop animating container-scale and content-fade as two separate stages. */
+  /* Was a scale(0.35→1) "grow from a point" — replaced with a single-layer micro-shift
+     (translateY + opacity only) to stop animating container-scale and content-fade as two
+     separate stages. */
   .glass-dropdown-popup {
     position: fixed; /* top/left/width set inline by GlassDropdown.tsx — portaled to body */
     @apply z-[200] max-h-[260px] overflow-y-auto p-1.5 flex flex-col gap-0.5 bg-surface-raised
@@ -503,13 +510,12 @@
   }
 
   /* ── overlay / dialog (ConfirmDialog etc.) ──
-     Timing per 2026-09-05 Gemini animation audit: backdrop is a pure 150ms fade both ways;
-     the dialog body itself gets a 2%-amplitude scale (0.98→1) rather than the more "dramatic"
-     0.95→1 this used to have no animation for at all — the brief's target was to avoid feeling
-     theatrical for a clinical tool, not to remove the entrance affordance entirely. Only
-     ConfirmDialog drives the `.closing` class (mirrored state to let the exit play out before
-     unmount); the other `.overlay` call sites (CalibrationWizard/HistoryView/ActionsView modals)
-     still get the entrance fade for free and simply skip the exit stage on close. */
+     Backdrop is a pure 150ms fade both ways; the dialog body itself gets a 2%-amplitude scale
+     (0.98→1) rather than a more "dramatic" 0.95→1 — the target is to avoid feeling theatrical for
+     a clinical tool, not to remove the entrance affordance entirely. Only ConfirmDialog drives
+     the `.closing` class (mirrored state to let the exit play out before unmount); the other
+     `.overlay` call sites (CalibrationWizard/HistoryView/ActionsView modals) still get the
+     entrance fade for free and simply skip the exit stage on close. */
   .overlay {
     @apply fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[1100];
     animation: overlay-in 0.15s var(--motion-ease-enter) both;
@@ -560,8 +566,8 @@
   }
 
   /* ── ActionsView: bento card grid of exercise templates ──
-     round-2 handoff spec: hover border-accent + transition to signal "this is executable",
-     clear title/meta typography hierarchy. */
+     Hover border-accent + transition to signal "this is executable", clear title/meta
+     typography hierarchy. */
   .action-group-heading {
     @apply mt-1 mb-2.5 text-[0.82rem] font-semibold tracking-wide text-text-muted uppercase;
   }
@@ -595,10 +601,10 @@
   }
 
   /* ── HistoryView: chronological session log — deliberately a real <table>, not a bento
-     grid (see doc/UI_REDESIGN.md) or a div-based row list. Round-2 feedback asked for
-     "list, not bento" with row hover + clear metadata hierarchy; a semantic table already
-     gives that (plus real accessibility/column-alignment a div reimplementation would have
-     to rebuild by hand), so the fix here is styling the table, not replacing its markup. */
+     grid (see doc/UI_REDESIGN.md) or a div-based row list: "list, not bento" with row hover +
+     clear metadata hierarchy is what's wanted, and a semantic table already gives that (plus
+     real accessibility/column-alignment a div reimplementation would have to rebuild by hand),
+     so the fix here is styling the table, not replacing its markup. */
   table {
     @apply w-full border-collapse;
   }
@@ -633,12 +639,10 @@
   .dash-shell {
     @apply flex flex-col h-full min-h-0;
   }
-  /* 2026-09-05 rewrite (Gemini adaptive-layout spec, doc/gemini-handoff-20260905/
-     04-adaptive-layout.md) — replaces the 09-03/09-04 approach of hand-tuning
-     min()/clamp() px-vh constants per element, which kept breaking every time a new
-     window-size × content-visibility combination showed up (most recently: a 17.6px overflow
-     from a conditional banner nobody had budgeted height for). The fix is structural, not
-     another constant: `.dashboard-workspace` is the ONE node that absorbs whatever height is
+  /* Structural fix, not another hand-tuned constant: hand-tuning min()/clamp() px-vh constants
+     per element kept breaking every time a new window-size × content-visibility combination
+     showed up (most recently: a 17.6px overflow from a conditional banner nobody had budgeted
+     height for). `.dashboard-workspace` is the ONE node that absorbs whatever height is
      left after everything else in `.dash-shell` (header, calib-chip banner, ...) has taken
      its share — `flex: 1 1 0; min-height: 0` is what makes that "remaining space" concept
      real instead of "shrink from content size." `container-type: size` turns it into a query
@@ -668,8 +672,7 @@
   .dashboard-grid.no-pose {
     grid-template-areas: 'gauge ring' 'chart chart';
   }
-  /* min-h-0/min-w-0 on every cell (2026-09-05, found via the same horizontal-overflow
-     signature as an earlier fix): minmax(0, Nfr) on the grid TRACKS only stops the tracks
+  /* min-h-0/min-w-0 on every cell: minmax(0, Nfr) on the grid TRACKS only stops the tracks
      themselves from stretching past their fair share — each grid ITEM still has its own
      separate implicit min-width/min-height:auto (=content's own minimum) unless the item's
      own box is also capped. Both traps look identical from the outside (grid quietly wider/
@@ -677,16 +680,16 @@
   .dash-cell-gauge {
     @apply min-w-0 min-h-0;
     grid-area: gauge;
-    /* 2026-09-05, Gemini animation audit: this is the panel the operator's eyes actually stay
-       on, not the small header .dot — its border does the 200ms color-temp shift to danger on
-       disconnect, pure color change, no positional animation whatsoever. */
+    /* This is the panel the operator's eyes actually stay on, not the small header .dot — its
+       border does the 200ms color-temp shift to danger on disconnect, pure color change, no
+       positional animation whatsoever. */
     transition: border-color 0.2s var(--motion-ease-mechanical);
   }
   .dash-cell-gauge.panel-stale {
     border-color: rgb(var(--color-danger));
   }
-  /* overflow-y-auto (2026-09-05): found by measuring, not guessing — at the compact preset's
-     narrow ring column, ring+dropdown+3 number fields genuinely need more height than the row
+  /* overflow-y-auto: found by measuring, not guessing — at the compact preset's narrow ring
+     column, ring+dropdown+3 number fields genuinely need more height than the row
      has (392px container, ~558px of real content). `container-type:size` on the ancestor
      `.dashboard-workspace` forces this cell's overflow to compute as `clip` even though nothing
      here says so explicitly (CSS Containment spec: size containment forbids `visible` overflow,
@@ -729,14 +732,14 @@
   /* Wraps each panel's actual tab content (chart/stat-grid, 3D/2D) — takes the remaining
      height below the tab switcher and centers content that has its own aspect ratio (leg3d,
      2D SVG) rather than stretching it.
-     overflow-y-auto, not overflow-hidden (2026-09-05) — chart/3D content already self-fits via
-     their own vh-capped max-width/height rules so this never actually shows a scrollbar for
-     them, but the stat-card grid (DetailStatsGrid) has no such self-shrinking mechanism; at the
-     compact preset's narrow columns 6 cards can need more height than the row has, and hidden
-     silently drops the extra cards with no way to reach them (found by measuring — the same
+     overflow-y-auto, not overflow-hidden — chart/3D content already self-fits via their own
+     vh-capped max-width/height rules so this never actually shows a scrollbar for them, but the
+     stat-card grid (DetailStatsGrid) has no such self-shrinking mechanism; at the compact
+     preset's narrow columns 6 cards can need more height than the row has, and hidden silently
+     drops the extra cards with no way to reach them (found by measuring — the same
      container-type:size-forces-clip interaction as .dash-cell-ring above).
-     justify-content:flex-start, not center (2026-09-05) — `justify-content:center` on a
-     scrollable flex container computes the centered position first and only then clips/scrolls,
+     justify-content:flex-start, not center — `justify-content:center` on a scrollable flex
+     container computes the centered position first and only then clips/scrolls,
      so an overflowing child's default scroll position (0) lands in the middle of its content,
      cutting off its *start* rather than its end. Found by screenshot: the first row of stat
      cards was visibly cropped at the top even though a scrollbar was present. flex-start makes
@@ -752,9 +755,9 @@
     @apply text-text-muted text-sm;
   }
   /* max-width mixes an absolute cap (don't blow up on huge monitors) with a vh-relative one
-     (shrink on short windows) — same pattern already used by .leg3d-viewport/.visualizer
-     below; this one was still a flat 420px until 2026-09-03, which is what let the summary
-     row alone push the page taller than short windows regardless of everything below it. */
+     (shrink on short windows) — same pattern already used by .leg3d-viewport/.visualizer below;
+     this one was previously a flat 420px, which let the summary row alone push the page taller
+     than short windows regardless of everything below it. */
   .metric-gauge svg {
     @apply w-full block mx-auto;
     max-width: min(420px, 30vh);
@@ -800,12 +803,11 @@
   .calib-chip:hover {
     @apply bg-warning/20;
   }
-  /* vh-aware like .metric-gauge svg (2026-09-03) — was a flat 180x180, one of the biggest
-     single contributors to the summary row not fitting short windows. */
+  /* vh-aware like .metric-gauge svg — was a flat 180x180, one of the biggest single
+     contributors to the summary row not fitting short windows. */
   /* Sized to sit beside the Designated Action dropdown row rather than as its own hero
-     element (2026-09-03) — smaller than the original 180px hero size, with the percent text
-     scaled down to match via clamp() instead of a flat rem value that would overflow a
-     compact circle. */
+     element — smaller than the original 180px hero size, with the percent text scaled down to
+     match via clamp() instead of a flat rem value that would overflow a compact circle. */
   .ring-wrap {
     @apply relative shrink-0;
     width: min(104px, 13vh);
@@ -828,11 +830,11 @@
     max-height: 100%;
     height: auto;
   }
-  /* max-height: 100% (2026-09-03) — .leg3d-viewport now sits in a height-constrained flex
-     box (.cockpit-content, itself sized by .cockpit's flex-1 min-h-0) instead of an
-     unconstrained column. Without it, aspect-ratio only ever derives height from the vh-based
-     max-width above and can still exceed the box on short windows; combined with max-height
-     the browser fits both constraints and shrinks whichever axis is binding. */
+  /* max-height: 100% — .leg3d-viewport sits in a height-constrained flex box (.cockpit-content,
+     itself sized by .cockpit's flex-1 min-h-0) instead of an unconstrained column. Without it,
+     aspect-ratio only ever derives height from the vh-based max-width above and can still exceed
+     the box on short windows; combined with max-height the browser fits both constraints and
+     shrinks whichever axis is binding. */
   .leg3d-viewport {
     width: 100%;
     max-width: calc(min(42vh, 380px) * 4 / 3);
@@ -865,9 +867,9 @@
       border border-border border-l-4 border-l-accent shadow-floating;
     animation: toast-in 0.16s var(--motion-ease-enter) both;
   }
-  /* Exit is pure opacity, no transform at all (2026-09-05, Gemini animation audit) — a monitoring
-     panel should never sweep laterally as it clears, even the vertical entrance offset is dropped
-     on the way out so nothing competes for attention with live sensor data. */
+  /* Exit is pure opacity, no transform at all — a monitoring panel should never sweep laterally
+     as it clears, even the vertical entrance offset is dropped on the way out so nothing
+     competes for attention with live sensor data. */
   .toast.exiting {
     animation: toast-out 0.12s var(--motion-ease-exit) both;
     pointer-events: none;
@@ -910,10 +912,10 @@
   /* ── sliding indicator (useLiquidKnob — positioning/drag-physics hook reused as-is;
      only the shape's skin changes here: rectangular accent block, not a soft glass pill,
      and the gooey SVG distortion filter is dropped, not carried into this direction) ── */
-  /* Timing retuned 2026-09-05 per Gemini's animation-language audit (0.4s/0.3s read as
-     over-damped "jelly" for a precision instrument's sliding indicator) — track/shape now share
-     --motion-ease-mechanical at 0.22s, and the shape transition drops its elastic overshoot
-     (cubic-bezier(0.34,1.56,0.64,1) has a >1 control point, i.e. bounce) entirely. */
+  /* Old timing (0.4s/0.3s) read as over-damped "jelly" for a precision instrument's sliding
+     indicator — track/shape now share --motion-ease-mechanical at 0.22s, and the shape
+     transition drops its elastic overshoot (cubic-bezier(0.34,1.56,0.64,1) has a >1 control
+     point, i.e. bounce) entirely. */
   .liquid-knob-track {
     @apply absolute z-0 pointer-events-none;
     transition: transform 0.22s var(--motion-ease-mechanical), width 0.22s var(--motion-ease-mechanical),
@@ -1036,10 +1038,10 @@
   }
 }
 
-/* Single-stage squash-and-lock (2026-09-05, Gemini audit) — replaces the old multi-stage jelly
-   wobble. Peak amplitude matches STRETCH_MAX in LiquidKnob.tsx (1.15 = 15% axial stretch); the
-   opposite-axis scaleY/scaleX compression at the peak is what reads as a solid material being
-   momentarily deformed rather than a soft blob bouncing. */
+/* Single-stage squash-and-lock, replacing the old multi-stage jelly wobble. Peak amplitude
+   matches STRETCH_MAX in LiquidKnob.tsx (1.15 = 15% axial stretch); the opposite-axis
+   scaleY/scaleX compression at the peak is what reads as a solid material being momentarily
+   deformed rather than a soft blob bouncing. */
 @keyframes knob-stretch-x {
   0% {
     transform: scaleX(1) scaleY(1);
@@ -1062,7 +1064,7 @@
     transform: scaleY(1) scaleX(1);
   }
 }
-/* ── prefers-reduced-motion (2026-09-05, Gemini animation audit) ──
+/* ── prefers-reduced-motion ──
    Vestibular sensitivity / post-concussion / dizziness are plausible in a rehab-monitoring
    context, for both the operator and the person wearing the sensor — this is treated as a
    compliance requirement, not an optional nicety. Two-tier strategy:
@@ -1127,7 +1129,7 @@
   }
 }
 
-/* ── Dashboard container-query presets (2026-09-05) ──
+/* ── Dashboard container-query presets ──
    Deliberately UNLAYERED (not inside @layer components), and moved here from where they were
    originally written right after .dashboard-grid: Tailwind 3.4's @layer processing corrupts an
    @container at-rule's prelude when it's nested inside @layer components — the compiled output

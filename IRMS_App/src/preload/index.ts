@@ -58,6 +58,7 @@ const api: IrmsApi = {
     getCurrentVersion: () => ipcRenderer.invoke(IpcChannel.UPDATE_GET_CURRENT_VERSION),
     checkNow: () => ipcRenderer.invoke(IpcChannel.UPDATE_CHECK_NOW),
     restartNow: () => ipcRenderer.invoke(IpcChannel.UPDATE_RESTART_NOW),
+    setAllowPrerelease: (allow: boolean) => ipcRenderer.invoke(IpcChannel.UPDATE_SET_ALLOW_PRERELEASE, allow),
     onStatusChange: (cb: (status: UpdateStatus) => void) => {
       const handler = (_event: unknown, status: UpdateStatus): void => cb(status)
       ipcRenderer.on(IpcChannel.UPDATE_STATUS_CHANGED, handler)

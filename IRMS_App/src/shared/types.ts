@@ -110,7 +110,7 @@ export interface Session {
  * 使用者錄了 20 場,第 21 場才發現 shinInvert 反了、重跑精靈,前 20 場就永久無法解讀——
  * 沒有任何紀錄說明它們是由哪一組轉換算出來的。
  *
- * 刻意存成單一 JSON 欄位而非逐欄位攤平(2026-08-12 會議裁決):校準欄位本身仍在演進
+ * 刻意存成單一 JSON 欄位而非逐欄位攤平:校準欄位本身仍在演進
  * (v1.0.1 的 offset → v4 的 zeroRaw 就是一次),攤平會讓每次改欄位都得再開一個 migration,
  * 而這個欄位的用途是「當時是什麼」的存證,不是查詢維度。
  */
@@ -240,6 +240,8 @@ export interface IrmsApi {
     checkNow(): Promise<void>
     /** 已下載完成時呼叫——結束目前 App 並安裝新版,安裝完成後自動重開 */
     restartNow(): Promise<void>
+    /** 是否接收 beta 版推播(對應 autoUpdater.allowPrerelease);啟動時與每次切換都會呼叫 */
+    setAllowPrerelease(allow: boolean): Promise<void>
     /** 訂閱更新生命週期狀態,回傳取消訂閱函式 */
     onStatusChange(cb: (status: UpdateStatus) => void): () => void
   }

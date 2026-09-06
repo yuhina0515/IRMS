@@ -69,6 +69,12 @@ export interface Settings {
   /** 兩套固定主題之一(外部設計 handoff 定案,見 doc/gemini-handoff-20260902/)——
    *  不是舊版可切換風格設定檔那種任意命名的系統,只有這兩個值。 */
   themeMode: 'dark' | 'light'
+  /**
+   * 是否接收 beta 版自動更新推播(對應 electron-updater 的 allowPrerelease)。
+   * 預設 true——這是這個 App 至今唯一的釋出管道,關掉這裡不會讓「已裝的 beta」
+   * 消失,只影響「以後還要不要繼續收到更新推播」。
+   */
+  allowBetaUpdates: boolean
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -112,7 +118,8 @@ const DEFAULT_SETTINGS: Settings = {
   show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
-  themeMode: 'dark'
+  themeMode: 'dark',
+  allowBetaUpdates: true
 }
 
 /**
@@ -409,10 +416,11 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 9, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 10, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
+      // v10:allowBetaUpdates
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

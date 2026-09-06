@@ -34,7 +34,8 @@ const BASE_SETTINGS: Settings = {
   show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
-  themeMode: 'dark'
+  themeMode: 'dark',
+  allowBetaUpdates: true
 }
 
 describe('migrateSettings', () => {
@@ -89,6 +90,20 @@ describe('migrateSettings', () => {
     expect(settings.show3D2DPose).toBe(false)
     expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
     expect(settings.showKneeRoll).toBe(true)
+  })
+
+  it('v9 的 persist 資料補上 v10 新欄位 allowBetaUpdates,且不動使用者既有值', () => {
+    const v9 = {
+      settings: {
+        protocol: 'knee',
+        maxChartPoints: 80,
+        showTrendChart: true
+      }
+    }
+    const { settings } = migrateSettings(v9)
+    expect(settings.allowBetaUpdates).toBe(true) // 新欄位補預設(維持既有的一律 beta 行為)
+    expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
+    expect(settings.showTrendChart).toBe(true)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {

@@ -38,6 +38,12 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
     }
     autoUpdater.checkForUpdates().catch((err: unknown) => console.error('[updater] manual check failed:', err))
   })
+  // renderer 送 Settings.allowBetaUpdates 過來,對應到 electron-updater 的 allowPrerelease。
+  // 沒收到之前沿用 electron-updater 自己的預設(目前版本本身含 prerelease tag 就是 true)——
+  // renderer 在 store 從 localStorage 水合後立刻呼叫一次,通常遠早於下方 CHECK_DELAY_MS。
+  ipcMain.handle(IpcChannel.UPDATE_SET_ALLOW_PRERELEASE, (_event, allow: boolean) => {
+    autoUpdater.allowPrerelease = allow
+  })
 
   if (!ENABLED) return
 

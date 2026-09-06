@@ -246,12 +246,14 @@ export function SettingsView(): JSX.Element {
 }
 
 /**
- * App 軟體更新面板(2026-09-05)。更新流程本身(背景下載/重啟套用)完全靜默——見
+ * App 軟體更新面板。更新流程本身(背景下載/重啟套用)完全靜默——見
  * `UpdateBanner.tsx`,只有「已下載完成」才會冒出來。這裡只放版本顯示與手動檢查按鈕,
- * 不重複顯示下載進度(那是 UpdateBanner 的責任,兩處各管各的狀態沒有必要疊在一起)。
+ * 不重複顯示下載進度(那是 UpdateBanner 的責任)。
  */
 function SoftwareUpdatePanel(): JSX.Element {
   const showToast = useUiStore((s) => s.showToast)
+  const allowBetaUpdates = useStore((s) => s.settings.allowBetaUpdates)
+  const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -282,18 +284,26 @@ function SoftwareUpdatePanel(): JSX.Element {
           {checking ? '檢查中…' : '立即檢查更新'}
         </button>
       </div>
+      <div style={{ marginTop: 12 }}>
+        <Toggle
+          label="接收 Beta 版更新"
+          checked={allowBetaUpdates}
+          onChange={(v) => setSettings({ allowBetaUpdates: v })}
+        />
+        <p className="field-hint" style={{ marginTop: 6 }}>
+          關閉後只會收到正式版推播;已安裝的版本不受影響,只影響「下一次」自動更新推的是哪一種版本。
+        </p>
+      </div>
     </div>
   )
 }
 
 /**
- * 裝置韌體 OTA 更新面板(2026-09-04,Phase C)。
+ * 裝置韌體 OTA 更新面板。
  *
  * 放在 Settings 而非另開一個畫面/導覽項目——這是全 App 唯一一處直接操作硬體底層的
  * 危險操作(校準精靈之外),Settings 本來就是「系統層級設定」的既有心智模型,
- * 使用者不需要為了一個低頻功能多學一個新的導覽入口。這是本次趕工繞過「UI 設計交給
- * Gemini 覆核」慣例做的取捨——放在既有分類底下是風險最低的預設選擇,但版面本身
- * 仍應在下次 Gemini 覆核 pass 一併檢視。
+ * 使用者不需要為了一個低頻功能多學一個新的導覽入口。
  */
 function FirmwareOtaPanel(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)

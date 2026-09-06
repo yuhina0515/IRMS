@@ -26,11 +26,18 @@ export default function App(): JSX.Element {
   const view = useUiStore((s) => s.view)
   const demoMode = useUiStore((s) => s.demoMode)
   const themeMode = useStore((s) => s.settings.themeMode)
+  const allowBetaUpdates = useStore((s) => s.settings.allowBetaUpdates)
 
   // 套用主題:含初次載入(讀取持久化設定)與使用者切換時。
   useEffect(() => {
     applyThemeMode(themeMode)
   }, [themeMode])
+
+  // 送到 main 對應 autoUpdater.allowPrerelease——zustand persist 用同步的 localStorage,
+  // 這裡拿到的已經是水合後的值,遠早於 updater.ts 的 5 秒啟動檢查延遲。
+  useEffect(() => {
+    void window.irms.updates.setAllowPrerelease(allowBetaUpdates)
+  }, [allowBetaUpdates])
 
   return (
     <>
@@ -43,19 +50,21 @@ export default function App(): JSX.Element {
         </div>
       )}
 
-      <div className="app">
-        <Sidebar />
-        <div className="app-column">
-          <TopHeader />
-          <main className="main">
-            {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
-            <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
-              {view === 'dashboard' && <DashboardView />}
-              {view === 'actions' && <ActionsView />}
-              {view === 'history' && <HistoryView />}
-              {view === 'settings' && <SettingsView />}
-            </ErrorBoundary>
-          </main>
+      <div className="app-shell">
+        <TopHeader />
+        <div className="app">
+          <Sidebar />
+          <div className="app-column">
+            <main className="main">
+              {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
+              <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
+                {view === 'dashboard' && <DashboardView />}
+                {view === 'actions' && <ActionsView />}
+                {view === 'history' && <HistoryView />}
+                {view === 'settings' && <SettingsView />}
+              </ErrorBoundary>
+            </main>
+          </div>
         </div>
       </div>
 

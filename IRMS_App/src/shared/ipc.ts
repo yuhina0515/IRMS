@@ -33,6 +33,7 @@ export const IpcChannel = {
   UPDATE_GET_CURRENT_VERSION: 'update:getCurrentVersion',
   UPDATE_CHECK_NOW: 'update:checkNow',
   UPDATE_RESTART_NOW: 'update:restartNow',
+  UPDATE_SET_ALLOW_PRERELEASE: 'update:setAllowPrerelease',
   /** main → renderer 推播頻道,electron-updater 生命週期事件 */
   UPDATE_STATUS_CHANGED: 'update:statusChanged'
 } as const
