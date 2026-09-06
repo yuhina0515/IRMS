@@ -1,7 +1,7 @@
 // renderer/splash.ts — drives the two-stage boot animation's local (stage 1) timing and the
 // stage-1 -> stage-2 handoff. No React/framework: this script must be parsed and running before
 // the main app's bundle is even requested.
-import { SPLASH_ASSEMBLY_FLOOR_MS } from '@shared/splashTiming'
+import { SPLASH_ASSEMBLY_DONE_MS } from '@shared/splashTiming'
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -27,9 +27,9 @@ function fadeOutFrame(): void {
   frame.classList.remove('visible')
 }
 
-// SPLASH_ASSEMBLY_FLOOR_MS also gates main's advance-to-stage-2 timing (see main/splash.ts) — kept
-// in one shared constant so the local "logo finishes drawing" moment and main's floor can't drift.
-setTimeout(startOrbit, reduceMotion ? 0 : SPLASH_ASSEMBLY_FLOOR_MS)
+// main's floor before it's allowed to advance to stage 2 (SPLASH_ASSEMBLY_FLOOR_MS) is
+// deliberately longer than this — see that constant's comment for why they aren't the same value.
+setTimeout(startOrbit, reduceMotion ? 0 : SPLASH_ASSEMBLY_DONE_MS)
 
 interface SplashBridge {
   onAdvance(cb: () => void): void
