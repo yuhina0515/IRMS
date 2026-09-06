@@ -615,6 +615,20 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - 3D 即時姿態視圖([[log_20260704_3d_posture_view|日誌]]);BLE 實機連線已驗證 OK
 - 📡 待實機:達標音 / 超限警報 + 靜音鈕 / `ERR:1` 斷線收尾 / 斷線重連後警報重新武裝 /
   校準凍結的 UI 停用態(見 issue #3)
+- **2026-09-07 Beta 更新推播改為可選**([[log_20260907_beta_update_optin_toggle|完整日誌]]):
+  Settings 新增「接收 Beta 版更新」開關(`allowBetaUpdates`,預設開啟,維持現有行為),
+  對應 `electron-updater` 的 `allowPrerelease`;persist v9→v10。`npm run ci` 全綠。
+- **2026-09-07 側邊欄改為疊層展開,不再推擠版面**([[log_20260907_sidebar_overlay_layout|完整日誌]]):
+  根因是收合/展開觸發的寬度變化會連續改變 `.app-column` 寬度,連帶讓
+  `container-type:size` 的 Dashboard 版面在動畫過程中跨 breakpoint 忽大忽小
+  (即使用者說的「方塊亂推擠」)。改成 `.sidebar` 絕對定位疊層 + `.app-column`
+  固定 `margin-left`,並把 `TopHeader` 提升到 `.app` 外層,讓側邊欄自然對齊到
+  標題列下緣。`npm run ci` 全綠,Playwright 量測三次狀態切換 `.app-column`
+  矩形完全一致,截圖確認疊層效果符合預期。
+- **🔭 未來方向(2026-09-07 提出,尚未排入排程)**:使用者表示之後想優化整個 App
+  的載入動畫,以及軟體內部架構——目前僅為意向,還沒有具體範圍或設計,下次要動這塊
+  前需要先跟使用者釐清「內部架構」具體指哪些部分(main/renderer 分層?state 管理?
+  build 流程?)。
 
 ## 🗂 變更日誌
 
