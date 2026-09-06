@@ -103,7 +103,7 @@ describe('sessions.source 的戳定', () => {
 describe('校準精靈在桌前變成可達', () => {
   // CalibrationWizard 有兩個前置條件:isConnected 為真(入口按鈕的閘門),
   // 以及 store 的 rawAngles 有資料(它逐筆取樣的唯一來源)。沒有裝置時兩者都不成立,
-  // 所以 2026-08-03 會議把這支精靈記為「永遠看不到」——它是全 app 最複雜的
+  // 所以這支精靈曾經「永遠看不到」——它是全 app 最複雜的
   // 互動流程(六步、免手擷取、可退上一步),卻從來只能靠讀程式碼來相信它是對的。
   it('beginSimulated 滿足 isConnected 閘門,ingest 供給 rawAngles', () => {
     expect(useStore.getState().isConnected).toBe(false)

@@ -35,7 +35,7 @@ export const BleCommand = {
 export type BleCommand = (typeof BleCommand)[keyof typeof BleCommand]
 
 /**
- * OTA(2026-09-04,Phase B/C):獨立於上面感測器 service 之外的另一個 GATT service,
+ * 獨立於上面感測器 service 之外的另一個 GATT service,OTA 用。
  * 刻意不與 `SERVICE_UUID` 共用——韌體端理由同上,新增 OTA 不動到既有感測器契約一個位元。
  * 對應韌體端定義見 `IRMS_Sensor/config.h` 的「OTA」區塊,UUID 必須逐字相同。
  */
@@ -67,12 +67,9 @@ export const OTA_ERROR_HINTS: Readonly<Record<string, string>> = {
   WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)'
 }
 
-// 已移除:buildSyncCommand / buildProfilePayload。
-// 兩者是 @deprecated 死碼,零呼叫端,卻仍在文件化一份韌體並不實作的協定
-// (現行韌體無 SYNC 解析、無 Task_Logic/NVS,判定 100% 在 App 端 —— ROADMAP 決策 D1)。
-// 讀 protocol.ts 想知道「App 與韌體之間到底講什麼」的人會被它們誤導,故刪除。
-// 若日後要做 D1 後果條款裡的 Standalone 離線模式,應依當時的韌體重新設計,
-// 而不是復活這兩個函式。
+// 已移除:buildSyncCommand / buildProfilePayload — 文件化了一份現行韌體並不實作的
+// 協定(無 SYNC 解析、無 Task_Logic/NVS,判定 100% 在 App 端,ROADMAP 決策 D1)。
+// 若日後做 Standalone 離線模式,應依當時的韌體重新設計,不要復活這兩個函式。
 
 /** 硬體錯誤代碼前綴(I2C 斷線等) */
 export const ERROR_PREFIX = 'ERR:'
@@ -150,7 +147,7 @@ const FIELD_PREFIXES = ['TR:', 'SR:', 'KR:', 'T:', 'S:', 'K:'] as const
  * 錯誤格式:`ERR:1`
  * 純數字(舊韌體相容):僅膝夾角
  *
- * **逐軸降級而非整包丟棄(2026-08-22,issue #2)。** 韌體 6 軸封包最長 54 bytes;若 BLE MTU
+ * **逐軸降級而非整包丟棄(issue #2)。** 韌體 6 軸封包最長 54 bytes;若 BLE MTU
  * 沒協商到 `config.h` 的 128 而停在預設 23,notify 承載只剩 20 bytes,封包被硬切。
  * 舊解析器對切出來的殘骸照單全收,Roll 靜靜變成 0,使用者看不到任何錯誤。
  *

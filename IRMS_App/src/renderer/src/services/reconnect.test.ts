@@ -1,7 +1,7 @@
 // 自動重連進度的測試。
 //
 // 這條路徑在此之前**無法驗證**——要重現得真的把 ESP32 的電池拔掉,而裝置不在手邊。
-// 於是「Reconnecting (n/5)」這個計數器從 2026-06-27 寫下以來從來沒有人確認過它會顯示,
+// 於是「Reconnecting (n/5)」這個計數器從來沒有人確認過它會顯示,
 // 而實際上它從來不會:attemptReconnect 寫進 statusText 之後,下一行的 connectGATT()
 // 開頭就是 setStatus('Connecting...'),同一次嘗試內就蓋掉了。
 //

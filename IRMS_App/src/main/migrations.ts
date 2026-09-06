@@ -1,7 +1,7 @@
 // main/migrations.ts
 // --- SQLite schema 版本化(ROADMAP 決策 D4 的實作)---
 //
-// 2026-08-01 會議 F5:db.ts 原本只有 `CREATE TABLE IF NOT EXISTS`,schema 無法演進。
+// db.ts 原本只有 `CREATE TABLE IF NOT EXISTS`,schema 無法演進。
 // 具體後果:v1.0.1 已經在使用者手上,下一次加欄位時,全新安裝會正常建表,
 // 但升級的安裝因為表已存在而整段 CREATE 空轉,新欄位不會出現,第一次 INSERT
 // 就丟 `no such column`,使用者只能刪掉整個資料庫(連同歷史)才能繼續錄製。
@@ -171,11 +171,11 @@ export const MIGRATIONS: Migration[] = [
     // 第 21 場才發現 shinInvert 反了、重跑精靈,前 20 場沒有任何東西說明它們
     // 是由哪一組轉換算出來的,連「往前抬還是往後擺」都無法回推。
     //
-    // 單一 JSON 欄位而非逐欄位攤平(2026-08-12 會議裁決):校準欄位本身仍在演進
+    // 單一 JSON 欄位而非逐欄位攤平:校準欄位本身仍在演進
     // (v1.0.1 的 offset → v4 的 zeroRaw 就是一次),攤平會讓每次改欄位都得再開
     // 一個 migration;這個欄位是「當時是什麼」的存證,不是查詢維度。
     //
-    // 同次會議否決了 sensor_data 的四個原始角度欄位:三方各自實跑證明
+    // sensor_data 的四個原始角度欄位曾被否決:三方各自實跑證明
     // 校準轉換可逆,存原始值等於 +54MB/百場買到零資訊。要回推原始值,
     // 用這個快照反算即可。
     up: (db) => db.exec(`ALTER TABLE sessions ADD COLUMN calibration TEXT;`)

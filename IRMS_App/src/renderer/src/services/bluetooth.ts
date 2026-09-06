@@ -239,8 +239,8 @@ export class BluetoothService {
   /**
    * 協定管線的唯一注入口:解析 → 錯誤/壞封包分流 → 套用校準 → 平滑 → 交給判定。
    *
-   * 從 handleNotification 抽出來的目的是讓「模擬封包」與「真實封包」走**完全同一條路**
-   * (2026-08-03 會議裁定)。當時另一個提案是把接縫開在 onAnglesReceived,被否決,
+   * 從 handleNotification 抽出來的目的是讓「模擬封包」與「真實封包」走**完全同一條路**。
+   * 曾經考慮過把接縫開在 onAnglesReceived,被否決,
    * 因為那會跳過 parseAnglePacket 與 applyCalibration——而 applyCalibration 正是
    * 校準精靈的輸出真正落地的地方,跳過它等於測不到校準。
    *
@@ -304,9 +304,8 @@ export class BluetoothService {
     }
     if (!this.profileChar) return
     try {
-      // 沿革:v2 韌體的 onWrite 以 == 精確比對,多一個 '\n' 會讓所有 CMD 靜默失效。
-      // 韌體 v3 起 onWrite 會先 trim(),此限制已解除——仍不附加換行只是因為沒有必要。
-      // (原註解宣稱的限制早已不存在;錯的安全註解比沒有註解更危險,故一併更正。)
+      // 韌體 v2 的 onWrite 以 == 精確比對,多一個 '\n' 會讓所有 CMD 靜默失效;
+      // v3 起 onWrite 會先 trim(),此限制已解除,不附加換行只是因為沒有必要。
       const data = new TextEncoder().encode(command)
       await this.profileChar.writeValue(data)
     } catch (err) {

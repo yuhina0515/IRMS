@@ -23,8 +23,8 @@ interface GlassDropdownProps {
   placeholder?: string
 }
 
-// 100ms (2026-09-05, Gemini animation audit) — must track .glass-dropdown-popup.closing's
-// animation-duration in tailwind.css exactly, or the DOM unmounts before/after the CSS finishes.
+// 100ms — must track .glass-dropdown-popup.closing's animation-duration in tailwind.css
+// exactly, or the DOM unmounts before/after the CSS finishes.
 const CLOSE_ANIM_MS = 100
 
 export function GlassDropdown({

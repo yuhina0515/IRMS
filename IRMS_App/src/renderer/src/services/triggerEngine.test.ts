@@ -217,7 +217,7 @@ describe('TriggerEngine — segment 類判定', () => {
   })
 })
 
-// --- 2026-08-01 會議 F2 迴歸:rest 不變式 ---
+// --- rest 不變式迴歸測試 ---
 // 修復前:rest 是寫死的 30,而出貨預設 Backward Extension 的 min 是 20,
 // 目標區整個落在休息區內,狀態機在原地閉合成迴圈,一條靜止不動的腿
 // 每 holdTimeMs 被計一次 rep 並發一次達標音,寫進 sessions.repsCompleted。

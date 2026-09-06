@@ -55,9 +55,8 @@ export function ActionsView(): JSX.Element {
   const [editing, setEditing] = useState<CustomAction | null>(null)
   const [form, setForm] = useState<CustomActionInput | null>(null)
 
-  // Record Pose(v1 有、v2 重寫時遺失,2026-08-01 會議意見清單 #11 回補):
-  // 沒有這個功能,治療師必須在感測器已經綁在患者腿上的情況下「盲打」一個目標角度,
-  // 每一個處方目標都是猜的——這是臨床上錯誤目標的最大來源。
+  // Record Pose:沒有這個功能,治療師必須在感測器已經綁在患者腿上的情況下「盲打」
+  // 一個目標角度,每一個處方目標都是猜的——這是臨床上錯誤目標的最大來源。
   const angles = useStore((s) => s.angles)
   const isConnected = useStore((s) => s.isConnected)
   /** 依目前表單的判定型別,算出「此刻的姿勢對應的目標角度」 */

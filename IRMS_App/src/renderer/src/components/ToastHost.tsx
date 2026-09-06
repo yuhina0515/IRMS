@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUiStore, type Toast } from '../store/useUiStore'
 
-// 120ms (2026-09-05, Gemini animation audit) — must match .toast.exiting's animation-duration
-// in tailwind.css, or the DOM node gets stripped before/after the CSS fade actually finishes.
+// 120ms — must match .toast.exiting's animation-duration in tailwind.css, or the DOM node
+// gets stripped before/after the CSS fade actually finishes.
 const EXIT_ANIM_MS = 120
 
 interface DisplayToast extends Toast {

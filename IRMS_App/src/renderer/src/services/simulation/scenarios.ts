@@ -1,7 +1,7 @@
 // renderer/services/simulation/scenarios.ts
 // --- 具名模擬情境 ---
 //
-// ⚠⚠ 使用範圍的硬性限制(2026-08-03 會議裁定的延伸)⚠⚠
+// ⚠⚠ 使用範圍的硬性限制 ⚠⚠
 // 模擬器驗證的是「**程式對輸入的反應**」,永遠不是「**輸入像不像一條真的腿**」。
 // 因此任何測試都**不得**拿模擬器去論證下列常數的取值是否恰當:
 //   FILTER_ALPHA(韌體互補濾波)、EMA_ALPHA(smoothing)、HYSTERESIS_DEG、
@@ -57,7 +57,7 @@ const restFrame = (): string => encodeAnglePacket(REST_POSE)
  * 由此導出 zone = { min: 80, max: 100, overLimit: 120, rest: 30 }。
  * 情境的角度都是相對這組參數挑的;換動作參數時情境的語意會跑掉。
  *
- * ⚠ 2026-08-29 實測發現:Demo 面板選情境時**不會**自動套用這組參數到
+ * ⚠ Demo 面板選情境時**不會**自動套用這組參數到
  * Designated Action——這個對應純粹是「情境作者的假設」,UI 從未真的接線
  * (只有 demoMode.test.ts 手動 spread 這個常數)。用預設的 `Squat`
  * (Hold 3000ms > 這裡的 2500ms 保持窗)測 rep-cycle 情境會導致 reps 永遠停在

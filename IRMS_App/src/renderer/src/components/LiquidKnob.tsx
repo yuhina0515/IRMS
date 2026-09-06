@@ -32,9 +32,9 @@ interface UseLiquidKnobOptions {
   onSelect?: (key: string) => void
 }
 
-// Timing/amplitude retuned 2026-09-05 per Gemini's animation-language audit
-// (doc/gemini-handoff-20260905/03-animations.md response): 420ms/1.4x read as "jelly", not a
-// precision instrument — compressed to 220ms / 1.15x (--motion-ease-mechanical duration range).
+// Timing/amplitude tuned for readability (see doc/gemini-handoff-20260905/03-animations.md):
+// 420ms/1.4x read as "jelly", not a precision instrument — compressed to 220ms / 1.15x
+// (--motion-ease-mechanical duration range).
 const MORPH_DURATION_MS = 220
 const DRAG_THRESHOLD_PX = 4
 const STRETCH_MAX = 1.15
@@ -75,10 +75,10 @@ export function useLiquidKnob({
   const morphTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const dragRef = useRef<DragState | null>(null)
   const cleanupDragListenersRef = useRef<(() => void) | null>(null)
-  // prefers-reduced-motion (2026-09-05, Gemini animation audit): read once + subscribe to
-  // changes rather than querying matchMedia on every pointermove — this hook can see 60+
-  // moves/sec during a drag. When set, the velocity-driven stretch calculation below is
-  // short-circuited so the knob does pure 1:1 rigid position tracking with no deformation.
+  // prefers-reduced-motion: read once + subscribe to changes rather than querying matchMedia
+  // on every pointermove — this hook can see 60+ moves/sec during a drag. When set, the
+  // velocity-driven stretch calculation below is short-circuited so the knob does pure 1:1
+  // rigid position tracking with no deformation.
   const reducedMotionRef = useRef(false)
 
   useLayoutEffect(() => {

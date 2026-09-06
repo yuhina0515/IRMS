@@ -54,7 +54,7 @@ export function maxAxisDelta(
  * 四軸的環形平均與最大環形標準差。
  * 必須用環形統計而非算術平均:角度是環不是實數線,若某肢段的靜止姿勢落在
  * ±180 分支切點,線性版本會把 0.6° 的抖動算成 stdDev ≈ 180,精靈永遠回報
- * 「偵測到晃動」而無法完成校準(2026-08-01 會議 F4)。
+ * 「偵測到晃動」而無法完成校準。
  */
 export function computeCaptureStats(samples: RawAngles[]): CaptureStats {
   const mean: RawAngles = { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0 }
@@ -162,7 +162,7 @@ export function buildCalibrationPatch(
 
   // 4. zeroRaw:站直姿勢(有效軸)本身就是零位讀值,不折算 invert 符號——
   //    判定端以 (raw − zeroRaw) × sign 求值,故事後翻轉 invert 不會擾動零位
-  //    (2026-08-12 會議:舊「符號摺疊」offset 表示法在 invert 翻轉時會產生雙倍偏差)
+  //    (不是舊的「符號摺疊」offset 表示法——那個在 invert 翻轉時會產生雙倍偏差)
   const patch: Partial<Settings> = {
     ...mapping,
     thighInvert,
@@ -182,10 +182,10 @@ export function buildCalibrationPatch(
 /**
  * 快速歸零:沿用現有 axisSwap/invert 設定,只用「當下姿勢 = 0°」重設四個 zeroRaw。
  * 必須先套用 effectiveRaw 做軸對調——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
- * 否則貼歪 90° 的感測器會把零位算在錯的物理軸上(2026-08-07 會議發現,SettingsView
- * 原本直接用 raw.thigh/raw.thighRoll,略過了這一步)。
- * zeroRaw 不折算 invert 符號,故不需要讀取 invert 設定——這正是 2026-08-12 會議裁定的
- * 重新參數化收益:invert 從「翻轉即雙倍偏差的地雷」變成不擾動零位的獨立控制項。
+ * 否則貼歪 90° 的感測器會把零位算在錯的物理軸上(SettingsView 曾經直接用
+ * raw.thigh/raw.thighRoll,略過了這一步)。
+ * zeroRaw 不折算 invert 符號,故不需要讀取 invert 設定——這正是重新參數化的收益:
+ * invert 從「翻轉即雙倍偏差的地雷」變成不擾動零位的獨立控制項。
  */
 export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial<Settings> {
   const eff = effectiveRaw(raw, {

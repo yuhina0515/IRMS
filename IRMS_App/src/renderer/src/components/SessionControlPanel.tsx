@@ -23,9 +23,9 @@ function formatClock(sec: number): string {
 }
 
 interface Props {
-  /** Rendered beside the Designated Action dropdown instead of its own row (2026-09-03) —
-      DashboardView passes <ProgressRing/> here so the ring doesn't cost a whole extra row of
-      the Dashboard's fixed-height budget. */
+  /** Rendered beside the Designated Action dropdown instead of its own row — DashboardView
+      passes <ProgressRing/> here so the ring doesn't cost a whole extra row of the Dashboard's
+      fixed-height budget. */
   ring?: ReactNode
 }
 
@@ -72,10 +72,10 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
     running ? () => void handleEnd() : canStart ? () => void handleStart() : null
   )
 
-  // No self-wrapping .panel here (2026-09-03) — DashboardView composes this together with
-  // ProgressRing inside a single shared panel to save one card's worth of padding+gap in the
-  // Dashboard's fixed-height budget. This is the only call site (grep confirmed), so the
-  // wrapper was never load-bearing for reuse elsewhere.
+  // No self-wrapping .panel here — DashboardView composes this together with ProgressRing
+  // inside a single shared panel to save one card's worth of padding+gap in the Dashboard's
+  // fixed-height budget. This is the only call site (grep confirmed), so the wrapper was never
+  // load-bearing for reuse elsewhere.
   return (
     <>
       <div className="row" style={{ gap: 16, alignItems: 'center' }}>
@@ -92,12 +92,11 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
         </div>
       </div>
 
-      {/* flexWrap + minWidth (2026-09-05, Dashboard adaptive-layout rewrite): the Cockpit's
-          narrow "ring" column at the compact/minimal container presets isn't wide enough for
-          three side-by-side number fields — without a floor they'd compress until the values
-          inside became unreadable rather than wrapping to a second line. min-w-0 on .field
-          (added the same day) is what makes fields willing to shrink at all; this minWidth is
-          the other half, capping how far before they wrap instead. */}
+      {/* flexWrap + minWidth: the Cockpit's narrow "ring" column at the compact/minimal
+          container presets isn't wide enough for three side-by-side number fields — without a
+          floor they'd compress until the values inside became unreadable rather than wrapping
+          to a second line. min-w-0 on .field is what makes fields willing to shrink at all;
+          this minWidth is the other half, capping how far before they wrap instead. */}
       <div className="row" style={{ marginTop: 14, flexWrap: 'wrap' }}>
         {/* 鉗制在 blur 而非每次按鍵:打字打到一半的中間值(例如輸入 100 的第一個 1)
             不該被跳改。真正的保證在 sessionController.currentConfig(),引擎永遠拿不到

@@ -18,7 +18,7 @@ export interface TriggerConfig {
    * 為什麼要獨立:容錯回答的是「這樣算不算達標」,安全上限回答的是「這個關節不該
    * 超過幾度」。後者由解剖與醫囑決定,和處方寬鬆與否無關。綁在一起的話,治療師
    * 為了讓患者容易達標而把容錯從 10° 放寬到 25°,會在完全沒察覺的情況下把警報門檻
-   * 一併往外推 15°(2026-08-01 會議意見清單 #19)。
+   * 一併往外推 15°。
    */
   safetyLimit?: number | null
 }
@@ -31,7 +31,7 @@ export const REST_TOLERANCE = 30
  * 狀態機隱含一個不變式:`rest < zone.min`。若違反,目標區會落在休息區內,
  * 於是 holding → restPending → idle → holding 在原地閉合成迴圈:一條完全靜止
  * 的腿每 holdTimeMs 就被計一次 rep 並發一次達標音,而那些捏造的次數會寫進
- * sessions.repsCompleted(2026-08-01 會議 F2)。
+ * sessions.repsCompleted。
  *
  * 出貨預設 Backward Extension(target 20、segment_extension)就違反了它:
  * min = 20 ≤ 舊的固定 rest = 30。任何 min ≤ 30 的動作都會中,包含使用者自建的

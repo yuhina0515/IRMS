@@ -1,12 +1,11 @@
 // renderer/components/ErrorBoundary.tsx
 // --- 崩潰隔離 ---
 //
-// 2026-08-01 會議 F(意見清單 #13):App 原本沒有任何 ErrorBoundary,
-// 任一 view 在 render 時拋錯,React 18 會卸載整棵樹 → 整個視窗空白。
-// 而 sessionController 是模組層級的 singleton(main.tsx 匯入時就建立),
-// 它持有 BLE 通知回呼、flush 計時器與時鐘計時器——這些都在 React 之外,
-// 白屏之後仍continue 運作。使用者沒有任何按鈕可按,只能從工作管理員強殺,
-// 於是進行中的 Session 變成孤兒列。
+// App 原本沒有任何 ErrorBoundary,任一 view 在 render 時拋錯,React 18 會卸載整棵樹
+// → 整個視窗空白。而 sessionController 是模組層級的 singleton(main.tsx 匯入時就建立),
+// 它持有 BLE 通知回呼、flush 計時器與時鐘計時器——這些都在 React 之外,白屏之後仍
+// continue 運作。使用者沒有任何按鈕可按,只能從工作管理員強殺,於是進行中的 Session
+// 變成孤兒列。
 //
 // 因此 fallback 一定要提供「結束並儲存 Session」,這是白屏當下唯一能保住資料的動作。
 import { Component, type ErrorInfo, type ReactNode } from 'react'

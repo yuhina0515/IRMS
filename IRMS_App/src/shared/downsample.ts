@@ -1,7 +1,7 @@
 // shared/downsample.ts
 // --- LTTB (Largest-Triangle-Three-Buckets) 抽樣 ---
 //
-// 2026-08-01 會議意見清單 #14:sessionsRepo.getData 無上限。25Hz × 10 分鐘 ≈ 15,000 列,
+// sessionsRepo.getData 原本無上限。25Hz × 10 分鐘 ≈ 15,000 列,
 // 整包經 structured-clone 過 IPC,再為每一點跑一次 toLocaleTimeString(Intl 呼叫),
 // 然後餵給 Chart.js 三個 15k 元素的陣列——分析視窗會肉眼可見地卡住。
 //

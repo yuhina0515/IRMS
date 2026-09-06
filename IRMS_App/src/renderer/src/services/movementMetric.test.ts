@@ -85,7 +85,7 @@ describe('metricInfo', () => {
   })
 })
 
-// --- 2026-08-01 會議 F2/F6:zone 不變式 ---
+// --- zone 不變式 ---
 describe('computeMetricZone — rest 不變式', () => {
   it('所有合法參數組合都滿足 rest < min(否則靜止的腿會產生幻影 reps)', () => {
     for (const targetAngle of [10, 20, 35, 45, 90, 170]) {
@@ -134,7 +134,7 @@ describe('computeMetricZone — rest 不變式', () => {
   })
 })
 
-// --- 2026-08-01 意見清單 #19:獨立的安全上限 ---
+// --- 獨立的安全上限 ---
 describe('computeMetricZone — safetyLimit', () => {
   const base = { targetAngle: 90, tolerance: 10, holdTimeMs: 3000, triggerType: 'joint_angle' } as const
 

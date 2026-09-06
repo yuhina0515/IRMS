@@ -70,9 +70,8 @@ function CloseIcon(): JSX.Element {
 }
 
 /**
- * 自訂視窗控制鈕(2026-09-04,取代先前的 OS titleBarOverlay 疊層按鈕)。
- * RDP session(main process 判定 hasCustomTitlebar=false)不渲染這一段——那種
- * session 本來就有原生框與原生按鈕,兩份疊在一起會很奇怪(見 main/index.ts 註解)。
+ * 自訂視窗控制鈕。RDP session(main process 判定 hasCustomTitlebar=false)不渲染這一段——
+ * 那種 session 本來就有原生框與原生按鈕,兩份疊在一起會很奇怪(見 main/index.ts 註解)。
  */
 function WindowControls(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)

@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useUiStore } from '../store/useUiStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 
-// 150ms(2026-09-05,Gemini 動畫語言審查)——必須對齊 tailwind.css 裡 .overlay.closing/
-// .dialog.closing 的 animation-duration,退場動畫才有時間播完再真正卸載。
+// 150ms——必須對齊 tailwind.css 裡 .overlay.closing/.dialog.closing 的 animation-duration,
+// 退場動畫才有時間播完再真正卸載。
 const CLOSE_ANIM_MS = 150
 
 export function ConfirmDialog(): JSX.Element | null {

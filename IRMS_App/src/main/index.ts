@@ -19,8 +19,8 @@ app.commandLine.appendSwitch('enable-experimental-web-platform-features', 'true'
 // 全部搶著開同一個 better-sqlite3 (WAL) 檔——鎖衝突時 initDatabase() 拋出的例外
 // 原本沒有任何地方接住(見下方 whenReady 的 .catch()),後果是視窗開不出來、
 // 例外被吞掉、process 卻留在背景不會自己關掉,使用者只會看到「點了沒反應」
-// 然後越點越多背景 process(2026-08-28 實測發現,packaged v1.0.2 才第一次被人踩到——
-// dev 模式一次只會有一個 electron-vite 進程,從來不會觸發這條路徑)。
+// 然後越點越多背景 process。dev 模式一次只有一個 electron-vite 進程,不會觸發
+// 這條路徑,只有 packaged 版多開才會踩到。
 // 拿不到鎖的 process 必須立刻自我了斷,不能等 whenReady,否則它已經在跟第一個
 // process 搶 DB 檔的路上了。
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
@@ -28,12 +28,9 @@ if (!gotSingleInstanceLock) {
   app.quit()
 }
 
-// RDP session:2026-08-28 曾發現這個 session 下 titleBarOverlay 依賴的 DWM 合成會
-// 卡死(ready-to-show 永遠不來),當時關掉 Chromium 自己的 GPU 加速當第二道防線。
-// 2026-09-04 改用 frame:false 完全自訂標題列(見 createWindow())取代 titleBarOverlay
-// 後,已在同一台機器、同一種 RDP session(SESSIONNAME=RDP-Tcp#0)上重新實測三次
-// 啟動,frame:false 不卡——不是理論推測,是同一個曾經壞掉的環境重新跑過。
-// GPU 加速仍先關著,便宜且無害,沒有理由為了這次改動連帶去驗證它是否還需要。
+// RDP session:titleBarOverlay 依賴的 DWM 合成在這類 session 下會卡死
+// (ready-to-show 永遠不來)。已改用 frame:false 自訂標題列(見 createWindow())
+// 取代 titleBarOverlay,但 GPU 加速仍先關著——便宜且無害,未驗證是否還需要。
 const IS_RDP_SESSION = process.env['SESSIONNAME']?.startsWith('RDP-Tcp') ?? false
 if (IS_RDP_SESSION) {
   app.disableHardwareAcceleration()
@@ -47,7 +44,7 @@ function themeColors(): { bg: string } {
 /**
  * 13" 1366×768 筆電在 Windows 125% 縮放下,邏輯解析度只剩約 1093×614 DIP,扣工作列後
  * 可用高度約 576–590——舊的 minHeight:680 比這個機型的整個螢幕邏輯高度還高,視窗連
- * 自己宣告的最小尺寸都無法在這類硬體上完整顯示(2026-08-07 會議發現)。改為:
+ * 自己宣告的最小尺寸都無法在這類硬體上完整顯示。改為:
  * (1) minHeight 降到這類硬體上留有安全邊際的高度;(2) 初始尺寸夾在主螢幕工作區內,
  * 避免在小螢幕上一開窗就比工作區還大而被系統硬裁。
  */
@@ -73,9 +70,9 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'IRMS Dashboard',
-    // 完全自訂標題列(2026-09-04,取代先前的 titleBarStyle:'hidden' + titleBarOverlay):
-    // 連 RDP session 都一併適用(見上方 IS_RDP_SESSION 註解,已重新實測)。renderer
-    // 的 TopHeader 自己畫拖曳列與最小化/最大化/關閉鈕(見 window:minimize 等 IPC handler)。
+    // 完全自訂標題列,取代 titleBarStyle:'hidden' + titleBarOverlay(連 RDP session
+    // 都適用,見上方 IS_RDP_SESSION 註解)。renderer 的 TopHeader 自己畫拖曳列與
+    // 最小化/最大化/關閉鈕(見 window:minimize 等 IPC handler)。
     frame: false,
     // 視窗底色跟隨系統主題,避免載入瞬間閃色
     backgroundColor: initial.bg,

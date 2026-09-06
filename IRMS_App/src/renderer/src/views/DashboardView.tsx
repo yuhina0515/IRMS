@@ -1,7 +1,6 @@
 // renderer/views/DashboardView.tsx
 // 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;下方是
-// Gemini round-2 規格的「Cockpit」即時資料區(2026-09-02,取代原本 4 選 1 的單一 tab
-// 卡片):左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排,不再是四選一。
+// 「Cockpit」即時資料區:左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排。
 import { useRef, useState } from 'react'
 import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
@@ -44,10 +43,9 @@ interface DetailStatsGridProps {
   hardwareError: string | null
 }
 
-// 抽成獨立元件(2026-09-05,Gemini adaptive-layout 規格的一部分):同一組數值卡片
-// 現在有兩個各自獨立的出現位置——一般尺寸下作為左欄「詳細數值」分頁的內容,
-// container 極窄時作為強制數字回退(numeric fallback)——抽出來避免兩處各寫一份
-// 一樣的 6 張 Stat 卡片,以後改欄位只需要改一個地方。
+// 抽成獨立元件:同一組數值卡片有兩個各自獨立的出現位置——一般尺寸下作為左欄
+// 「詳細數值」分頁的內容,container 極窄時作為強制數字回退(numeric fallback)——
+// 抽出來避免兩處各寫一份一樣的 6 張 Stat 卡片,以後改欄位只需要改一個地方。
 function DetailStatsGrid({ angles, hardwareError }: DetailStatsGridProps): JSX.Element {
   const fmt = (n: number | undefined): string =>
     hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
@@ -81,7 +79,7 @@ export function DashboardView(): JSX.Element {
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
   const protocol = useStore((s) => s.settings.protocol)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
-  // 2026-09-04:兩者預設收起(見 useStore.ts 的欄位註解),Settings 可個別開啟
+  // 兩者預設收起(見 useStore.ts 的欄位註解),Settings 可個別開啟
   const showTrendChart = useStore((s) => s.settings.showTrendChart)
   const show3D2DPose = useStore((s) => s.settings.show3D2DPose)
 
@@ -142,23 +140,19 @@ export function DashboardView(): JSX.Element {
           ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
         </div>
       )}
-      {/* 2026-08-01 會議連帶決議:移除「內外翻方向未驗證」警示。
-          roll 完全不進入任何判定路徑——computeMetricSample 只讀 thigh/knee,
-          三種 triggerType 全是 pitch 導向,連 overLimit 都是從 sample.value 算的。
-          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號,只會訓練
-          使用者忽略警告。roll 影響的僅有 3D 模型、詳細數值、History 疊圖與 CSV,
-          該提示已移至 Settings 的 3D 顯示區塊,語意改為「僅影響顯示」。 */}
+      {/* 內外翻方向未驗證的警示不放在這裡:roll 完全不進入任何判定路徑——
+          computeMetricSample 只讀 thigh/knee,三種 triggerType 全是 pitch 導向。
+          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號。roll 影響的
+          僅有 3D 模型、詳細數值、History 疊圖與 CSV,相關提示已移至 Settings 的
+          3D 顯示區塊。 */}
 
-      {/* 2026-09-05,取代 09-03/09-04 那套「猜視窗尺寸、拿 min()/vh 補洞」的作法
-          (Gemini adaptive-layout 需求的回覆,見 doc/gemini-handoff-20260905/04-*)。
-          由上而下的絕對空間分配:.dashboard-workspace 是唯一吃「剩餘空間」
+      {/* 由上而下的絕對空間分配:.dashboard-workspace 是唯一吃「剩餘空間」
           (flex-1 min-h-0)的節點,底下用 container query 依「這個容器實際還剩多少
           高度」切三種 layout preset,而不是猜視窗總尺寸——calib-chip 這類條件渲染的
           橫幅多佔的高度,會自動從這個容器的剩餘空間扣掉,不需要另外為它調整任何常數。
           單一 .dashboard-grid 用 grid-template-areas 佈五個語意格(gauge/ring/
-          chart/pose/numeric),取代原本摘要列+cockpit 兩個各自獨立的 grid——preset B
-          (窄筆電高度)需要把量表、控制環、cockpit 排成同一橫排,兩個分開的 grid
-          做不到這件事。 */}
+          chart/pose/numeric)——preset B(窄筆電高度)需要把量表、控制環、cockpit
+          排成同一橫排,分開的 grid 做不到這件事。 */}
       <div className="dashboard-workspace">
         <div
           className={`dashboard-grid${show3D2DPose ? '' : ' no-pose'}`}

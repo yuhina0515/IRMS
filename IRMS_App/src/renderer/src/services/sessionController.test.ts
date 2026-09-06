@@ -11,7 +11,7 @@
 //
 // 封包一律經 encodeAnglePacket → bluetoothService.ingest 進入,走與真實封包
 // 完全同一條路(parseAnglePacket → applyCalibration → 平滑 → 引擎),
-// 這是 2026-08-03 會議否決 onAnglesReceived 接縫時的硬性要求。
+// 這是否決 onAnglesReceived 接縫時訂下的硬性要求。
 
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { CustomAction } from '@shared/types'

@@ -1,11 +1,8 @@
-// HistoryView 的示範資料標記測試(計畫裡的 T7)。
+// HistoryView 的示範資料標記測試。
 //
 // 這是防污染設計最後、也最關鍵的一環:migration 7 的欄位、型別層的必填約束、
 // 進行中不可切換——全部都是為了讓這個徽章能出現。欄位存了卻沒有人讀,
 // 就不會改變任何人的判讀,防護等於零。
-//
-// 這個檔案同時替代了「把 app 開起來用眼睛看」的那一步:本次工作環境無法截圖,
-// 所以 UI 的驗證改由元件測試承擔,而不是宣稱看過。
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
