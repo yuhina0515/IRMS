@@ -35,7 +35,13 @@ export const IpcChannel = {
   UPDATE_RESTART_NOW: 'update:restartNow',
   UPDATE_SET_ALLOW_PRERELEASE: 'update:setAllowPrerelease',
   /** main → renderer 推播頻道,electron-updater 生命週期事件 */
-  UPDATE_STATUS_CHANGED: 'update:statusChanged'
+  UPDATE_STATUS_CHANGED: 'update:statusChanged',
+
+  /** main → splash renderer:開始 stage2(logo 淡出、邊框淡入),接著 main 開始把視窗實際
+   *  bounds 動畫放大到主視窗大小 */
+  SPLASH_ADVANCE: 'splash:advance',
+  /** main → splash renderer:主視窗已經 show() 完成,邊框可以淡出、準備被關閉 */
+  SPLASH_FADE_OUT_FRAME: 'splash:fadeOutFrame'
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]

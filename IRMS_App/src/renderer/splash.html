@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>IRMS</title>
+    <link rel="stylesheet" href="/src/splash.css" />
+  </head>
+  <body>
+    <div id="mark-wrap">
+      <svg id="mark" viewBox="0 0 240 240" width="220" height="220" aria-hidden="true">
+        <g id="fingers">
+          <path class="line finger" pathLength="1" style="animation-delay: 0ms" d="M100,40 L118,132" />
+          <path class="line finger" pathLength="1" style="animation-delay: 60ms" d="M62,62 L112,136" />
+          <path class="line finger" pathLength="1" style="animation-delay: 120ms" d="M40,96 L104,140" />
+          <path class="line finger" pathLength="1" style="animation-delay: 180ms" d="M18,128 L86,152" />
+        </g>
+        <path class="line palm" pathLength="1" style="animation-delay: 420ms" d="M86,152 C100,190 130,208 170,206" />
+        <path class="line rstem" pathLength="1" style="animation-delay: 520ms" d="M110,140 L106,196" />
+        <path class="line rleg" pathLength="1" style="animation-delay: 560ms" d="M116,138 L150,172" />
+        <path class="line arc-outer" pathLength="1" style="animation-delay: 700ms" d="M168,58 A90,90 0 0 1 170,206" />
+        <path class="line arc-inner" pathLength="1" style="animation-delay: 780ms" d="M148,96 A60,60 0 0 1 150,172" />
+
+        <circle class="dot dot-palm" style="animation-delay: 620ms" cx="118" cy="132" r="11" />
+        <circle class="dot dot-small" style="animation-delay: 900ms" cx="148" cy="96" r="6" />
+        <g class="dot-ring" style="animation-delay: 980ms">
+          <circle class="ring" cx="168" cy="58" r="16" />
+          <circle class="dot" cx="168" cy="58" r="9" />
+        </g>
+        <g class="dot-ring" style="animation-delay: 1040ms">
+          <circle class="ring" cx="170" cy="206" r="18" />
+          <circle class="dot" cx="170" cy="206" r="10" />
+        </g>
+
+        <g id="orbit">
+          <path class="orbit-arc orbit-arc-a" d="M130,14 A116,116 0 0 1 233,85" />
+          <path class="orbit-arc orbit-arc-b" d="M130,246 A116,116 0 0 1 27,175" />
+        </g>
+      </svg>
+    </div>
+    <div id="frame"></div>
+    <script type="module" src="/src/splash.ts"></script>
+  </body>
+</html>

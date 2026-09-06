@@ -10,6 +10,11 @@ import { DEVICE_NAME_PREFIX } from '@shared/protocol'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc'
 import { setupAutoUpdater } from './updater'
+import { assemblyFloorMs, createSplashWindow, handoffToMainWindow, queryReducedMotion, waitForSplashReady } from './splash'
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 // 啟用 Web Bluetooth(Electron 預設關閉)
 app.commandLine.appendSwitch('enable-web-bluetooth', 'true')
@@ -59,55 +64,63 @@ function initialWindowSize(): { width: number; height: number } {
   }
 }
 
-function createWindow(): void {
-  const initial = themeColors()
-  const size = initialWindowSize()
-  const mainWindow = new BrowserWindow({
-    width: size.width,
-    height: size.height,
-    minWidth: MIN_WIDTH,
-    minHeight: MIN_HEIGHT,
-    show: false,
-    autoHideMenuBar: true,
-    title: 'IRMS Dashboard',
-    // 完全自訂標題列,取代 titleBarStyle:'hidden' + titleBarOverlay(連 RDP session
-    // 都適用,見上方 IS_RDP_SESSION 註解)。renderer 的 TopHeader 自己畫拖曳列與
-    // 最小化/最大化/關閉鈕(見 window:minimize 等 IPC handler)。
-    frame: false,
-    // 視窗底色跟隨系統主題,避免載入瞬間閃色
-    backgroundColor: initial.bg,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false
+/**
+ * Resolves once the window is ready to paint (`ready-to-show`) but does NOT show it — the boot
+ * splash sequence (see main/splash.ts) decides exactly when to reveal it, as part of the
+ * grow-border-then-fade-in handoff. Callers that don't want the splash treatment (e.g. macOS
+ * `activate` with no windows left) should just call `.show()` on the resolved window themselves.
+ */
+function createWindow(): Promise<BrowserWindow> {
+  return new Promise((resolve) => {
+    const initial = themeColors()
+    const size = initialWindowSize()
+    const mainWindow = new BrowserWindow({
+      width: size.width,
+      height: size.height,
+      minWidth: MIN_WIDTH,
+      minHeight: MIN_HEIGHT,
+      show: false,
+      autoHideMenuBar: true,
+      title: 'IRMS Dashboard',
+      // 完全自訂標題列,取代 titleBarStyle:'hidden' + titleBarOverlay(連 RDP session
+      // 都適用,見上方 IS_RDP_SESSION 註解)。renderer 的 TopHeader 自己畫拖曳列與
+      // 最小化/最大化/關閉鈕(見 window:minimize 等 IPC handler)。
+      frame: false,
+      // 視窗底色跟隨系統主題,避免載入瞬間閃色
+      backgroundColor: initial.bg,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    })
+
+    // 系統主題切換時,視窗底色跟著換,避免變成唯一沒跟上主題的地方
+    nativeTheme.on('updated', () => {
+      mainWindow.setBackgroundColor(themeColors().bg)
+    })
+
+    mainWindow.once('ready-to-show', () => resolve(mainWindow))
+
+    // 外部連結改用系統瀏覽器開啟,而非在 app 內導航
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      shell.openExternal(details.url)
+      return { action: 'deny' }
+    })
+
+    registerWindowControlHandlers(mainWindow)
+    setupAutoUpdater(mainWindow)
+    setupBluetoothAutoPairing(mainWindow)
+
+    // electron-vite:開發模式載入 dev server,正式模式載入打包後的 HTML
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+      mainWindow.webContents.openDevTools()
+    } else {
+      mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
     }
   })
-
-  // 系統主題切換時,視窗底色跟著換,避免變成唯一沒跟上主題的地方
-  nativeTheme.on('updated', () => {
-    mainWindow.setBackgroundColor(themeColors().bg)
-  })
-
-  mainWindow.on('ready-to-show', () => mainWindow.show())
-
-  // 外部連結改用系統瀏覽器開啟,而非在 app 內導航
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  registerWindowControlHandlers(mainWindow)
-  setupAutoUpdater(mainWindow)
-  setupBluetoothAutoPairing(mainWindow)
-
-  // electron-vite:開發模式載入 dev server,正式模式載入打包後的 HTML
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
 }
 
 /**
@@ -195,30 +208,61 @@ function setupBluetoothAutoPairing(win: BrowserWindow): void {
   })
 }
 
+// 追蹤真正的主視窗(而非 BrowserWindow.getAllWindows()[0])——開機動畫期間 splash 視窗
+// 會先於 mainWindow 存在,若沿用舊寫法「拿第一個視窗」,第二個實例跳出來時可能叫到
+// 還沒 show() 的 splash,而不是使用者真正想看到的主視窗。
+let mainWindowRef: BrowserWindow | null = null
+
 if (gotSingleInstanceLock) {
   // 使用者點了第二次捷徑(或雙擊):不開新視窗,把已存在的那個叫到前景。
   // 沒有這段,單例鎖只會讓第二個 process 悄悄退出,使用者點了還是「沒反應」。
   app.on('second-instance', () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return
+    const win = mainWindowRef
+    if (!win || win.isDestroyed()) return
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.irms.app')
 
     app.on('browser-window-created', (_e, window) => {
       optimizer.watchWindowShortcuts(window)
     })
 
-    initDatabase(app.getPath('userData'))
-    registerIpcHandlers()
-    createWindow()
+    const initPromise = (async () => {
+      initDatabase(app.getPath('userData'))
+      registerIpcHandlers()
+      const win = await createWindow()
+      mainWindowRef = win
+      return win
+    })()
+
+    // 開機動畫任何一步失敗(splash 載入失敗等)都不該讓使用者永遠看不到主視窗——
+    // 退回「直接顯示,沒有動畫」,仍然是可用的 App,只是少了視覺效果。
+    let splash: BrowserWindow | null = null
+    try {
+      splash = createSplashWindow()
+      await waitForSplashReady(splash)
+      const reduced = await queryReducedMotion(splash)
+      const [, mainWindow] = await Promise.all([sleep(assemblyFloorMs(reduced)), initPromise])
+      await handoffToMainWindow(splash, mainWindow, reduced)
+    } catch (err) {
+      console.error('[splash] boot animation failed, falling back to plain show:', err)
+      const mainWindow = await initPromise
+      if (!mainWindow.isDestroyed()) mainWindow.show()
+    } finally {
+      if (splash && !splash.isDestroyed()) splash.close()
+    }
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      if (BrowserWindow.getAllWindows().length === 0) {
+        void createWindow().then((win) => {
+          mainWindowRef = win
+          win.show()
+        })
+      }
     })
   }).catch((err: unknown) => {
     // 啟動失敗(例如 DB 開啟時撞上檔案鎖)原本完全沒人接:視窗開不出來、例外變成

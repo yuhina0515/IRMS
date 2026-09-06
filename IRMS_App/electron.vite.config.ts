@@ -27,7 +27,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/preload/index.ts') }
+        input: {
+          index: resolve('src/preload/index.ts'),
+          splash: resolve('src/preload/splash.ts')
+        }
       }
     }
   },
@@ -42,7 +45,10 @@ export default defineConfig({
     plugins: [react()],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: {
+          index: resolve('src/renderer/index.html'),
+          splash: resolve('src/renderer/splash.html')
+        }
       }
     }
   }

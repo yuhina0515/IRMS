@@ -1,0 +1,158 @@
+/* renderer/splash.css — standalone stylesheet for the splash BrowserWindow's tiny bundle.
+   Not Tailwind: this window must paint before the main React bundle even parses, so it stays
+   a plain HTML/CSS/SVG document with no framework overhead. */
+
+:root {
+  --glow: #22d3ee;
+  --glow-dim: rgba(34, 211, 238, 0.35);
+  --line-blue: #1d6fd6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+#mark-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 220ms ease;
+}
+
+#mark-wrap.fading {
+  opacity: 0;
+}
+
+#mark .line {
+  fill: none;
+  stroke: var(--line-blue);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 3px var(--glow-dim));
+  animation: draw-in 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#mark .arc-outer,
+#mark .arc-inner {
+  stroke: var(--glow);
+}
+
+#mark .dot {
+  fill: var(--glow);
+  filter: drop-shadow(0 0 4px var(--glow));
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: dot-in 320ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+#mark .ring {
+  fill: none;
+  stroke: var(--line-blue);
+  stroke-width: 5;
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: dot-in 320ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+#mark .dot-ring {
+  animation: none; /* the ring/dot children animate themselves; the wrapping <g>'s delay is inherited via style attr on children instead */
+}
+#mark .dot-ring .ring,
+#mark .dot-ring .dot {
+  animation-name: dot-in;
+}
+
+#orbit {
+  opacity: 0;
+  transform-origin: 130px 130px;
+}
+
+#orbit.spin {
+  opacity: 1;
+  animation: orbit-spin 1.8s linear infinite;
+  transition: opacity 260ms ease;
+}
+
+.orbit-arc {
+  fill: none;
+  stroke: var(--glow);
+  stroke-width: 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px var(--glow));
+}
+
+#frame {
+  position: fixed;
+  inset: 8px;
+  border: 3px solid var(--glow);
+  border-radius: 16px;
+  opacity: 0;
+  box-shadow:
+    0 0 18px var(--glow),
+    inset 0 0 18px var(--glow-dim);
+  transition: opacity 320ms ease;
+}
+
+#frame.visible {
+  opacity: 1;
+}
+
+@keyframes draw-in {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dot-in {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mark .line,
+  #mark .dot,
+  #mark .ring {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+  #orbit.spin {
+    animation: none;
+    opacity: 1;
+  }
+  #mark-wrap,
+  #frame {
+    transition-duration: 1ms;
+  }
+}
