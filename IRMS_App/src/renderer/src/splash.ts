@@ -17,14 +17,16 @@ let stage2Started = false
 function triggerStage2(): void {
   if (stage2Started) return
   stage2Started = true
-  orbit.classList.remove('spin')
+  // Deliberately NOT removing 'spin' here — the rings keep rotating underneath the burst
+  // (scale+fade) so the burst reads as carrying the spin's own momentum outward, not an abrupt cut.
+  orbit.classList.add('bursting')
   markWrap.classList.add('fading')
   frame.classList.add('visible')
 }
 
-/** Fully hides the frame border — called once the real window has faded in and is about to close this splash. */
+/** Fades the frame border out — called once the real window has faded in and is about to close this splash. */
 function fadeOutFrame(): void {
-  frame.classList.remove('visible')
+  frame.classList.add('fading-out')
 }
 
 // main's floor before it's allowed to advance to stage 2 (SPLASH_ASSEMBLY_FLOOR_MS) is

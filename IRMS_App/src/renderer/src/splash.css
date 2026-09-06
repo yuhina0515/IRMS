@@ -1,11 +1,15 @@
 /* renderer/splash.css — standalone stylesheet for the splash BrowserWindow's tiny bundle.
    Not Tailwind: this window must paint before the main React bundle even parses, so it stays
-   a plain HTML/CSS/SVG document with no framework overhead. */
+   a plain HTML/CSS/SVG document with no framework overhead.
+   Geometry/color/timing spec per Gemini's 2026-09-07 review (doc/gemini-handoff-20260907/) —
+   deeper "medical instrument" blue for structure, reserving the bright cyan glow for the
+   signal/accent elements only. */
 
 :root {
-  --glow: #22d3ee;
-  --glow-dim: rgba(34, 211, 238, 0.35);
-  --line-blue: #1d6fd6;
+  --glow: #00e5ff;
+  --glow-dim: rgba(0, 229, 255, 0.35);
+  --line-blue: #0056b3;
+  --cutout-stroke: rgba(0, 10, 20, 0.35);
 }
 
 * {
@@ -28,66 +32,81 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 220ms ease;
+  transition: opacity 300ms ease;
 }
 
 #mark-wrap.fading {
   opacity: 0;
 }
 
+/* Structural strokes (fingers + the single continuous palm/R-stem path) stay crisp and solid —
+   no glow — so the mark reads as a substantial clinical mark rather than a decorative sparkle. */
 #mark .line {
   fill: none;
   stroke: var(--line-blue);
-  stroke-width: 7;
+  stroke-width: 12;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 3px var(--glow-dim));
-  animation: draw-in 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: draw-in 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+#mark .mainstem {
+  animation-duration: 600ms;
+}
+
+/* Signal arcs at ~60% of the structural stroke weight (7 of 12) per spec, glow reserved for
+   these + the dots — the "highlight" half of the structural/signal color split. */
 #mark .arc-outer,
 #mark .arc-inner {
   stroke: var(--glow);
+  stroke-width: 7;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.6));
+  animation-duration: 500ms;
 }
 
+/* Plain solid dots (no outer ring) — the faint dark stroke fakes a cutout/inset edge against the
+   structural path beneath without needing an actual SVG <mask>, matching the real logo's two-tone
+   depth cue while staying cheap to render. */
 #mark .dot {
   fill: var(--glow);
-  filter: drop-shadow(0 0 4px var(--glow));
+  stroke: var(--cutout-stroke);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.6));
   opacity: 0;
   transform-origin: center;
   transform-box: fill-box;
-  animation: dot-in 320ms cubic-bezier(0, 0, 0.2, 1) both;
-}
-
-#mark .ring {
-  fill: none;
-  stroke: var(--line-blue);
-  stroke-width: 5;
-  opacity: 0;
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: dot-in 320ms cubic-bezier(0, 0, 0.2, 1) both;
-}
-
-#mark .dot-ring {
-  animation: none; /* the ring/dot children animate themselves; the wrapping <g>'s delay is inherited via style attr on children instead */
-}
-#mark .dot-ring .ring,
-#mark .dot-ring .dot {
-  animation-name: dot-in;
+  animation: dot-in 300ms cubic-bezier(0, 0, 0.2, 1) both;
 }
 
 #orbit {
   opacity: 0;
-  transform-origin: 130px 130px;
+  transform-box: view-box;
+  transform-origin: 95px 105px;
 }
 
 #orbit.spin {
   opacity: 1;
-  animation: orbit-spin 1.8s linear infinite;
   transition: opacity 260ms ease;
+}
+
+/* Asymmetric rings (different arc length, radius, and rotation period) instead of two identical
+   arcs chasing each other — reads as organic/alive rather than a stock loading-spinner, and stays
+   visually interesting whether the wait is under a second or much longer. */
+.orbit-ring {
+  transform-box: view-box;
+  transform-origin: 95px 105px;
+}
+#orbit.spin .orbit-ring-inner {
+  animation:
+    orbit-spin 1.4s linear infinite,
+    orbit-breathe 2s ease-in-out infinite;
+}
+#orbit.spin .orbit-ring-outer {
+  animation:
+    orbit-spin 2.1s linear infinite,
+    orbit-breathe 2s ease-in-out infinite;
 }
 
 .orbit-arc {
@@ -95,7 +114,14 @@ body {
   stroke: var(--glow);
   stroke-width: 6;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 5px var(--glow));
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.6));
+}
+
+/* Stage-2 handoff: the rings burst outward (scale + fade) instead of just fading in place, as if
+   their rotational energy is what "throws" the border outward into the growing window frame —
+   layered on top of (not replacing) the ongoing spin so the burst carries the spin's momentum. */
+#orbit.bursting {
+  animation: orbit-burst 300ms cubic-bezier(0, 0, 0.2, 1) forwards;
 }
 
 #frame {
@@ -104,14 +130,17 @@ body {
   border: 3px solid var(--glow);
   border-radius: 16px;
   opacity: 0;
-  box-shadow:
-    0 0 18px var(--glow),
-    inset 0 0 18px var(--glow-dim);
-  transition: opacity 320ms ease;
 }
 
+/* Glow spikes brighter right as the border appears, then eases back down to its resting glow by
+   the time the window finishes growing (duration matches SPLASH_GROWTH_DURATION_MS) — visually
+   "receiving" the orbit's burst energy instead of just quietly fading in. */
 #frame.visible {
-  opacity: 1;
+  animation: frame-glow-in 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#frame.fading-out {
+  animation: frame-glow-out 340ms ease forwards;
 }
 
 @keyframes draw-in {
@@ -123,7 +152,7 @@ body {
 @keyframes dot-in {
   from {
     opacity: 0;
-    transform: scale(0);
+    transform: scale(0.8);
   }
   to {
     opacity: 1;
@@ -140,19 +169,79 @@ body {
   }
 }
 
+@keyframes orbit-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-burst {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes frame-glow-in {
+  0% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 rgba(0, 229, 255, 0),
+      inset 0 0 0 rgba(0, 229, 255, 0);
+  }
+  35% {
+    opacity: 1;
+    box-shadow:
+      0 0 15px var(--glow),
+      inset 0 0 15px var(--glow-dim);
+  }
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 18px var(--glow),
+      inset 0 0 18px var(--glow-dim);
+  }
+}
+
+@keyframes frame-glow-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #mark .line,
   #mark .dot,
-  #mark .ring {
+  #mark .arc-outer,
+  #mark .arc-inner {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
   }
-  #orbit.spin {
+  #orbit.spin,
+  #orbit.spin .orbit-ring-inner,
+  #orbit.spin .orbit-ring-outer {
     animation: none;
     opacity: 1;
   }
+  #orbit.bursting {
+    animation-duration: 1ms;
+  }
   #mark-wrap,
-  #frame {
+  #frame,
+  #frame.visible,
+  #frame.fading-out {
     transition-duration: 1ms;
+    animation-duration: 1ms;
   }
 }

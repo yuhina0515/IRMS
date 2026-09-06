@@ -11,33 +11,33 @@
   </head>
   <body>
     <div id="mark-wrap">
-      <svg id="mark" viewBox="0 0 240 240" width="220" height="220" aria-hidden="true">
+      <svg id="mark" viewBox="-15 -15 230 230" width="220" height="220" aria-hidden="true">
         <g id="fingers">
-          <path class="line finger" pathLength="1" style="animation-delay: 0ms" d="M100,40 L118,132" />
-          <path class="line finger" pathLength="1" style="animation-delay: 60ms" d="M62,62 L112,136" />
-          <path class="line finger" pathLength="1" style="animation-delay: 120ms" d="M40,96 L104,140" />
-          <path class="line finger" pathLength="1" style="animation-delay: 180ms" d="M18,128 L86,152" />
+          <path class="line finger" pathLength="1" style="animation-delay: 0ms" d="M70,25 L99,113" />
+          <path class="line finger" pathLength="1" style="animation-delay: 30ms" d="M42,55 L96,116" />
+          <path class="line finger" pathLength="1" style="animation-delay: 60ms" d="M18,92 L91,120" />
         </g>
-        <path class="line palm" pathLength="1" style="animation-delay: 420ms" d="M86,152 C100,190 130,208 170,206" />
-        <path class="line rstem" pathLength="1" style="animation-delay: 520ms" d="M110,140 L106,196" />
-        <path class="line rleg" pathLength="1" style="animation-delay: 560ms" d="M116,138 L150,172" />
-        <path class="line arc-outer" pathLength="1" style="animation-delay: 700ms" d="M168,58 A90,90 0 0 1 170,206" />
-        <path class="line arc-inner" pathLength="1" style="animation-delay: 780ms" d="M148,96 A60,60 0 0 1 150,172" />
+        <path
+          class="line mainstem"
+          pathLength="1"
+          style="animation-delay: 150ms"
+          d="M12,102 C32,150 68,175 100,175 C116,175 126,166 116,150 L146,110"
+        />
+        <path class="line arc-outer" pathLength="1" style="animation-delay: 400ms" d="M150,40 A85,85 0 0 1 155,172" />
+        <path class="line arc-inner" pathLength="1" style="animation-delay: 480ms" d="M146,110 A45,45 0 0 1 140,158" />
 
-        <circle class="dot dot-palm" style="animation-delay: 620ms" cx="118" cy="132" r="11" />
-        <circle class="dot dot-small" style="animation-delay: 900ms" cx="148" cy="96" r="6" />
-        <g class="dot-ring" style="animation-delay: 980ms">
-          <circle class="ring" cx="168" cy="58" r="16" />
-          <circle class="dot" cx="168" cy="58" r="9" />
-        </g>
-        <g class="dot-ring" style="animation-delay: 1040ms">
-          <circle class="ring" cx="170" cy="206" r="18" />
-          <circle class="dot" cx="170" cy="206" r="10" />
-        </g>
+        <circle class="dot dot-palm" style="animation-delay: 640ms" cx="100" cy="118" r="10" />
+        <circle class="dot dot-small" style="animation-delay: 700ms" cx="146" cy="110" r="6.5" />
+        <circle class="dot dot-big" style="animation-delay: 760ms" cx="150" cy="40" r="13" />
+        <circle class="dot dot-big" style="animation-delay: 780ms" cx="155" cy="172" r="14" />
 
         <g id="orbit">
-          <path class="orbit-arc orbit-arc-a" d="M130,14 A116,116 0 0 1 233,85" />
-          <path class="orbit-arc orbit-arc-b" d="M130,246 A116,116 0 0 1 27,175" />
+          <g class="orbit-ring orbit-ring-inner">
+            <path class="orbit-arc" d="M68,32 A78,78 0 0 1 172,119" />
+          </g>
+          <g class="orbit-ring orbit-ring-outer">
+            <path class="orbit-arc" d="M156,178 A95,95 0 0 1 34,178" />
+          </g>
         </g>
       </svg>
     </div>
