@@ -1,5 +1,5 @@
 // renderer/App.tsx
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useStore } from './store/useStore'
 import { useUiStore } from './store/useUiStore'
 import { applyThemeMode } from './services/theme'
@@ -10,10 +10,13 @@ import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorOverlay } from './components/ErrorOverlay'
 import { UpdateBanner } from './components/UpdateBanner'
 import { DashboardView } from './views/DashboardView'
-import { ActionsView } from './views/ActionsView'
-import { HistoryView } from './views/HistoryView'
-import { SettingsView } from './views/SettingsView'
 import { ErrorBoundary } from './components/ErrorBoundary'
+
+// Dashboard is the landing view and stays eagerly bundled; the other three are only needed once
+// the user navigates there, so splitting them keeps first paint down to Dashboard's own code.
+const ActionsView = lazy(() => import('./views/ActionsView').then((m) => ({ default: m.ActionsView })))
+const HistoryView = lazy(() => import('./views/HistoryView').then((m) => ({ default: m.HistoryView })))
+const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })))
 
 const VIEW_NAMES: Record<string, string> = {
   dashboard: '即時監測',
@@ -58,10 +61,12 @@ export default function App(): JSX.Element {
             <main className="main">
               {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
               <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
-                {view === 'dashboard' && <DashboardView />}
-                {view === 'actions' && <ActionsView />}
-                {view === 'history' && <HistoryView />}
-                {view === 'settings' && <SettingsView />}
+                <Suspense fallback={null}>
+                  {view === 'dashboard' && <DashboardView />}
+                  {view === 'actions' && <ActionsView />}
+                  {view === 'history' && <HistoryView />}
+                  {view === 'settings' && <SettingsView />}
+                </Suspense>
               </ErrorBoundary>
             </main>
           </div>

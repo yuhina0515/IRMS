@@ -1,14 +1,12 @@
 // renderer/views/DashboardView.tsx
 // 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;下方是
 // 「Cockpit」即時資料區:左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排。
-import { useRef, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
 import { computeGuidance, guidanceText } from '../services/guidance'
-import { LiveChart } from '../components/LiveChart'
 import { AngleVisualizer } from '../components/AngleVisualizer'
-import { Leg3D } from '../components/Leg3D'
 import { MetricGauge } from '../components/MetricGauge'
 import { CoachHint } from '../components/CoachHint'
 import { ProgressRing } from '../components/ProgressRing'
@@ -16,6 +14,11 @@ import { SessionControlPanel } from '../components/SessionControlPanel'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { useLiquidKnob } from '../components/LiquidKnob'
 import { sessionController } from '../services/sessionController'
+
+// chart.js / three.js are both sizable and only needed once the user actually opens these tabs
+// (show3D2DPose/showTrendChart both default off) — dynamic import keeps them out of the initial bundle.
+const LiveChart = lazy(() => import('../components/LiveChart').then((m) => ({ default: m.LiveChart })))
+const Leg3D = lazy(() => import('../components/Leg3D').then((m) => ({ default: m.Leg3D })))
 
 type LeftTab = 'chart' | 'detail'
 type RightTab = '3d' | '2d'
@@ -212,7 +215,11 @@ export function DashboardView(): JSX.Element {
               </div>
             )}
             <div className="cockpit-content">
-              {effectiveLeftTab === 'chart' && <LiveChart />}
+              {effectiveLeftTab === 'chart' && (
+                <Suspense fallback={null}>
+                  <LiveChart />
+                </Suspense>
+              )}
               {effectiveLeftTab === 'detail' && <DetailStatsGrid angles={angles} hardwareError={hardwareError} />}
             </div>
           </div>
@@ -234,7 +241,11 @@ export function DashboardView(): JSX.Element {
                 ))}
               </div>
               <div className="cockpit-content">
-                {rightTab === '3d' && <Leg3D />}
+                {rightTab === '3d' && (
+                  <Suspense fallback={null}>
+                    <Leg3D />
+                  </Suspense>
+                )}
                 {rightTab === '2d' && <AngleVisualizer />}
               </div>
             </div>
