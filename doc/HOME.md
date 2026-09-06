@@ -625,10 +625,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   固定 `margin-left`,並把 `TopHeader` 提升到 `.app` 外層,讓側邊欄自然對齊到
   標題列下緣。`npm run ci` 全綠,Playwright 量測三次狀態切換 `.app-column`
   矩形完全一致,截圖確認疊層效果符合預期。
-- **🔭 未來方向(2026-09-07 提出,尚未排入排程)**:使用者表示之後想優化整個 App
-  的載入動畫,以及軟體內部架構——目前僅為意向,還沒有具體範圍或設計,下次要動這塊
-  前需要先跟使用者釐清「內部架構」具體指哪些部分(main/renderer 分層?state 管理?
-  build 流程?)。
+- **2026-09-07 開機動畫 + 模組化延遲載入**([[log_20260907_boot_splash_and_code_splitting|完整日誌]]):
+  兩段式開機動畫(splash 視窗畫線稿組成 Logo → 順時針繞圈等待 → 邊框圍出視窗、
+  UI 逐漸浮現),搭配 `Leg3D`/`LiveChart`/次要頁面的 `React.lazy` 延遲載入,首屏 JS
+  從 1.87MB 降到 351KB。`npm run ci` 全綠,`_electron.launch()` 端到端驗證通過。
+  「軟體內部架構」的優化意向只完成了程式碼分割這一塊,若使用者還有其他範圍
+  (main/renderer 分層、state 管理等)需再確認。
 
 ## 🗂 變更日誌
 
