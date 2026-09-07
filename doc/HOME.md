@@ -694,6 +694,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `electron-builder --publish` 發布,三個 asset 確認齊全,隔離
   `--user-data-dir` 煙霧測試 DB migration 與啟動穩定性皆正常。與同時進行的
   Tauri v2 遷移無關,純 Electron 版本號推進。
+- **2026-09-08 開機動畫線條從螢幕邊緣飛入**([[log_20260908_boot_splash_edge_travel|完整日誌]]):
+  落地 09-07 原始規格一直沒做到的「線條從四面八方組成 Logo」——splash 視窗改鋪滿主螢幕
+  工作區(原本是 260×260 置中小方塊),3 條手指線+主幹改用一條獨立的飛入曲線(二次貝茲,
+  ease-in-out)從螢幕上/左/下/右四個方向飛向中心,畫完淡出交棒給原地描邊的真正筆畫。
+  第一版直接延伸原路徑導致飛入段永久留在畫面上變成貫穿螢幕的十字,靠截圖抓到後改成
+  兩層路徑;過程中也踩到 `#orbit` 巢狀在已 translate 的群組底下、`transform-origin` 座標系
+  複合導致轉圈甩到螢幕角落的坑,改成手足關係各自扛自己的 translate 修正。`npm run ci`
+  全綠(286 tests),拋棄式 Playwright 截圖驗證各階段動畫、reduced-motion 收斂、以及
+  JS 例外退化路徑(不卡死,退化為左上角顯示原尺寸 Logo)。IRMS_App(Electron)本地修改,
+  Tauri Phase 3 之後移植開機動畫時需重新設計這條全螢幕邊緣飛入效果。
 - **2026-09-08 Tauri 遷移 Phase 2b 補完:測試套件移植**([[log_20260908_tauri_test_suite_port|完整日誌]]):
   25 個測試檔案、268/268 通過——`main/migrations.test.ts` 不搬(Rust 側已有自己的
   `cargo test`)、`reconnect.test.ts` 少一個 Electron 專屬迴歸鎖(該 overwrite bug

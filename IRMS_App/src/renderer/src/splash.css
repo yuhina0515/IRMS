@@ -50,10 +50,49 @@ body {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation: draw-in 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Paused until splash.ts finishes rewriting the finger/mainstem `d` data and the viewBox for
+     the real screen size — otherwise the draw-in keyframe (which starts unconditionally at parse
+     time under the `both` fill-mode) could run a frame or two against the old small-box geometry
+     and visibly jump when the JS swap lands mid-animation. */
+  animation-play-state: paused;
 }
 
-#mark .mainstem {
-  animation-duration: 600ms;
+body.ready #mark .line,
+body.ready #mark .dot {
+  animation-play-state: running;
+}
+
+/* Lead-in strokes for the 3 fingers + mainstem (see splash.ts's setupFullScreenAssembly): a
+   separate path per traveling line, geometry = just the curve from the screen edge to where the
+   real finger/mainstem stroke starts. Same stroke color/width as .line so there's no visible seam
+   where it hands off, but ease-in-out timing (push off, glide, settle) instead of .line's ease-out
+   "materialize" curve — a real distance is being crossed here, not just revealed in place. This is
+   the one deliberate departure from this app's usual --motion-ease-mechanical/-enter/-exit
+   vocabulary (doc/gemini-handoff-20260905/03-animations.md): that vocabulary governs in-app UI
+   chrome the user operates repeatedly, while this is a once-per-launch pre-chrome moment with no
+   click/keyboard trigger to feel sluggish, so the "instrument precision, no overshoot" rule
+   governing repeat-use UI doesn't apply here. Fades out once fully drawn (second comma-separated
+   animation below) right as the real finger/mainstem stroke beneath it starts its own draw-in, so
+   only the compact final mark is left once assembly finishes — see the individual elements' inline
+   `animation-delay` for the two lists' actual per-line timing. */
+.line-travel {
+  fill: none;
+  stroke: var(--line-blue);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation-name: draw-in, travel-fade-out;
+  animation-timing-function:
+    cubic-bezier(0.77, 0, 0.175, 1),
+    ease;
+  animation-fill-mode: both, forwards;
+  animation-play-state: paused, paused;
+}
+
+body.ready .line-travel {
+  animation-play-state: running, running;
 }
 
 /* Signal arcs at ~60% of the structural stroke weight (7 of 12) per spec, glow reserved for
@@ -78,6 +117,7 @@ body {
   transform-origin: center;
   transform-box: fill-box;
   animation: dot-in 300ms cubic-bezier(0, 0, 0.2, 1) both;
+  animation-play-state: paused; /* see #mark .line's comment — same JS-readiness gate */
 }
 
 #orbit {
@@ -146,6 +186,12 @@ body {
 @keyframes draw-in {
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes travel-fade-out {
+  to {
+    opacity: 0;
   }
 }
 
@@ -227,6 +273,18 @@ body {
   #mark .arc-inner {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
+    /* Defense in depth: if setupFullScreenAssembly() ever throws before adding body.ready (see
+       splash.ts), don't let the JS-readiness gate leave the mark permanently invisible on top of
+       skipping the motion itself. */
+    animation-play-state: running !important;
+  }
+  .line-travel {
+    /* Both comma-separated animations (draw-in, travel-fade-out) collapse to instant — the lead-in
+       never becomes visible long enough to read as a travel effect, same as every other splash
+       animation under reduced motion. */
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-play-state: running !important;
   }
   #orbit.spin,
   #orbit.spin .orbit-ring-inner,

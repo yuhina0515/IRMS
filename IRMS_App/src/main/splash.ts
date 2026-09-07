@@ -13,8 +13,6 @@ import {
   SPLASH_GROWTH_DURATION_MS
 } from '@shared/splashTiming'
 
-const SPLASH_SIZE = 260
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -23,13 +21,22 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3)
 }
 
+/**
+ * Splash now covers the whole primary display's work area (was a small 260×260 box) so the
+ * renderer's finger/mainstem strokes have real off-screen space to travel in from — see
+ * renderer/src/splash.ts's setupFullScreenAssembly(). It shares the exact same display/work-area
+ * lookup `initialWindowSize()` (main/index.ts) uses for the real window, and mainWindow is created
+ * with no explicit x/y — Electron auto-centers it on that same primary display — so the logo's
+ * assembly point (screen center) and the real window's eventual center coincide without any
+ * position math to keep in sync between the two files.
+ */
 export function createSplashWindow(): BrowserWindow {
-  const work = screen.getPrimaryDisplay().workAreaSize
+  const work = screen.getPrimaryDisplay().workArea
   const win = new BrowserWindow({
-    width: SPLASH_SIZE,
-    height: SPLASH_SIZE,
-    x: Math.round((work.width - SPLASH_SIZE) / 2),
-    y: Math.round((work.height - SPLASH_SIZE) / 2),
+    x: work.x,
+    y: work.y,
+    width: work.width,
+    height: work.height,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -46,6 +53,9 @@ export function createSplashWindow(): BrowserWindow {
       nodeIntegration: false
     }
   })
+  // Now that this window covers the whole screen, it would otherwise block every click on the
+  // user's desktop underneath for the ~1.7s stage 1 + orbit floor takes to run.
+  win.setIgnoreMouseEvents(true, { forward: true })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/splash.html`)

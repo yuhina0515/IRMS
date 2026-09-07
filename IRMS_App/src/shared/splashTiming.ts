@@ -4,11 +4,12 @@
 
 /**
  * When the renderer's logo-assembly animation finishes and it locally starts the orbit spin
- * (local timer, independent of real init speed). 1.1s per Gemini's 2026-09-07 review (tightened
- * from the original 1.4s for a snappier "laser-engraving" precision feel) — last element to
- * finish is a dot at 780ms delay + 300ms duration = 1080ms, rounded up with a small margin.
+ * (local timer, independent of real init speed). Last element to finish is now the mainstem's
+ * final stroke (610ms delay, once its travel-in lead-in has handed off + faded, + 600ms draw
+ * duration = 1210ms) since 2026-09-08's edge-to-center travel lines — previously the dots at
+ * 780ms + 300ms = 1080ms were the bottleneck. Rounded up with a small margin.
  */
-export const SPLASH_ASSEMBLY_DONE_MS = 1100
+export const SPLASH_ASSEMBLY_DONE_MS = 1220
 
 /**
  * Minimum time main waits before advancing to stage 2, even if real init finishes instantly.
