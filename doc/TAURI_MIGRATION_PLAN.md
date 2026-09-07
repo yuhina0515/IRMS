@@ -110,15 +110,32 @@ implied (auto-pairing contract, not just data shapes) is the deciding factor: do
 in the still-working Electron app where it's cheap to verify against the existing 286-test suite,
 rather than twice (once messily during the port, once properly afterward).
 
-**Phase 2a — Refactor `IRMS_App` (still Electron, no Tauri involved yet):**
-- [ ] Introduce a single platform-adapter module/boundary that every component/service calls
-      instead of `window.irms.*` directly — the goal is that after this step, exactly one file
-      changes when the backend swaps from Electron's `contextBridge` API to Tauri's
-      `invoke`/`listen`, not N call sites scattered across components/services.
-- [ ] Verify zero behavior change: full existing test suite still green, manual smoke pass
-      through all four views, `npm run ci` clean. This step must not be bundled with any actual
-      port work — it's a pure refactor, and its own correctness has to be established before it's
-      trusted as the seam the Tauri port will build on.
+**Phase 2a — Refactor `IRMS_App` (still Electron, no Tauri involved yet). Not started —
+planned 2026-09-07, paused before execution (session usage budget), ready to pick up:**
+
+Note going in: the codebase already has a clean `IrmsApi` interface (`shared/types.ts`) that
+`preload/index.ts` implements and every call site consumes uniformly as the `window.irms` global
+— there's no scattered direct Electron API usage to hunt down. The gap isn't "no interface," it's
+that `window.irms` is an implicit global rather than an imported module, so nothing marks it as
+the seam that changes per-platform, and it isn't mockable/injectable for tests today.
+
+1. **Audit**: `grep -rn "window.irms" IRMS_App/src/renderer/src` to get the exact call-site count
+   and file list before touching anything — know the blast radius up front.
+2. **Introduce `src/renderer/src/platform/irmsApi.ts`**: exports `irms: IrmsApi`, initially just
+   `export const irms = window.irms`. Zero behavior change at this point — it's a named,
+   importable re-export of the existing global, nothing more.
+3. **Migrate call sites** from `window.irms.X(...)` to `import { irms } from '<relative>/platform/irmsApi'; irms.X(...)`,
+   file by file, per the Phase 1 audit list.
+4. **Verify zero behavior change**: full existing test suite (286 tests) still green, `npm run ci`
+   clean, manual smoke pass through all four views (Dashboard/Actions/History/Settings) plus demo
+   mode. This step must not be bundled with any actual port work — establish the refactor's own
+   correctness before it's trusted as the seam Phase 2b builds on.
+5. **Note for Phase 2b, not Phase 2a**: some `IrmsApi` members aren't 1:1 portable behind a
+   same-shaped adapter — `windowControls` and `updates` in particular wrap Electron/contextBridge
+   concepts (window chrome, `electron-updater`) that Tauri's equivalents (`@tauri-apps/api/window`,
+   `tauri-plugin-updater`) don't mirror exactly. Phase 2a doesn't need to solve this — it only
+   needs the seam to exist — but Phase 2b's adapter implementation for those two members will need
+   real adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data` get.
 
 **Phase 2b — Port to Tauri (in `IRMS_App_Tauri`):**
 - [ ] React components, Zustand store (`useStore`/`useUiStore`),
