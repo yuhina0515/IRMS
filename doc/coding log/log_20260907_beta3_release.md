@@ -1,6 +1,6 @@
 ---
 tags: [coding-log, release]
-summary: 發布 1.1.0-beta.3，累積開機動畫、lazy-load、beta 開關等 UI 工作；OTA 硬體驗證狀態不變
+summary: 發布 1.1.0-beta.3，累積開機動畫、lazy-load、beta 開關等 UI 工作；OTA 硬體驗證狀態不變；09-08 追記 Discord 頻道公告
 date: 2026-09-07
 ---
 
@@ -66,3 +66,12 @@ date: 2026-09-07
 PASS(結構性保證:同一條自動化管線,沒有新增手動步驟,風險沒有比之前兩版
 更高;唯一沒做到的是這次沒有像 beta.2 一樣額外肉眼確認結果訊息,已在上面
 「驗證」段落誠實記錄,不是隱瞞)。
+
+## 追記(2026-09-08):Discord 公告
+
+使用者要求把這次發版公告到 IRMS 團隊的 Discord 頻道。用既有的
+`IRMS-Relay-Bot`(`E:\Discord-Bots\IRMS-Relay-Bot`)的 `send.js`
+一次性 REST 發送,內容涵蓋此次
+beta.3 的四項變更、OTA 尚未實機驗證的提醒、以及 GitHub Release 連結。
+指令執行後回傳 `SENT`,確認訊息已送達頻道。沒有另外開一篇新的
+coding log,因為這是同一次發版任務的延續動作,不是獨立事件。
