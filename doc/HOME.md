@@ -688,6 +688,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   exe 拍到真正的 Dashboard 畫面(含從 DB 撈回來的動作預設值,證明整條
   IPC 管線是通的),`irms.sqlite` 確認建立後清除。測試套件移植(286 個)
   列為獨立後續項目,尚未開始。
+- **2026-09-07 發布 IRMS_App 1.1.0-beta.3**([[log_20260907_beta3_release|完整日誌]]):
+  累積 beta.2(09-06)之後的兩階段開機動畫(含 Gemini 覆核重做)、lazy-load、
+  beta 更新選擇加入開關、側邊欄版面修正。`npm run ci` 全綠(286 tests),
+  `electron-builder --publish` 發布,三個 asset 確認齊全,隔離
+  `--user-data-dir` 煙霧測試 DB migration 與啟動穩定性皆正常。與同時進行的
+  Tauri v2 遷移無關,純 Electron 版本號推進。
 
 ![[coding-logs.base]]
 
