@@ -694,6 +694,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `electron-builder --publish` 發布,三個 asset 確認齊全,隔離
   `--user-data-dir` 煙霧測試 DB migration 與啟動穩定性皆正常。與同時進行的
   Tauri v2 遷移無關,純 Electron 版本號推進。
+- **2026-09-08 Tauri 遷移 Phase 2b 補完:測試套件移植**([[log_20260908_tauri_test_suite_port|完整日誌]]):
+  25 個測試檔案、268/268 通過——`main/migrations.test.ts` 不搬(Rust 側已有自己的
+  `cargo test`)、`reconnect.test.ts` 少一個 Electron 專屬迴歸鎖(該 overwrite bug
+  在 Tauri 實作不存在)。`window.irms` 全域換成 `vi.mock('@renderer/platform/irmsApi')`
+  模組替身,mid-test 二次 `installIrmsStub` 覆寫已驗證不失效。`tsconfig.json` 補上
+  ES2022 lib(原是 ES2020 scaffold 預設,測試用到 `Array.prototype.at()` 才暴露)。
+  `tsc --noEmit`/`npm run build` 全綠。Phase 2b 的前端搬遷至此全部完成。
 
 ![[coding-logs.base]]
 

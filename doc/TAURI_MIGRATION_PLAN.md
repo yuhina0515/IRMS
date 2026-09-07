@@ -191,9 +191,28 @@ adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data
       Screenshots: `doc/coding log/assets/tauri-smoke-dashboard.png`. Not yet done: clicking through
       Actions/History/Settings (attempted via raw Win32 mouse-event injection, unreliable in this
       environment — worth a proper Playwright-over-CDP driver later) and a console-error check.
-- [ ] Port the full existing test suite (286 tests today) — most are pure-logic and should port
-      with zero changes to the assertions; only the tests that mock `window.irms`/DB directly need
-      rewriting against the new adapter.
+- [x] **Port the full existing test suite** (2026-09-08, [[log_20260908_tauri_test_suite_port|log]]):
+      268/268 passing across 25 files (down from 286/26 — `main/migrations.test.ts` doesn't port,
+      it tests the Electron `better-sqlite3` main-process layer already replaced by Phase 1's own
+      `cargo test` suite; `reconnect.test.ts` loses exactly one test, an Electron-specific
+      regression lock for a `statusText` overwrite bug that doesn't exist in the Tauri
+      `attemptReconnect` implementation, since it calls `invoke('ble_connect')` directly instead of
+      routing through a shared `connect()`/`connectGATT()` that resets status text). Added
+      vitest/jsdom/testing-library devDeps and the `node`/`dom` two-project vitest.config.ts split
+      (ported verbatim from the Electron side, same glob-silently-skips-`.tsx` rationale). New
+      `test/irmsApiStub.ts` replaces `window.irms` monkeypatching with
+      `vi.mock('@renderer/platform/irmsApi', ...)` plus in-place reassignment of the mocked
+      module's `sessions`/`data`/`actions` methods — confirmed this still supports mid-test
+      re-override (the exact stale-reference class Phase 2a's log flagged) via a throwaway
+      self-check test, then via the ported `ActionsView.test.tsx`/`HistoryView.test.tsx` (setup.ts's
+      default install + each test's own override, both passing for real content, not just
+      not-crashing). `reconnect.test.ts` was rewritten to drive `attemptReconnect` through mocked
+      `@tauri-apps/api/core` `invoke`/`@tauri-apps/api/event` `listen` instead of a fake
+      `BluetoothDevice.gatt.connect()` — the Electron test's actual external dependency doesn't
+      exist in the Tauri implementation. Bumped `tsconfig.json`'s `target`/`lib` from ES2020 to
+      ES2022 (matching Electron's `tsconfig.web.json`) — ported tests using `Array.prototype.at()`
+      exposed a pre-existing scaffold-default gap, not a test issue. `tsc --noEmit` and
+      `npm run build` both clean.
 
 **Exit gate**: `npm run ci`-equivalent green on the Tauri side with the full ported suite, and a
 manual smoke pass through every view (Dashboard/Actions/History/Settings) in demo mode (no

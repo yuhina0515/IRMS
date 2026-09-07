@@ -1,8 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM"],
+    // ES2022 一路對齊 IRMS_App(Electron)側的 tsconfig.web.json:那邊的 lib 早就是
+    // ES2022 + DOM.Iterable。Tauri 這邊原本是 scaffold 預設的 ES2020,搬進來的
+    // 測試檔案用到 Array.prototype.at()(downsample/triggerEngine/scenarios/
+    // uiThrottle 的測試斷言,ES2022 才有型別宣告)才第一次暴露這個落差——執行環境
+    // (Tauri 的 WebView2/WKWebView,兩者都是現代瀏覽器核心)本來就支援,只是型別
+    // 宣告沒跟上,補齊 lib 而非改測試斷言。
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 
