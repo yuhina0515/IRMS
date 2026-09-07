@@ -675,8 +675,19 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   確認 process 存活且 `irms.sqlite` 真的在 AppData 被建立、完整跑過 migration
   chain——不只是編譯過。`cargo test` 51/51 依然全過。前端(React/Zustand)搬遷
   尚未開始。
-
-## 🗂 變更日誌
+- **2026-09-07 Tauri 遷移 Phase 2b:前端整包搬遷完成**([[log_20260907_tauri_phase2b_frontend_port|完整日誌]]):
+  `components`/`hooks`/`views`/`store`/大多數 `services`/`shared` 全部原封不動複製
+  進 `IRMS_App_Tauri`(grep 確認這層完全不碰 Electron API)。新寫兩個檔案取代
+  Electron 專屬的部分:`services/bluetooth.ts` 改用 `invoke`/`listen` 呼叫
+  `ble.rs` 既有的 command/事件(對外 class 介面不變,`useStore`/
+  `sessionController` 零修改);`platform/irmsApi.ts` 的 Tauri 版——
+  sessions/data/actions 機械式包 `invoke`,`windowControls` 用
+  `@tauri-apps/api/window` 做出真正可用的實作,`updates`/
+  `firmware.pickBinary` 誠實留白(分別對應 task #54、新增的檔案選取器任務,
+  不是假裝做完)。`tsc`/`vite build`/`tauri build --debug` 全綠,打包後啟動
+  exe 拍到真正的 Dashboard 畫面(含從 DB 撈回來的動作預設值,證明整條
+  IPC 管線是通的),`irms.sqlite` 確認建立後清除。測試套件移植(286 個)
+  列為獨立後續項目,尚未開始。
 
 ![[coding-logs.base]]
 

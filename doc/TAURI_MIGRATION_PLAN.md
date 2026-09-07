@@ -152,14 +152,45 @@ adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data
       `.setup()` against the actual Tauri `app_data_dir()`. Verified at runtime, not just by
       `cargo check`: built and launched the packaged exe, confirmed the real SQLite file gets
       created with the full migration chain applied and the process stays alive.
-- [ ] React components, Zustand store (`useStore`/`useUiStore`),
-      `services/` pure logic (trigger engine, calibration, angleMath, smoothing, guidance) port
-      with no BLE/DB-shape changes required — none of that layer touches Electron APIs directly.
-- [ ] Write a new implementation of the Phase 2a adapter module backed by `@tauri-apps/api`'s
-      `invoke`/`listen` instead of `window.irms.*` — this is the one file the refactor was meant
-      to make swappable. Wires up the Phase 1 DB commands and Phase 0 BLE commands/events
-      (`ble:packet`, `ble:connection`, `ble:ota-progress` already emitted by `ble.rs` — the
-      frontend side of that contract doesn't exist yet).
+- [x] **React components, Zustand store, and pure-logic services ported** (2026-09-07): all of
+      `components/`, `hooks/`, `views/`, `store/`, `services/` (except `bluetooth.ts`), `shared/`,
+      `App.tsx`, `main.tsx`, and static assets copied verbatim into `IRMS_App_Tauri/src` — confirmed
+      via grep that none of this layer touches Electron APIs directly, so zero logic changes were
+      needed. Test files (`*.test.ts(x)`) were deliberately **not** copied yet — they depend on
+      `test/setup.ts`/`test/irmsStub.ts` infra that doesn't exist on this side; porting the suite
+      stays a separate follow-up, not silently skipped.
+- [x] **New `platform/irmsApi.ts` implementation, backed by `@tauri-apps/api`** (2026-09-07):
+      `sessions`/`data`/`actions` are mechanical `invoke()` wrappers over the Phase 1 DB commands.
+      `windowControls` got a real implementation via `@tauri-apps/api/window`'s `getCurrentWindow()`
+      (`minimize`/`toggleMaximize`/`close`/`isMaximized`/`onResized`-based maximize-change polling);
+      `hasCustomTitlebar()` returns `false` until Phase 3 lands the frameless window. `updates` only
+      implements `getCurrentVersion()` for real (`@tauri-apps/api/app`'s `getVersion()`); the rest
+      are honest no-ops pending task #54 (Phase 4). `firmware.pickBinary()` returns `null` with a
+      console warning — deferred to a new dedicated task (dialog-picker + MD5), independent of the
+      hardware-gated task #55.
+- [x] **New `services/bluetooth.ts` implementation, backed by `ble.rs`'s IPC surface**
+      (2026-09-07): same public `BluetoothService` class shape as the Electron version (so
+      `store/useStore.ts` and `services/sessionController.ts` needed zero changes), internals swapped
+      from Web Bluetooth GATT calls to `invoke()`/`listen()` against `ble_connect`/`ble_disconnect`/
+      `ble_send_command`/`ble_get_firmware_version`/`ble_perform_ota_update`/`ble_abort_ota` and the
+      `ble:connection`/`ble:packet`/`ble:ota-progress` events. The demo-mode `ingest(text)` entry
+      point is preserved unchanged for the simulator; real packets now arrive pre-parsed from Rust
+      (`ble:packet` payload matches `ParsedPacket`'s shape exactly, confirmed via `protocol.rs`'s
+      `#[serde(tag = "kind", rename_all = "camelCase")]`) instead of being re-parsed in JS. The
+      auto-reconnect loop was ported as a call-`ble_connect`-again retry loop (the closest analog to
+      Web Bluetooth's `device.gatt.connect()` retry, since `ble_connect` already encapsulates
+      scan+connect+subscribe) — like the rest of `ble.rs`, this is unvalidated against real hardware
+      disconnect scenarios (task #55).
+- [x] **Verified at runtime, not just by compilation** (2026-09-07): `tsc --noEmit` clean, `vite
+      build` clean, full `tauri build --debug` succeeded (MSI+NSIS). Launched the packaged exe,
+      confirmed the window renders the real ported UI (sidebar nav, IRMS branding, live metric gauge)
+      with **dynamic data from a real DB round-trip** — the gauge's target/tolerance/safety-limit
+      values only appear if `main.tsx`'s `bootstrap()` → `irms.actions.list()` → `actions_list`
+      Rust command → SQLite → back through Zustand → React actually worked end-to-end. Confirmed
+      `irms.sqlite` was created fresh in the smoke-test's AppData dir, then cleaned it up.
+      Screenshots: `doc/coding log/assets/tauri-smoke-dashboard.png`. Not yet done: clicking through
+      Actions/History/Settings (attempted via raw Win32 mouse-event injection, unreliable in this
+      environment — worth a proper Playwright-over-CDP driver later) and a console-error check.
 - [ ] Port the full existing test suite (286 tests today) — most are pure-logic and should port
       with zero changes to the assertions; only the tests that mock `window.irms`/DB directly need
       rewriting against the new adapter.

@@ -1,0 +1,113 @@
+// 主指標弧形量表:目前值大字 + 半圓量表(目標帶/超限刻線/休息刻線)。
+// 一切以 movementMetric 的正規化空間繪製——量表上的值就是判定用的值。
+import type { EnginePhase } from '../services/triggerEngine'
+import type { MetricInfo, MetricSample, MetricZone } from '../services/movementMetric'
+
+const CX = 120
+const CY = 122
+const R = 92
+
+interface Props {
+  sample: MetricSample | null
+  zone: MetricZone
+  info: MetricInfo
+  phase: EnginePhase
+  alarm: boolean
+  error: boolean
+  /**
+   * 資料是否已過期(斷線中)。斷線後 store 的 angles 不會被清掉,所以量表會繼續
+   * 顯示最後一筆數值長達 15 秒的重連期間,看起來完全像即時值——使用者無從得知
+   * 那條腿現在到底在哪裡。
+   */
+  stale?: boolean
+  /**
+   * 目前協定的判定是否尚未支援。為真時量表照樣畫得出目標帶與超限刻線——因為
+   * 那些數字全部來自動作參數,與感測器裝在哪條肢體無關——於是畫面看起來完全
+   * 正常,卻與下方停用的開始按鈕互相矛盾。量表是這個畫面上最大、最像「正在
+   * 運作」的元件,不能讓它繼續代表一個不會發生的量測。
+   */
+  unsupported?: boolean
+}
+
+function point(valueDeg: number, r: number, domainMax: number): { x: number; y: number } {
+  const a = ((-90 + (valueDeg / domainMax) * 180) * Math.PI) / 180
+  return { x: CX + r * Math.sin(a), y: CY - r * Math.cos(a) }
+}
+
+function arc(v1: number, v2: number, r: number, domainMax: number): string {
+  const s = point(v1, r, domainMax)
+  const e = point(v2, r, domainMax)
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 0 1 ${e.x} ${e.y}`
+}
+
+function tick(v: number, domainMax: number): string {
+  const a = point(v, R - 13, domainMax)
+  const b = point(v, R + 13, domainMax)
+  return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
+}
+
+export function MetricGauge({
+  sample,
+  zone,
+  info,
+  phase,
+  alarm,
+  error,
+  stale = false,
+  unsupported = false
+}: Props): JSX.Element {
+  // 「殘值」必須真的有一個值才能殘。冷開機從未連線過時 sample 是 null,量表顯示
+  // 「--」,此時掛上「數值已過期」是在警告一個不存在的數字——而假警告會訓練
+  // 使用者忽略真警告。這裡用結構保證,而非要求每個呼叫端自己記得判斷。
+  const showStale = stale && sample != null
+  // 未支援優先於過期:協定根本不會被量測,「數值過期」是次要且誤導的說法。
+  const notice = unsupported
+    ? `此協定尚未支援 — 量表讀的仍是${info.label}`
+    : showStale
+      ? '斷線中 · 數值已過期'
+      : null
+  const domainMax = zone.overLimit + 15
+  const clamp = (v: number): number => Math.min(domainMax, Math.max(0, v))
+  const value = sample ? clamp(sample.value) : 0
+  const bandMax = Math.min(zone.max, zone.overLimit)
+
+  const valueColor =
+    error || alarm
+      ? 'rgb(var(--color-danger))'
+      : phase === 'holding'
+        ? 'rgb(var(--color-success))'
+        : 'rgb(var(--color-accent))'
+  // 大字取整數:0.1° 位在即時流下每筆都在變,只會傳達「不穩」而非資訊
+  const display = error ? 'ERR' : sample ? sample.value.toFixed(0) : '--'
+  const targetText =
+    zone.max === Infinity ? `目標 ≥ ${zone.min}°` : `目標 ${zone.min}–${zone.max}°`
+
+  return (
+    <div className={`metric-gauge${notice ? ' muted' : ''}`}>
+      <svg viewBox="0 0 240 150">
+        <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="rgb(var(--color-border))" strokeWidth="14" strokeLinecap="round" />
+        <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="rgb(var(--color-accent) / 0.25)" strokeWidth="14" strokeLinecap="butt" />
+        {value > 0 && (
+          <path d={arc(0, value, R, domainMax)} fill="none" stroke={valueColor} strokeWidth="7" strokeLinecap="round" />
+        )}
+        <path d={tick(clamp(zone.rest), domainMax)} stroke="rgb(var(--color-text-dim))" strokeWidth="2" strokeDasharray="3 3" />
+        <path d={tick(clamp(zone.overLimit), domainMax)} stroke="rgb(var(--color-danger))" strokeWidth="3" />
+        <text x={CX} y={92} textAnchor="middle" fontSize="34" fontWeight="700" fill={valueColor} fontFamily="'JetBrains Mono Variable', monospace">
+          {display}
+        </text>
+        <text x={CX} y={116} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
+          {info.label}(°)
+        </text>
+        <text x={CX} y={140} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
+          {targetText} · 回位 ≤ {zone.rest}° · <tspan fill="rgb(var(--color-danger))">超限 {zone.overLimit}°</tspan>
+        </text>
+      </svg>
+      {notice && <div className="metric-gauge-notice">{notice}</div>}
+      {sample?.kneeMax != null && (
+        <div className={`knee-badge${sample.kneeStraightOk ? ' ok' : ''}`}>
+          膝直前置:{sample.knee.toFixed(0)}° / 需 ≤ {sample.kneeMax}°
+        </div>
+      )}
+    </div>
+  )
+}

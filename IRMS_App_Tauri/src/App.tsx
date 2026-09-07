@@ -1,51 +1,83 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+// renderer/App.tsx
+import { lazy, Suspense, useEffect } from 'react'
+import { useStore } from './store/useStore'
+import { useUiStore } from './store/useUiStore'
+import { applyThemeMode } from './services/theme'
+import { irms } from './platform/irmsApi'
+import { TopHeader } from './components/TopHeader'
+import { Sidebar } from './components/Sidebar'
+import { ToastHost } from './components/ToastHost'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { ErrorOverlay } from './components/ErrorOverlay'
+import { UpdateBanner } from './components/UpdateBanner'
+import { DashboardView } from './views/DashboardView'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+// Dashboard is the landing view and stays eagerly bundled; the other three are only needed once
+// the user navigates there, so splitting them keeps first paint down to Dashboard's own code.
+const ActionsView = lazy(() => import('./views/ActionsView').then((m) => ({ default: m.ActionsView })))
+const HistoryView = lazy(() => import('./views/HistoryView').then((m) => ({ default: m.HistoryView })))
+const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })))
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
-
-  return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+const VIEW_NAMES: Record<string, string> = {
+  dashboard: '即時監測',
+  actions: '動作設定',
+  history: '歷史紀錄',
+  settings: '設定'
 }
 
-export default App;
+export default function App(): JSX.Element {
+  const view = useUiStore((s) => s.view)
+  const demoMode = useUiStore((s) => s.demoMode)
+  const themeMode = useStore((s) => s.settings.themeMode)
+  const allowBetaUpdates = useStore((s) => s.settings.allowBetaUpdates)
+
+  // 套用主題:含初次載入(讀取持久化設定)與使用者切換時。
+  useEffect(() => {
+    applyThemeMode(themeMode)
+  }, [themeMode])
+
+  // 送到 main 對應 autoUpdater.allowPrerelease——zustand persist 用同步的 localStorage,
+  // 這裡拿到的已經是水合後的值,遠早於 updater.ts 的 5 秒啟動檢查延遲。
+  useEffect(() => {
+    void irms.updates.setAllowPrerelease(allowBetaUpdates)
+  }, [allowBetaUpdates])
+
+  return (
+    <>
+      {/* 示範模式的全域橫幅,刻意不可關閉、且渲染在最外層而非任何單一視圖裡。
+          少了它,一張 Dashboard 的截圖與真實量測的截圖完全無法區分——而 demo 模式
+          存在的理由正是「拿去給人看」,所以截圖被誤認的機率不是理論風險。 */}
+      {demoMode && (
+        <div className="demo-banner" role="status">
+          ⚠ 示範模式 — 畫面上的資料由模擬器產生,不是真實量測
+        </div>
+      )}
+
+      <div className="app-shell">
+        <TopHeader />
+        <div className="app">
+          <Sidebar />
+          <div className="app-column">
+            <main className="main">
+              {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
+              <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
+                <Suspense fallback={null}>
+                  {view === 'dashboard' && <DashboardView />}
+                  {view === 'actions' && <ActionsView />}
+                  {view === 'history' && <HistoryView />}
+                  {view === 'settings' && <SettingsView />}
+                </Suspense>
+              </ErrorBoundary>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <ToastHost />
+      <ConfirmDialog />
+      <ErrorOverlay />
+      <UpdateBanner />
+    </>
+  )
+}
