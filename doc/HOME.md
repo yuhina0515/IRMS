@@ -643,6 +643,20 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   GATT cache 是否正常),驗證結果作為 go/no-go 判準**;另需使用者確認「規劃中
   的 Android/iOS/iPadOS/watchOS companion app」是否仍是真實意圖,那件事本身
   足以獨立於 BLE 風險影響決策。
+- **2026-09-07 啟動 Tauri v2 遷移**([[log_20260907_tauri_migration_kickoff|完整日誌]]):
+  使用者決定直接以 Tauri 為主軸開發(裁決給的是資訊不是否決權)。新增
+  `IRMS_App_Tauri` 專案,驗證整條工具鏈(Rust/WebView2/WiX/NSIS)在這台機器上
+  跑得通;完整移植並測試 `parseAnglePacket`(18/18 測試通過);寫出完整 BLE
+  傳輸層(`btleplug`,`cargo check` 零錯誤)。**明確標注:BLE 這塊完全沒有跟
+  真實硬體測過**,新增 task #55 專門追蹤實機驗證(25Hz 穩定性 + OTA 後 GATT
+  cache),卡在需要使用者親自用真正的 ESP32 測試,跟現有韌體 OTA 硬體任務
+  同樣的處境。DB 層(rusqlite)與前端搬遷尚未開始。
+- **2026-09-07 完全轉移計畫**([[TAURI_MIGRATION_PLAN|計畫文件]] · ROADMAP D6):
+  分 5 階段(BLE 驗證 → DB 層 → 前端 → 視窗外觀/開機動畫 → 更新機制 → 換版),
+  每階段列進入/退出條件與 🖥/📡 標記。**更正會議記錄裡一個站不住腳的論點**:
+  ROADMAP D5(2026-09-01,早於這次會議)已經裁定手機版走獨立的 React Native
+  程式碼,不受桌面選 Electron 或 Tauri 影響,所以「規劃中的手機版」不是這次
+  遷移的有效理由。真正理由是架構乾淨度、安全模型、體積/冷啟動。
 
 ## 🗂 變更日誌
 

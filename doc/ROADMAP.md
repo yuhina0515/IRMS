@@ -75,6 +75,26 @@ Web Bluetooth API**,包括任何用 WKWebView 包裝的殼(Capacitor、Cordova �
 **排序**:桌面版 Phase 4(元件重建)先完成、驗證過,才開始手機端工作
 (使用者 2026-09-01 明確裁定,見 [[log_20260901_ui_redesign_phase3_layout|同日日誌]])。
 
+### D6|桌面框架:Electron → Tauri v2(2026-09-07)
+
+**背景**:三方會議([[log_20260907_meeting_tauri_v2_evaluation|會議記錄]])查證後確認
+Tauri v2/WebView2 完全沒有 Web Bluetooth,任何遷移都要把 `bluetooth.ts` 整段改寫成
+Rust + `btleplug`——裁決建議先做範圍精確的硬體可行性驗證再決定。使用者看過裁決後
+明確指示「現在開始以 Tauri 為主軸進行開發」,屬於使用者風險容忍度的裁量範圍,不是
+需要再度勸退的事。裁決給的是資訊,不是否決權。
+
+**對 D5 的更正**:會議裡遷移方最強的論點之一(程式碼裡留有規劃中 Android/iOS/
+iPadOS/watchOS 的註解,暗示 Electron 結構性做不到、Tauri 已經做得到)其實**站不住
+腳**——D5 早在 2026-09-01(會議之前)就已經裁定手機版走 **React Native +
+`react-native-ble-plx`**,UI 與 BLE 都是獨立於桌面版的全新程式碼,不論桌面選
+Electron 還是 Tauri 都不影響這個決定。這個遷移的真正理由是會議裡的其他論點
+(架構乾淨度、預設安全的權限模型、體積/冷啟動),不是手機版——見
+[[TAURI_MIGRATION_PLAN]] 的更正說明。
+
+**決策:採 Tauri v2**,完整遷移計畫、分階段順序、風險清單見 [[TAURI_MIGRATION_PLAN]]
+(獨立文件,遷移範圍太大不適合塞進本檔)。`IRMS_App`(Electron)在遷移完成前維持
+出貨版本,不凍結但也不再投入大型新架構/UI 工作,避免遷移範圍持續變大。
+
 ---
 
 ## 二、分階段計畫 (Phased Plan)
