@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { useStore } from './store/useStore'
 import { useUiStore } from './store/useUiStore'
 import { applyThemeMode } from './services/theme'
+import { irms } from './platform/irmsApi'
 import { TopHeader } from './components/TopHeader'
 import { Sidebar } from './components/Sidebar'
 import { ToastHost } from './components/ToastHost'
@@ -39,7 +40,7 @@ export default function App(): JSX.Element {
   // 送到 main 對應 autoUpdater.allowPrerelease——zustand persist 用同步的 localStorage,
   // 這裡拿到的已經是水合後的值,遠早於 updater.ts 的 5 秒啟動檢查延遲。
   useEffect(() => {
-    void window.irms.updates.setAllowPrerelease(allowBetaUpdates)
+    void irms.updates.setAllowPrerelease(allowBetaUpdates)
   }, [allowBetaUpdates])
 
   return (

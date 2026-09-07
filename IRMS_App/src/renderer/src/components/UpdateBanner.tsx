@@ -4,13 +4,14 @@
 // 常駐工具的更新體驗,而不是強迫使用者面對一個安裝精靈。
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
+import { irms } from '../platform/irmsApi'
 import type { UpdateStatus } from '@shared/types'
 
 export function UpdateBanner(): JSX.Element | null {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   const sessionRunning = useStore((s) => s.session.running)
 
-  useEffect(() => window.irms.updates.onStatusChange(setStatus), [])
+  useEffect(() => irms.updates.onStatusChange(setStatus), [])
 
   if (status?.state !== 'downloaded') return null
 
@@ -24,7 +25,7 @@ export function UpdateBanner(): JSX.Element | null {
         className="btn btn-primary btn-sm"
         disabled={sessionRunning}
         title={sessionRunning ? 'Session 進行中無法重啟——結束後這個按鈕會恢復可用' : undefined}
-        onClick={() => void window.irms.updates.restartNow()}
+        onClick={() => void irms.updates.restartNow()}
       >
         立即重新啟動
       </button>

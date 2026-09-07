@@ -27,6 +27,7 @@ import {
 } from '@shared/validation'
 import { computeMetricSample, metricInfo, OVER_EXTENSION_MARGIN } from '../services/movementMetric'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { irms } from '../platform/irmsApi'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -84,7 +85,7 @@ export function ActionsView(): JSX.Element {
   const totalInProtocol = actions.filter((a) => a.protocol === protocol).length
 
   const reload = async (): Promise<void> => {
-    setCustomActions(await window.irms.actions.list())
+    setCustomActions(await irms.actions.list())
   }
 
   const openCreate = (): void => {
@@ -106,8 +107,8 @@ export function ActionsView(): JSX.Element {
     // 每一場用到它的 Session(負容錯 → rep 靜默永不前進)
     const safe = clampTriggerParams(form)
     try {
-      if (editing) await window.irms.actions.update(editing.id, safe)
-      else await window.irms.actions.create(safe)
+      if (editing) await irms.actions.update(editing.id, safe)
+      else await irms.actions.create(safe)
       showToast(editing ? '動作已更新' : '動作已建立', 'success')
       setForm(null)
       await reload()
@@ -119,7 +120,7 @@ export function ActionsView(): JSX.Element {
   const remove = async (a: CustomAction): Promise<void> => {
     const ok = await requestConfirm('刪除動作', `確定要刪除「${a.name}」嗎?此操作不可撤銷。`)
     if (!ok) return
-    await window.irms.actions.delete(a.id)
+    await irms.actions.delete(a.id)
     showToast('動作已刪除', 'success')
     await reload()
   }
@@ -127,7 +128,7 @@ export function ActionsView(): JSX.Element {
   const restoreDefaults = async (): Promise<void> => {
     const ok = await requestConfirm('還原預設', '這將清除所有自訂動作並重建預設範本,確定嗎?')
     if (!ok) return
-    setCustomActions(await window.irms.actions.restoreDefaults())
+    setCustomActions(await irms.actions.restoreDefaults())
     showToast('已還原預設動作範本', 'success')
   }
 

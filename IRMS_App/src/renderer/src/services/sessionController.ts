@@ -13,6 +13,7 @@ import { bluetoothService } from './bluetooth'
 import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
 import { TriggerEngine } from './triggerEngine'
+import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
 
 const MAX_BUFFER_RESTORE = 2000
@@ -87,7 +88,7 @@ class SessionController {
         // 立刻持久化計數:關窗/強殺不會跑到 endSession,若只在結束時寫一次,
         // 一場真實的 12 下 Session 會永遠以 0 reps 留在歷史裡
         if (session.id != null) {
-          void window.irms.sessions.progress(session.id, reps).catch(() => {
+          void irms.sessions.progress(session.id, reps).catch(() => {
             /* 計數持久化失敗不影響進行中的 Session;結束時仍會再寫一次 */
           })
         }
@@ -263,7 +264,7 @@ class SessionController {
     }
 
     try {
-      const { sessionId } = await window.irms.sessions.start({
+      const { sessionId } = await irms.sessions.start({
         targetAngle: params.targetAngle,
         tolerance: params.tolerance,
         holdTimeMs: params.holdTimeMs,
@@ -319,7 +320,7 @@ class SessionController {
     await this.flush()
 
     try {
-      await window.irms.sessions.end(session.id, session.reps)
+      await irms.sessions.end(session.id, session.reps)
       useStore.getState().log(`Ended session #${session.id}. Reps: ${session.reps}.`)
     } catch (err) {
       useStore.getState().log(`Failed to end session: ${(err as Error).message}`)
@@ -357,7 +358,7 @@ class SessionController {
     const readings = this.buffer
     this.buffer = []
     try {
-      await window.irms.data.appendBatch(session.id, readings)
+      await irms.data.appendBatch(session.id, readings)
     } catch (err) {
       const combined = readings.concat(this.buffer)
       this.buffer = combined.slice(-MAX_BUFFER_RESTORE)

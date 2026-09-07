@@ -8,6 +8,7 @@ import { computeMetricZone, metricInfo } from '../services/movementMetric'
 import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
 import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { irms } from '../platform/irmsApi'
 
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
 const CHART_MAX_POINTS = 1200
@@ -28,7 +29,7 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     void (async () => {
       // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js
       // 會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
-      const data = await window.irms.sessions.getData(session.id, CHART_MAX_POINTS)
+      const data = await irms.sessions.getData(session.id, CHART_MAX_POINTS)
       setReadings(data)
       if (!canvasRef.current) return
       const t = chartTheme()
@@ -129,7 +130,7 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
 
   const exportCsv = async (): Promise<void> => {
     // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集
-    const full = await window.irms.sessions.getData(session.id)
+    const full = await irms.sessions.getData(session.id)
     // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
     const meta = [
       // source 放**第一行**:匯出的 CSV 常常被寄出或丟進別的工具,
@@ -228,7 +229,7 @@ export function HistoryView(): JSX.Element {
 
   const load = async (): Promise<void> => {
     try {
-      setSessions(await window.irms.sessions.list())
+      setSessions(await irms.sessions.list())
     } catch {
       showToast('載入歷史失敗', 'error')
     }
@@ -241,7 +242,7 @@ export function HistoryView(): JSX.Element {
   const remove = async (s: Session): Promise<void> => {
     const ok = await requestConfirm('刪除紀錄', `確定刪除 Session #${s.id} 的紀錄嗎?`)
     if (!ok) return
-    await window.irms.sessions.delete(s.id)
+    await irms.sessions.delete(s.id)
     showToast(`Session #${s.id} 已刪除`, 'success')
     await load()
   }

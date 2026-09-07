@@ -11,6 +11,7 @@ import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
+import { irms } from '../platform/irmsApi'
 
 function NumField({
   label,
@@ -258,13 +259,13 @@ function SoftwareUpdatePanel(): JSX.Element {
   const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    window.irms.updates.getCurrentVersion().then(setVersion)
+    irms.updates.getCurrentVersion().then(setVersion)
   }, [])
 
   const checkNow = async (): Promise<void> => {
     setChecking(true)
     try {
-      await window.irms.updates.checkNow()
+      await irms.updates.checkNow()
       showToast('已送出檢查請求——若有新版本,會在背景下載,完成後畫面下方會出現重啟提示', 'info')
     } finally {
       setChecking(false)
@@ -346,7 +347,7 @@ function FirmwareOtaPanel(): JSX.Element {
   }
 
   const pickFile = async (): Promise<void> => {
-    const picked = await window.irms.firmware.pickBinary()
+    const picked = await irms.firmware.pickBinary()
     if (picked == null) return
     setFirmware(picked)
     setProgress(null)
@@ -529,7 +530,7 @@ function DemoModePanel(): JSX.Element {
     if (!ok) return
     setBusy(true)
     try {
-      const { deleted } = await window.irms.sessions.purgeDemo()
+      const { deleted } = await irms.sessions.purgeDemo()
       showToast(deleted > 0 ? `已清除 ${deleted} 筆示範紀錄` : '沒有示範紀錄需要清除', 'success')
     } catch (err) {
       showToast(`清除失敗:${(err as Error).message}`, 'error')

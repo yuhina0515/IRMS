@@ -110,8 +110,7 @@ implied (auto-pairing contract, not just data shapes) is the deciding factor: do
 in the still-working Electron app where it's cheap to verify against the existing 286-test suite,
 rather than twice (once messily during the port, once properly afterward).
 
-**Phase 2a — Refactor `IRMS_App` (still Electron, no Tauri involved yet). Not started —
-planned 2026-09-07, paused before execution (session usage budget), ready to pick up:**
+**Phase 2a — Refactor `IRMS_App` (still Electron, no Tauri involved yet). ✅ Done (2026-09-07):**
 
 Note going in: the codebase already has a clean `IrmsApi` interface (`shared/types.ts`) that
 `preload/index.ts` implements and every call site consumes uniformly as the `window.irms` global
@@ -119,23 +118,32 @@ Note going in: the codebase already has a clean `IrmsApi` interface (`shared/typ
 that `window.irms` is an implicit global rather than an imported module, so nothing marks it as
 the seam that changes per-platform, and it isn't mockable/injectable for tests today.
 
-1. **Audit**: `grep -rn "window.irms" IRMS_App/src/renderer/src` to get the exact call-site count
-   and file list before touching anything — know the blast radius up front.
-2. **Introduce `src/renderer/src/platform/irmsApi.ts`**: exports `irms: IrmsApi`, initially just
-   `export const irms = window.irms`. Zero behavior change at this point — it's a named,
-   importable re-export of the existing global, nothing more.
-3. **Migrate call sites** from `window.irms.X(...)` to `import { irms } from '<relative>/platform/irmsApi'; irms.X(...)`,
-   file by file, per the Phase 1 audit list.
-4. **Verify zero behavior change**: full existing test suite (286 tests) still green, `npm run ci`
-   clean, manual smoke pass through all four views (Dashboard/Actions/History/Settings) plus demo
-   mode. This step must not be bundled with any actual port work — establish the refactor's own
-   correctness before it's trusted as the seam Phase 2b builds on.
-5. **Note for Phase 2b, not Phase 2a**: some `IrmsApi` members aren't 1:1 portable behind a
-   same-shaped adapter — `windowControls` and `updates` in particular wrap Electron/contextBridge
-   concepts (window chrome, `electron-updater`) that Tauri's equivalents (`@tauri-apps/api/window`,
-   `tauri-plugin-updater`) don't mirror exactly. Phase 2a doesn't need to solve this — it only
-   needs the seam to exist — but Phase 2b's adapter implementation for those two members will need
-   real adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data` get.
+1. [x] **Audit**: `grep -rn "window.irms" IRMS_App/src/renderer/src` — 8 files with real call
+       sites (26 total): `main.tsx`, `App.tsx`, `components/TopHeader.tsx`,
+       `components/UpdateBanner.tsx`, `views/{Settings,History,Actions}View.tsx`,
+       `services/sessionController.ts`. (`test/irmsStub.ts`/`test/setup.ts` also matched but are
+       the test infrastructure that *writes* `window.irms`, not call sites to migrate.)
+2. [x] **Introduced `src/renderer/src/platform/irmsApi.ts`** — **not** a plain
+       `export const irms = window.irms`. Found during the audit: `test/irmsStub.ts`'s
+       `installIrmsStub(overrides)` reassigns `window.irms` to a *brand-new* stub object
+       mid-test (several Settings/History tests call it a second time to override one method's
+       return value for that test). A snapshot-at-import-time re-export would capture the first
+       stub and silently ignore every later override, breaking test isolation invisibly. Used
+       getters instead (`get sessions() { return window.irms.sessions }`, one per `IrmsApi`
+       namespace) so every property access re-reads the current global.
+3. [x] **Migrated all 26 call sites** across the 8 files to `import { irms } from
+       '<relative>/platform/irmsApi'`.
+4. [x] **Verified zero behavior change**: `npm run typecheck` clean, full test suite **286/286
+       still passing** (including the mid-test override cases that would have caught the stale-
+       reference bug if the naive approach had been used), `npm run build` clean, bundle chunk
+       sizes unchanged (pure refactor, no logic touched).
+
+**Note for Phase 2b, not Phase 2a**: some `IrmsApi` members aren't 1:1 portable behind a
+same-shaped adapter — `windowControls` and `updates` in particular wrap Electron/contextBridge
+concepts (window chrome, `electron-updater`) that Tauri's equivalents (`@tauri-apps/api/window`,
+`tauri-plugin-updater`) don't mirror exactly. Phase 2a didn't need to solve this — it only needed
+the seam to exist — but Phase 2b's adapter implementation for those two members will need real
+adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data` get.
 
 **Phase 2b — Port to Tauri (in `IRMS_App_Tauri`):**
 - [ ] React components, Zustand store (`useStore`/`useUiStore`),

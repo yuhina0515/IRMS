@@ -663,6 +663,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   的全部案例搬成 Rust 測試,**51/51 全過**。刻意沒加 Tauri IPC 包裝,等 Phase 2a
   的 platform-adapter 重構定案再一次到位。Phase 2(前端)裁定採「先重構
   `IRMS_App` 隔出單一 adapter 模組,再搬移」而非直接複製。
+- **2026-09-07 Tauri 遷移 Phase 2a 完成**([[log_20260907_tauri_phase2a_platform_adapter|完整日誌]]):
+  `IRMS_App`(仍是 Electron)新增 `platform/irmsApi.ts`,收斂全部 8 個檔案、26 個
+  `window.irms.*` 呼叫點。過程中揪出一個真實的測試隔離風險:若用單純的
+  `export const irms = window.irms`,測試中途重新指派全域 stub 會被悄悄忽略——
+  改用 getter 逐次重新讀取當下的全域值解決。`npm run ci` 全綠、**286/286 測試
+  不變**、build 產物大小完全一致(純重構)。Phase 2b(真正搬到 Tauri)可以開始。
 
 ## 🗂 變更日誌
 

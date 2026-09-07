@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
 import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
+import { irms } from '../platform/irmsApi'
 import logoIcon from '../assets/logo-icon-only.png'
 
 function SunIcon(): JSX.Element {
@@ -77,8 +78,8 @@ function WindowControls(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
-    window.irms.windowControls.isMaximized().then(setIsMaximized)
-    return window.irms.windowControls.onMaximizedChange(setIsMaximized)
+    irms.windowControls.isMaximized().then(setIsMaximized)
+    return irms.windowControls.onMaximizedChange(setIsMaximized)
   }, [])
 
   return (
@@ -87,7 +88,7 @@ function WindowControls(): JSX.Element {
         type="button"
         className="window-btn"
         aria-label="最小化"
-        onClick={() => void window.irms.windowControls.minimize()}
+        onClick={() => void irms.windowControls.minimize()}
       >
         <MinimizeIcon />
       </button>
@@ -95,7 +96,7 @@ function WindowControls(): JSX.Element {
         type="button"
         className="window-btn"
         aria-label={isMaximized ? '還原' : '最大化'}
-        onClick={() => void window.irms.windowControls.toggleMaximize()}
+        onClick={() => void irms.windowControls.toggleMaximize()}
       >
         {isMaximized ? <RestoreIcon /> : <MaximizeIcon />}
       </button>
@@ -103,7 +104,7 @@ function WindowControls(): JSX.Element {
         type="button"
         className="window-btn window-btn-close"
         aria-label="關閉"
-        onClick={() => void window.irms.windowControls.close()}
+        onClick={() => void irms.windowControls.close()}
       >
         <CloseIcon />
       </button>
@@ -125,7 +126,7 @@ export function TopHeader(): JSX.Element {
   useGlobalShortcut({ key: 'k' }, demoMode ? null : () => void bluetoothService.connect())
 
   useEffect(() => {
-    window.irms.windowControls.hasCustomTitlebar().then(setHasCustomTitlebar)
+    irms.windowControls.hasCustomTitlebar().then(setHasCustomTitlebar)
   }, [])
 
   return (
@@ -133,7 +134,7 @@ export function TopHeader(): JSX.Element {
       className={`top-header glass${hasCustomTitlebar ? ' draggable' : ''}`}
       // 雙擊拖曳列切換最大化/還原——比照 Windows/macOS 原生標題列的標準手感。
       // RDP session(hasCustomTitlebar=false)已有原生框自帶這個行為,不重複掛。
-      onDoubleClick={hasCustomTitlebar ? () => void window.irms.windowControls.toggleMaximize() : undefined}
+      onDoubleClick={hasCustomTitlebar ? () => void irms.windowControls.toggleMaximize() : undefined}
     >
       <div className="logo">
         <img src={logoIcon} alt="" className="logo-mark" />
