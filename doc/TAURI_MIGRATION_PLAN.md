@@ -146,6 +146,12 @@ the seam to exist — but Phase 2b's adapter implementation for those two member
 adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data` get.
 
 **Phase 2b — Port to Tauri (in `IRMS_App_Tauri`):**
+- [x] **DB layer wired to real Tauri IPC** (2026-09-07, `commands.rs`): all 13 `db.rs` repo
+      functions exposed as `#[tauri::command]`s (`actions_*`, `sessions_*`, `data_append_batch`),
+      state-managed via `DbState(Mutex<Connection>)`, DB opened for real at app startup in
+      `.setup()` against the actual Tauri `app_data_dir()`. Verified at runtime, not just by
+      `cargo check`: built and launched the packaged exe, confirmed the real SQLite file gets
+      created with the full migration chain applied and the process stays alive.
 - [ ] React components, Zustand store (`useStore`/`useUiStore`),
       `services/` pure logic (trigger engine, calibration, angleMath, smoothing, guidance) port
       with no BLE/DB-shape changes required — none of that layer touches Electron APIs directly.

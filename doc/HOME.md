@@ -669,6 +669,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `export const irms = window.irms`,測試中途重新指派全域 stub 會被悄悄忽略——
   改用 getter 逐次重新讀取當下的全域值解決。`npm run ci` 全綠、**286/286 測試
   不變**、build 產物大小完全一致(純重構)。Phase 2b(真正搬到 Tauri)可以開始。
+- **2026-09-07 Tauri 遷移 Phase 2b 起步:DB 層接上真正 IPC**([[log_20260907_tauri_db_ipc_wiring|完整日誌]]):
+  Phase 1 寫好的 13 個 DB repo 函式全部包成 `#[tauri::command]`,`.setup()` hook
+  對著真正的 Tauri `app_data_dir()` 開資料庫。**實機驗證**:打包後直接執行 exe,
+  確認 process 存活且 `irms.sqlite` 真的在 AppData 被建立、完整跑過 migration
+  chain——不只是編譯過。`cargo test` 51/51 依然全過。前端(React/Zustand)搬遷
+  尚未開始。
 
 ## 🗂 變更日誌
 
