@@ -101,27 +101,33 @@ blocker on calling the migration done or retiring Electron.)
 CRUD paths, passing, with no dependency on a running Tauri app (same "hardware-independent,
 fully verifiable by CI" standard as Phase 0's protocol port).
 
-### Phase 2 — Frontend port — 🖥 no hardware needed, but blocked behind a live decision
+### Phase 2 — Frontend port — 🖥 no hardware needed
 
-**Open question, not yet decided — do not start this phase without resolving it first**: does the
-frontend move over as a near-verbatim copy of `IRMS_App/src/renderer/src` (fastest, but leaves two
-UI codebases to keep in sync until cutover), or does `IRMS_App` itself get refactored first to
-isolate everything that talks to `window.irms` behind one platform-adapter module (slower up
-front, but means the eventual Tauri swap is "replace one adapter file," and bug fixes keep landing
-in one place instead of two)? The meeting's migration advocate estimated ~85% direct reuse
-assuming the former; the hardware-integration critique's Phase-2-scope-is-understated finding
-(auto-pairing contract, not just data shapes) suggests the adapter boundary is less clean than
-"thin client" implied, which is an argument for the platform-adapter approach doing that
-cleanup once rather than twice. **Decide this before starting**, don't default into the copy
-approach by momentum.
+**Decided (2026-09-07): refactor `IRMS_App` first, then move it.** Not a near-verbatim copy — the
+hardware-integration critique's finding that the adapter boundary is less clean than "thin client"
+implied (auto-pairing contract, not just data shapes) is the deciding factor: do that cleanup once,
+in the still-working Electron app where it's cheap to verify against the existing 286-test suite,
+rather than twice (once messily during the port, once properly afterward).
 
-- [ ] Whichever approach is chosen: React components, Zustand store (`useStore`/`useUiStore`),
+**Phase 2a — Refactor `IRMS_App` (still Electron, no Tauri involved yet):**
+- [ ] Introduce a single platform-adapter module/boundary that every component/service calls
+      instead of `window.irms.*` directly — the goal is that after this step, exactly one file
+      changes when the backend swaps from Electron's `contextBridge` API to Tauri's
+      `invoke`/`listen`, not N call sites scattered across components/services.
+- [ ] Verify zero behavior change: full existing test suite still green, manual smoke pass
+      through all four views, `npm run ci` clean. This step must not be bundled with any actual
+      port work — it's a pure refactor, and its own correctness has to be established before it's
+      trusted as the seam the Tauri port will build on.
+
+**Phase 2b — Port to Tauri (in `IRMS_App_Tauri`):**
+- [ ] React components, Zustand store (`useStore`/`useUiStore`),
       `services/` pure logic (trigger engine, calibration, angleMath, smoothing, guidance) port
       with no BLE/DB-shape changes required — none of that layer touches Electron APIs directly.
-- [ ] Swap `window.irms.*` calls for `@tauri-apps/api`'s `invoke`/`listen`, backed by the Phase 1
-      DB commands and Phase 0 BLE commands/events (`ble:packet`, `ble:connection`,
-      `ble:ota-progress` already emitted by `ble.rs` — the frontend side of that contract doesn't
-      exist yet).
+- [ ] Write a new implementation of the Phase 2a adapter module backed by `@tauri-apps/api`'s
+      `invoke`/`listen` instead of `window.irms.*` — this is the one file the refactor was meant
+      to make swappable. Wires up the Phase 1 DB commands and Phase 0 BLE commands/events
+      (`ble:packet`, `ble:connection`, `ble:ota-progress` already emitted by `ble.rs` — the
+      frontend side of that contract doesn't exist yet).
 - [ ] Port the full existing test suite (286 tests today) — most are pure-logic and should port
       with zero changes to the assertions; only the tests that mock `window.irms`/DB directly need
       rewriting against the new adapter.
