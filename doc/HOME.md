@@ -636,6 +636,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   連續主幹取代三段折線拼接)、深邃醫療藍+純青色高光配色、收緊時序至 1.1 秒、繞圈
   改不對稱雙弧、Stage2 加入「能量釋放」爆散+邊框光暈尖峰轉場。`npm run ci` 全綠,
   四階段截圖驗證。
+- **2026-09-07 會議:評估遷移 Tauri v2**([[log_20260907_meeting_tauri_v2_evaluation|會議記錄]]):
+  三方辯論(遷移倡議/風險分析/硬體整合)一致確認 Tauri v2 完全沒有 Web
+  Bluetooth,任何遷移都要把 BLE/OTA 層整段改寫成 Rust。**裁決:不做全面遷移,
+  先花幾天對真實硬體做範圍精確的 BLE 可行性驗證(25Hz 長時間穩定性 + OTA 後
+  GATT cache 是否正常),驗證結果作為 go/no-go 判準**;另需使用者確認「規劃中
+  的 Android/iOS/iPadOS/watchOS companion app」是否仍是真實意圖,那件事本身
+  足以獨立於 BLE 風險影響決策。
 
 ## 🗂 變更日誌
 
