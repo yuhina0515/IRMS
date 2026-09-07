@@ -28,9 +28,14 @@ serde_json = "1"
 # piece of a Tauri migration and what still needs real-hardware validation.
 btleplug = "0.11"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
-uuid = "1"
+uuid = { version = "1", features = ["v4"] }
 md5 = "0.7"
 futures = "0.3"
+# DB layer — replaces better-sqlite3 (a Node native addon; Tauri's core has no Node runtime).
+# "bundled" compiles SQLite from source instead of relying on a system lib, same self-contained
+# approach better-sqlite3 already takes.
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

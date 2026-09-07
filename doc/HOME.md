@@ -657,6 +657,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   ROADMAP D5(2026-09-01,早於這次會議)已經裁定手機版走獨立的 React Native
   程式碼,不受桌面選 Electron 或 Tauri 影響,所以「規劃中的手機版」不是這次
   遷移的有效理由。真正理由是架構乾淨度、安全模型、體積/冷啟動。
+- **2026-09-07 Tauri 遷移 Phase 1 完成**([[log_20260907_tauri_db_layer_port|完整日誌]]):
+  DB 層(`better-sqlite3` → `rusqlite`)完整移植——7 版 migration、三個 repo
+  (actions/sessions/data)、LTTB 抽樣。`migrations.test.ts`/`downsample.test.ts`
+  的全部案例搬成 Rust 測試,**51/51 全過**。刻意沒加 Tauri IPC 包裝,等 Phase 2a
+  的 platform-adapter 重構定案再一次到位。Phase 2(前端)裁定採「先重構
+  `IRMS_App` 隔出單一 adapter 模組,再搬移」而非直接複製。
 
 ## 🗂 變更日誌
 

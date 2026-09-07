@@ -1,5 +1,10 @@
 mod ble;
+mod db;
+mod defaults;
+mod downsample;
+mod migrations;
 mod protocol;
+mod types;
 
 use ble::BleState;
 

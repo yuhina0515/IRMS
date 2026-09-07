@@ -87,19 +87,20 @@ doesn't hold up. (This isn't a hard blocker on *starting* Phases 1–3's hardwar
 below in parallel — DB and frontend porting don't depend on BLE working — but it is a hard
 blocker on calling the migration done or retiring Electron.)
 
-### Phase 1 — Data layer: `better-sqlite3` → `rusqlite` — 🖥 no hardware needed
+### Phase 1 — Data layer: `better-sqlite3` → `rusqlite` — ✅ done (2026-09-07)
 
-- [ ] Port `main/db.ts`'s three repos (`actionsRepo`, `sessionsRepo`, `dataRepo`) and
-      `main/migrations.ts`'s versioned migration runner to Rust + `rusqlite`.
-- [ ] Port `main/migrations.test.ts`'s upgrade-path tests 1:1 (same spirit as the protocol port —
-      a real migration history exists already; the Rust version must produce identical schema at
-      every version, not just the latest one).
-- [ ] LTTB downsampling (`shared/downsample.ts`, used by `sessionsRepo.getData`'s chart-mode path)
-      — small, pure, portable; port alongside.
+- [x] Ported `main/db.ts`'s three repos (`actionsRepo`, `sessionsRepo`, `dataRepo`) and
+      `main/migrations.ts`'s versioned migration runner to Rust + `rusqlite`
+      (`db.rs`/`migrations.rs`/`types.rs`/`defaults.rs`).
+- [x] Ported `main/migrations.test.ts`'s upgrade-path tests 1:1 — 15 tests, all passing.
+- [x] LTTB downsampling (`downsample.rs`) — 8 tests ported from `downsample.test.ts`, all passing.
+- [x] Repo-level tests (CRUD roundtrips, cascade delete, purge-demo, downsample-on-read) — 9 more
+      tests, all passing. **51/51 total across protocol+migrations+downsample+db.**
 
-**Exit gate**: a Rust unit-test suite exercising every migration version + the three repos'
-CRUD paths, passing, with no dependency on a running Tauri app (same "hardware-independent,
-fully verifiable by CI" standard as Phase 0's protocol port).
+**Exit gate met**: full Rust unit-test suite green, zero dependency on a running Tauri app.
+**Deliberately not done yet**: no `#[tauri::command]` wiring — this phase is pure data-layer
+correctness; IPC surface is Phase 2b's job once the platform-adapter shape is decided (see below),
+so nothing here gets wired to the frontend twice.
 
 ### Phase 2 — Frontend port — 🖥 no hardware needed
 
