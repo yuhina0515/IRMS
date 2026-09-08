@@ -75,6 +75,10 @@ export interface Settings {
    * 消失,只影響「以後還要不要繼續收到更新推播」。
    */
   allowBetaUpdates: boolean
+  /** 側邊欄是否收合成僅剩圖示的窄軌。原本刻意用元件本地 useState、不持久化(見
+   *  Sidebar.tsx 的舊註解)——但使用者實測回報「每次啟動選單都自動展開」,對使用者
+   *  來說這不是「暫態畫面偏好」而是每次都要重新收一次的煩擾,改為持久化。 */
+  sidebarCollapsed: boolean
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -119,7 +123,8 @@ const DEFAULT_SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
-  allowBetaUpdates: true
+  allowBetaUpdates: true,
+  sidebarCollapsed: false
 }
 
 /**
@@ -416,11 +421,12 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 10, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 11, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
       // v10:allowBetaUpdates
+      // v11:sidebarCollapsed——原本是 Sidebar.tsx 的元件本地 state,改成持久化設定
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

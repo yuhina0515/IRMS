@@ -9,11 +9,13 @@ import { useUiStore } from '../store/useUiStore'
 import {
   buildCalibrationPatch,
   computeCaptureStats,
+  detectAxisSwap,
   CAPTURE_STD_LIMIT,
   CAPTURE_STD_LIMIT_ABDUCTION,
   CAPTURE_DELTA_MIN,
   CAPTURE_ROLL_DELTA_MIN,
-  PITCH_AXES,
+  THIGH_AXES,
+  SHIN_AXES,
   ROLL_AXES,
   maxAxisDelta,
   type CalibrationError,
@@ -24,6 +26,10 @@ import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const SAMPLE_COUNT = 30
 const CAPTURE_TIMEOUT_MS = 3000
+/** 手動/自動觸發後,擷取前的倒數秒數。原本是 3,但每一步的說明文字都寫「保持姿勢約
+ *  4 秒」——按鈕上寫的倒數卻只有 3 秒,兩者對不上;使用者反映「秒數太少」時這正是
+ *  看得到的落差之一,改成 4 讓倒數與說明文字一致。 */
+const COUNTDOWN_SECONDS = 4
 /** 步驟 6 預覽面板的重繪節流——只是給人看的靜態數字,不是擷取取樣來源(那條路徑
  * 直接用 useStore.subscribe,不經過 React state),25Hz 全速重繪整個 Liquid Glass
  * modal(含 backdrop-filter)沒有必要,是「確認頁卡頓」的根因 */
@@ -37,8 +43,12 @@ const PREVIEW_SYNC_MS = 80
  * 而按鈕本身就會破壞剛擺好的姿勢。
  */
 const AUTO_STABLE_MS = 1500
-/** 判定穩定所需的最少樣本數(25Hz 下 1.5 秒約 37 筆,取保守值) */
-const AUTO_MIN_SAMPLES = 20
+/** 判定穩定所需的最少樣本數。25Hz 理想值下 1.5 秒約 37 筆,但實測環境的實際封包率
+ *  常明顯低於理想值(連線品質、距離、干擾),原本取 20(理想值的保守值)在較差的
+ *  連線下仍可能整個 1.5 秒窗口都湊不滿,免手擷取因此「有時完全不會自動開始」——
+ *  不是判定邏輯錯誤,是門檻對實際封包率太樂觀。降到 15,同時保留 AUTO_STABLE_MS
+ *  的時間長度不變(仍要求 1.5 秒的窗口,只是窗口內不用湊到理想封包率也能通過)。 */
+const AUTO_MIN_SAMPLES = 15
 
 const ERROR_TEXT: Record<CalibrationError, string> = {
   unstable: '偵測到晃動,請於捕捉期間保持靜止後重試',
@@ -94,11 +104,11 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     }
   }, [])
 
-  /** 倒數 3 秒 → 收集 ~30 筆 rawAngles → 統計。stdLimit 依步驟不同(外展單腳站立較晃,門檻略寬)。 */
+  /** 倒數 COUNTDOWN_SECONDS 秒 → 收集 ~30 筆 rawAngles → 統計。stdLimit 依步驟不同(外展單腳站立較晃,門檻略寬)。 */
   const capture = async (stdLimit: number = CAPTURE_STD_LIMIT): Promise<CaptureStats | null> => {
     setErrMsg(null)
     setCapturing(true)
-    for (let c = 3; c > 0; c--) {
+    for (let c = COUNTDOWN_SECONDS; c > 0; c--) {
       setCountdown(c)
       await delay(1000)
       if (cancelledRef.current) return null
@@ -136,9 +146,31 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     return stats
   }
 
+  /**
+   * 哪個 key 需要立即驗證動作幅度、驗證失敗要用哪個訊息。
+   *
+   * 原本這個檢查只在最終 finish()(步驟 6)裡透過 buildCalibrationPatch 做——後果是
+   * 使用者在步驟 2/3 就已經做完真正決定成敗的那個動作,卻要再走過 3、4 步才會被
+   * 告知「幅度不足」,體感上完全對不起來是哪一步出的錯,只覺得「怎麼一直跳回前面」。
+   * 改成該步驟自己擷取完成的當下就驗證,原地報錯、原地重試。
+   */
+  const DELTA_CHECK: Record<'thighRaise' | 'kneeFlex', { limb: 'thigh' | 'shin'; error: CalibrationError }> = {
+    thighRaise: { limb: 'thigh', error: 'thighDeltaTooSmall' },
+    kneeFlex: { limb: 'shin', error: 'shinDeltaTooSmall' }
+  }
+
   const handleCapture = async (key: 'baseline' | 'thighRaise' | 'kneeFlex', nextStep: number): Promise<void> => {
     const stats = await capture()
     if (!stats) return
+    if (key !== 'baseline') {
+      const baseline = capturesRef.current.baseline
+      const { limb, error } = DELTA_CHECK[key]
+      const delta = baseline ? detectAxisSwap(baseline.mean, stats.mean, limb).delta : 0
+      if (delta < CAPTURE_DELTA_MIN) {
+        setErrMsg(ERROR_TEXT[error])
+        return
+      }
+    }
     capturesRef.current[key] = stats
     setStep(nextStep)
   }
@@ -187,13 +219,13 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       2: {
         limit: CAPTURE_STD_LIMIT,
         minDelta: CAPTURE_DELTA_MIN,
-        axes: PITCH_AXES,
+        axes: THIGH_AXES,
         run: () => handleCapture('thighRaise', 3)
       },
       3: {
         limit: CAPTURE_STD_LIMIT,
         minDelta: CAPTURE_DELTA_MIN,
-        axes: PITCH_AXES,
+        axes: SHIN_AXES,
         run: () => handleCapture('kneeFlex', 4)
       },
       // 外展只看 roll。取四軸最大會讓這一步在上一步(後勾小腿)的殘留姿勢下
@@ -265,9 +297,14 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
 
   const captureButton = (key: 'baseline' | 'thighRaise' | 'kneeFlex', next: number): JSX.Element => (
     <button className="btn btn-primary" disabled={capturing} onClick={() => void handleCapture(key, next)}>
-      {capturing ? (countdown != null ? `${countdown}…` : '捕捉中…') : '開始捕捉(倒數 3 秒)'}
+      {capturing ? (countdown != null ? `${countdown}…` : '捕捉中…') : `開始捕捉(倒數 ${COUNTDOWN_SECONDS} 秒)`}
     </button>
   )
+
+  /** 免手擷取目前是否正在「觀察姿勢是否已穩定」——擺好姿勢後到真正觸發倒數之前完全
+   *  沒有任何畫面回饋,使用者只看得到一段安靜的等待,容易被誤讀成「秒數太少/沒反應」。
+   *  這裡不追蹤細部進度(0~1.5 秒的即時百分比),只換一句提示文字,成本與風險都最低。 */
+  const autoWatching = autoCapture && !capturing && isConnected && step > 0 && step < 5
 
   return (
     <div className="overlay">
@@ -291,7 +328,9 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
                 setAutoCapture(e.target.checked)
               }}
             />
-            免手擷取:擺好姿勢並穩住 {AUTO_STABLE_MS / 1000} 秒即自動開始
+            {autoWatching
+              ? `免手擷取:偵測中,請擺好姿勢並保持穩定 ${AUTO_STABLE_MS / 1000} 秒…`
+              : `免手擷取:擺好姿勢並穩住 ${AUTO_STABLE_MS / 1000} 秒即自動開始`}
           </label>
           {step > 0 && step < 5 && (
             <button
@@ -432,7 +471,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
                   ? countdown != null
                     ? `${countdown}…`
                     : '捕捉中…'
-                  : '仍要校正顯示方向(倒數 3 秒)'}
+                  : `仍要校正顯示方向(倒數 ${COUNTDOWN_SECONDS} 秒)`}
               </button>
             </div>
           </div>

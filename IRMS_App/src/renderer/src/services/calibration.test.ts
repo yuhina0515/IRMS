@@ -52,7 +52,8 @@ const SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
-  allowBetaUpdates: true
+  allowBetaUpdates: true,
+  sidebarCollapsed: false
 }
 
 describe('computeCaptureStats', () => {

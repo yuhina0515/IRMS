@@ -31,6 +31,18 @@ const AXES: (keyof RawAngles)[] = ['thigh', 'shin', 'thighRoll', 'shinRoll']
 export const PITCH_AXES = ['thigh', 'shin'] as const
 /** 外展看 roll 兩軸 */
 export const ROLL_AXES = ['thighRoll', 'shinRoll'] as const
+/**
+ * 前抬大腿(精靈步驟 2)的免手擷取門檻軸——大腿自己的 pitch + roll,不含小腿。
+ *
+ * 原本沿用 PITCH_AXES(thigh+shin 兩者的 pitch,不含 roll):感測器貼歪 90° 時,
+ * 真正的彎曲動作會落在 roll 軸上,PITCH_AXES 完全看不到,免手擷取的動作幅度門檻
+ * 永遠達不到,使用者只能改用手動按鈕——恰好是這支精靈存在的目的(偵測貼歪 90°)
+ * 那群使用者。改成跟 `detectAxisSwap` 同一組「本肢段自己的 pitch+roll 取最大」,
+ * 觸發門檻與最終驗證用同一套判準。
+ */
+export const THIGH_AXES = ['thigh', 'thighRoll'] as const
+/** 後勾小腿(精靈步驟 3)的對應版本,同一個理由。 */
+export const SHIN_AXES = ['shin', 'shinRoll'] as const
 
 /**
  * 相對基準姿勢,在**指定軸**上的最大位移量(度)。

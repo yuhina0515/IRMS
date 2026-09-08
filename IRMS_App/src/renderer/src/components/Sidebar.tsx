@@ -8,11 +8,13 @@
 // self-contained hook 模式跟全站其他元件(TopHeader、SessionControlPanel 等)一致,
 // 不值得為了這個元件另立一套。
 //
-// 收合按鈕:按下後選單按鈕旋轉、側邊欄收合成僅剩圖示的窄軌。收合狀態刻意用純本地
-// useState(不寫進 useStore/settings persist)——這是暫態的畫面偏好,不是需要跨重啟
-// 記住的設定,沒有使用者要求持久化就不擴大範圍。標籤文字收合時不特別做 fade 動畫,靠
-// .sidebar 本身的 overflow:hidden 在寬度變窄時自然裁切——比另外寫一組 opacity/width
-// 動畫簡單,效果也一致(見 tailwind.css 的 .sidebar 規則)。
+// 收合按鈕:按下後選單按鈕旋轉、側邊欄收合成僅剩圖示的窄軌。收合狀態原本用純本地
+// useState(不寫進 useStore/settings persist),理由是「暫態的畫面偏好,不值得擴大
+// 持久化範圍」——但 2026-09-09 實測回報「每次啟動選單都自動展開」:對使用者來說
+// 這不是無感的暫態,是每次開 App 都要重新收一次的煩擾。改存進 settings.sidebarCollapsed
+// (persist v11)。標籤文字收合時不特別做 fade 動畫,靠 .sidebar 本身的 overflow:hidden
+// 在寬度變窄時自然裁切——比另外寫一組 opacity/width 動畫簡單,效果也一致(見
+// tailwind.css 的 .sidebar 規則)。
 //
 // 旋轉動畫不是「收合時停在旋轉後的角度」(第一版這樣做,3 條水平線轉 90 度變成 3 條
 // 直線,視覺上很難看),而是「每次按下都轉一圈 360 度」——起訖角度相同,純粹是按下
@@ -22,6 +24,7 @@
 // 避免使用者根本還沒按過,App 一啟動 icon 就跟著轉一圈。
 import { useState } from 'react'
 import { useUiStore } from '../store/useUiStore'
+import { useStore } from '../store/useStore'
 import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon, MenuIcon } from './NavIcons'
 
 const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string; Icon: typeof DashboardIcon }[] = [
@@ -34,12 +37,13 @@ const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string
 export function Sidebar(): JSX.Element {
   const view = useUiStore((s) => s.view)
   const setView = useUiStore((s) => s.setView)
-  const [collapsed, setCollapsed] = useState(false)
+  const collapsed = useStore((s) => s.settings.sidebarCollapsed)
+  const setSettings = useStore((s) => s.setSettings)
   const [spinKey, setSpinKey] = useState(0)
   const hasSpun = spinKey > 0
 
   const toggle = (): void => {
-    setCollapsed((c) => !c)
+    setSettings({ sidebarCollapsed: !collapsed })
     setSpinKey((k) => k + 1)
   }
 
