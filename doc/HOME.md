@@ -725,6 +725,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `settings.sidebarCollapsed`(persist v10→v11)。`npm run ci` 全綠(290 tests,新增
   3 個假時鐘驅動的校準精靈回歸測試,鎖住①的行為)。⚠ 尚未實機驗證,發布 1.1.0-beta.4
   供使用者直接在真裝置上測試。
+- **2026-09-09 發布 1.1.0-beta.4**([[log_20260909_beta4_release|完整日誌]]):依慣例
+  `npm run ci` → 打包 → 隔離 profile 煙霧測試 → `electron-builder --publish` 正確發布。
+  隔離測試直接讀 `Local Storage` 的 leveldb 二進位內容確認新欄位 `sidebarCollapsed`
+  真的寫進持久化 settings,不只是單元測試層級推論。三個 release asset 齊全,
+  release notes 標註尚未實機驗證。
 
 ![[coding-logs.base]]
 
