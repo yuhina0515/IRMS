@@ -752,6 +752,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `license` 欄位對齊為 `MIT`、README 補上「免責聲明」(非醫療器材、不構成醫療診斷或
   復健處方、使用風險自負)與「授權」兩節。確認 `.env` 本就被 `.gitignore` 排除,
   未曾被 `git ls-files` 追蹤,repo 沒有既有機密外洩問題。
+- **2026-09-09 LICENSE 版權歸屬修正為 IRMS Team**
+  ([[log_20260909_license_team_attribution_fix|完整日誌]]):使用者問起是否需要提醒標註
+  來自這個團隊,查證 [[log_20260716_meeting_discord_server_structure|07-16 Discord 架構
+  會議]]確認 IRMS 是個位數到十幾人的真實團隊專案,上一則日誌把 LICENSE 版權人誤寫成
+  使用者個人帳號 `yuhina0515`,會不當把隊友貢獻併入個人所有。改為版權人 `IRMS Team`,
+  README 免責聲明與授權節的責任歸屬用詞一併同步改為 IRMS Team,並在授權節加上
+  來源連結提醒衍生使用者標註團隊而非個人。
 
 ![[coding-logs.base]]
 
