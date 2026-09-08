@@ -730,6 +730,28 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   隔離測試直接讀 `Local Storage` 的 leveldb 二進位內容確認新欄位 `sidebarCollapsed`
   真的寫進持久化 settings,不只是單元測試層級推論。三個 release asset 齊全,
   release notes 標註尚未實機驗證。
+- **2026-09-08 會議:單顆 IMU 獨立判定軸向方向(axisSwap)設計方案**
+  ([[log_20260908_meeting_single_imu_axis_orientation|會議紀錄]]):使用者今天在真人腿上
+  實測發現小腿感測器 roll 讀值會隨「前抬/後勾」矢狀面動作變號,暗示貼裝角度介於
+  0°/90° 之間、現行 `detectAxisSwap()` 的二元判定抓不到部分耦合。三方提案交叉詰問後,
+  「對已算出的 pitch/roll 角度輸出做 `atan2`」被數學證明在精靈實際使用的大幅度動作下會
+  退化成恆定 45°(資訊全部遺失);「連續掃描回歸擬合」被判定複雜度與可驗證性都劣於
+  兩點法。**裁決**:改在**原始加速度向量 `(ax,ay)` 上旋轉後再算 `atan2`**(用既有精靈
+  同一個參考動作的兩點擷取即可解出,不需新增操作步驟),抽成獨立可單獨呼叫的
+  `recalibrateAxis(limb)`(不強制連著另一顆感測器或走完整六步精靈),`axisSwap:boolean`
+  → 數值角度欄位、舊資料標記 `legacy/unverified`。**捨棄**兩項過度工程的守門機制:
+  強制第二個正交確認動作(對小腿無解剖上可行的替代動作,會讓小腿校準卡死或形同虛設)、
+  量角器治具離體驗證(牴觸專案零外部器材的實際工具箱)。最強存留疑慮:小腿沒有解剖上
+  可行的獨立驗證訊號能確認解出的角度真的正確而非殘留耦合,暫以「同一次擷取內重覆同動作
+  比較一致性」當弱驗證信號過渡。純設計產出,尚未實作,待下次真機時間窗驗證合成資料
+  驗證組的結果
+- **2026-09-09 加入 LICENSE 與免責聲明**([[log_20260909_license_and_disclaimer|完整日誌]]):
+  使用者注意到 repo 已在 GitHub 公開但缺少授權與免責聲明,IRMS 屬於健康/復健情境的
+  穿戴式監測系統,有必要明確劃清法律責任。與使用者確認授權條款與具名方式後,新增根目錄
+  `LICENSE`(MIT,Copyright yuhina0515)、`IRMS_App`/`IRMS_App_Tauri` 的 `package.json`
+  `license` 欄位對齊為 `MIT`、README 補上「免責聲明」(非醫療器材、不構成醫療診斷或
+  復健處方、使用風險自負)與「授權」兩節。確認 `.env` 本就被 `.gitignore` 排除,
+  未曾被 `git ls-files` 追蹤,repo 沒有既有機密外洩問題。
 
 ![[coding-logs.base]]
 
