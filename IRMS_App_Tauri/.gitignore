@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Updater manifest is a per-release build artifact (contains a build-specific signature),
+# hand-assembled and uploaded straight to the GitHub release — never committed.
+latest.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

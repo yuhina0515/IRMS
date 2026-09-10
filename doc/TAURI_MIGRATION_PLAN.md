@@ -255,8 +255,8 @@ regardless of platform. This is a pre-existing app-level minimum-size assumption
 screenshot-diffing against Electron is still open, blocked on a normal-sized display.
 
 ### Phase 4 — Auto-update — 🖥 no hardware needed, but real cost (flagged by all three meeting
-participants, not disputed by any critique) — ✅ App-side integration done (2026-09-10), ⚠ release
-pipeline NOT done (see below)
+participants, not disputed by any critique) — ✅ App-side integration done (2026-09-10), ✅ release
+pipeline established manually (2026-09-11, see below) — ⚠ not yet proven end-to-end with a real client
 
 - [x] Replace `electron-updater`/GitHub-Releases-direct with Tauri's updater plugin
       (`tauri-plugin-updater`). One custom Rust command was needed (`src-tauri/src/update.rs`'s
@@ -276,11 +276,12 @@ pipeline NOT done (see below)
       real implementation. Tauri has no built-in prerelease-channel concept like
       `electron-updater`'s `allowPrerelease` — implemented as two distinct endpoint URLs
       (`update.rs`'s `STABLE_ENDPOINT`/`BETA_ENDPOINT`), selected server-side per check.
-      **Beta endpoint is a placeholder** (`.../releases/download/beta-latest/latest.json`) — it
-      assumes the release process publishes/replaces a `latest.json` asset under a fixed
-      `beta-latest` tag on every beta release, which is **not set up**; GitHub's own
-      `/releases/latest/download/` alias (used for the stable endpoint) only resolves to the
-      newest non-prerelease, with no prerelease equivalent.
+      **Beta endpoint is now live (2026-09-11)**: `.../releases/download/beta-latest/latest.json`
+      resolves — a `beta-latest` release now exists holding a hand-assembled `latest.json` for
+      `v1.2.0-beta.2`. GitHub's own `/releases/latest/download/` alias (used for the stable
+      endpoint) still resolves to nothing yet, since every release so far is a prerelease — that
+      will start working automatically the moment a real non-prerelease release ships, no further
+      setup needed for that path.
 - [x] Updater signing keypair generated (`tauri signer generate`) — private key + its password live
       at `E:\Monitoring-and-IoT\IRMS_secrets\` (sibling to the repo, never inside it, so it can't be
       accidentally committed); public key is in `tauri.conf.json`'s `plugins.updater.pubkey`.
@@ -295,10 +296,23 @@ pipeline NOT done (see below)
       Plan the first Tauri release's rollout with that in mind (e.g., keep the last Electron
       installer easily reachable for manual rollback). Not yet done because there's no Tauri
       release to write notes for yet — this is a release-time task, not an App-side coding task.
-- [ ] **Still open, follow-up work**: the actual release pipeline (CI or manual `tauri build`
-      producing signed installers + `latest.json`/`latest-beta.json` uploaded to the right GitHub
-      Releases tags). Nothing in this phase's App-side code is blocked on it, but auto-update
-      cannot function end-to-end for real users until it exists.
+- [x] **Release pipeline — manual procedure established (2026-09-11)**: `tauri build` with
+      `createUpdaterArtifacts: true` (already set in `tauri.conf.json`) produces the signed
+      installer + `.sig`, but does **not** itself emit a `latest.json` — that turned out to be
+      false comfort in the config's name; Tauri only auto-assembles that manifest inside
+      `tauri-action` (the GitHub Action this repo doesn't use), so it has to be hand-built per
+      release: `{version, notes, pub_date, platforms: {"windows-x86_64": {signature, url}}}` where
+      `signature` is the raw contents of the generated `.sig` file and `url` is the versioned
+      release's installer asset URL (mind the GitHub space→dot filename mangling noted in
+      [[irms-project-conventions]]). Upload that `latest.json` to **two** places every beta
+      release: the versioned release itself (so `gh release view` shows a complete asset set) and
+      as a replacement asset on the fixed `beta-latest` tag (`gh release upload beta-latest
+      latest.json --clobber`, or delete+recreate the release, since `gh release upload` won't
+      overwrite silently — see [[log_20260911_tauri_updater_pipeline]]). No CI automation yet;
+      still a manual step, same as every other release action in this repo.
+      **Not yet exercised end-to-end**: no real client has actually received and applied an update
+      through this pipeline — that needs a second, higher-version beta release to prove the first
+      one's client picks it up, which naturally happens on the next real beta.
 
 ### Phase 5 — Cutover
 

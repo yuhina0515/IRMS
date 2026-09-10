@@ -811,6 +811,22 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   程式碼重建(含資料遷移模組)。現在兩個 release 的 tag/title/安裝檔內部版本字串三者
   一致,且版本號先後順序反映真實的功能變更歷史。
 
+- **2026-09-11 Tauri 更新器 release pipeline 補完**([[log_20260911_tauri_updater_pipeline|日誌]]):
+  `createUpdaterArtifacts: true` 只保證 `.sig`,不會連 `latest.json` 都生出來(那是
+  `tauri-action` 才做的事,這個 repo 沒有 CI)。手刻 `latest.json` 上傳到 `v1.2.0-beta.2`
+  release,並新建 `update.rs` 早就假設存在的 `beta-latest` release 讓 beta 頻道端點真正
+  解析得到東西。stable 端點維持原樣,等第一個正式版才會有東西可解析。⚠ 尚未端到端驗證
+  (需要下一個更高版本號的 beta 才能證明舊版真的抓得到新版)
+- **2026-09-11 UI/藝術設計權責全權移交 Gemini**([[log_20260911_design_authority_to_gemini|日誌]]):
+  使用者明確指示「讓 Gemini 主導藝術設計及 UI 設計,讓 AI 助手完全脫離這類藝術設計」——比
+  09-02 的「UI 設計全權交給 Gemini」([[log_20260902_ui_design_delegated_nav_cockpit]])更進
+  一步:不只是「Gemini 的建議照做不回頭問」,而是這個角色本身不再產生任何美術/視覺判斷,
+  只負責忠實實作 Gemini 給的規格與查證可驗證的事實(對比度、數值)。`AI_CODING_RULES.md`
+  新增 §1.1 明文記錄
+- **2026-09-11 GitHub issue #3 指派給 Harold 進行實機測試**:Tauri 遷移 Phase 0/Phase 5 都
+  卡在同一個硬體驗證閘門上,指派給有裝置存取權的隊友 harold1008,請求依 issue 內既有的
+  30 分鐘驗證腳本測試並回報結果
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
