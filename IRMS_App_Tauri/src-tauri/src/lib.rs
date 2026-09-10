@@ -3,6 +3,7 @@ mod commands;
 mod db;
 mod defaults;
 mod downsample;
+mod migrate_electron;
 mod migrations;
 mod protocol;
 mod splash;
@@ -44,6 +45,16 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let db_path = data_dir.join("irms.sqlite");
+            // One-time pickup of the Electron app's data on a fresh Tauri install (see
+            // migrate_electron.rs for the full design). Deliberately non-fatal: a migration
+            // failure must never block the app from starting — it just starts with an empty DB,
+            // same as any other fresh install, and the Electron folder is left untouched unless
+            // the migration verified success before deleting it.
+            match migrate_electron::migrate_if_needed(&db_path) {
+                Ok(true) => println!("[migrate] imported existing data from the Electron app"),
+                Ok(false) => {}
+                Err(err) => eprintln!("[migrate] Electron data migration failed, starting fresh: {err}"),
+            }
             let conn = db::init_database(&db_path)?;
             app.manage(DbState(Mutex::new(conn)));
             // Main window is declared `visible: false` in tauri.conf.json — the boot-splash

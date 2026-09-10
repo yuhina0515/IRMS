@@ -780,6 +780,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `npm run ci`(268 tests)全綠,`cargo check` 全綠,兩輪 `tauri dev` 實測啟動+
   視覺驗證通過(小螢幕測試環境的已知限制見日誌),最後產出簽章 release build 當內部
   測試用,不對外發布。
+- **2026-09-10 Electron → Tauri 資料一次性遷移**
+  ([[log_20260910_electron_to_tauri_data_migration|完整日誌]]):使用者原想讓 Electron 版
+  自動更新機制直接偵測到 Tauri 版當成下一版,追蹤後發現兩邊 userData 資料夾不同、版本號
+  方向也不對,會讓使用者以為資料消失,改為手動安裝 + 資料遷移模組。新增
+  `src-tauri/src/migrate_electron.rs`:Tauri 第一次啟動時偵測到自己的 DB 不存在、
+  Electron 的 `%APPDATA%\irms-app\irms.sqlite` 存在,就複製過來讓既有 migration runner
+  跑到最新 schema,**驗證複製結果真的可讀之後才刪除來源資料夾**——這是使用者明確要求、
+  針對這一個資料夾的「封存改刪除」例外,不影響 Electron 程式本體仍保留封存的既有決定。
+  校準/主題設定存在 Electron 的 Local Storage(Chromium leveldb,WebView2 讀不到),
+  確定不遷移,是已知取捨。3 個單元測試(成功路徑、無來源 no-op、複製損毀時來源不可刪除)
+  全部針對 OS temp 目錄的假資料跑,全程沒有碰過這台機器上真實的 Electron 資料。
+  `cargo test` 54/54 全綠。
 
 ![[coding-logs.base]]
 

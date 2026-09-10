@@ -307,9 +307,26 @@ pipeline NOT done (see below)
 - [ ] Run the existing manual hardware validation script (the ~30-minute E2E pass already used for
       the Electron app, see [[ROADMAP]] Phase 0/issue #3) against the Tauri build, not just the
       Electron one.
-- [ ] `IRMS_App` (Electron) archived, not deleted — same treatment `ROADMAP.md` already gives
-      retired approaches (e.g. `IRMS_Sensor_Full.bak`) — kept as a reference/rollback point, not
-      actively developed further after cutover.
+- [ ] `IRMS_App` (Electron) **codebase** archived, not deleted — same treatment `ROADMAP.md`
+      already gives retired approaches (e.g. `IRMS_Sensor_Full.bak`) — kept as a reference/rollback
+      point, not actively developed further after cutover. **This is about the source code, not
+      the Electron installation's userData folder** — see the next bullet, which is a deliberate
+      exception to "don't delete" scoped narrowly to that one folder.
+- [x] **Electron → Tauri data migration, done (2026-09-10)**: `src-tauri/src/migrate_electron.rs`
+      runs once on a fresh Tauri install — if Tauri's own DB doesn't exist yet and
+      `%APPDATA%\irms-app\irms.sqlite` (the Electron app's real userData folder; note this is
+      keyed off `package.json`'s `"name"` field, not the `productName` "IRMS Dashboard") does, it
+      copies the SQLite file over, lets the normal migration runner bring it up to Tauri's current
+      schema, verifies the copy is a real readable database, and only then deletes the source
+      Electron userData folder — **this is a user-directed exception to "archive, don't delete"**,
+      scoped specifically to this one data folder (not the Electron app itself, which stays
+      installed and archived per the bullet above). If the copy or verification fails at any
+      point, the Electron folder is left untouched and the error is logged, non-fatally — the app
+      still starts with an empty DB rather than blocking launch. **Known, accepted gap**: Settings
+      (theme/calibration/beta-update toggle) live in Electron's Local Storage (Chromium leveldb),
+      which WebView2 cannot read — only `irms.sqlite`'s contents transfer, Settings reset to
+      Tauri's defaults. 3 unit tests cover the success path, the no-source no-op, and the safety
+      property that a corrupt copy does NOT get the source deleted.
 
 ## Risk register
 
