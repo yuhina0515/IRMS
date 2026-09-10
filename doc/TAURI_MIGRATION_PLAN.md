@@ -284,3 +284,29 @@ re-derived from the minutes every time this plan is revisited:
    Phase 2 above. Decide before starting Phase 2.
 2. Nothing else is currently blocking on a user decision — Phases 0/1/3/4 have clear technical
    paths and don't need a judgment call to proceed.
+
+## Future consideration (not yet scoped, gated on Phase 4)
+
+**2026-09-09/10**: user confirmed direction for a runtime-pluggable module system on the App
+side — feature modules updatable without a full app version bump, users choosing which
+non-core modules to enable/disable. Full framing lives in `[[OPTIMIZATION]]`'s P4 backlog (not
+architectural enough yet for a ROADMAP decision entry). Noted here because it has a real
+dependency on this plan: module delivery/versioning would ride on whatever Phase 4 picks for
+the Tauri updater plugin's manifest mechanism, so this can't be scoped in earnest until Phase 4
+is decided. Also constrained by `#[tauri::command]` being compile-time-registered — only
+modules that stay in pure frontend logic (no native/BLE/DB) can realistically be swapped
+without a full rebuild.
+
+**2026-09-10 decided**: a three-way decision meeting (same format as the 2026-09-07 Tauri
+migration precedent) must happen once Phase 4 lands and this is actually ready to be designed —
+not a straight fall-through into implementation. First-party-only module source is the working
+assumption for now, not yet finalized; that gets re-confirmed at the decision meeting.
+Bundle integrity verification is locked in as SHA-256 checksum + signature (against a
+release-embedded public key); key management and failure-mode details are deferred to that same
+design pass. **The calibration logic rewrite (see `[[OPTIMIZATION]]`'s P4 entry) is now the
+first module planned for this system** — the user confirmed the existing paired-sensor,
+single-linear-wizard calibration architecture can't isolate which sensor/step is actually wrong,
+and chose to hold that fix until this module system is ready rather than patch it standalone now.
+The already-decided design from `[[log_20260908_meeting_single_imu_axis_orientation]]` (raw
+vector rotation + `atan2`, independent per-limb `recalibrateAxis`) remains the reference
+starting point for that rewrite, not discarded — just not implemented ahead of the module system.
