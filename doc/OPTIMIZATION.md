@@ -255,9 +255,12 @@
         端註冊的,不是執行期可插拔的。純前端邏輯模組(校正、guidance 文案等不碰 native
         的 `services/`)理論上可以做成真動態;碰 BLE/DB/OTA 等 native 能力的模組做不到,
         永遠得跟著整包版本一起發布。
-      - **依賴閘門:[[TAURI_MIGRATION_PLAN]] Phase 4(auto-update)**,不是 Phase 2(前端/DB
-        搬遷,已完成)——模組要怎麼交付、怎麼比版本,設計上跟 Tauri updater plugin 最終
-        用哪套機制(`latest.json` manifest)綁在一起,Phase 4 沒決定,模組交付機制就沒地基。
+      - **依賴閘門:[[TAURI_MIGRATION_PLAN]] Phase 4(auto-update)——2026-09-10 App 端整合
+        已完成**(見 [[log_20260910_tauri_phase3_phase4]]):`tauri-plugin-updater` +
+        `latest.json` manifest 機制已選定並實作(`src-tauri/src/update.rs`),模組交付/
+        版本比對可以參考同一套機制設計,地基已經在。**但實際發版管線(CI 產生/上傳
+        `latest.json`,beta 頻道的 `beta-latest` tag 機制)尚未建立**,這件事本身也還沒
+        真正跑過一次端對端——動工模組系統設計前,建議先看過一次 Tauri 真實發版是否順利。
       - **動態載入程式碼的完整性驗證(2026-09-10 定案採用)**:這支 App 碰患者復健資料,
         抓遠端模組 bundle 執行前不能無條件信任下載回來的內容——**採用 SHA-256 checksum +
         簽章驗證(比對釋出時內建的公鑰)**,金鑰管理/驗證失敗行為等細節留到 Phase 4 到位、

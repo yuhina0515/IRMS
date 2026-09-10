@@ -20,6 +20,16 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+# Replaces main/index.ts's hand-rolled requestSingleInstanceLock()/second-instance handler —
+# desktop-only (see the #[cfg(desktop)] guard in lib.rs), same reason the app already gates
+# tauri::mobile_entry_point behind #[cfg_attr(mobile, ...)].
+tauri-plugin-single-instance = "2"
+# Phase 4 — replaces electron-updater. See commands.rs's update_check for why the beta/stable
+# channel toggle needs a custom Rust command instead of the plugin's default JS check(): the JS
+# CheckOptions has no per-call endpoint override, only the Rust UpdaterBuilder does.
+tauri-plugin-updater = "2"
+time = { version = "0.3", features = ["parsing", "formatting"] }
+url = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # BLE layer — Web Bluetooth has no equivalent in WebView2/Tauri, so this replaces

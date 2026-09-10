@@ -770,6 +770,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   拍板:動工前先開三方裁決會議(比照 09-07 Tauri 遷移)、模組來源暫定第一方(待裁決會議
   再確認)、完整性驗證定案 SHA-256 checksum + 簽章。整體仍卡在 Tauri Phase 4 這個依賴
   閘門上,純決策紀錄,未動工。
+- **2026-09-10 Tauri 遷移 Phase 3 + Phase 4**([[log_20260910_tauri_phase3_phase4|完整日誌]]):
+  Phase 3(視窗外觀/開機動畫/單一實例)與 Phase 4(自動更新 App 端整合)完成。新增
+  `src-tauri/src/splash.rs` 完整重現開機動畫兩階段交接,`splash.html`/`splash.css`/
+  `splash.ts` 近乎逐字從 Electron 版搬過去(邊緣飛入幾何運算其實零 Electron 依賴,
+  09-08 標記的「需要重新設計」沒有發生);新增 `src-tauri/src/update.rs` 的
+  `update_check` 自訂指令做 beta/stable 頻道選擇,其餘沿用外掛原生的 `Update` 類別。
+  簽章金鑰對存在 repo 外的 `IRMS_secrets`;beta 頻道端點與 CI 發版管線刻意標記未完成。
+  `npm run ci`(268 tests)全綠,`cargo check` 全綠,兩輪 `tauri dev` 實測啟動+
+  視覺驗證通過(小螢幕測試環境的已知限制見日誌),最後產出簽章 release build 當內部
+  測試用,不對外發布。
 
 ![[coding-logs.base]]
 

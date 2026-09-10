@@ -3,14 +3,18 @@
 // Phase 2a(IRMS_App)把這個模組的介面(IrmsApi)定出來,call site 全部改成
 // import { irms } from '<relative>/platform/irmsApi'。這裡是那個介面在 Tauri 這側
 // 唯一的真正實作:sessions/data/actions 是對 src-tauri/src/commands.rs 的機械式
-// invoke() 包裝;windowControls/updates 依 TAURI_MIGRATION_PLAN.md 的既定判斷,
-// 不是機械式代換——前者用 @tauri-apps/api/window 做出真正可用的最小實作,
-// 後者(auto-update)與 firmware.pickBinary(檔案選取+MD5)刻意留白,分別對應
-// task #54(Phase 4 自動更新)與新增的 firmware-picker 任務,而不是假裝已經做完。
+// invoke() 包裝;windowControls 用 @tauri-apps/api/window 做出真正可用的最小實作;
+// updates(Phase 4,2026-09-10)對 src-tauri/src/update.rs 的 `update_check` 自訂指令
+// (唯一需要客製 Rust 的部分,見該檔案開頭註解——beta/stable 頻道選擇需要
+// UpdaterBuilder::endpoints(),JS 版 check() 的 CheckOptions 沒有這個能力),
+// 拿到的 metadata 直接餵給 @tauri-apps/plugin-updater 匯出的 Update 類別,下載/安裝
+// 走該外掛原生的 resource/事件機制。firmware.pickBinary(檔案選取+MD5)仍刻意留白,
+// 對應新增的 firmware-picker 任務,不假裝已經做完。
 
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getVersion } from '@tauri-apps/api/app'
+import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import type {
   CustomAction,
   CustomActionInput,
@@ -18,8 +22,74 @@ import type {
   Session,
   SensorReading,
   SessionStartInput,
-  StoredReading
+  StoredReading,
+  UpdateStatus
 } from '@shared/types'
+
+interface UpdateMetadata {
+  rid: number
+  currentVersion: string
+  version: string
+  date?: string
+  body?: string
+  rawJson: Record<string, unknown>
+}
+
+// dev 模式沒有打包後可供比對的 endpoint 內容,checkNow 在這裡仍可手動呼叫,但不自動背景
+// 檢查——比照 main/updater.ts 的 ENABLED 閘門(is.dev),避免開發時對外發出無意義的請求。
+const AUTO_CHECK_ENABLED = !import.meta.env.DEV
+const AUTO_CHECK_DELAY_MS = 5000
+
+let currentUpdate: Update | null = null
+let allowBeta = false
+const statusListeners = new Set<(status: UpdateStatus) => void>()
+
+function emitStatus(status: UpdateStatus): void {
+  statusListeners.forEach((cb) => cb(status))
+}
+
+async function performCheck(): Promise<void> {
+  emitStatus({ state: 'checking' })
+  try {
+    const metadata = await invoke<UpdateMetadata | null>('update_check', { allowBeta })
+    if (!metadata) {
+      emitStatus({ state: 'not-available' })
+      return
+    }
+    currentUpdate = new Update({
+      rid: metadata.rid,
+      currentVersion: metadata.currentVersion,
+      version: metadata.version,
+      date: metadata.date,
+      body: metadata.body,
+      rawJson: metadata.rawJson
+    })
+    emitStatus({ state: 'available', version: currentUpdate.version })
+
+    // 靜默背景下載,比照 main/updater.ts 的 autoDownload:true——下載完成後由
+    // UpdateBanner 顯示「重新啟動套用」,使用者按下才呼叫 restartNow()。
+    let downloadedBytes = 0
+    let totalBytes: number | undefined
+    await currentUpdate.download((event: DownloadEvent) => {
+      if (event.event === 'Started') {
+        downloadedBytes = 0
+        totalBytes = event.data.contentLength
+      } else if (event.event === 'Progress') {
+        downloadedBytes += event.data.chunkLength
+        const percent = totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
+        emitStatus({ state: 'downloading', percent })
+      }
+    })
+    emitStatus({ state: 'downloaded', version: currentUpdate.version })
+  } catch (err) {
+    console.error('[updater] check/download failed:', err)
+    emitStatus({ state: 'error', message: err instanceof Error ? err.message : String(err) })
+  }
+}
+
+if (AUTO_CHECK_ENABLED) {
+  setTimeout(() => void performCheck(), AUTO_CHECK_DELAY_MS)
+}
 
 export const irms: IrmsApi = {
   sessions: {
@@ -98,10 +168,10 @@ export const irms: IrmsApi = {
     isMaximized() {
       return getCurrentWindow().isMaximized()
     },
-    // Phase 3(task #53)才會把視窗換成 decorations:false 的無邊框自繪標題列;
-    // 在那之前視窗仍是原生裝飾,TopHeader 必須知道「不要疊自己畫的一份」。
+    // Phase 3(2026-09-10):tauri.conf.json 的主視窗已改 decorations:false,
+    // TopHeader 改畫自己的拖曳列/控制鈕,不再疊原生裝飾。
     async hasCustomTitlebar() {
-      return false
+      return true
     },
     onMaximizedChange(cb: (maximized: boolean) => void) {
       let cancelled = false
@@ -126,14 +196,23 @@ export const irms: IrmsApi = {
     getCurrentVersion() {
       return getVersion()
     },
-    // task #54(Phase 4:electron-updater -> tauri-plugin-updater)之前,更新生命週期
-    // 不存在——no-op 而非拋例外,讓 Settings 的「檢查更新」按鈕維持可點但無效果,
-    // UpdateBanner 也不會因為訂閱不到事件而出錯,只是永遠不會顯示。
-    async checkNow() {},
-    async restartNow() {},
-    async setAllowPrerelease() {},
-    onStatusChange() {
-      return () => {}
+    async checkNow() {
+      await performCheck()
+    },
+    async restartNow() {
+      // Windows:install() 成功送出安裝程式後會直接結束 App(見 update.rs 開頭註解),
+      // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
+      if (!currentUpdate) return
+      await currentUpdate.install()
+    },
+    async setAllowPrerelease(allow: boolean) {
+      allowBeta = allow
+    },
+    onStatusChange(cb: (status: UpdateStatus) => void) {
+      statusListeners.add(cb)
+      return () => {
+        statusListeners.delete(cb)
+      }
     }
   }
 }

@@ -15,6 +15,18 @@ export default defineConfig(() => ({
     }
   },
 
+  // Two-page build, same shape as Electron's electron.vite.config.ts: the main React app plus
+  // the standalone (non-React) boot-splash bundle, built separately so splash.ts stays free of
+  // the main bundle's parse/init cost.
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        splash: fileURLToPath(new URL("./splash.html", import.meta.url))
+      }
+    }
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

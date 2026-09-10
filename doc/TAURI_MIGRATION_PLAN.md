@@ -219,37 +219,86 @@ manual smoke pass through every view (Dashboard/Actions/History/Settings) in dem
 hardware needed for this pass — demo mode already exists precisely to exercise the full pipeline
 without a device).
 
-### Phase 3 — Window chrome, boot splash, single-instance — 🖥 no hardware needed
+### Phase 3 — Window chrome, boot splash, single-instance — 🖥 no hardware needed — ✅ done (2026-09-10)
 
-- [ ] Frameless titlebar + custom minimize/maximize/close (Tauri: `decorations: false` +
-      `@tauri-apps/api/window`, same drag-region CSS approach ports directly).
-- [ ] Single-instance lock (`tauri-plugin-single-instance` — likely simpler than the current
-      hand-rolled `second-instance` handler, per the meeting's migration advocate).
-- [ ] Two-stage boot splash (see [[log_20260907_boot_splash_and_code_splitting]] and
-      [[log_20260907_boot_splash_gemini_review]] for what it currently does) — the manual
-      60fps `setBounds()` growth loop ports to Tauri's `Window::set_size`/`set_position`; the
-      splash renderer (currently a standalone non-React HTML/CSS/SVG bundle) needs its own Tauri
-      window + a Rust-side port of `main/splash.ts`'s handoff orchestration.
+- [x] Frameless titlebar + custom minimize/maximize/close (`decorations:false` in
+      `tauri.conf.json`; `platform/irmsApi.ts`'s `windowControls` was already a real
+      `@tauri-apps/api/window` implementation from Phase 2 — only `hasCustomTitlebar()` needed to
+      flip from its placeholder `false` to `true`). `TopHeader.tsx`/`WindowControls` ported
+      byte-identical from `IRMS_App`, no changes needed.
+- [x] Single-instance lock (`tauri-plugin-single-instance`, registered first in the builder chain
+      per Tauri's own requirement; focuses the "main"-labeled window on second launch).
+- [x] Two-stage boot splash — `src-tauri/src/splash.rs` (new module) orchestrates a dynamically
+      created "splash" `WebviewWindow` sized to the primary monitor's work area, steps its bounds
+      via `set_position`/`set_size` on a 16ms timer (`animate_bounds`, direct port of
+      `animateBounds()`'s ease-out-cubic math), and hands off to the main window exactly like
+      `main/splash.ts`. `splash.html`/`src/splash.css`/`src/splash.ts` ported near-verbatim from
+      `IRMS_App` — the edge-travel geometry math (`setupFullScreenAssembly`) turned out to have
+      zero Electron-specific dependencies (pure DOM/SVG math off the window's own viewport), so
+      the "needs to be redesigned" flag from [[log_20260908_boot_splash_edge_travel]] didn't
+      apply — only the bridge at the bottom of splash.ts (Tauri `invoke`/`listen` replacing
+      Electron's contextBridge) is platform-specific. One deliberate simplification: reduced-motion
+      + ready now travel up in a single `invoke('splash_ready', {reducedMotion})` call instead of
+      the Electron version's two-step did-finish-load + executeJavaScript(matchMedia) query, since
+      Tauri's invoke can carry a payload on the very first call. Full details:
+      [[log_20260910_tauri_phase3_phase4]].
 
-**Exit gate**: visual/timing parity check against the Electron version's existing Playwright
-verification pattern (screenshot each phase, confirm no reflow/timing regressions) — same
-standard already applied to the Electron splash work, not a lower bar just because it's a port.
+**Exit gate**: ✅ met, with a caveat — verified live (`npm run tauri dev` + screenshots), confirmed
+no native title bar (frameless working), custom header/controls render, no Rust panics or webview
+console errors, and the app reaches a fully rendered Dashboard state (splash sequence completes
+without hanging). Could **not** get a clean side-by-side pixel/timing comparison against the
+Electron version's Playwright harness — the test machine's virtual display (819×614) is smaller
+than the app's own `minWidth:1024`, which clipped the window's right edge in screenshots
+regardless of platform. This is a pre-existing app-level minimum-size assumption (see
+`main/index.ts`'s own "13" 1366×768 at 125% scaling ≈ 1093×614 DIP" comment), not something Phase
+3 introduced — the Electron app would clip identically on this same screen. Real Playwright
+screenshot-diffing against Electron is still open, blocked on a normal-sized display.
 
 ### Phase 4 — Auto-update — 🖥 no hardware needed, but real cost (flagged by all three meeting
-participants, not disputed by any critique)
+participants, not disputed by any critique) — ✅ App-side integration done (2026-09-10), ⚠ release
+pipeline NOT done (see below)
 
-- [ ] Replace `electron-updater`/GitHub-Releases-direct with Tauri's updater plugin
-      (`tauri-plugin-updater`), which needs a generated `latest.json` manifest — `tauri-action`
-      can automate this in CI, but it's a new moving part in the release pipeline, not a drop-in.
-- [ ] Port the beta/stable channel toggle (`allowBetaUpdates`, shipped 2026-09-07 —
-      [[log_20260907_beta_update_optin_toggle]]) to whatever channel concept the Tauri updater
-      plugin supports.
+- [x] Replace `electron-updater`/GitHub-Releases-direct with Tauri's updater plugin
+      (`tauri-plugin-updater`). One custom Rust command was needed (`src-tauri/src/update.rs`'s
+      `update_check`) — the JS `check()`'s `CheckOptions` has no per-call endpoint override, only
+      the Rust `UpdaterBuilder::endpoints()` does, and that's required for the channel toggle
+      below. The command returns the same `{rid, currentVersion, version, date, body, rawJson}`
+      shape the plugin's own `check` command does, so `platform/irmsApi.ts` hands it straight to
+      `new Update(metadata)` (exported by `@tauri-apps/plugin-updater`) and rides the plugin's own
+      `download`/`install` machinery unmodified from there — minimal custom surface.
+      **`tauri-action`/CI manifest generation is NOT set up** — this repo has no `.github/workflows`
+      at all (Electron's releases are also fully manual, `electron-builder --publish` run by hand;
+      no precedent to follow here). `latest.json` generation for a real release still needs
+      `tauri build` run with `TAURI_SIGNING_PRIVATE_KEY` set, same manual-release pattern as today.
+- [x] Port the beta/stable channel toggle (`allowBetaUpdates`) — the frontend UI
+      (`SettingsView`'s toggle, `App.tsx`'s `setAllowPrerelease` call, `UpdateBanner`) was already
+      fully wired from Phase 2's platform-adapter work; only `irmsApi.ts`'s `updates` stub needed a
+      real implementation. Tauri has no built-in prerelease-channel concept like
+      `electron-updater`'s `allowPrerelease` — implemented as two distinct endpoint URLs
+      (`update.rs`'s `STABLE_ENDPOINT`/`BETA_ENDPOINT`), selected server-side per check.
+      **Beta endpoint is a placeholder** (`.../releases/download/beta-latest/latest.json`) — it
+      assumes the release process publishes/replaces a `latest.json` asset under a fixed
+      `beta-latest` tag on every beta release, which is **not set up**; GitHub's own
+      `/releases/latest/download/` alias (used for the stable endpoint) only resolves to the
+      newest non-prerelease, with no prerelease equivalent.
+- [x] Updater signing keypair generated (`tauri signer generate`) — private key + its password live
+      at `E:\Monitoring-and-IoT\IRMS_secrets\` (sibling to the repo, never inside it, so it can't be
+      accidentally committed); public key is in `tauri.conf.json`'s `plugins.updater.pubkey`.
+      **The private key and password are NOT backed up anywhere else** — if this machine is lost,
+      no future Tauri build can produce updates existing installs will accept, and every user would
+      need a manual reinstall. Back the key + password up to a password manager before relying on
+      this in a real release.
 - [ ] **Document the cutover discontinuity explicitly in the release notes when this ships**: per
       the hardware-integration critique, existing Electron installs (including whatever build is
       used for real-hardware testing) cannot auto-update into the first Tauri release — that's a
       manual reinstall, with no auto-update rollback path if the first Tauri build regresses.
       Plan the first Tauri release's rollout with that in mind (e.g., keep the last Electron
-      installer easily reachable for manual rollback).
+      installer easily reachable for manual rollback). Not yet done because there's no Tauri
+      release to write notes for yet — this is a release-time task, not an App-side coding task.
+- [ ] **Still open, follow-up work**: the actual release pipeline (CI or manual `tauri build`
+      producing signed installers + `latest.json`/`latest-beta.json` uploaded to the right GitHub
+      Releases tags). Nothing in this phase's App-side code is blocked on it, but auto-update
+      cannot function end-to-end for real users until it exists.
 
 ### Phase 5 — Cutover
 
