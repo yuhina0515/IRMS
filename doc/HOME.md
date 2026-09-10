@@ -827,6 +827,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   卡在同一個硬體驗證閘門上,指派給有裝置存取權的隊友 harold1008,請求依 issue 內既有的
   30 分鐘驗證腳本測試並回報結果
 
+- **⚠ 2026-09-11 TopHeader 視窗控制鈕點擊偏移調查**
+  ([[log_20260911_titlebar_click_offset_investigation|日誌]]):使用者回報縮小/放大/關閉
+  異常,重現確認是**真的 bug**——按鈕視覺位置正常,但真滑鼠點擊判定座標跟畫面渲染座標
+  對不上(偏移約一個標題列高度,幾乎點不到)。順手修掉一個獨立成立的問題(拖曳判定改用
+  Tauri 官方 `data-tauri-drag-region`,原本沿用 Electron 的 `-webkit-app-region` 在
+  WebView2 上不可靠)。**但點擊偏移本身兩次嘗試修正都失敗,仍未解決**,符合 Tauri 官方
+  repo 上同類 `decorations:false`/Windows 幾何殘留的懸而未決 issue,不是這個專案自己的
+  邏輯錯誤。⚠ 沒有因此發新 beta——偏移量還在,發版只會讓人以為修好了
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌

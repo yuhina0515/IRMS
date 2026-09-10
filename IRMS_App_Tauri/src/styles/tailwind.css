@@ -278,18 +278,13 @@
   .top-header {
     @apply bg-surface border-b border-border flex items-center justify-between px-3 py-2;
   }
-  /* 自訂標題列(frame:false,見 main/index.ts)。整條 bar 預設可拖曳視窗,
-     實際可點擊的子元素(按鈕、視窗控制鈕)逐一標回 no-drag——這個順序(整體 drag、
-     互動元素 no-drag)比反過來(整體 no-drag、手動框出可拖曳的空白區)更不容易漏掉
-     新增按鈕時忘記處理,新按鈕預設就是「先不能拖」而非「先能拖到擋住點擊」。
-     RDP session(hasCustomTitlebar=false)不會加上 .draggable class,維持原生框行為。 */
-  .top-header.draggable {
-    -webkit-app-region: drag;
-  }
-  .top-header.draggable button,
-  .top-header.draggable .window-controls {
-    -webkit-app-region: no-drag;
-  }
+  /* 自訂標題列(decorations:false,見 tauri.conf.json)。拖曳判定改用 TopHeader.tsx 上的
+     `data-tauri-drag-region` attribute,不是 -webkit-app-region CSS——這裡曾經是
+     Electron 版沿用過來的 -webkit-app-region: drag/no-drag 寫法,實測在 WebView2 上不可靠
+     (巢狀 no-drag 例外常失效,導致視窗控制鈕視覺位置正常但真滑鼠點擊完全沒反應,只有
+     UI Automation 直接呼叫才生效),已於 2026-09-11 換掉,見對應 coding log。
+     Tauri 的屬性判定只認「滑鼠事件的實際 target 本身」有沒有這個 attribute,按鈕等互動
+     子元素天生不會被攔截,不需要再手動標記 no-drag 例外。 */
   .window-controls {
     @apply flex items-stretch self-stretch -my-2 ml-2;
   }

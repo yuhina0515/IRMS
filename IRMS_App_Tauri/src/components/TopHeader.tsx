@@ -131,10 +131,17 @@ export function TopHeader(): JSX.Element {
 
   return (
     <header
-      className={`top-header glass${hasCustomTitlebar ? ' draggable' : ''}`}
+      className="top-header glass"
       // 雙擊拖曳列切換最大化/還原——比照 Windows/macOS 原生標題列的標準手感。
       // RDP session(hasCustomTitlebar=false)已有原生框自帶這個行為,不重複掛。
       onDoubleClick={hasCustomTitlebar ? () => void irms.windowControls.toggleMaximize() : undefined}
+      // Tauri 的拖曳判定是 data-tauri-drag-region 屬性(只認「點擊的元素本身」有沒有這個
+      // attribute),不是 Electron 那種 -webkit-app-region CSS 判定區域——後者在 WebView2
+      // 上不可靠,巢狀的 no-drag 例外常常失效,導致底下的按鈕整個吃不到滑鼠點擊(實測重現:
+      // 畫面上按鈕位置正常、用 UI Automation 直接呼叫看得到指令生效,但真滑鼠點在同一個
+      // 座標完全沒反應)。改用屬性判定後,沒有這個屬性的子元素(按鈕)天生就不會被攔截,
+      // 不需要再手動標記每個新按鈕的 no-drag 例外。
+      {...(hasCustomTitlebar ? { 'data-tauri-drag-region': true } : {})}
     >
       <div className="logo">
         <img src={logoIcon} alt="" className="logo-mark" />
