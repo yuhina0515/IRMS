@@ -800,6 +800,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   只留 `["nsis"]`(跟 Electron 版既有的 NSIS-only 慣例一致)解決,不是各退一步兩種格式
   各用不同版本號。發布 [v1.2.0-beta.1](https://github.com/yuhina0515/IRMS/releases/tag/v1.2.0-beta.1),
   release notes 標註本版新增 Electron 資料遷移模組,仍是 UI-only 預覽、裝置功能未驗證。
+  ⚠️ **後續被下面這篇取代**。
+- **2026-09-10 Tauri release 命名修正 + 拆成 beta.1/beta.2**
+  ([[log_20260910_tauri_beta_rename_and_beta2|完整日誌]]):使用者要求把 Tauri release
+  命名改成跟既有 Electron release 完全一致(title 純版本號、tag `vX.Y.Z-beta.N`,不帶
+  App 名稱前綴)。刪除重建 `tauri-preview-v0.1.0` 與舊的 `v1.2.0-beta.1` 兩個 release,
+  但沒有直接搬用舊安裝檔改名——因為舊檔案內部版本字串跟新 tag 對不上,各自重新建置一份
+  版本字串正確對應的安裝檔:`1.2.0-beta.1` 用 `git worktree` checkout 到加入資料遷移
+  模組前的 commit(`d519883`)重建,維持原本「無資料遷移」的內容;`1.2.0-beta.2` 用目前
+  程式碼重建(含資料遷移模組)。現在兩個 release 的 tag/title/安裝檔內部版本字串三者
+  一致,且版本號先後順序反映真實的功能變更歷史。
 
 ![[coding-logs.base]]
 
