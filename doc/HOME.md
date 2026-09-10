@@ -792,6 +792,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   確定不遷移,是已知取捨。3 個單元測試(成功路徑、無來源 no-op、複製損毀時來源不可刪除)
   全部針對 OS temp 目錄的假資料跑,全程沒有碰過這台機器上真實的 Electron 資料。
   `cargo test` 54/54 全綠。
+- **2026-09-10 IRMS_App_Tauri 1.2.0-beta.1 發版**
+  ([[log_20260910_tauri_1.2.0_beta1_release|完整日誌]]):版本號接上 IRMS 主產品線
+  (Electron 上一版 1.1.0-beta.4 之後跳到 1.2.0-beta.1),取代先前的
+  `tauri-preview-v0.1.0` 命名。發版途中撞到真實的 MSI 格式限制——MSI 的 ProductVersion
+  只接受純數字 pre-release 識別碼,semver 的 `-beta.1` 讓打包直接中止,改成 `bundle.targets`
+  只留 `["nsis"]`(跟 Electron 版既有的 NSIS-only 慣例一致)解決,不是各退一步兩種格式
+  各用不同版本號。發布 [v1.2.0-beta.1](https://github.com/yuhina0515/IRMS/releases/tag/v1.2.0-beta.1),
+  release notes 標註本版新增 Electron 資料遷移模組,仍是 UI-only 預覽、裝置功能未驗證。
 
 ![[coding-logs.base]]
 
