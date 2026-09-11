@@ -282,6 +282,20 @@
       尚未展開的開放問題:模組 manifest/版本比對格式、Settings UI 要怎麼呈現「模組」給
       使用者選——這些等 spike 有結論、且真的出現第二個模組需求時再展開。
 
+      **2026-09-11 草稿:現有功能對應到模組分層的初步盤點**(使用者要求列出全部功能並嘗試
+      分割,回答的是「哪些功能理論上屬於哪一層」這個問題本身,**不是啟動 spike 以外的任何
+      實作**,manifest/邊界仍是上一段講的「尚未展開」狀態,這份盤點只是先把地圖畫出來):
+
+      | 分層 | 範圍 | 理由 |
+      |---|---|---|
+      | 🔒 **不可能做成動態模組** | BLE 連線/OTA(`ble.rs` 全部 IPC command)、DB 讀寫(`db.rs`/`migrations.rs` 全部 IPC command)、App 自動更新(`update.rs`)、視窗外殼/開機動畫/單例鎖(`splash.rs`/`lib.rs`)、Electron→Tauri 一次性資料遷移(`migrate_electron.rs`) | Tauri 的 `#[tauri::command]` 編譯期在 Rust 端註冊,執行期無法動態新增——這條線是技術限制,不是設計選擇 |
+      | 🏗 **基本模組(即使技術上可動態,也不該讓使用者關掉)** | `store/useStore.ts`/`useUiStore.ts`(全域狀態骨幹)、`shared/types.ts`/`shared/protocol.ts`(契約型別)、`platform/irmsApi.ts`(IPC 橋接)、`sessionController.ts`(串起 BLE+判定引擎+DB 的協調層)、`triggerEngine.ts`+`movementMetric.ts`(判定引擎本體)、`bluetooth.ts`(含 reconnect 邏輯) | 其餘每個功能都直接依賴這幾層;讓使用者關掉等於讓 App 不能用,不是模組化的收益,是自找麻煩 |
+      | 🧩 **候選可選模組(純前端邏輯,理論上可掛可卸)** | 校準精靈(`calibration.ts`+`CalibrationWizard.tsx`,**已裁決不當第一個模組**)、教練提示文案(`guidance.ts`)、示範模式模擬器(`simulation/`)、動作搜尋排序分組(`actionQuery.ts`)、3D 姿態視圖(`Leg3D.tsx`,three.js)、即時折線圖(`LiveChart.tsx`,chart.js)、2D 骨架視覺化(`AngleVisualizer.tsx`)、主題系統(`theme.ts`)、History 分析 modal(`HistoryView.tsx` 的視覺化部分,CRUD 本身走 DB command 不可拆) | 這些是「拿掉也不會讓核心監測/安全鏈斷掉」的加值功能,符合模組化真正想要的「使用者自選啟用、可獨立更新」語意 |
+      | ⚪ **UI 殼層(可選,但目前跟 Views 綁太緊,拆分成本高於效益)** | `ActionsView.tsx`/`SettingsView.tsx`/`DashboardView.tsx`(頁面本身)、`Sidebar.tsx`/`TopHeader.tsx`/`ToastHost.tsx`/`ConfirmDialog.tsx`/`ErrorBoundary.tsx`/`ErrorOverlay.tsx`/`GlassDropdown.tsx`/`LiquidKnob.tsx`/`ProgressRing.tsx`/`MetricGauge.tsx`/`CoachHint.tsx`/`SessionControlPanel.tsx`/`NavIcons.tsx`/`UpdateBanner.tsx` | 這些元件互相耦合(共用 layout/樣式 token),现況拆哪一個都會牽動好幾個;不是不能做,是投報率目前看不出來,列在這裡供之後參考,不是待辦 |
+
+      **這份表格會過期**:一旦 spike 真的做完、manifest 格式定案,實際的模組邊界應該以那時
+      重新裁決的結果為準,不是這份初步盤點——這裡只回答「今天看起來像什麼」。
+
 - [x] **~~校正體驗改為「環境式/自動偵測」而非精靈式~~(2026-09-10 已否決,不採用)**:
       原構想是把 08-29 會議裁決的「幾何預期值當比對信號」機制往前推一步,背景比對一致就
       不跳精靈畫面。使用者否決此方向,原話訴求是「像手機一樣不需要校正,開發時就直接調整
