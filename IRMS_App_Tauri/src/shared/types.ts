@@ -15,11 +15,17 @@ export const JOINT_PROTOCOLS: { value: JointProtocol; label: string }[] = [
  *
  * elbow / shoulder 在資料模型與 UI 上都存在,選了也能建立動作、能按開始,
  * 產生一場看起來完全正常的 Session——但 `computeMetricSample` 永遠讀
- * `angles.thigh` / `angles.knee`(腿部感測器),量表標籤也寫死「大腿仰角」。
+ * `angles.proximalAngle` / `angles.kneeAngle`(腿部感測器),量表標籤也寫死「大腿仰角」。
  * 結果是把腿的資料錄成一場「肩關節」紀錄,而督導無從察覺。
  *
  * 泛化的正確順序見 ROADMAP 決策 D3(先改共享型別 proximal/distal → DB migration
  * → UI 標籤 → 判定邏輯)。在那之前,寧可明確擋下,也不要產生假的臨床紀錄。
+ *
+ * 2026-09-11:第一步(共享型別)已完成——`SensorReading`/`StoredReading`/
+ * `CalibrationSnapshot` 的 thigh/shin 欄位已改名 proximal/distal(見同日 coding log)。
+ * DB 欄位(SQLite 仍是 `thighAngle`/`shinAngle` 等)、Tailwind 設計 token
+ * (`--color-thigh`/`--color-shin`)、UI 顯示文字(「大腿」/「小腿」)、以及下面這段
+ * 判定邏輯本身都**刻意維持原樣**,依 D3 順序留給各自的步驟。
  */
 export const SUPPORTED_PROTOCOLS: readonly JointProtocol[] = ['knee']
 
@@ -107,7 +113,7 @@ export interface Session {
  * 一場 Session 開始當下實際生效的校準轉換快照(migration 6 起以單一 JSON 欄位存於 sessions)。
  *
  * 沒有它,`sensor_data` 只留下校準後的數值,而產生那些數值的仿射轉換活在 localStorage:
- * 使用者錄了 20 場,第 21 場才發現 shinInvert 反了、重跑精靈,前 20 場就永久無法解讀——
+ * 使用者錄了 20 場,第 21 場才發現 distalInvert 反了、重跑精靈,前 20 場就永久無法解讀——
  * 沒有任何紀錄說明它們是由哪一組轉換算出來的。
  *
  * 刻意存成單一 JSON 欄位而非逐欄位攤平:校準欄位本身仍在演進
@@ -115,19 +121,19 @@ export interface Session {
  * 而這個欄位的用途是「當時是什麼」的存證,不是查詢維度。
  */
 export interface CalibrationSnapshot {
-  thighAxisSwap: boolean
-  shinAxisSwap: boolean
-  thighInvert: boolean
-  thighZeroRaw: number
-  shinInvert: boolean
-  shinZeroRaw: number
-  thighRollInvert: boolean
-  thighRollZeroRaw: number
-  shinRollInvert: boolean
-  shinRollZeroRaw: number
+  proximalAxisSwap: boolean
+  distalAxisSwap: boolean
+  proximalInvert: boolean
+  proximalZeroRaw: number
+  distalInvert: boolean
+  distalZeroRaw: number
+  proximalRollInvert: boolean
+  proximalRollZeroRaw: number
+  distalRollInvert: boolean
+  distalRollZeroRaw: number
   /** roll 方向是否曾由精靈第 5 步實測驗證;false = 內外翻符號可能相反,判讀時必須知道 */
-  thighRollVerified: boolean
-  shinRollVerified: boolean
+  proximalRollVerified: boolean
+  distalRollVerified: boolean
   /** 最近一次跑完精靈的時間;null = 從未跑過(全預設值或純手動輸入) */
   lastCalibratedAt: string | null
 }
@@ -155,11 +161,11 @@ export interface SessionStartInput {
 /** 單筆高頻角度讀數(sensor_data 資料表) */
 export interface SensorReading {
   kneeAngle: number
-  thighAngle: number
-  shinAngle: number
+  proximalAngle: number
+  distalAngle: number
   kneeRoll: number
-  thighRoll: number
-  shinRoll: number
+  proximalRoll: number
+  distalRoll: number
   /** ISO 8601 時間戳 */
   timestamp: string
 }

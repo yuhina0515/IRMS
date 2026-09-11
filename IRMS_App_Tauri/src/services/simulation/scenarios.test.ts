@@ -16,18 +16,18 @@ import { computeMetricZone } from '../movementMetric'
 const COMM_PERIOD_MS = 40
 
 const DEFAULT_CAL = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0,
-  thighRollVerified: false,
-  shinRollVerified: false,
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0,
+  proximalRollVerified: false,
+  distalRollVerified: false,
   lastCalibratedAt: null
 } as Settings
 

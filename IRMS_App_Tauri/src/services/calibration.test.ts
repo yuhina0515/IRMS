@@ -31,18 +31,18 @@ const raw = (thigh: number, shin: number, thighRoll = 0, shinRoll = 0): RawAngle
 const stable = (mean: RawAngles): CaptureStats => ({ mean, maxStdDev: 0.5 })
 
 const SETTINGS: Settings = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0,
-  thighRollVerified: false,
-  shinRollVerified: false,
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0,
+  proximalRollVerified: false,
+  distalRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -74,7 +74,7 @@ describe('detectAxisSwap / effectiveRaw', () => {
     expect(r.delta).toBe(40)
   })
   it('effectiveRaw 對調指定肢段的 pitch/roll', () => {
-    const eff = effectiveRaw(raw(1, 2, 3, 4), { thighAxisSwap: true, shinAxisSwap: false })
+    const eff = effectiveRaw(raw(1, 2, 3, 4), { proximalAxisSwap: true, distalAxisSwap: false })
     expect(eff).toEqual({ thigh: 3, thighRoll: 1, shin: 2, shinRoll: 4 })
   })
 })
@@ -104,31 +104,31 @@ describe('buildCalibrationPatch — 驗證', () => {
     const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, stable(raw(0, 0, 8, 20)), SETTINGS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.thighRollInvert).toBe(SETTINGS.thighRollInvert) // 沿用原設定
-    expect(r.patch.thighRollVerified).toBe(false) // 未驗證
-    expect(r.patch.shinRollInvert).toBe(false) // 20 ≥ 0 → 不反相
-    expect(r.patch.shinRollVerified).toBe(true)
+    expect(r.patch.proximalRollInvert).toBe(SETTINGS.proximalRollInvert) // 沿用原設定
+    expect(r.patch.proximalRollVerified).toBe(false) // 未驗證
+    expect(r.patch.distalRollInvert).toBe(false) // 20 ≥ 0 → 不反相
+    expect(r.patch.distalRollVerified).toBe(true)
   })
 
   it('外展兩軸皆幅度不足 → 兩軸都沿用原設定,整步仍成功(等同跳過)', () => {
-    const cur = { ...SETTINGS, thighRollInvert: true, thighRollVerified: true }
+    const cur = { ...SETTINGS, proximalRollInvert: true, proximalRollVerified: true }
     const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, stable(raw(0, 0, 5, -3)), cur)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.thighRollInvert).toBe(true)
-    expect(r.patch.thighRollVerified).toBe(true) // 保留原本已驗證狀態,不因這次不足而清掉
-    expect(r.patch.shinRollInvert).toBe(false)
-    expect(r.patch.shinRollVerified).toBe(false)
+    expect(r.patch.proximalRollInvert).toBe(true)
+    expect(r.patch.proximalRollVerified).toBe(true) // 保留原本已驗證狀態,不因這次不足而清掉
+    expect(r.patch.distalRollInvert).toBe(false)
+    expect(r.patch.distalRollVerified).toBe(false)
   })
 
   it('跳過外展 → 沿用現有 roll invert 設定,verified 狀態不變', () => {
-    const cur = { ...SETTINGS, thighRollInvert: true, thighRollVerified: true }
+    const cur = { ...SETTINGS, proximalRollInvert: true, proximalRollVerified: true }
     const r = buildCalibrationPatch(stable(raw(0, 0)), okRaise, okFlex, null, cur)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.thighRollInvert).toBe(true)
-    expect(r.patch.thighRollVerified).toBe(true)
-    expect(r.patch.shinRollVerified).toBe(false)
+    expect(r.patch.proximalRollInvert).toBe(true)
+    expect(r.patch.proximalRollVerified).toBe(true)
+    expect(r.patch.distalRollVerified).toBe(false)
   })
 
   it('外展捕捉晃動介於一般門檻(3°)與外展專用門檻(4°)之間 → 仍視為穩定', () => {
@@ -178,8 +178,8 @@ describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
     const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, null, SETTINGS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.thighAxisSwap).toBe(true)
-    expect(r.patch.shinAxisSwap).toBe(false)
+    expect(r.patch.proximalAxisSwap).toBe(true)
+    expect(r.patch.distalAxisSwap).toBe(false)
 
     const cal = { ...SETTINGS, ...r.patch }
     const stand = applyCalibration(baseline.mean, cal)
@@ -193,9 +193,9 @@ describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
     const r = buildCalibrationPatch(baseline, stable(raw(42, 2)), stable(raw(-3, -33)), null, SETTINGS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.thighAxisSwap).toBe(false)
-    expect(r.patch.thighInvert).toBe(false)
-    expect(r.patch.shinInvert).toBe(false)
+    expect(r.patch.proximalAxisSwap).toBe(false)
+    expect(r.patch.proximalInvert).toBe(false)
+    expect(r.patch.distalInvert).toBe(false)
     const stand = applyCalibration(baseline.mean, { ...SETTINGS, ...r.patch })
     expect(stand.thigh).toBeCloseTo(0)
     expect(stand.shin).toBeCloseTo(0)
@@ -213,8 +213,8 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
     expect(stand.shinRoll).toBeCloseTo(0)
   })
 
-  it('大腿貼歪 90°(thighAxisSwap)時仍能正確歸零 —— 修復前會歸到錯的物理軸', () => {
-    const swapped = { ...SETTINGS, thighAxisSwap: true }
+  it('大腿貼歪 90°(proximalAxisSwap)時仍能正確歸零 —— 修復前會歸到錯的物理軸', () => {
+    const swapped = { ...SETTINGS, proximalAxisSwap: true }
     // thigh raw 承載的其實是 roll 動作、thighRoll raw 承載的其實是 pitch 動作
     const currentRaw = raw(88, -8, 12, -1)
     const patch = buildQuickZeroPatch(currentRaw, swapped)
@@ -228,7 +228,7 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
   })
 
   it('沿用既有 invert 設定,不重新判定方向', () => {
-    const inverted = { ...SETTINGS, thighInvert: true, shinRollInvert: true }
+    const inverted = { ...SETTINGS, proximalInvert: true, distalRollInvert: true }
     const patch = buildQuickZeroPatch(raw(20, 5, 0, -7), inverted)
     const cal = { ...inverted, ...patch }
     const stand = applyCalibration(raw(20, 5, 0, -7), cal)
@@ -246,15 +246,15 @@ describe('校準快照(migration 6)', () => {
   })
 
   it('快照存的是當下的值,不是參照;事後改設定不會回頭改寫已存的快照', () => {
-    const settings: Settings = { ...SETTINGS, thighZeroRaw: 12.5, shinInvert: true }
+    const settings: Settings = { ...SETTINGS, proximalZeroRaw: 12.5, distalInvert: true }
     const snapshot = buildCalibrationSnapshot(settings)
-    settings.thighZeroRaw = 99
-    expect(snapshot.thighZeroRaw).toBe(12.5)
-    expect(snapshot.shinInvert).toBe(true)
+    settings.proximalZeroRaw = 99
+    expect(snapshot.proximalZeroRaw).toBe(12.5)
+    expect(snapshot.distalInvert).toBe(true)
   })
 
   it('序列化後可原樣還原(這是它進 DB 的形式)', () => {
-    const snapshot = buildCalibrationSnapshot({ ...SETTINGS, thighRollZeroRaw: -7.25 })
+    const snapshot = buildCalibrationSnapshot({ ...SETTINGS, proximalRollZeroRaw: -7.25 })
     expect(parseCalibrationSnapshot(JSON.stringify(snapshot))).toEqual(snapshot)
   })
 
@@ -274,8 +274,8 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
 
   it('列出所有不一致的欄位', () => {
     const snapshot = buildCalibrationSnapshot(SETTINGS)
-    const now: Settings = { ...SETTINGS, shinInvert: true, thighZeroRaw: 4 }
-    expect(calibrationDrift(snapshot, now).sort()).toEqual(['shinInvert', 'thighZeroRaw'])
+    const now: Settings = { ...SETTINGS, distalInvert: true, proximalZeroRaw: 4 }
+    expect(calibrationDrift(snapshot, now).sort()).toEqual(['distalInvert', 'proximalZeroRaw'])
   })
 
   it('沒有快照時回傳空陣列——這是「不知道」,呼叫端另行處理,不可當成「一致」', () => {
@@ -289,8 +289,8 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
     const recalibrated: Settings = {
       ...SETTINGS,
       lastCalibratedAt: '2026-08-22T10:00:00.000Z',
-      thighRollVerified: true,
-      shinRollVerified: true
+      proximalRollVerified: true,
+      distalRollVerified: true
     }
     expect(calibrationDrift(snapshot, recalibrated)).toEqual([])
   })

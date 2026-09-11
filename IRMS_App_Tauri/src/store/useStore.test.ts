@@ -14,18 +14,18 @@ import {
 } from './useStore'
 
 const BASE_SETTINGS: Settings = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0,
-  thighRollVerified: false,
-  shinRollVerified: false,
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0,
+  proximalRollVerified: false,
+  distalRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -40,15 +40,17 @@ const BASE_SETTINGS: Settings = {
 
 describe('migrateSettings', () => {
   it('v0 舊 settings 補齊新欄位,保留使用者既有校準值', () => {
+    // v0 是最早的持久化形狀,理當用當年的 thigh/shin 命名(v11 才改名 proximal/distal),
+    // 藉此順便證明 migrateSettings 能一路從最舊格式升級到現在
     const old = { settings: { thighInvert: true, thighZeroRaw: -12.5, protocol: 'elbow' } }
     const { settings } = migrateSettings(old)
-    expect(settings.thighInvert).toBe(true)
-    expect(settings.thighZeroRaw).toBe(-12.5)
+    expect(settings.proximalInvert).toBe(true)
+    expect(settings.proximalZeroRaw).toBe(-12.5)
     expect(settings.protocol).toBe('elbow')
     expect(settings.lastCalibratedAt).toBeNull() // 新欄位補預設
     expect(settings.flushIntervalSec).toBe(2)
-    expect(settings.thighRollVerified).toBe(false) // v3 新欄位補預設(未驗證)
-    expect(settings.shinRollVerified).toBe(false)
+    expect(settings.proximalRollVerified).toBe(false) // v3 新欄位補預設(未驗證)
+    expect(settings.distalRollVerified).toBe(false)
   })
 
   it('空/毀損的 persist 資料回退為完整預設值', () => {
@@ -62,6 +64,7 @@ describe('migrateSettings', () => {
   // 呼叫,版本不動就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件整個
   // 蓋掉初始值,新欄位變成 undefined,而 UI 上的表現是開關永遠打不開又沒有錯誤。
   it('v4 的 persist 資料補上 v5 新欄位 showKneeRoll,且不動使用者既有值', () => {
+    // v4 已經是 zeroRaw 格式(不是符號摺疊 offset),但仍是 thigh/shin 命名(v11 才改名)
     const v4 = {
       settings: {
         protocol: 'knee',
@@ -73,8 +76,8 @@ describe('migrateSettings', () => {
     const { settings } = migrateSettings(v4)
     expect(settings.showKneeRoll).toBe(false) // 新欄位補預設
     expect(settings.maxChartPoints).toBe(120) // 使用者既有值不被覆蓋
-    expect(settings.thighZeroRaw).toBe(-8.25)
-    expect(settings.thighInvert).toBe(true)
+    expect(settings.proximalZeroRaw).toBe(-8.25)
+    expect(settings.proximalInvert).toBe(true)
   })
 
   it('v8 的 persist 資料補上 v9 新欄位 showTrendChart/show3D2DPose,且不動使用者既有值', () => {
@@ -107,13 +110,17 @@ describe('migrateSettings', () => {
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {
+    // 這組測試刻意模擬 v3 以前的舊 persisted JSON 形狀——thigh/shin 命名(v11 才改名
+    // proximal/distal,見 ROADMAP D3)+ 符號摺疊 offset(v4 才改 zeroRaw)兩層舊格式疊在一起,
+    // 輸入物件的 key 必須原封不動保留舊名稱,migrateSettings 才吃得到這條舊换算路徑。
+
     // invert=false:zeroRaw = -offset × 1
     const notInverted = migrateSettings({ settings: { thighInvert: false, thighOffset: 20 } })
-    expect(notInverted.settings.thighZeroRaw).toBe(-20)
+    expect(notInverted.settings.proximalZeroRaw).toBe(-20)
 
     // invert=true:zeroRaw = -offset × -1 = offset
     const inverted = migrateSettings({ settings: { thighInvert: true, thighOffset: -12.5 } })
-    expect(inverted.settings.thighZeroRaw).toBe(-12.5)
+    expect(inverted.settings.proximalZeroRaw).toBe(-12.5)
 
     // 四軸都換算,且換算後 applyCalibration 在原校準姿勢下仍讀 0(可逆性的直接證明)
     const legacy = migrateSettings({
@@ -137,8 +144,8 @@ describe('migrateSettings', () => {
   })
 
   it('已是新格式(有 zeroRaw)時不套用舊換算,原樣保留', () => {
-    const { settings } = migrateSettings({ settings: { thighZeroRaw: 42 } })
-    expect(settings.thighZeroRaw).toBe(42)
+    const { settings } = migrateSettings({ settings: { proximalZeroRaw: 42 } })
+    expect(settings.proximalZeroRaw).toBe(42)
   })
 })
 
@@ -152,20 +159,20 @@ describe('applyCalibration', () => {
   })
 
   it('axisSwap:貼歪 90° 的肢段 pitch/roll 對調後再套 invert/zeroRaw', () => {
-    const s = { ...BASE_SETTINGS, thighAxisSwap: true, thighZeroRaw: 10 }
+    const s = { ...BASE_SETTINGS, proximalAxisSwap: true, proximalZeroRaw: 10 }
     const out = applyCalibration({ thigh: 3, shin: 0, thighRoll: 50, shinRoll: 0 }, s)
     expect(out.thigh).toBe(40) // 取 thighRoll 50 → (50 - 10) * 1
     expect(out.thighRoll).toBe(3)
   })
 
   it('先減零位、再反相(順序不可顛倒)', () => {
-    const s = { ...BASE_SETTINGS, thighInvert: true, thighZeroRaw: 10 }
+    const s = { ...BASE_SETTINGS, proximalInvert: true, proximalZeroRaw: 10 }
     const out = applyCalibration({ thigh: 30, shin: 0, thighRoll: 0, shinRoll: 0 }, s)
     expect(out.thigh).toBe(-20) // (30 - 10) * -1
   })
 
   it('raw* 欄位保留未校準原始值(供校準 UI 顯示)', () => {
-    const s = { ...BASE_SETTINGS, thighInvert: true, thighZeroRaw: 99 }
+    const s = { ...BASE_SETTINGS, proximalInvert: true, proximalZeroRaw: 99 }
     const out = applyCalibration({ thigh: 30, shin: 1, thighRoll: 2, shinRoll: 3 }, s)
     expect(out.rawThigh).toBe(30)
     expect(out.rawShin).toBe(1)
@@ -178,25 +185,25 @@ describe('applyCalibration — zeroRaw 不變式(2026-08-12 會議:由建構保�
     const zeroEff = { thigh: 11, shin: -47, thighRoll: 173, shinRoll: -168 }
     const bools = [false, true]
     let cases = 0
-    for (const thighAxisSwap of bools) {
-      for (const shinAxisSwap of bools) {
-        for (const thighInvert of bools) {
-          for (const shinInvert of bools) {
-            for (const thighRollInvert of bools) {
-              for (const shinRollInvert of bools) {
+    for (const proximalAxisSwap of bools) {
+      for (const distalAxisSwap of bools) {
+        for (const proximalInvert of bools) {
+          for (const distalInvert of bools) {
+            for (const proximalRollInvert of bools) {
+              for (const distalRollInvert of bools) {
                 cases++
-                const mapping = { thighAxisSwap, shinAxisSwap }
+                const mapping = { proximalAxisSwap, distalAxisSwap }
                 const s: Settings = {
                   ...BASE_SETTINGS,
                   ...mapping,
-                  thighInvert,
-                  shinInvert,
-                  thighRollInvert,
-                  shinRollInvert,
-                  thighZeroRaw: zeroEff.thigh,
-                  shinZeroRaw: zeroEff.shin,
-                  thighRollZeroRaw: zeroEff.thighRoll,
-                  shinRollZeroRaw: zeroEff.shinRoll
+                  proximalInvert,
+                  distalInvert,
+                  proximalRollInvert,
+                  distalRollInvert,
+                  proximalZeroRaw: zeroEff.thigh,
+                  distalZeroRaw: zeroEff.shin,
+                  proximalRollZeroRaw: zeroEff.thighRoll,
+                  distalRollZeroRaw: zeroEff.shinRoll
                 }
                 // effectiveRaw 是自身的反函式(swap 是對合),故用它把「有效值」還原成 raw
                 const rawPose = effectiveRaw(zeroEff, mapping)
@@ -282,33 +289,33 @@ describe('setSettings — Session 進行中凍結校準(migration 6 快照成立
 
   it('splitCalibrationPatch 只攔校準欄位,顯示類設定照過', () => {
     const { allowed, frozen } = splitCalibrationPatch({
-      thighZeroRaw: 12,
-      thighInvert: true,
+      proximalZeroRaw: 12,
+      proximalInvert: true,
       maxChartPoints: 200
     })
-    expect(frozen.sort()).toEqual(['thighInvert', 'thighZeroRaw'])
+    expect(frozen.sort()).toEqual(['proximalInvert', 'proximalZeroRaw'])
     expect(allowed).toEqual({ maxChartPoints: 200 })
   })
 
   it('進行中:校準欄位被忽略,原值保持不動', () => {
     startClean(true)
-    useStore.getState().setSettings({ thighZeroRaw: 33, shinInvert: true })
-    expect(useStore.getState().settings.thighZeroRaw).toBe(BASE_SETTINGS.thighZeroRaw)
-    expect(useStore.getState().settings.shinInvert).toBe(BASE_SETTINGS.shinInvert)
+    useStore.getState().setSettings({ proximalZeroRaw: 33, distalInvert: true })
+    expect(useStore.getState().settings.proximalZeroRaw).toBe(BASE_SETTINGS.proximalZeroRaw)
+    expect(useStore.getState().settings.distalInvert).toBe(BASE_SETTINGS.distalInvert)
   })
 
   it('進行中被忽略時會留下日誌,而不是靜默失敗', () => {
     startClean(true)
-    useStore.getState().setSettings({ thighZeroRaw: 33 })
+    useStore.getState().setSettings({ proximalZeroRaw: 33 })
     const logged = useStore.getState().logs.some((l) => l.includes('Calibration frozen'))
     expect(logged).toBe(true)
-    expect(useStore.getState().logs.some((l) => l.includes('thighZeroRaw'))).toBe(true)
+    expect(useStore.getState().logs.some((l) => l.includes('proximalZeroRaw'))).toBe(true)
   })
 
   it('進行中:同一筆 patch 內的非校準欄位仍然套用(不是整筆丟掉)', () => {
     startClean(true)
-    useStore.getState().setSettings({ thighZeroRaw: 33, maxChartPoints: 123 })
-    expect(useStore.getState().settings.thighZeroRaw).toBe(BASE_SETTINGS.thighZeroRaw)
+    useStore.getState().setSettings({ proximalZeroRaw: 33, maxChartPoints: 123 })
+    expect(useStore.getState().settings.proximalZeroRaw).toBe(BASE_SETTINGS.proximalZeroRaw)
     expect(useStore.getState().settings.maxChartPoints).toBe(123)
   })
 

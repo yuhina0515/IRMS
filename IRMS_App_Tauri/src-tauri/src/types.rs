@@ -73,14 +73,23 @@ pub struct SessionStartInput {
     pub source: String,
 }
 
+// Field names below stay `thigh`/`shin` internally (matching the SQLite column names in
+// db.rs/migrations.rs unchanged by this pass) but are renamed on the wire via explicit
+// `serde(rename)` to `proximal`/`distal`, matching shared/types.ts's `SensorReading`/
+// `StoredReading` (2026-09-11, ROADMAP D3 step 1 — see that day's coding log). DB schema,
+// UI labels, and judgment-logic axis mapping are deliberately untouched by this step.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SensorReading {
     pub knee_angle: f64,
+    #[serde(rename = "proximalAngle")]
     pub thigh_angle: f64,
+    #[serde(rename = "distalAngle")]
     pub shin_angle: f64,
     pub knee_roll: f64,
+    #[serde(rename = "proximalRoll")]
     pub thigh_roll: f64,
+    #[serde(rename = "distalRoll")]
     pub shin_roll: f64,
     pub timestamp: String,
 }
@@ -91,10 +100,62 @@ pub struct StoredReading {
     pub id: i64,
     pub session_id: i64,
     pub knee_angle: f64,
+    #[serde(rename = "proximalAngle")]
     pub thigh_angle: f64,
+    #[serde(rename = "distalAngle")]
     pub shin_angle: f64,
     pub knee_roll: f64,
+    #[serde(rename = "proximalRoll")]
     pub thigh_roll: f64,
+    #[serde(rename = "distalRoll")]
     pub shin_roll: f64,
     pub timestamp: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression lock for the 2026-09-11 wire rename: a JSON key mismatch here would not be
+    // caught by the Rust compiler (unknown fields just deserialize to defaults or fail at
+    // runtime), so this pins the exact wire shape shared/types.ts's SensorReading depends on.
+    #[test]
+    fn sensor_reading_serializes_with_proximal_distal_wire_names_not_thigh_shin() {
+        let reading = SensorReading {
+            knee_angle: 90.0,
+            thigh_angle: 30.0,
+            shin_angle: -60.0,
+            knee_roll: 1.0,
+            thigh_roll: 2.0,
+            shin_roll: 3.0,
+            timestamp: "2026-09-11T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_value(&reading).unwrap();
+        assert_eq!(json.get("proximalAngle").unwrap(), 30.0);
+        assert_eq!(json.get("distalAngle").unwrap(), -60.0);
+        assert_eq!(json.get("proximalRoll").unwrap(), 2.0);
+        assert_eq!(json.get("distalRoll").unwrap(), 3.0);
+        assert!(json.get("thighAngle").is_none());
+        assert!(json.get("shinAngle").is_none());
+        assert!(json.get("thighRoll").is_none());
+        assert!(json.get("shinRoll").is_none());
+    }
+
+    #[test]
+    fn sensor_reading_deserializes_from_proximal_distal_wire_names() {
+        let json = serde_json::json!({
+            "kneeAngle": 90.0,
+            "proximalAngle": 30.0,
+            "distalAngle": -60.0,
+            "kneeRoll": 1.0,
+            "proximalRoll": 2.0,
+            "distalRoll": 3.0,
+            "timestamp": "2026-09-11T00:00:00Z"
+        });
+        let reading: SensorReading = serde_json::from_value(json).unwrap();
+        assert_eq!(reading.thigh_angle, 30.0);
+        assert_eq!(reading.shin_angle, -60.0);
+        assert_eq!(reading.thigh_roll, 2.0);
+        assert_eq!(reading.shin_roll, 3.0);
+    }
 }

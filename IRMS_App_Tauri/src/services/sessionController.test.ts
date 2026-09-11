@@ -75,16 +75,16 @@ const OVER_LIMIT = 130
 
 /** 恆等校準:讓 poseForKnee(K) 直接等於判定看到的 K */
 const IDENTITY_CALIBRATION: Partial<Settings> = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0
 }
 
 // 明確標註型別而非 ReturnType<typeof vi.spyOn>:後者沒有帶泛型參數,

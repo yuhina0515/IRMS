@@ -851,6 +851,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   範圍、不碰硬體的技術可行性 spike**(hello-world 模組,不用校正邏輯當實驗對象),manifest
   格式與正式模組交付機制暫緩;第一方/第三方現在拍板只做第一方
 
+- **2026-09-11 Phase 5 型別層改名 thigh/shin → proximal/distal**
+  ([[log_20260911_phase5_type_layer_proximal_distal|日誌]]):依 ROADMAP D3 順序踏出第一步——
+  `CalibrationSnapshot`/`SensorReading`/`StoredReading`/`Settings` 校準欄位全數改名,Rust 端
+  用 `serde(rename)` 只改 wire 格式、SQL 欄位與內部變數名不動,localStorage persist 版本
+  bump 到 v11 並補上舊 key 遷移邏輯(舊使用者的校準值不會被靜默重置)。DB migration、UI
+  顯示文字、判定邏輯(`RawAngles`/`LiveAngles`,即文件裡真正被點名的 `angles.thigh`)刻意
+  留給後續步驟,今天不碰
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌

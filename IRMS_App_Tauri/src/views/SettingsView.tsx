@@ -114,12 +114,12 @@ export function SettingsView(): JSX.Element {
               外展是全精靈唯一需要單腳站立的步驟,對平衡受限的患者最困難——
               不該用一個看起來像判定風險的警告去催促他們反覆嘗試。 */}
           {settings.lastCalibratedAt != null &&
-            (!settings.thighRollVerified || !settings.shinRollVerified) && (
+            (!settings.proximalRollVerified || !settings.distalRollVerified) && (
               <p className="text-text-muted text-[0.8rem] mb-3">
                 ℹ 內外翻(roll)顯示方向未經外展步驟驗證:
-                {!settings.thighRollVerified && '大腿'}
-                {!settings.thighRollVerified && !settings.shinRollVerified && '、'}
-                {!settings.shinRollVerified && '小腿'}
+                {!settings.proximalRollVerified && '大腿'}
+                {!settings.proximalRollVerified && !settings.distalRollVerified && '、'}
+                {!settings.distalRollVerified && '小腿'}
                 ——<strong>不影響達標與超限判定</strong>,僅可能讓 3D 姿態、內外翻數值與圖表的
                 正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
               </p>
@@ -153,20 +153,20 @@ export function SettingsView(): JSX.Element {
             「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
           </p>
           <div className="row">
-            <NumField label="Thigh Zero (raw °)" value={settings.thighZeroRaw} onChange={(v) => set('thighZeroRaw', v)} disabled={calibrationLocked} />
-            <NumField label="Shin Zero (raw °)" value={settings.shinZeroRaw} onChange={(v) => set('shinZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
           </div>
           <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-            <Toggle label="Invert Thigh 反相" checked={settings.thighInvert} onChange={(v) => set('thighInvert', v)} disabled={calibrationLocked} />
-            <Toggle label="Invert Shin 反相" checked={settings.shinInvert} onChange={(v) => set('shinInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Thigh 反相" checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Shin 反相" checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
           </div>
           <div className="row">
-            <NumField label="Thigh Roll Zero (raw °)" value={settings.thighRollZeroRaw} onChange={(v) => set('thighRollZeroRaw', v)} disabled={calibrationLocked} />
-            <NumField label="Shin Roll Zero (raw °)" value={settings.shinRollZeroRaw} onChange={(v) => set('shinRollZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
+            <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
           </div>
           <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-            <Toggle label="Invert Thigh Roll" checked={settings.thighRollInvert} onChange={(v) => set('thighRollInvert', v)} disabled={calibrationLocked} />
-            <Toggle label="Invert Shin Roll" checked={settings.shinRollInvert} onChange={(v) => set('shinRollInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
+            <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
           </div>
           <div className="row">
             <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>

@@ -38,11 +38,11 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       const info = metricInfo(session.triggerType ?? 'joint_angle')
       const metricOf = (r: StoredReading): number | null =>
         session.triggerType === 'segment_elevation'
-          ? r.thighAngle
+          ? r.proximalAngle
           : session.triggerType === 'segment_extension'
-            ? r.thighAngle == null
+            ? r.proximalAngle == null
               ? null
-              : -r.thighAngle
+              : -r.proximalAngle
             : r.kneeAngle
 
       const zone =
@@ -157,7 +157,9 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
     const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
     const body = full
       .map((r) =>
-        [r.timestamp, r.kneeAngle, r.thighAngle, r.shinAngle, r.kneeRoll, r.thighRoll, r.shinRoll].join(',')
+        [r.timestamp, r.kneeAngle, r.proximalAngle, r.distalAngle, r.kneeRoll, r.proximalRoll, r.distalRoll].join(
+          ','
+        )
       )
       .join('\n')
     const blob = new Blob([meta + header + body], { type: 'text/csv;charset=utf-8' })

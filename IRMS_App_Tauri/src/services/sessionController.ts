@@ -225,11 +225,11 @@ class SessionController {
     if (session.running && session.id != null) {
       this.buffer.push({
         kneeAngle: angles.knee,
-        thighAngle: angles.thigh,
-        shinAngle: angles.shin,
+        proximalAngle: angles.thigh,
+        distalAngle: angles.shin,
         kneeRoll: angles.kneeRoll,
-        thighRoll: angles.thighRoll,
-        shinRoll: angles.shinRoll,
+        proximalRoll: angles.thighRoll,
+        distalRoll: angles.shinRoll,
         timestamp: new Date().toISOString()
       })
     }

@@ -13,22 +13,22 @@ import { jointAngleDeg, normalizeDeg, shortestArcDelta } from '../services/angle
 /** 感測器校準與一般 UI 設定(持久化) */
 export interface Settings {
   /** 感測器貼歪 90°(彎曲動作出現在 roll 軸)時,軟體對調該肢段的 pitch/roll */
-  thighAxisSwap: boolean
-  shinAxisSwap: boolean
-  thighInvert: boolean
+  proximalAxisSwap: boolean
+  distalAxisSwap: boolean
+  proximalInvert: boolean
   /** 校準姿勢(視為 0°)當下、經 axisSwap 對調後的原始讀值——不折算 invert 符號。
    *  判定為 (raw − zeroRaw) × sign,故事後翻轉 invert 不會使零位偏移
    *  (2026-08-12 會議:舊「符號摺疊」offset 表示法在 invert 翻轉時會產生雙倍偏差,已隨 v1.0.1 出貨)。 */
-  thighZeroRaw: number
-  shinInvert: boolean
-  shinZeroRaw: number
-  thighRollInvert: boolean
-  thighRollZeroRaw: number
-  shinRollInvert: boolean
-  shinRollZeroRaw: number
+  proximalZeroRaw: number
+  distalInvert: boolean
+  distalZeroRaw: number
+  proximalRollInvert: boolean
+  proximalRollZeroRaw: number
+  distalRollInvert: boolean
+  distalRollZeroRaw: number
   /** 大腿/小腿 roll 方向是否曾由精靈第 5 步(外展)實測驗證過;false = 仍在沿用預設或跳過時的舊值,內外翻方向可能相反 */
-  thighRollVerified: boolean
-  shinRollVerified: boolean
+  proximalRollVerified: boolean
+  distalRollVerified: boolean
   protocol: JointProtocol
   maxChartPoints: number
   flushIntervalSec: number
@@ -98,18 +98,18 @@ export interface SessionRuntime {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0,
-  thighRollVerified: false,
-  shinRollVerified: false,
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0,
+  proximalRollVerified: false,
+  distalRollVerified: false,
   protocol: 'knee',
   maxChartPoints: 50,
   flushIntervalSec: 2,
@@ -131,16 +131,16 @@ const DEFAULT_SETTINGS: Settings = {
  * 每次都響,真正的方向錯位反而被當成雜訊略過。
  */
 export const CALIBRATION_TRANSFORM_KEYS = [
-  'thighAxisSwap',
-  'shinAxisSwap',
-  'thighInvert',
-  'thighZeroRaw',
-  'shinInvert',
-  'shinZeroRaw',
-  'thighRollInvert',
-  'thighRollZeroRaw',
-  'shinRollInvert',
-  'shinRollZeroRaw'
+  'proximalAxisSwap',
+  'distalAxisSwap',
+  'proximalInvert',
+  'proximalZeroRaw',
+  'distalInvert',
+  'distalZeroRaw',
+  'proximalRollInvert',
+  'proximalRollZeroRaw',
+  'distalRollInvert',
+  'distalRollZeroRaw'
 ] as const satisfies readonly (keyof Settings)[]
 
 /**
@@ -156,8 +156,8 @@ export const CALIBRATION_TRANSFORM_KEYS = [
 export const CALIBRATION_KEYS = [
   ...CALIBRATION_TRANSFORM_KEYS,
   // 以下不改變算式,但屬於「這場是怎麼校出來的」的存證,一併快照:
-  'thighRollVerified',
-  'shinRollVerified',
+  'proximalRollVerified',
+  'distalRollVerified',
   'lastCalibratedAt'
 ] as const satisfies readonly (keyof Settings)[]
 
@@ -416,11 +416,12 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 10, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 11, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
       // v10:allowBetaUpdates
+      // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )
@@ -434,29 +435,117 @@ interface LegacyOffsetFields {
   shinRollOffset?: number
 }
 
+/** v10 及更早版本使用的 thigh/shin 命名——v11 起改名 proximal/distal(見 ROADMAP D3),
+ *  僅遷移時讀取,轉換公式全等(純改名,不改變任何數值)。 */
+interface LegacyThighShinFields {
+  thighAxisSwap?: boolean
+  shinAxisSwap?: boolean
+  thighInvert?: boolean
+  thighZeroRaw?: number
+  shinInvert?: boolean
+  shinZeroRaw?: number
+  thighRollInvert?: boolean
+  thighRollZeroRaw?: number
+  shinRollInvert?: boolean
+  shinRollZeroRaw?: number
+  thighRollVerified?: boolean
+  shinRollVerified?: boolean
+}
+
 /** persist 遷移:以 DEFAULT_SETTINGS 補齊缺漏欄位,保留使用者既有(手動校準)值。export 供測試。
  *  v4:額外把舊版的符號摺疊 offset 換算成 zeroRaw——換算公式與 calibration.ts 寫入端相同的
- *  可逆關係:zeroRaw = -offset × (invert ? -1 : 1)(見 buildCalibrationPatch/buildQuickZeroPatch)。 */
+ *  可逆關係:zeroRaw = -offset × (invert ? -1 : 1)(見 buildCalibrationPatch/buildQuickZeroPatch)。
+ *  v11:欄位改名 thigh/shin → proximal/distal(見 ROADMAP D3);舊 key 存在時原值原封不動搬到
+ *  新 key,純改名不換算。 */
 export function migrateSettings(persisted: unknown): { settings: Settings } {
-  const p = (persisted ?? {}) as { settings?: Partial<Settings> & LegacyOffsetFields }
-  const { thighOffset, shinOffset, thighRollOffset, shinRollOffset, ...rest } = p.settings ?? {}
+  const p = (persisted ?? {}) as {
+    settings?: Partial<Settings> & LegacyOffsetFields & LegacyThighShinFields
+  }
+  const {
+    thighOffset,
+    shinOffset,
+    thighRollOffset,
+    shinRollOffset,
+    thighAxisSwap,
+    shinAxisSwap,
+    thighInvert,
+    thighZeroRaw,
+    shinInvert,
+    shinZeroRaw,
+    thighRollInvert,
+    thighRollZeroRaw,
+    shinRollInvert,
+    shinRollZeroRaw,
+    thighRollVerified,
+    shinRollVerified,
+    ...rest
+  } = p.settings ?? {}
 
+  // v11 純改名(舊 key 存在且新 key 尚未設定時才搬,避免蓋掉一個已經是新格式的值)
+  const renamed: Partial<Settings> = {}
+  if (thighAxisSwap !== undefined && rest.proximalAxisSwap == null) {
+    renamed.proximalAxisSwap = thighAxisSwap
+  }
+  if (shinAxisSwap !== undefined && rest.distalAxisSwap == null) {
+    renamed.distalAxisSwap = shinAxisSwap
+  }
+  if (thighInvert !== undefined && rest.proximalInvert == null) {
+    renamed.proximalInvert = thighInvert
+  }
+  if (typeof thighZeroRaw === 'number' && rest.proximalZeroRaw == null) {
+    renamed.proximalZeroRaw = thighZeroRaw
+  }
+  if (shinInvert !== undefined && rest.distalInvert == null) {
+    renamed.distalInvert = shinInvert
+  }
+  if (typeof shinZeroRaw === 'number' && rest.distalZeroRaw == null) {
+    renamed.distalZeroRaw = shinZeroRaw
+  }
+  if (thighRollInvert !== undefined && rest.proximalRollInvert == null) {
+    renamed.proximalRollInvert = thighRollInvert
+  }
+  if (typeof thighRollZeroRaw === 'number' && rest.proximalRollZeroRaw == null) {
+    renamed.proximalRollZeroRaw = thighRollZeroRaw
+  }
+  if (shinRollInvert !== undefined && rest.distalRollInvert == null) {
+    renamed.distalRollInvert = shinRollInvert
+  }
+  if (typeof shinRollZeroRaw === 'number' && rest.distalRollZeroRaw == null) {
+    renamed.distalRollZeroRaw = shinRollZeroRaw
+  }
+  if (thighRollVerified !== undefined && rest.proximalRollVerified == null) {
+    renamed.proximalRollVerified = thighRollVerified
+  }
+  if (shinRollVerified !== undefined && rest.distalRollVerified == null) {
+    renamed.distalRollVerified = shinRollVerified
+  }
+
+  // v4 舊版符號摺疊 offset → zeroRaw(換算後的值已經是「新格式」,鍵名直接用 proximal/distal;
+  // 讀 invert 時優先看剛剛搬過來的 renamed,因為 rest 裡不會有它,舊物件裡才有)
   const sign = (invert: boolean | undefined): number => (invert ? -1 : 1)
   const legacyZeroRaw: Partial<Settings> = {}
-  if (typeof thighOffset === 'number' && rest.thighZeroRaw == null) {
-    legacyZeroRaw.thighZeroRaw = -thighOffset * sign(rest.thighInvert)
+  if (typeof thighOffset === 'number' && renamed.proximalZeroRaw == null && rest.proximalZeroRaw == null) {
+    legacyZeroRaw.proximalZeroRaw = -thighOffset * sign(thighInvert)
   }
-  if (typeof shinOffset === 'number' && rest.shinZeroRaw == null) {
-    legacyZeroRaw.shinZeroRaw = -shinOffset * sign(rest.shinInvert)
+  if (typeof shinOffset === 'number' && renamed.distalZeroRaw == null && rest.distalZeroRaw == null) {
+    legacyZeroRaw.distalZeroRaw = -shinOffset * sign(shinInvert)
   }
-  if (typeof thighRollOffset === 'number' && rest.thighRollZeroRaw == null) {
-    legacyZeroRaw.thighRollZeroRaw = -thighRollOffset * sign(rest.thighRollInvert)
+  if (
+    typeof thighRollOffset === 'number' &&
+    renamed.proximalRollZeroRaw == null &&
+    rest.proximalRollZeroRaw == null
+  ) {
+    legacyZeroRaw.proximalRollZeroRaw = -thighRollOffset * sign(thighRollInvert)
   }
-  if (typeof shinRollOffset === 'number' && rest.shinRollZeroRaw == null) {
-    legacyZeroRaw.shinRollZeroRaw = -shinRollOffset * sign(rest.shinRollInvert)
+  if (
+    typeof shinRollOffset === 'number' &&
+    renamed.distalRollZeroRaw == null &&
+    rest.distalRollZeroRaw == null
+  ) {
+    legacyZeroRaw.distalRollZeroRaw = -shinRollOffset * sign(shinRollInvert)
   }
 
-  return { settings: { ...DEFAULT_SETTINGS, ...rest, ...legacyZeroRaw } }
+  return { settings: { ...DEFAULT_SETTINGS, ...rest, ...renamed, ...legacyZeroRaw } }
 }
 
 /**
@@ -468,18 +557,18 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
  * - kneeRoll:帶符號 shinRoll − thighRoll,正 = 外翻 (valgus)、負 = 內翻 (varus)
  */
 export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
-  const rawThigh = s.thighAxisSwap ? raw.thighRoll : raw.thigh
-  const rawThighRoll = s.thighAxisSwap ? raw.thigh : raw.thighRoll
-  const rawShin = s.shinAxisSwap ? raw.shinRoll : raw.shin
-  const rawShinRoll = s.shinAxisSwap ? raw.shin : raw.shinRoll
+  const rawThigh = s.proximalAxisSwap ? raw.thighRoll : raw.thigh
+  const rawThighRoll = s.proximalAxisSwap ? raw.thigh : raw.thighRoll
+  const rawShin = s.distalAxisSwap ? raw.shinRoll : raw.shin
+  const rawShinRoll = s.distalAxisSwap ? raw.shin : raw.shinRoll
 
   // 先減零位、再反相(順序不可顛倒——顛倒等於回到會被 invert 事後翻轉破壞的舊
   // 「符號摺疊」offset 表示法)。減法與乘法之後必須重新正規化回 (-180, 180]:
   // 結果可能被推出值域,之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
-  const thigh = normalizeDeg((rawThigh - s.thighZeroRaw) * (s.thighInvert ? -1 : 1))
-  const shin = normalizeDeg((rawShin - s.shinZeroRaw) * (s.shinInvert ? -1 : 1))
-  const thighRoll = normalizeDeg((rawThighRoll - s.thighRollZeroRaw) * (s.thighRollInvert ? -1 : 1))
-  const shinRoll = normalizeDeg((rawShinRoll - s.shinRollZeroRaw) * (s.shinRollInvert ? -1 : 1))
+  const thigh = normalizeDeg((rawThigh - s.proximalZeroRaw) * (s.proximalInvert ? -1 : 1))
+  const shin = normalizeDeg((rawShin - s.distalZeroRaw) * (s.distalInvert ? -1 : 1))
+  const thighRoll = normalizeDeg((rawThighRoll - s.proximalRollZeroRaw) * (s.proximalRollInvert ? -1 : 1))
+  const shinRoll = normalizeDeg((rawShinRoll - s.distalRollZeroRaw) * (s.distalRollInvert ? -1 : 1))
 
   return {
     thigh,

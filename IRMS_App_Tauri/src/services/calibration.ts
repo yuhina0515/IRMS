@@ -68,17 +68,17 @@ export function computeCaptureStats(samples: RawAngles[]): CaptureStats {
 }
 
 export interface AxisMapping {
-  thighAxisSwap: boolean
-  shinAxisSwap: boolean
+  proximalAxisSwap: boolean
+  distalAxisSwap: boolean
 }
 
 /** 依軸對調設定取得「有效」raw 值(swap 後的 pitch/roll) */
 export function effectiveRaw(raw: RawAngles, m: AxisMapping): RawAngles {
   return {
-    thigh: m.thighAxisSwap ? raw.thighRoll : raw.thigh,
-    thighRoll: m.thighAxisSwap ? raw.thigh : raw.thighRoll,
-    shin: m.shinAxisSwap ? raw.shinRoll : raw.shin,
-    shinRoll: m.shinAxisSwap ? raw.shin : raw.shinRoll
+    thigh: m.proximalAxisSwap ? raw.thighRoll : raw.thigh,
+    thighRoll: m.proximalAxisSwap ? raw.thigh : raw.thighRoll,
+    shin: m.distalAxisSwap ? raw.shinRoll : raw.shin,
+    shinRoll: m.distalAxisSwap ? raw.shin : raw.shinRoll
   }
 }
 
@@ -129,34 +129,34 @@ export function buildCalibrationPatch(
   if (thighAxis.delta < CAPTURE_DELTA_MIN) return { ok: false, error: 'thighDeltaTooSmall' }
   const shinAxis = detectAxisSwap(baseline.mean, kneeFlex.mean, 'shin')
   if (shinAxis.delta < CAPTURE_DELTA_MIN) return { ok: false, error: 'shinDeltaTooSmall' }
-  const mapping: AxisMapping = { thighAxisSwap: thighAxis.swap, shinAxisSwap: shinAxis.swap }
+  const mapping: AxisMapping = { proximalAxisSwap: thighAxis.swap, distalAxisSwap: shinAxis.swap }
 
   // 2. 以「有效軸」判定 pitch invert:
   //    前抬大腿 → 慣例下 thigh 應變大;站立後勾小腿 → shin 應變小
   const effBase = effectiveRaw(baseline.mean, mapping)
   const effRaise = effectiveRaw(thighRaise.mean, mapping)
   const effFlex = effectiveRaw(kneeFlex.mean, mapping)
-  const thighInvert = shortestArcDelta(effBase.thigh, effRaise.thigh) < 0
-  const shinInvert = shortestArcDelta(effBase.shin, effFlex.shin) > 0
+  const proximalInvert = shortestArcDelta(effBase.thigh, effRaise.thigh) < 0
+  const distalInvert = shortestArcDelta(effBase.shin, effFlex.shin) > 0
 
   // 3. roll invert:腿向外側擺 → 慣例下(正 = 向外)兩肢段 roll 皆應變大。
   //    大腿/小腿獨立判定——單腳站立時膝蓋未必鎖死,兩肢段擺動幅度可能不同步;
   //    哪一軸幅度不足以信任正負號,就沿用該軸原設定,不因單軸不足讓整步失敗重捕。
-  let thighRollInvert = current.thighRollInvert
-  let shinRollInvert = current.shinRollInvert
-  let thighRollVerified = current.thighRollVerified
-  let shinRollVerified = current.shinRollVerified
+  let proximalRollInvert = current.proximalRollInvert
+  let distalRollInvert = current.distalRollInvert
+  let proximalRollVerified = current.proximalRollVerified
+  let distalRollVerified = current.distalRollVerified
   if (abduction) {
     const effAbd = effectiveRaw(abduction.mean, mapping)
     const dThigh = shortestArcDelta(effBase.thighRoll, effAbd.thighRoll)
     const dShin = shortestArcDelta(effBase.shinRoll, effAbd.shinRoll)
     if (Math.abs(dThigh) >= CAPTURE_ROLL_DELTA_MIN) {
-      thighRollInvert = dThigh < 0
-      thighRollVerified = true
+      proximalRollInvert = dThigh < 0
+      proximalRollVerified = true
     }
     if (Math.abs(dShin) >= CAPTURE_ROLL_DELTA_MIN) {
-      shinRollInvert = dShin < 0
-      shinRollVerified = true
+      distalRollInvert = dShin < 0
+      distalRollVerified = true
     }
   }
 
@@ -165,16 +165,16 @@ export function buildCalibrationPatch(
   //    (不是舊的「符號摺疊」offset 表示法——那個在 invert 翻轉時會產生雙倍偏差)
   const patch: Partial<Settings> = {
     ...mapping,
-    thighInvert,
-    shinInvert,
-    thighRollInvert,
-    shinRollInvert,
-    thighRollVerified,
-    shinRollVerified,
-    thighZeroRaw: effBase.thigh,
-    shinZeroRaw: effBase.shin,
-    thighRollZeroRaw: effBase.thighRoll,
-    shinRollZeroRaw: effBase.shinRoll
+    proximalInvert,
+    distalInvert,
+    proximalRollInvert,
+    distalRollInvert,
+    proximalRollVerified,
+    distalRollVerified,
+    proximalZeroRaw: effBase.thigh,
+    distalZeroRaw: effBase.shin,
+    proximalRollZeroRaw: effBase.thighRoll,
+    distalRollZeroRaw: effBase.shinRoll
   }
   return { ok: true, patch }
 }
@@ -189,14 +189,14 @@ export function buildCalibrationPatch(
  */
 export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial<Settings> {
   const eff = effectiveRaw(raw, {
-    thighAxisSwap: settings.thighAxisSwap,
-    shinAxisSwap: settings.shinAxisSwap
+    proximalAxisSwap: settings.proximalAxisSwap,
+    distalAxisSwap: settings.distalAxisSwap
   })
   return {
-    thighZeroRaw: eff.thigh,
-    shinZeroRaw: eff.shin,
-    thighRollZeroRaw: eff.thighRoll,
-    shinRollZeroRaw: eff.shinRoll
+    proximalZeroRaw: eff.thigh,
+    distalZeroRaw: eff.shin,
+    proximalRollZeroRaw: eff.thighRoll,
+    distalRollZeroRaw: eff.shinRoll
   }
 }
 

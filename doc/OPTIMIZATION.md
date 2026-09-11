@@ -298,8 +298,15 @@
 > 不再讓它們產生假紀錄)。泛化順序依 [ROADMAP](ROADMAP.md) 決策 D3:型別 → migration
 > → UI → 判定。
 
+- [x] **型別第一步(2026-09-11)**:`CalibrationSnapshot`/`SensorReading`/`StoredReading`/
+      `Settings` 校準欄位已從 thigh/shin 改名為 proximal/distal(見
+      [[log_20260911_phase5_type_layer_proximal_distal|日誌]]),Rust 端以 `serde(rename)`
+      同步 wire 格式、SQL 欄位不動,persist migration 已補上(v10→v11)。
+      **`shared/protocol.ts` 的 `RawAngles`/`LiveAngles`(判定引擎與即時視覺化實際讀的
+      `angles.thigh`)尚未改名**——這是下一輪型別層工作,範圍更大(觸及 triggerEngine/
+      movementMetric/Leg3D 等)、風險更高,刻意留到下次。
 - [ ] elbow / shoulder 目前共用以「膝/大腿/小腿」命名的判定邏輯。需:
-  - [ ] 泛化命名(近端/遠端肢段,而非 thigh/shin)。
+  - [ ] 泛化命名(近端/遠端肢段,而非 thigh/shin)——續完 `RawAngles`/`LiveAngles` 這一層。
   - [ ] 依關節對應正確的 IMU 軸向與判定方向。
   - [ ] 各協定的預設範本與目標角度臨床校準。
 

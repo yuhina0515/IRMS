@@ -13,18 +13,18 @@ import { poseForKnee, REST_POSE } from './kinematics'
 
 /** 預設校準:applyCalibration 在這組設定下是恆等轉換 */
 const DEFAULT_CAL: Settings = {
-  thighAxisSwap: false,
-  shinAxisSwap: false,
-  thighInvert: false,
-  thighZeroRaw: 0,
-  shinInvert: false,
-  shinZeroRaw: 0,
-  thighRollInvert: false,
-  thighRollZeroRaw: 0,
-  shinRollInvert: false,
-  shinRollZeroRaw: 0,
-  thighRollVerified: false,
-  shinRollVerified: false,
+  proximalAxisSwap: false,
+  distalAxisSwap: false,
+  proximalInvert: false,
+  proximalZeroRaw: 0,
+  distalInvert: false,
+  distalZeroRaw: 0,
+  proximalRollInvert: false,
+  proximalRollZeroRaw: 0,
+  distalRollInvert: false,
+  distalRollZeroRaw: 0,
+  proximalRollVerified: false,
+  distalRollVerified: false,
   lastCalibratedAt: null
 } as Settings
 
