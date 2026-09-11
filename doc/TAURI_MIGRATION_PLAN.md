@@ -310,9 +310,16 @@ pipeline established manually (2026-09-11, see below) — ⚠ not yet proven end
       latest.json --clobber`, or delete+recreate the release, since `gh release upload` won't
       overwrite silently — see [[log_20260911_tauri_updater_pipeline]]). No CI automation yet;
       still a manual step, same as every other release action in this repo.
-      **Not yet exercised end-to-end**: no real client has actually received and applied an update
-      through this pipeline — that needs a second, higher-version beta release to prove the first
-      one's client picks it up, which naturally happens on the next real beta.
+      **Partially exercised end-to-end (2026-09-11)**: cut `1.2.0-beta.3` specifically to test
+      this. Server side is now proven correct byte-for-byte via the GitHub API — `beta-latest`'s
+      `latest.json` resolves to the right version/url/signature, and a real ~3-5 minute GitHub
+      CDN cache-propagation delay on the public download URL was observed and confirmed to
+      self-resolve (worth remembering: don't assume the public URL is live just because the API
+      shows the asset updated). **Still not proven**: an actual running beta.2 client detecting,
+      downloading, and installing beta.3 via its own "check for update" UI — attempts to automate
+      that click (UI Automation, WebView2 CDP remote debugging) both failed in the available
+      environment; see [[log_20260911_tauri_updater_e2e_verification]] for the full attempt log.
+      This last step needs a human to click through it once.
 
 ### Phase 5 — Cutover
 

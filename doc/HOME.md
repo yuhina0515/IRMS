@@ -836,6 +836,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   repo 上同類 `decorations:false`/Windows 幾何殘留的懸而未決 issue,不是這個專案自己的
   邏輯錯誤。⚠ 沒有因此發新 beta——偏移量還在,發版只會讓人以為修好了
 
+- **2026-09-11 Tauri 更新器端對端驗證(部分完成)**
+  ([[log_20260911_tauri_updater_e2e_verification|日誌]]):發了 `1.2.0-beta.3` 驗證用版本,
+  確認 `beta-latest` 的 `latest.json` 伺服器端內容正確(親眼見證一次真實的 GitHub CDN
+  傳播延遲、確認會自行解除)。**App 端「按下檢查更新→下載→安裝」這一步仍未肉眼驗證**——
+  UI Automation 與 WebView2 CDP 兩條自動化路徑都在這個環境裡失敗,誠實留白給使用者自己
+  找空檔手動測。過程中意外用行程名稱批次清除 `msedgewebview2` 誤殺 Windows 搜尋功能的
+  背景行程兩次,事後確認 `SearchHost` 已自行恢復、無損害,但記下往後只能按
+  `ParentProcessId` 精準篩選的教訓
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
