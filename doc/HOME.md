@@ -859,6 +859,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   顯示文字、判定邏輯(`RawAngles`/`LiveAngles`,即文件裡真正被點名的 `angles.thigh`)刻意
   留給後續步驟,今天不碰
 
+- **2026-09-11 視窗自適應實機驗證 + 兩份 Gemini 需求草稿**
+  ([[log_20260911_adaptive_layout_verification_and_gemini_briefs|日誌]]):開發機裝了虛擬螢幕
+  驅動(實體螢幕只有 1024×768@125%,連 App 最小視窗都放不下),第一次在 Tauri 版上真的截圖
+  驗證 2026-09-05 的 Dashboard 自適應版面——行為與設計一致,零溢出。順手發現一個真的、
+  可重現的問題:展開側邊欄在每一頁都永久蓋住頁面標題左側一截(既有設計取捨,不是這次的
+  迴歸)。兩份 Gemini 需求草稿(`doc/gemini-handoff-20260911/`)已備妥:使用者新提的「卡片
+  縮小時簡化顯示」需求,以及這個側邊欄重疊發現
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
