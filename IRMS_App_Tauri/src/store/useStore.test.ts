@@ -14,8 +14,10 @@ import {
 } from './useStore'
 
 const BASE_SETTINGS: Settings = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,
@@ -158,11 +160,14 @@ describe('applyCalibration', () => {
     expect(out.kneeRoll).toBe(-3) // 2 - 5:小腿較大腿偏內 → 內翻(負)
   })
 
-  it('axisSwap:貼歪 90° 的肢段 pitch/roll 對調後再套 invert/zeroRaw', () => {
-    const s = { ...BASE_SETTINGS, proximalAxisSwap: true, proximalZeroRaw: 10 }
+  it('axisRotationDeg=90(貼歪 90°):pitch 端與舊版 axisSwap 慣例一致,roll 端多一次變號', () => {
+    // 見 angleMath.ts rotateRawAxes 開頭推導:90° 邊界是真旋轉,不是舊版布林 swap 的
+    // 純交換(反射)——兩者在拓樸上不可能重合,必然有一軸多一次變號,由獨立的
+    // roll invert 吸收(這正是遷移後舊資料被標記 legacy/unverified 的原因)。
+    const s = { ...BASE_SETTINGS, proximalAxisRotationDeg: 90, proximalZeroRaw: 10 }
     const out = applyCalibration({ thigh: 3, shin: 0, thighRoll: 50, shinRoll: 0 }, s)
-    expect(out.thigh).toBe(40) // 取 thighRoll 50 → (50 - 10) * 1
-    expect(out.thighRoll).toBe(3)
+    expect(out.thigh).toBeCloseTo(40) // 取 thighRoll 50 → (50 - 10) * 1,與舊版一致
+    expect(out.thighRoll).toBeCloseTo(-3) // 取 thigh 3,但變號(舊版 axisSwap 是 +3)
   })
 
   it('先減零位、再反相(順序不可顛倒)', () => {
@@ -180,19 +185,29 @@ describe('applyCalibration', () => {
 })
 
 describe('applyCalibration — zeroRaw 不變式(2026-08-12 會議:由建構保證)', () => {
-  it('∀ axisSwap/invert 組合(2⁶=64 種):zeroRaw 對應的原始姿勢一律讀 0,即使 invert 事後翻轉', () => {
+  // rotateRawAxes 的 az 正負號是由「當下這一筆 pitch 讀值」的 cos 正負號現場推導
+  // (見 angleMath.ts reconstructTiltVector),不是跨呼叫追蹤的狀態——這對單次呼叫
+  // (真實 App 唯一的用法:effectiveRaw 只會餵真正的 raw 讀值,不會餵別次呼叫的輸出)
+  // 是正確且足夠的,但代表「先以 -θ 反旋轉出 raw、再以 +θ 正向驗證」這種疊兩次呼叫
+  // 的技巧不通用(反旋轉可能把 pitch 推過 cos=0 的邊界,兩次呼叫各自推導出不同的 az
+  // 正負號,疊起來就不是恆等變換)。以下測試改為直接指定 raw 姿勢、算出對應的
+  // zeroRaw(與 buildQuickZeroPatch 的真實用法同構,只呼叫 effectiveRaw 一次),
+  // 而不是反推 raw 姿勢。
+  it('∀ axisRotationDeg{0,90}/invert 組合(2⁶=64 種):zeroRaw 對應的原始姿勢一律讀 0,即使 invert 事後翻轉', () => {
     // 173/-168 刻意跨 ±180 分支切點,連帶驗證 wraparound 不會破壞不變式
-    const zeroEff = { thigh: 11, shin: -47, thighRoll: 173, shinRoll: -168 }
+    const rawPose = { thigh: 11, shin: -47, thighRoll: 173, shinRoll: -168 }
     const bools = [false, true]
+    const rotations = [0, 90]
     let cases = 0
-    for (const proximalAxisSwap of bools) {
-      for (const distalAxisSwap of bools) {
+    for (const proximalAxisRotationDeg of rotations) {
+      for (const distalAxisRotationDeg of rotations) {
         for (const proximalInvert of bools) {
           for (const distalInvert of bools) {
             for (const proximalRollInvert of bools) {
               for (const distalRollInvert of bools) {
                 cases++
-                const mapping = { proximalAxisSwap, distalAxisSwap }
+                const mapping = { proximalAxisRotationDeg, distalAxisRotationDeg }
+                const zeroEff = effectiveRaw(rawPose, mapping)
                 const s: Settings = {
                   ...BASE_SETTINGS,
                   ...mapping,
@@ -205,13 +220,11 @@ describe('applyCalibration — zeroRaw 不變式(2026-08-12 會議:由建構保�
                   proximalRollZeroRaw: zeroEff.thighRoll,
                   distalRollZeroRaw: zeroEff.shinRoll
                 }
-                // effectiveRaw 是自身的反函式(swap 是對合),故用它把「有效值」還原成 raw
-                const rawPose = effectiveRaw(zeroEff, mapping)
                 const out = applyCalibration(rawPose, s)
-                expect(out.thigh).toBeCloseTo(0, 9)
-                expect(out.shin).toBeCloseTo(0, 9)
-                expect(out.thighRoll).toBeCloseTo(0, 9)
-                expect(out.shinRoll).toBeCloseTo(0, 9)
+                expect(out.thigh).toBeCloseTo(0, 6)
+                expect(out.shin).toBeCloseTo(0, 6)
+                expect(out.thighRoll).toBeCloseTo(0, 6)
+                expect(out.shinRoll).toBeCloseTo(0, 6)
               }
             }
           }
@@ -219,6 +232,25 @@ describe('applyCalibration — zeroRaw 不變式(2026-08-12 會議:由建構保�
       }
     }
     expect(cases).toBe(64)
+  })
+
+  it('非邊界的連續旋轉角(37°)同樣成立——不是只有 0°/90° 兩個特例湊巧對', () => {
+    const rawPose = { thigh: 11, shin: -47, thighRoll: 173, shinRoll: -168 }
+    const mapping = { proximalAxisRotationDeg: 37, distalAxisRotationDeg: -22 }
+    const zeroEff = effectiveRaw(rawPose, mapping)
+    const s: Settings = {
+      ...BASE_SETTINGS,
+      ...mapping,
+      proximalZeroRaw: zeroEff.thigh,
+      distalZeroRaw: zeroEff.shin,
+      proximalRollZeroRaw: zeroEff.thighRoll,
+      distalRollZeroRaw: zeroEff.shinRoll
+    }
+    const out = applyCalibration(rawPose, s)
+    expect(out.thigh).toBeCloseTo(0, 6)
+    expect(out.shin).toBeCloseTo(0, 6)
+    expect(out.thighRoll).toBeCloseTo(0, 6)
+    expect(out.shinRoll).toBeCloseTo(0, 6)
   })
 })
 

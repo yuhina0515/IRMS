@@ -13,8 +13,10 @@ import { poseForKnee, REST_POSE } from './kinematics'
 
 /** 預設校準:applyCalibration 在這組設定下是恆等轉換 */
 const DEFAULT_CAL: Settings = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,

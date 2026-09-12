@@ -81,3 +81,68 @@ export function circularStdDevDeg(values: number[]): number {
 export function jointAngleDeg(proximal: number, distal: number): number {
   return Math.abs(shortestArcDelta(distal, proximal))
 }
+
+/**
+ * 從一對已算出的 pitch/roll 角度,反推**單位化**的等價代表向量 `(ax, ay, az)`
+ * (`ax²+ay²+az²=1`)。
+ *
+ * 韌體(`IRMS_Sensor/imu.h`)以 `accPitch = atan2(ay,az)`、`accRoll = atan2(ax,az)` 算出
+ * 兩個角度——共用分母 `az` 本身不可觀測,角度只由比值 `ax/az`、`ay/az` 決定。校準擷取
+ * 全程要求靜止(`CAPTURE_STD_LIMIT`),靜止時加速度計量到的只有重力,長度恆為 1g——
+ * 故單位化不是任意選擇,是這個向量在物理上真正該有的長度,這樣不同時間點擷取的向量
+ * 才共享同一個尺度,`recalibrateAxis` 比較兩個時間點時才不會被「兩點各自代表向量的
+ * 尺度不同」污染。
+ *
+ * **不能單純取 `az=1`、`ay=tan(pitch)`(未單位化的等價比值版本)**:`tan()` 以 180° 為
+ * 週期(`tan(30°)=tan(210°)`),會遺失 `atan2` 原本用分母正負號記下的那個位元
+ * (pitch=30° 對應 `az>0`,pitch=210°=-150° 對應 `az<0`,兩者 `tan` 值相同但物理上是
+ * 不同姿態)——這個資訊在 `pitch` 本身的象限裡還在,只是被 `tan()` 這一步弄丟。修法:
+ * 用 `cos(pitch)` 的正負號還原 `az` 的正負號(pitch 通常有較大活動範圍,如膝彎曲可達
+ * 150° 以上;roll 通常維持小角度的外展修正,較不會落在 `cos=0` 的奇異點附近,故以
+ * pitch 為準),再除以向量長度單位化。
+ */
+export function reconstructTiltVector(
+  pitchDeg: number,
+  rollDeg: number
+): { ax: number; ay: number; az: number } {
+  const pitchRad = (pitchDeg * Math.PI) / 180
+  const rollRad = (rollDeg * Math.PI) / 180
+  const tanPitch = Math.tan(pitchRad)
+  const tanRoll = Math.tan(rollRad)
+  const azSign = Math.cos(pitchRad) >= 0 ? 1 : -1
+  const scale = azSign / Math.sqrt(1 + tanPitch * tanPitch + tanRoll * tanRoll)
+  return { ax: scale * tanRoll, ay: scale * tanPitch, az: scale }
+}
+
+/**
+ * 單顆 IMU 貼裝軸向誤差:原始向量旋轉法(2026-09-08 會議裁決,取代舊版二元 axisSwap)。
+ *
+ * 不能直接對「角度輸出」本身做旋轉(那是已否決的提案 A:大幅度動作下會退化成恆定 45°,
+ * 精靈實際要求的抬腿/勾腿幅度正好落在退化區間)。正確做法是先用 `reconstructTiltVector`
+ * 反推原始向量的方向,旋轉這個向量後再重新算 `atan2`,才是對的「先於 atan2 而非之後」。
+ * 旋轉軸是感測器自身的法向量(`az`),繞自身旋轉不改變 `az`。
+ *
+ * `rotationDeg` 是感測器貼裝時繞自身法向量偏轉的角度:0° = 正貼(舊 `axisSwap:false`),
+ * 90° = 貼歪整 90°(舊 `axisSwap:true`)。旋轉是真旋轉(行列式 +1),而舊版二元 swap
+ * 是不變號的純交換(行列式 -1、屬於反射)——兩者在拓樸上不可能連續重合,因此 90° 邊界
+ * 必然有一軸出現舊版沒有的變號,這不是實作疏漏,是「反射性交換」與「真旋轉」的本質
+ * 差異;多出的那次變號由既有、獨立判定的 `invert` 欄位吸收(見 calibration.ts 的
+ * `recalibrateAxis`)。旋轉半圈(`rotationDeg+180`)恆讓兩軸同時變號,故只需在
+ * (-90°, 90°] 主值域內表示,不遺失資訊。
+ */
+export function rotateRawAxes(
+  pitchDeg: number,
+  rollDeg: number,
+  rotationDeg: number
+): { pitch: number; roll: number } {
+  const rad = (rotationDeg * Math.PI) / 180
+  const { ax, ay, az } = reconstructTiltVector(pitchDeg, rollDeg)
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const ax2 = ax * cos - ay * sin
+  const ay2 = ax * sin + ay * cos
+  return {
+    pitch: (Math.atan2(ay2, az) * 180) / Math.PI,
+    roll: (Math.atan2(ax2, az) * 180) / Math.PI
+  }
+}

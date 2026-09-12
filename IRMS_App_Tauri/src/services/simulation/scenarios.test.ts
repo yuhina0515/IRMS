@@ -16,8 +16,10 @@ import { computeMetricZone } from '../movementMetric'
 const COMM_PERIOD_MS = 40
 
 const DEFAULT_CAL = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,

@@ -8,13 +8,26 @@ import { persist } from 'zustand/middleware'
 import type { CustomAction, JointProtocol } from '@shared/types'
 import type { LiveAngles, RawAngles } from '@shared/protocol'
 import type { EnginePhase } from '../services/triggerEngine'
-import { jointAngleDeg, normalizeDeg, shortestArcDelta } from '../services/angleMath'
+import { jointAngleDeg, normalizeDeg, rotateRawAxes, shortestArcDelta } from '../services/angleMath'
 
 /** 感測器校準與一般 UI 設定(持久化) */
 export interface Settings {
-  /** 感測器貼歪 90°(彎曲動作出現在 roll 軸)時,軟體對調該肢段的 pitch/roll */
-  proximalAxisSwap: boolean
-  distalAxisSwap: boolean
+  /**
+   * 感測器貼裝時繞自身法向量偏轉的角度(°,(-90,90] 主值域)——2026-09-08 會議裁決,
+   * 取代舊版二元 axisSwap(false→0、true→90 是精確映射,但這不是真的「升級」,見
+   * proximalAxisRotationVerified)。0° = 正貼,90° = 貼歪整 90°。套用方式見
+   * services/angleMath.ts 的 rotateRawAxes。
+   */
+  proximalAxisRotationDeg: number
+  distalAxisRotationDeg: number
+  /**
+   * rotationDeg 是否曾由 recalibrateAxis 以真實動作重新解出(2026-09-08 會議方案);
+   * false = 從舊版布林 axisSwap 遷移而來(legacy/unverified)——舊資料從未記錄推導 φ
+   * 所需的原始通道,不能假裝跟新流程量出來的數值一樣可信(見 useStore.ts migrateSettings
+   * 與 calibration.ts 的 calibrationDrift 使用)。
+   */
+  proximalAxisRotationVerified: boolean
+  distalAxisRotationVerified: boolean
   proximalInvert: boolean
   /** 校準姿勢(視為 0°)當下、經 axisSwap 對調後的原始讀值——不折算 invert 符號。
    *  判定為 (raw − zeroRaw) × sign,故事後翻轉 invert 不會使零位偏移
@@ -98,8 +111,10 @@ export interface SessionRuntime {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,
@@ -131,8 +146,8 @@ const DEFAULT_SETTINGS: Settings = {
  * 每次都響,真正的方向錯位反而被當成雜訊略過。
  */
 export const CALIBRATION_TRANSFORM_KEYS = [
-  'proximalAxisSwap',
-  'distalAxisSwap',
+  'proximalAxisRotationDeg',
+  'distalAxisRotationDeg',
   'proximalInvert',
   'proximalZeroRaw',
   'distalInvert',
@@ -156,6 +171,8 @@ export const CALIBRATION_TRANSFORM_KEYS = [
 export const CALIBRATION_KEYS = [
   ...CALIBRATION_TRANSFORM_KEYS,
   // 以下不改變算式,但屬於「這場是怎麼校出來的」的存證,一併快照:
+  'proximalAxisRotationVerified',
+  'distalAxisRotationVerified',
   'proximalRollVerified',
   'distalRollVerified',
   'lastCalibratedAt'
@@ -416,12 +433,13 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 11, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 12, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
       // v10:allowBetaUpdates
       // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
+      // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       migrate: (persisted) => migrateSettings(persisted)
     }
   )
@@ -433,6 +451,12 @@ interface LegacyOffsetFields {
   shinOffset?: number
   thighRollOffset?: number
   shinRollOffset?: number
+}
+
+/** v11 使用的布林 axisSwap 命名——v12 起改為連續值 axisRotationDeg(見 migrateSettings)。 */
+interface LegacyAxisSwapFields {
+  proximalAxisSwap?: boolean
+  distalAxisSwap?: boolean
 }
 
 /** v10 及更早版本使用的 thigh/shin 命名——v11 起改名 proximal/distal(見 ROADMAP D3),
@@ -456,10 +480,17 @@ interface LegacyThighShinFields {
  *  v4:額外把舊版的符號摺疊 offset 換算成 zeroRaw——換算公式與 calibration.ts 寫入端相同的
  *  可逆關係:zeroRaw = -offset × (invert ? -1 : 1)(見 buildCalibrationPatch/buildQuickZeroPatch)。
  *  v11:欄位改名 thigh/shin → proximal/distal(見 ROADMAP D3);舊 key 存在時原值原封不動搬到
- *  新 key,純改名不換算。 */
+ *  新 key,純改名不換算。
+ *  v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決)。false→0/true→90
+ *  是精確的布林值映射,但套用新的 rotateRawAxes 公式後,90° 邊界會有一軸出現舊版二元
+ *  swap(純交換、不變號)沒有的變號——旋轉與反射在拓樸上不可能重合,這是兩種操作的本質
+ *  差異而非實作疏漏(見 angleMath.ts rotateRawAxes 開頭推導)。因此舊資料一律標記
+ *  axisRotationVerified:false(legacy/unverified),不假裝它跟新流程重新解出的數值
+ *  一樣可信;calibrationDrift 據此在 History 提示「這場的軸向判定未經新方法驗證」。
+ *  （唯一已知的實機校準值是 axisSwap:false/false,rotationDeg=0 時是精確恆等式,不受影響。） */
 export function migrateSettings(persisted: unknown): { settings: Settings } {
   const p = (persisted ?? {}) as {
-    settings?: Partial<Settings> & LegacyOffsetFields & LegacyThighShinFields
+    settings?: Partial<Settings> & LegacyOffsetFields & LegacyThighShinFields & LegacyAxisSwapFields
   }
   const {
     thighOffset,
@@ -468,6 +499,8 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
     shinRollOffset,
     thighAxisSwap,
     shinAxisSwap,
+    proximalAxisSwap,
+    distalAxisSwap,
     thighInvert,
     thighZeroRaw,
     shinInvert,
@@ -481,14 +514,22 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
     ...rest
   } = p.settings ?? {}
 
+  // v12:axisSwap:boolean(v10 的 thighAxisSwap/shinAxisSwap 或 v11 的
+  // proximalAxisSwap/distalAxisSwap,兩者等價,取任一個存在的)→ axisRotationDeg:number
+  const legacyProximalSwap = proximalAxisSwap ?? thighAxisSwap
+  const legacyDistalSwap = distalAxisSwap ?? shinAxisSwap
+  const axisRotation: Partial<Settings> = {}
+  if (typeof legacyProximalSwap === 'boolean' && rest.proximalAxisRotationDeg == null) {
+    axisRotation.proximalAxisRotationDeg = legacyProximalSwap ? 90 : 0
+    axisRotation.proximalAxisRotationVerified = false
+  }
+  if (typeof legacyDistalSwap === 'boolean' && rest.distalAxisRotationDeg == null) {
+    axisRotation.distalAxisRotationDeg = legacyDistalSwap ? 90 : 0
+    axisRotation.distalAxisRotationVerified = false
+  }
+
   // v11 純改名(舊 key 存在且新 key 尚未設定時才搬,避免蓋掉一個已經是新格式的值)
   const renamed: Partial<Settings> = {}
-  if (thighAxisSwap !== undefined && rest.proximalAxisSwap == null) {
-    renamed.proximalAxisSwap = thighAxisSwap
-  }
-  if (shinAxisSwap !== undefined && rest.distalAxisSwap == null) {
-    renamed.distalAxisSwap = shinAxisSwap
-  }
   if (thighInvert !== undefined && rest.proximalInvert == null) {
     renamed.proximalInvert = thighInvert
   }
@@ -545,22 +586,24 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
     legacyZeroRaw.distalRollZeroRaw = -shinRollOffset * sign(shinRollInvert)
   }
 
-  return { settings: { ...DEFAULT_SETTINGS, ...rest, ...renamed, ...legacyZeroRaw } }
+  return { settings: { ...DEFAULT_SETTINGS, ...rest, ...renamed, ...legacyZeroRaw, ...axisRotation } }
 }
 
 /**
  * 依目前校準設定,將原始角度轉換為校正後的即時角度。
- * 順序:軸對調 (axisSwap) → 反相 (invert) → 偏移 (offset)。
+ * 順序:軸向旋轉修正 (axisRotationDeg) → 反相 (invert) → 偏移 (offset)。
  * 統一方向慣例(校準後):
  * - Pitch:0° = 站直,正 = 向前抬
  * - Roll:0° = 站直,正 = 向外側傾
  * - kneeRoll:帶符號 shinRoll − thighRoll,正 = 外翻 (valgus)、負 = 內翻 (varus)
  */
 export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
-  const rawThigh = s.proximalAxisSwap ? raw.thighRoll : raw.thigh
-  const rawThighRoll = s.proximalAxisSwap ? raw.thigh : raw.thighRoll
-  const rawShin = s.distalAxisSwap ? raw.shinRoll : raw.shin
-  const rawShinRoll = s.distalAxisSwap ? raw.shin : raw.shinRoll
+  const thighAxis = rotateRawAxes(raw.thigh, raw.thighRoll, s.proximalAxisRotationDeg)
+  const shinAxis = rotateRawAxes(raw.shin, raw.shinRoll, s.distalAxisRotationDeg)
+  const rawThigh = thighAxis.pitch
+  const rawThighRoll = thighAxis.roll
+  const rawShin = shinAxis.pitch
+  const rawShinRoll = shinAxis.roll
 
   // 先減零位、再反相(順序不可顛倒——顛倒等於回到會被 invert 事後翻轉破壞的舊
   // 「符號摺疊」offset 表示法)。減法與乘法之後必須重新正規化回 (-180, 180]:

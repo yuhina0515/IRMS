@@ -75,8 +75,10 @@ const OVER_LIMIT = 130
 
 /** 恆等校準:讓 poseForKnee(K) 直接等於判定看到的 K */
 const IDENTITY_CALIBRATION: Partial<Settings> = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,

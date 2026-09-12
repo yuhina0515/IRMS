@@ -272,6 +272,11 @@
            決定**——三方交叉詰問後一致收斂:校正不該是動態模組系統的第一個生產模組
            (疊加校正數學/模組載入器/未經硬體驗證的 BLE stack 三重未知數,且 Phase 4 的
            整包 auto-update 已經讓校正邏輯能隨時整包更新,不需要模組系統才能快速迭代)。
+           **2026-09-12 桌前部分已完成**([[log_20260912_axis_rotation_calibration_redesign|
+           日誌]]):`axisSwap:boolean` → `axisRotationDeg:number`、`recalibrateAxis` 獨立
+           函式、合成資料掃過 φ×α 驗證(不重蹈提案 A 的退化)、資料模型 migration(legacy
+           資料標記 unverified)皆已落地,282 tests 全綠。**仍待**:真機驗證(需要裝置)、
+           獨立於精靈之外的單肢段重校準入口(UI 位置留給 Gemini,未擅自設計)。
         2. **模組系統本身 → 只做一次限定範圍、不碰硬體的技術可行性 spike**:一個不碰
            BLE/DB/OTA、跟校正邏輯無關的最小「hello world」模組(fetch 遠端純前端 JS →
            checksum+簽章驗證 → 執行期掛載),只回答「Tauri 的 CSP/asset protocol 是否

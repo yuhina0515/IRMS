@@ -12,7 +12,7 @@ import {
   buildCalibrationPatch,
   buildQuickZeroPatch,
   computeCaptureStats,
-  detectAxisSwap,
+  recalibrateAxis,
   effectiveRaw,
   CAPTURE_STD_LIMIT_ABDUCTION,
   buildCalibrationSnapshot,
@@ -31,8 +31,10 @@ const raw = (thigh: number, shin: number, thighRoll = 0, shinRoll = 0): RawAngle
 const stable = (mean: RawAngles): CaptureStats => ({ mean, maxStdDev: 0.5 })
 
 const SETTINGS: Settings = {
-  proximalAxisSwap: false,
-  distalAxisSwap: false,
+  proximalAxisRotationDeg: 0,
+  distalAxisRotationDeg: 0,
+  proximalAxisRotationVerified: false,
+  distalAxisRotationVerified: false,
   proximalInvert: false,
   proximalZeroRaw: 0,
   distalInvert: false,
@@ -63,19 +65,37 @@ describe('computeCaptureStats', () => {
   })
 })
 
-describe('detectAxisSwap / effectiveRaw', () => {
-  it('彎曲動作出現在 pitch 軸 → 不對調', () => {
-    const r = detectAxisSwap(raw(0, 0), raw(40, 0, 3, 0), 'thigh')
-    expect(r).toEqual({ swap: false, delta: 40 })
+describe('recalibrateAxis / effectiveRaw(2026-09-08 會議:原始向量旋轉法)', () => {
+  it('彎曲動作完全出現在 pitch 軸、roll 完全不動 → rotationDeg ≈ 0', () => {
+    const r = recalibrateAxis(raw(0, 0), raw(40, 0, 0, 0), 'thigh')
+    expect(r.rotationDeg).toBeCloseTo(0)
+    expect(r.delta).toBeCloseTo(40)
   })
-  it('彎曲動作出現在 roll 軸(感測器貼歪 90°)→ 對調', () => {
-    const r = detectAxisSwap(raw(0, 0), raw(3, 0, 40, 0), 'thigh')
-    expect(r.swap).toBe(true)
-    expect(r.delta).toBe(40)
+
+  it('彎曲動作完全出現在 roll 軸(感測器貼歪 90°)→ rotationDeg ≈ 90', () => {
+    const r = recalibrateAxis(raw(0, 0), raw(0, 0, 40, 0), 'thigh')
+    expect(r.rotationDeg).toBeCloseTo(90)
+    expect(r.delta).toBeCloseTo(40)
   })
-  it('effectiveRaw 對調指定肢段的 pitch/roll', () => {
-    const eff = effectiveRaw(raw(1, 2, 3, 4), { proximalAxisSwap: true, distalAxisSwap: false })
-    expect(eff).toEqual({ thigh: 3, thighRoll: 1, shin: 2, shinRoll: 4 })
+
+  it('部分耦合(貼裝介於正貼與貼歪 90° 之間)→ 連續解出中間值,舊版二元判定抓不到這種情況', () => {
+    // 09-08 會議的起因正是這種情況:真實動作是純 pitch,但貼裝旋轉 φ=30° 讓它同時
+    // 投影到兩個讀值分量——依 rotateRawAxes 的物理模型反推感測器實際會讀到的角度
+    const phi = 30
+    const rad = (phi * Math.PI) / 180
+    const truePitchTan = Math.tan((40 * Math.PI) / 180)
+    const sensorPitchDeg = (Math.atan(truePitchTan * Math.cos(rad)) * 180) / Math.PI
+    const sensorRollDeg = (Math.atan(truePitchTan * Math.sin(rad)) * 180) / Math.PI
+    const r = recalibrateAxis(raw(0, 0), raw(sensorPitchDeg, 0, sensorRollDeg, 0), 'thigh')
+    expect(r.rotationDeg).toBeCloseTo(phi, 3)
+  })
+
+  it('effectiveRaw 依 rotationDeg 修正 pitch/roll(90° 邊界:pitch 端與舊版一致,roll 端變號)', () => {
+    const eff = effectiveRaw(raw(1, 2, 3, 4), { proximalAxisRotationDeg: 90, distalAxisRotationDeg: 0 })
+    expect(eff.thigh).toBeCloseTo(3)
+    expect(eff.thighRoll).toBeCloseTo(-1)
+    expect(eff.shin).toBeCloseTo(2)
+    expect(eff.shinRoll).toBeCloseTo(4)
   })
 })
 
@@ -170,16 +190,18 @@ describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
     expect(abd.shinRoll).toBeCloseTo(22)
   })
 
-  it('感測器貼歪 90°(彎曲出現在 roll 軸)→ axisSwap 修正後慣例仍成立', () => {
-    // 大腿感測器轉了 90°:前抬時 thighRoll raw 大幅變化、thigh raw 幾乎不動
-    const baseline = stable(raw(2, 1, 88, 3))
-    const thighRaise = stable(raw(3, 1, 130, 3)) // 動作出現在 thighRoll 軸(+42)
-    const kneeFlex = stable(raw(2, -34, 88, 3))
+  it('感測器貼歪 90°(彎曲出現在 roll 軸)→ axisRotationDeg 修正後慣例仍成立', () => {
+    // 大腿感測器轉了 90°:前抬時 thighRoll raw 大幅變化、thigh raw 完全不動
+    const baseline = stable(raw(0, 1, 0, 3))
+    const thighRaise = stable(raw(0, 1, 42, 3)) // 動作完全出現在 thighRoll 軸(+42)
+    const kneeFlex = stable(raw(0, -34, 0, 3))
     const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, null, SETTINGS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.proximalAxisSwap).toBe(true)
-    expect(r.patch.distalAxisSwap).toBe(false)
+    expect(r.patch.proximalAxisRotationDeg).toBeCloseTo(90)
+    expect(r.patch.distalAxisRotationDeg).toBeCloseTo(0)
+    expect(r.patch.proximalAxisRotationVerified).toBe(true)
+    expect(r.patch.distalAxisRotationVerified).toBe(true)
 
     const cal = { ...SETTINGS, ...r.patch }
     const stand = applyCalibration(baseline.mean, cal)
@@ -188,12 +210,12 @@ describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
     expect(applyCalibration(thighRaise.mean, cal).thigh).toBeCloseTo(42) // 前抬為正
   })
 
-  it('正向佩戴:不反相、不對調,僅歸零', () => {
+  it('正向佩戴:不反相、旋轉角為 0,僅歸零', () => {
     const baseline = stable(raw(-3, 2))
     const r = buildCalibrationPatch(baseline, stable(raw(42, 2)), stable(raw(-3, -33)), null, SETTINGS)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.patch.proximalAxisSwap).toBe(false)
+    expect(r.patch.proximalAxisRotationDeg).toBeCloseTo(0)
     expect(r.patch.proximalInvert).toBe(false)
     expect(r.patch.distalInvert).toBe(false)
     const stand = applyCalibration(baseline.mean, { ...SETTINGS, ...r.patch })
@@ -213,8 +235,8 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
     expect(stand.shinRoll).toBeCloseTo(0)
   })
 
-  it('大腿貼歪 90°(proximalAxisSwap)時仍能正確歸零 —— 修復前會歸到錯的物理軸', () => {
-    const swapped = { ...SETTINGS, proximalAxisSwap: true }
+  it('大腿貼歪 90°(proximalAxisRotationDeg=90)時仍能正確歸零 —— 修復前會歸到錯的物理軸', () => {
+    const swapped = { ...SETTINGS, proximalAxisRotationDeg: 90 }
     // thigh raw 承載的其實是 roll 動作、thighRoll raw 承載的其實是 pitch 動作
     const currentRaw = raw(88, -8, 12, -1)
     const patch = buildQuickZeroPatch(currentRaw, swapped)

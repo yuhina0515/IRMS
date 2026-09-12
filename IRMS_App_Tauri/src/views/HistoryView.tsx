@@ -209,6 +209,17 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             ⚠ 這場的校準與目前設定不同({drift.join('、')}),曲線的零點或正負方向可能
             與現在不一致,請勿與近期紀錄直接比較。
           </p>
+        ) : !snapshot.proximalAxisRotationVerified || !snapshot.distalAxisRotationVerified ? (
+          // 2026-09-08 會議裁決:舊版布林 axisSwap 遷移來的貼裝角度未經新方法(recalibrateAxis)
+          // 重新驗證過——數字本身沒有變(false→0/true→90 是精確映射),但比可信度低,
+          // 與「數值真的變了」的漂移警告分開表示,語氣也較輕。
+          <p className="field-hint" style={{ marginTop: 10 }}>
+            ⚠ 這場的
+            {!snapshot.proximalAxisRotationVerified && '大腿'}
+            {!snapshot.proximalAxisRotationVerified && !snapshot.distalAxisRotationVerified && '、'}
+            {!snapshot.distalAxisRotationVerified && '小腿'}
+            貼裝軸向判定沿用舊版校準邏輯換算而來,尚未經新方法以真實動作重新驗證。
+          </p>
         ) : null}
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <span className="text-text-dim">

@@ -867,6 +867,22 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   迴歸)。兩份 Gemini 需求草稿(`doc/gemini-handoff-20260911/`)已備妥:使用者新提的「卡片
   縮小時簡化顯示」需求,以及這個側邊欄重疊發現
 
+- **2026-09-12 校準軸向重新設計:axisSwap:boolean → axisRotationDeg:number**
+  ([[log_20260912_axis_rotation_calibration_redesign|日誌]]):落地 09-11 會議裁決「校正精靈
+  重新設計現在就做」的前三項桌前工作(合成資料驗證、`recalibrateAxis` 獨立函式、資料模型
+  migration),依 09-08 會議方案採原始向量旋轉法取代舊版二元 axisSwap。過程中兩次「先跑測試
+  才發現」的真實 bug:①第一版 `rotateRawAxes` 用固定 `az=1` 反推向量,`tan()` 180° 週期性
+  遺失 `atan2` 原本的象限資訊,導致 `|pitch|>90°`(膝彎曲常見)時恆等式失效
+  (`poseForKnee(179)` 被算成 1);修法用 `cos(pitch)` 正負號還原 `az` 正負號並改用單位化向量
+  +精確交叉項公式解 φ。②自己寫的驗證測試技巧本身有問題(假設反旋轉可組合,但 `az` 正負號
+  是逐次呼叫現場推導,不是跨呼叫追蹤的狀態)——真實 App 從不會這樣組合呼叫,是測試自己引入
+  的多餘假設,已改用直接指定 raw 姿勢的技巧。新增 `calibration.axisRotationSweep.test.ts`
+  掃過 φ×α 合成資料(2026-09-08 會議的強制前提),證明新公式不像已否決的提案 A 一樣在大幅度
+  動作下退化。舊資料遷移為 `rotationDeg=0/90` 並標記 `legacy/unverified`,History 分析 modal
+  新增第三種提示區分「未驗證」與「真的漂移」。**唯一已知的實機校準值是 axisSwap:false/false,
+  rotationDeg=0 時是精確恆等式,不受這次遷移影響。**`npm run typecheck`+282 tests+build 全綠。
+  真機驗證與「單肢段重校準入口」UI(位置留給 Gemini)留待下次時間窗
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌

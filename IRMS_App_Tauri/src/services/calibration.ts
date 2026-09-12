@@ -1,6 +1,7 @@
-// --- 校準精靈純數學(v3:外展 roll invert 逐軸解耦)---
+// --- 校準精靈純數學(v4:axisSwap:boolean → axisRotationDeg:number,2026-09-08 會議)---
 // 由四次靜態捕捉(站直 / 前抬大腿 / 站立後勾小腿 / 腿向外側擺)推導:
-// 1. axisSwap —— 感測器貼歪 90° 時,彎曲動作出現在 roll 軸 → 軟體對調 pitch/roll
+// 1. axisRotationDeg —— 感測器貼裝旋轉角(連續值,取代舊版二元 axisSwap),原始向量
+//    旋轉法解出,見 recalibrateAxis
 // 2. invert  —— pitch 依前抬/後勾方向、roll 依外展方向自動判定(大腿/小腿獨立,見下)
 // 3. offset  —— 以站直姿勢四軸歸零
 // 統一慣例(校準後):Pitch 正 = 向前抬;Roll 正 = 向外側傾;kneeRoll 正 = 外翻。
@@ -8,7 +9,13 @@
 import type { CalibrationSnapshot } from '@shared/types'
 import type { RawAngles } from '@shared/protocol'
 import { CALIBRATION_KEYS, CALIBRATION_TRANSFORM_KEYS, type Settings } from '../store/useStore'
-import { circularMeanDeg, circularStdDevDeg, shortestArcDelta } from './angleMath'
+import {
+  circularMeanDeg,
+  circularStdDevDeg,
+  reconstructTiltVector,
+  rotateRawAxes,
+  shortestArcDelta
+} from './angleMath'
 
 /** 捕捉期間允許的最大標準差(度)——超過視為晃動 */
 export const CAPTURE_STD_LIMIT = 3
@@ -68,35 +75,71 @@ export function computeCaptureStats(samples: RawAngles[]): CaptureStats {
 }
 
 export interface AxisMapping {
-  proximalAxisSwap: boolean
-  distalAxisSwap: boolean
+  proximalAxisRotationDeg: number
+  distalAxisRotationDeg: number
 }
 
-/** 依軸對調設定取得「有效」raw 值(swap 後的 pitch/roll) */
+/** 依軸旋轉角取得「有效」raw 值(見 angleMath.ts 的 rotateRawAxes——2026-09-08 會議裁決的原始向量旋轉法) */
 export function effectiveRaw(raw: RawAngles, m: AxisMapping): RawAngles {
-  return {
-    thigh: m.proximalAxisSwap ? raw.thighRoll : raw.thigh,
-    thighRoll: m.proximalAxisSwap ? raw.thigh : raw.thighRoll,
-    shin: m.distalAxisSwap ? raw.shinRoll : raw.shin,
-    shinRoll: m.distalAxisSwap ? raw.shin : raw.shinRoll
-  }
+  const thigh = rotateRawAxes(raw.thigh, raw.thighRoll, m.proximalAxisRotationDeg)
+  const shin = rotateRawAxes(raw.shin, raw.shinRoll, m.distalAxisRotationDeg)
+  return { thigh: thigh.pitch, thighRoll: thigh.roll, shin: shin.pitch, shinRoll: shin.roll }
 }
 
 /**
- * 軸對調偵測:預期的彎曲動作若主要出現在 roll 軸,代表感測器貼歪了 90°。
- * 回傳該肢段的 swap 判定與實際最大幅度(供幅度驗證)。
+ * 將 φ 折回 (-90°, 90°] 主值域。
+ *
+ * `rotateRawAxes(pitch, roll, θ+180)` 恆等於 `rotateRawAxes(...)` 在 θ 的結果兩軸同時
+ * 變號——旋轉半圈只讓兩軸一起變號,而變號正是既有 `invert` 欄位本來就在處理的事。
+ * 因此 θ 與 θ+180 是同一個物理安裝角度的兩種等價表示法,折回單一主值域不遺失資訊,
+ * 只是固定選一個代表值(邊界 -90° 收斂到 +90°,讓「貼歪 90°」有單一表示)。
  */
-export function detectAxisSwap(
+function foldRotationDeg(deg: number): number {
+  let wrapped = deg % 180
+  if (wrapped <= -90) wrapped += 180
+  if (wrapped > 90) wrapped -= 180
+  return wrapped
+}
+
+/**
+ * 單顆 IMU 獨立判定安裝軸向(2026-09-08 會議裁決,取代舊版二元 `detectAxisSwap`)。
+ *
+ * 用既有精靈同一個單一參考動作(大腿:前抬;小腿:後勾)的站直基準+動作終點兩點擷取
+ * 解出 φ,不需連續掃描、不需新增操作步驟。物理假設:單一參考動作應為純 pitch,不動
+ * 「有效 roll」——套用 `rotateRawAxes` 推導,旋轉後的有效 roll 分量
+ * `ax_a = ax·cosφ − ay·sinφ`、`az_a = az` 在動作前後應該解出同一個角度
+ * `atan2(ax_a, az_a)`,即 `(ax_m·cosφ−ay_m·sinφ)/az_m = (ax_b·cosφ−ay_b·sinφ)/az_b`
+ * (下標 m/b 為動作終點/基準)。交叉相乘解出:
+ * `tanφ = (ax_m·az_b − ax_b·az_m) / (ay_m·az_b − ay_b·az_m)`——這是精確解,不是小角度
+ * 近似;`(ax,ay,az)` 取 `reconstructTiltVector` 的單位化向量(基準與終點兩次擷取都是
+ * 靜止讀值,重力量值恆為 1g,單位化後兩者才共享同一個尺度,不能各自任意取 `az=1` 的
+ * 未單位化比值版本——那只在基準剛好落在 pitch=roll=0 時碰巧與精確解一致)。
+ *
+ * @returns rotationDeg 為解出的貼裝旋轉角(°,(-90,90] 主值域);delta 沿用舊版角度
+ *   空間(非向量空間)的最大位移,供 `CAPTURE_DELTA_MIN` 幅度把關——角度空間在這裡仍是
+ *   對的量度,換成向量空間的量級會被 `tan()` 在大角度時的陡峭放大扭曲。
+ */
+export function recalibrateAxis(
   baseline: RawAngles,
   moved: RawAngles,
   limb: 'thigh' | 'shin'
-): { swap: boolean; delta: number } {
-  // 最短弧差:掛載方向可能讓某軸的靜止姿勢落在 ±180 切點,線性相減會把 2° 的
-  // 實際動作算成 358°,足以偽造出「幅度足夠」並且正負號相反
-  const dPitch = Math.abs(shortestArcDelta(baseline[limb], moved[limb]))
+): { rotationDeg: number; delta: number } {
+  const pitchKey = limb
   const rollKey = limb === 'thigh' ? 'thighRoll' : 'shinRoll'
+
+  const dPitch = Math.abs(shortestArcDelta(baseline[pitchKey], moved[pitchKey]))
   const dRoll = Math.abs(shortestArcDelta(baseline[rollKey], moved[rollKey]))
-  return { swap: dRoll > dPitch, delta: Math.max(dPitch, dRoll) }
+
+  // reconstructTiltVector(見 angleMath.ts):不能單純用 tan() 反推,pitch 超過 ±90°
+  // (膝彎曲常見)時 tan() 的 180° 週期會與 atan2 原本記下的象限資訊互相矛盾
+  const b = reconstructTiltVector(baseline[pitchKey], baseline[rollKey])
+  const m = reconstructTiltVector(moved[pitchKey], moved[rollKey])
+  const numerator = m.ax * b.az - b.ax * m.az
+  const denominator = m.ay * b.az - b.ay * m.az
+
+  const rotationDeg = foldRotationDeg((Math.atan2(numerator, denominator) * 180) / Math.PI)
+
+  return { rotationDeg, delta: Math.max(dPitch, dRoll) }
 }
 
 export type CalibrationError = 'unstable' | 'thighDeltaTooSmall' | 'shinDeltaTooSmall'
@@ -124,12 +167,16 @@ export function buildCalibrationPatch(
     return { ok: false, error: 'unstable' }
   }
 
-  // 1. 軸對調偵測(先於一切符號判定)
-  const thighAxis = detectAxisSwap(baseline.mean, thighRaise.mean, 'thigh')
+  // 1. 軸向解算(先於一切符號判定)——2026-09-08 會議裁決:原始向量旋轉法,
+  //    取代舊版二元 detectAxisSwap,見 recalibrateAxis
+  const thighAxis = recalibrateAxis(baseline.mean, thighRaise.mean, 'thigh')
   if (thighAxis.delta < CAPTURE_DELTA_MIN) return { ok: false, error: 'thighDeltaTooSmall' }
-  const shinAxis = detectAxisSwap(baseline.mean, kneeFlex.mean, 'shin')
+  const shinAxis = recalibrateAxis(baseline.mean, kneeFlex.mean, 'shin')
   if (shinAxis.delta < CAPTURE_DELTA_MIN) return { ok: false, error: 'shinDeltaTooSmall' }
-  const mapping: AxisMapping = { proximalAxisSwap: thighAxis.swap, distalAxisSwap: shinAxis.swap }
+  const mapping: AxisMapping = {
+    proximalAxisRotationDeg: thighAxis.rotationDeg,
+    distalAxisRotationDeg: shinAxis.rotationDeg
+  }
 
   // 2. 以「有效軸」判定 pitch invert:
   //    前抬大腿 → 慣例下 thigh 應變大;站立後勾小腿 → shin 應變小
@@ -165,6 +212,10 @@ export function buildCalibrationPatch(
   //    (不是舊的「符號摺疊」offset 表示法——那個在 invert 翻轉時會產生雙倍偏差)
   const patch: Partial<Settings> = {
     ...mapping,
+    // 這次精靈剛用真實動作重新解出 rotationDeg,標記為已驗證——與舊版布林遷移來的
+    // legacy/unverified 資料區隔開(見 useStore.ts migrateSettings)
+    proximalAxisRotationVerified: true,
+    distalAxisRotationVerified: true,
     proximalInvert,
     distalInvert,
     proximalRollInvert,
@@ -180,17 +231,17 @@ export function buildCalibrationPatch(
 }
 
 /**
- * 快速歸零:沿用現有 axisSwap/invert 設定,只用「當下姿勢 = 0°」重設四個 zeroRaw。
- * 必須先套用 effectiveRaw 做軸對調——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
- * 否則貼歪 90° 的感測器會把零位算在錯的物理軸上(SettingsView 曾經直接用
+ * 快速歸零:沿用現有 axisRotationDeg/invert 設定,只用「當下姿勢 = 0°」重設四個 zeroRaw。
+ * 必須先套用 effectiveRaw 做軸向修正——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
+ * 否則貼歪的感測器會把零位算在錯的物理軸上(SettingsView 曾經直接用
  * raw.thigh/raw.thighRoll,略過了這一步)。
  * zeroRaw 不折算 invert 符號,故不需要讀取 invert 設定——這正是重新參數化的收益:
  * invert 從「翻轉即雙倍偏差的地雷」變成不擾動零位的獨立控制項。
  */
 export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial<Settings> {
   const eff = effectiveRaw(raw, {
-    proximalAxisSwap: settings.proximalAxisSwap,
-    distalAxisSwap: settings.distalAxisSwap
+    proximalAxisRotationDeg: settings.proximalAxisRotationDeg,
+    distalAxisRotationDeg: settings.distalAxisRotationDeg
   })
   return {
     proximalZeroRaw: eff.thigh,

@@ -121,8 +121,12 @@ export interface Session {
  * 而這個欄位的用途是「當時是什麼」的存證,不是查詢維度。
  */
 export interface CalibrationSnapshot {
-  proximalAxisSwap: boolean
-  distalAxisSwap: boolean
+  /** 貼裝旋轉角(°);2026-09-08 會議裁決,取代舊版布林 axisSwap */
+  proximalAxisRotationDeg: number
+  distalAxisRotationDeg: number
+  /** rotationDeg 是否曾由真實動作重新解出;false = 從舊版布林遷移而來(legacy/unverified) */
+  proximalAxisRotationVerified: boolean
+  distalAxisRotationVerified: boolean
   proximalInvert: boolean
   proximalZeroRaw: number
   distalInvert: boolean
