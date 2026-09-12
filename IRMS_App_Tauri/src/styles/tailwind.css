@@ -143,6 +143,21 @@
   }
   .main {
     @apply flex-1 overflow-y-auto pr-1;
+    /* 側邊欄展開時以覆蓋方式蓋住內容左側 164px(見上面 .app-column 的 margin-left
+       註解:「the extra 164px overlays on top of the content」——蓋住的是整個內容,
+       不是只有標題)——2026-09-12 Gemini 設計裁決「動態偏移對齊」:整頁內容(標題+
+       其下的卡片/面板)一起跟著側邊欄的展開/收合平滑挪動,而不是任由側邊欄蓋住其中
+       一部分、讓標題跟內容各自對齊到不同的左邊界。第一版只把偏移量加在 .page-header
+       上,結果標題移了、下面的卡片沒有跟著移,兩者變成參差不齊——用 Playwright 截圖
+       實際跑過一次才看到,不是憑代碼推論能發現的。用既有的 `.sidebar.collapsed`
+       class 搭配一般兄弟選擇器,不需要另外把收合狀態往上提升到 App.tsx/store——純
+       CSS 就能達成同樣效果,狀態仍留在 Sidebar.tsx 本地。transition 時間/曲線刻意
+       與 .sidebar 自己的展開動畫一致(0.25s var(--motion-ease-mechanical)),兩者
+       才會同步到達,不會一個先動一個慢半拍。 */
+    transition: padding-left 0.25s var(--motion-ease-mechanical);
+  }
+  .sidebar:not(.collapsed) ~ .app-column .main {
+    padding-left: 164px;
   }
   /* Fixed 220px, no responsive shrink — width/colors/spacing here are the literal pixel spec
      (see --sidebar-* tokens above for the light-theme adaptation note), not @apply utility
@@ -257,6 +272,11 @@
   }
   .page-header h2 {
     @apply text-2xl font-bold tracking-tight;
+    /* 側邊欄展開推走 164px 後,窄視窗下標題可能被逼到快溢出——截斷保護優先於
+       跟著換行或溢出裁切,這是 Gemini 設計裁決本身列出的優化項 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .page-header p {
     @apply text-text-muted text-sm;
@@ -571,6 +591,8 @@
   }
   .action-card {
     @apply flex flex-col gap-2 p-5 border border-transparent transition-colors duration-200;
+    container-type: inline-size;
+    container-name: actioncard;
   }
   .action-card:hover {
     @apply border-accent;
@@ -580,6 +602,21 @@
   }
   .action-card .meta {
     @apply text-sm text-text-muted mt-0.5;
+  }
+  /* 漸進式資訊密度(2026-09-12 Gemini 設計裁決):Tier 1(名稱+核心參數 `.meta`
+     非 tier2/3 那行)永不隱藏。窄到某個程度先丟 Tier 3(安全上限/說明——輔助資訊,
+     不是達標判定依賴的數字);更窄時連 Tier 2(協定標籤)也丟。Edit/Delete 按鈕
+     維持文字(這個專案目前沒有現成的圖示元件可轉成純圖示按鈕,不為了這個功能
+     臨時生出一套新圖示資產)。 */
+  @container actioncard (max-width: 320px) {
+    .action-card .action-card-tier3 {
+      display: none;
+    }
+  }
+  @container actioncard (max-width: 240px) {
+    .action-card .action-card-tier2 {
+      display: none;
+    }
   }
 
   /* ── Record Pose row (ActionsView modal) ── */
@@ -837,8 +874,23 @@
     aspect-ratio: 4 / 3;
     @apply rounded-card overflow-hidden border border-border;
   }
+  /* 漸進式卡片資訊密度(2026-09-12 Gemini 設計裁決):卡片可用空間縮小時應該有計畫地
+     丟棄資訊,而不是把既有內容硬擠壓縮。container query 查的是卡片自己的寬度(不是
+     視窗寬度)——.stat 位於 auto-fit 網格中,同一個視窗寬度下卡片實際寬度取決於能
+     排進幾欄,只有容器查詢才量得到那個真正的寬度。 */
+  .stat {
+    container-type: inline-size;
+    container-name: stat;
+  }
   .stat .label {
     @apply text-text-muted text-xs uppercase tracking-wide font-semibold;
+  }
+  /* Tier-1(英文識別字)與 value 永不隱藏;label-sub(中文說明)是 Tier-2,窄到連
+     label 都快擠不下時第一個丟掉——見 DashboardView.tsx 的 Stat 元件註解 */
+  @container stat (max-width: 160px) {
+    .stat .label-sub {
+      display: none;
+    }
   }
   .stat .value {
     @apply text-3xl font-bold mt-1 font-mono;

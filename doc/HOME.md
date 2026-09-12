@@ -883,6 +883,20 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   rotationDeg=0 時是精確恆等式,不受這次遷移影響。**`npm run typecheck`+282 tests+build 全綠。
   真機驗證與「單肢段重校準入口」UI(位置留給 Gemini)留待下次時間窗
 
+- **2026-09-12 裝 Gemini CLI + 實作 09-11 兩份設計草稿**
+  ([[log_20260912_gemini_09-11_briefs_implementation|日誌]]):裝了
+  `@google/gemini-cli`,取代原本人工貼網頁版的流程,可用 `gemini -p` 非互動呼叫並讓它
+  自己讀專案檔案。分兩次獨立對話回答 `doc/gemini-handoff-20260911/` 的兩份草稿(卡片
+  漸進式資訊密度、側邊欄遮擋標題),依既有委任慣例直接實作,但仍核實 Gemini 方案裡
+  兩處與實際程式碼不符的假設(不存在的 persisted 欄位、不存在的圖示元件)。**用
+  Playwright 截圖實際跑起來才抓到一個真實 bug**:第一版把偏移量只加在 `.page-header`
+  上,標題移了但底下整頁內容沒跟著移,對不齊比原本的遮擋 bug 更奇怪——回頭發現既有
+  CSS 註解早就寫明側邊欄蓋住的是「整個內容」不只標題,改把偏移量移到 `.main`
+  解決。這個環境沒有 `chromium-cli` skill,改用拋棄式 Playwright 腳本(比照專案既有
+  慣例用完即刪),純瀏覽器執行需要 mock `window.__TAURI_INTERNALS__` 才能繞過
+  `WindowControls` 元件因缺少 Tauri IPC 而整棵樹崩潰的問題。`npm run typecheck`+
+  282 tests+build 全綠,兩項改動皆截圖驗收通過才判定完成
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌

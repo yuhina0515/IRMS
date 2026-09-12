@@ -32,10 +32,29 @@ const RIGHT_TABS: { id: RightTab; label: string }[] = [
   { id: '2d', label: '2D 姿態' }
 ]
 
-function Stat({ label, value, cls }: { label: string; value: string; cls?: string }): JSX.Element {
+/**
+ * subLabel(中文說明,如「大腿」「夾角」)是漸進式密度的 Tier-2:卡片變窄時第一個丟掉
+ * (見 tailwind.css `.stat` 的 container query)。label 本身與 value 是 Tier-1,
+ * 任何寬度都不隱藏——value 是實際量到的數字,label 是唯一的英文識別字,兩者都是
+ * 判讀所需的最低限度資訊。
+ */
+function Stat({
+  label,
+  subLabel,
+  value,
+  cls
+}: {
+  label: string
+  subLabel?: string
+  value: string
+  cls?: string
+}): JSX.Element {
   return (
     <div className="panel glass stat">
-      <div className="label">{label}</div>
+      <div className="label">
+        {label}
+        {subLabel && <span className="label-sub"> {subLabel}</span>}
+      </div>
       <div className={`value ${cls ?? ''}`}>{value}</div>
     </div>
   )
@@ -54,13 +73,14 @@ function DetailStatsGrid({ angles, hardwareError }: DetailStatsGridProps): JSX.E
     hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
   return (
     <div className="grid cards w-full">
-      <Stat label="Thigh 大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-      <Stat label="Shin 小腿" value={fmt(angles?.shin)} cls="color-shin" />
-      <Stat label="Knee 夾角" value={fmt(angles?.knee)} cls="color-accent" />
+      <Stat label="Thigh" subLabel="大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
+      <Stat label="Shin" subLabel="小腿" value={fmt(angles?.shin)} cls="color-shin" />
+      <Stat label="Knee" subLabel="夾角" value={fmt(angles?.knee)} cls="color-accent" />
       <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
       <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
       <Stat
-        label="Varus/Valgus 內外翻"
+        label="Varus/Valgus"
+        subLabel="內外翻"
         value={
           hardwareError
             ? 'ERR'

@@ -220,17 +220,21 @@ export function ActionsView(): JSX.Element {
               {group.actions.map((a) => (
                 <div key={a.id} className="action-card glass">
                   <h4>{a.name}</h4>
-                  <span className="badge">{triggerLabel(a.triggerType)}</span>
+                  {/* 漸進式密度(卡片變窄時依序丟棄,見 tailwind.css 的 container query):
+                      Tier 1(名稱+下面這行核心參數)永不隱藏;Tier 2(協定標籤)較窄時先藏;
+                      Tier 3(安全上限、說明文字)最先藏——兩者都是輔助資訊,不是達標判定
+                      本身依賴的數字。 */}
+                  <span className="badge action-card-tier2">{triggerLabel(a.triggerType)}</span>
                   <div className="meta">
                     Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
                   </div>
-                  <div className="meta">
+                  <div className="meta action-card-tier3">
                     安全上限{' '}
                     {a.safetyLimit != null
                       ? `${a.safetyLimit}°`
                       : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
                   </div>
-                  {a.description && <div className="meta">{a.description}</div>}
+                  {a.description && <div className="meta action-card-tier3">{a.description}</div>}
                   <div className="row" style={{ marginTop: 8 }}>
                     <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
                       Edit
