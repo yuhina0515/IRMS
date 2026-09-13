@@ -37,7 +37,8 @@ const BASE_SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
-  allowBetaUpdates: true
+  allowBetaUpdates: true,
+  sidebarCollapsed: false
 }
 
 describe('migrateSettings', () => {
@@ -109,6 +110,20 @@ describe('migrateSettings', () => {
     expect(settings.allowBetaUpdates).toBe(true) // 新欄位補預設(維持既有的一律 beta 行為)
     expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
     expect(settings.showTrendChart).toBe(true)
+  })
+
+  it('v12 的 persist 資料補上 v13 新欄位 sidebarCollapsed,且不動使用者既有值', () => {
+    const v12 = {
+      settings: {
+        protocol: 'knee',
+        maxChartPoints: 80,
+        allowBetaUpdates: false
+      }
+    }
+    const { settings } = migrateSettings(v12)
+    expect(settings.sidebarCollapsed).toBe(false) // 新欄位補預設(展開)
+    expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
+    expect(settings.allowBetaUpdates).toBe(false)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {
