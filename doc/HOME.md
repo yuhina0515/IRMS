@@ -929,6 +929,24 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   循環。使用者要求「紀錄,關閉 session」,**下次接續前先看本篇的兩項待回報問題**,
   不要在缺乏精確重現步驟前重新盲目修一次
 
+- **2026-09-14 Bug 逐項排查 + Gemini 設計語言重新設計 brief**
+  ([[log_20260914_bug_pass_and_gemini_design_language_brief|完整日誌]]):使用者要求逐一解決
+  bug、已知限制改用替代方案、委任 Gemini 重新設計專屬設計語言。**側邊欄遮擋內容其實已於
+  09-12 修好**——Playwright 實測四頁四種收合狀態,`.sidebar` 與內容穩定維持 12px 間距零重疊,
+  不需要替代方案,先前的「已知限制」認知已過期。**TopHeader 點擊偏移**:查證上游
+  tauri-apps/tauri issue #12285/#11345/#11788 確認 `decorations:false` + shadow 同時啟用
+  在 Windows 上會造成內部視窗尺寸/座標計算誤差,官方建議關閉 shadow 當暫時解法;本專案
+  `splash.rs` 早就對 splash 視窗這麼做(當時是另一個視覺理由),主視窗
+  `tauri.conf.json` 卻從未套用,補上 `"shadow": false`,`cargo check` 過。**這個修正無法
+  自動驗證**——09-11 已證實這類錯位連 UI Automation 都測不出來,需使用者下次實測真滑鼠點擊。
+  **beta.5 兩項回報**複查 `update.rs`/`useStore.ts` 程式碼皆正確,仍缺重現步驟無法繼續。
+  **issue #3** 仍卡在 harold1008,無新留言。**Gemini 設計語言 brief**已寫成
+  `doc/gemini-handoff-20260914/01-design-language-redesign.md`(說明 IRMS 是病患邊做復健邊看
+  的臨床監測工具而非通用儀表板,附六張雙主題截圖)並用 `gemini --skip-trust -p` 送出,但
+  Gemini 讀到一半就撞上 API **免費額度**上限(`gemini-3.5-flash` 每日僅 5–20 次請求),
+  `TerminalQuotaError` 收場,**未取得任何設計回覆**,實作(task #6)因此尚未開始,等額度重置
+  或使用者決定改走付費層級/其他模型/退回人工貼網頁版。
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
