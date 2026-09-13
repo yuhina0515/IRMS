@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS } from '@shared/types'
-import type { FirmwareBinary } from '@shared/types'
+import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { GlassDropdown } from '../components/GlassDropdown'
@@ -246,31 +246,52 @@ export function SettingsView(): JSX.Element {
   )
 }
 
+/** UpdateStatus → 人看得懂的中文狀態文字。null = 從未檢查過,不顯示任何狀態列。 */
+function describeUpdateStatus(status: UpdateStatus | null): string | null {
+  if (!status) return null
+  switch (status.state) {
+    case 'checking':
+      return '檢查中…'
+    case 'available':
+      return `發現新版本 ${status.version},準備下載…`
+    case 'downloading':
+      return `下載中…${status.percent}%`
+    case 'downloaded':
+      return `新版本 ${status.version} 已下載完成,見下方橫幅重新啟動套用`
+    case 'not-available':
+      return '已是最新版本'
+    case 'error':
+      return `檢查失敗:${status.message}`
+  }
+}
+
 /**
- * App 軟體更新面板。更新流程本身(背景下載/重啟套用)完全靜默——見
- * `UpdateBanner.tsx`,只有「已下載完成」才會冒出來。這裡只放版本顯示與手動檢查按鈕,
- * 不重複顯示下載進度(那是 UpdateBanner 的責任)。
+ * App 軟體更新面板。下載/重啟套用本身仍然靜默——見 `UpdateBanner.tsx`,只有
+ * 「已下載完成」才會在畫面下方冒出來。但「檢查」這一步本身的結果(已是最新版/
+ * 失敗/發現新版本)過去完全沒有出口:`checkNow()` 只丟一句固定文案的 toast,不管
+ * `performCheck()` 實際結果是什麼——2026-09-13 使用者實測回報「按下去之後就沒有任何
+ * 提示了」正是這個缺口:如果檢查失敗(網路錯誤/manifest 抓不到)或單純沒有新版本,
+ * 畫面上長得跟「按下去什麼都沒發生」一模一樣,無從分辨兩者。改成訂閱
+ * `onStatusChange` 顯示一行持續可見的狀態文字,取代原本那句不管結果都一樣的 toast。
  */
 function SoftwareUpdatePanel(): JSX.Element {
-  const showToast = useUiStore((s) => s.showToast)
   const allowBetaUpdates = useStore((s) => s.settings.allowBetaUpdates)
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
+  const [status, setStatus] = useState<UpdateStatus | null>(null)
+  const checking = status?.state === 'checking'
 
   useEffect(() => {
     irms.updates.getCurrentVersion().then(setVersion)
   }, [])
 
+  useEffect(() => irms.updates.onStatusChange(setStatus), [])
+
   const checkNow = async (): Promise<void> => {
-    setChecking(true)
-    try {
-      await irms.updates.checkNow()
-      showToast('已送出檢查請求——若有新版本,會在背景下載,完成後畫面下方會出現重啟提示', 'info')
-    } finally {
-      setChecking(false)
-    }
+    await irms.updates.checkNow()
   }
+
+  const statusText = describeUpdateStatus(status)
 
   return (
     <div className="panel glass">
@@ -285,6 +306,11 @@ function SoftwareUpdatePanel(): JSX.Element {
           {checking ? '檢查中…' : '立即檢查更新'}
         </button>
       </div>
+      {statusText && (
+        <p className="field-hint" style={{ marginTop: 8 }} role="status">
+          {statusText}
+        </p>
+      )}
       <div style={{ marginTop: 12 }}>
         <Toggle
           label="接收 Beta 版更新"
