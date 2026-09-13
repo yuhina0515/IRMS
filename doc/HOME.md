@@ -909,6 +909,17 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `IRMS_App_Tauri` 1.3.0 更名回 `IRMS_App`)與一則「App 能否像 Discord 一樣更新」的
   可行性分析(未動工)
 
+- **2026-09-14 更新檢查逾時修復 + 發布 1.2.0-beta.5**
+  ([[log_20260914_update_check_status_timeout_fix_and_beta5_release|完整日誌]]):
+  使用者用真實裝置上的 `1.2.0-beta.1` 回報「無法抓取更新」。逐步排除簽章公鑰不匹配、
+  beta 頻道邏輯缺失,再請使用者直接用瀏覽器測同一個 `latest.json` 網址——成功下載,
+  排除該機器完全連不到 GitHub。查 `tauri-plugin-updater` 原始碼確認根因:更新檢查的
+  HTTP 請求**從未設定逾時**,連線被靜默丟包(常見於未簽章執行檔被防火牆/EDR 特殊對待,
+  而瀏覽器流量不受影響)時會無限期卡住,既不成功也不報錯——這正是「完全沒有任何提示」
+  的真正原因,不是快取延遲或單純找不到新版本。加上 30 秒逾時,發布 `1.2.0-beta.5`。
+  這次刻意先 `push` 再建 release,避免重演前一篇 tag 指向錯誤 commit 的事故——
+  `git ls-remote` 確認這次 tag 與本機 HEAD 完全一致
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
