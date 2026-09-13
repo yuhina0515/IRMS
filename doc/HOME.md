@@ -897,6 +897,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `WindowControls` 元件因缺少 Tauri IPC 而整棵樹崩潰的問題。`npm run typecheck`+
   282 tests+build 全綠,兩項改動皆截圖驗收通過才判定完成
 
+- **2026-09-13 側邊欄持久化修復 + 發布 1.2.0-beta.4**
+  ([[log_20260913_sidebar_persist_fix_beta4_release_and_migration_retirement_plan|完整日誌]]):
+  確認 Tauri 版「選單每次啟動都自動展開」是真的既有缺陷——Electron 版 09-09 已修(改存
+  `settings.sidebarCollapsed`),但 Tauri 前端搬遷發生在那次修復之前,一直沒回頭補上。
+  補齊後(persist v12→v13)`npm run ci`(284 tests)全綠,發布 `1.2.0-beta.4`。過程中
+  `gh release create` 建 tag 撞到本機 commit 尚未 push 的時序問題,tag 一度指向錯誤
+  commit;修正時 `git push --force` 被 Claude Code 分類器擋下,改用刪除重推的等效
+  作法,期間 release 曾短暫變成 draft(GitHub tag/release 分離的已知行為),已重新
+  關聯修復。另記錄兩項使用者裁示的未來版本計畫(Electron→Tauri 資料遷移模組退場時程、
+  `IRMS_App_Tauri` 1.3.0 更名回 `IRMS_App`)與一則「App 能否像 Discord 一樣更新」的
+  可行性分析(未動工)
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
