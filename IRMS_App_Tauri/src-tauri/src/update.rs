@@ -18,7 +18,19 @@
 const STABLE_ENDPOINT: &str = "https://github.com/yuhina0515/IRMS/releases/latest/download/latest.json";
 const BETA_ENDPOINT: &str = "https://github.com/yuhina0515/IRMS/releases/download/beta-latest/latest.json";
 
+// `UpdaterBuilder::timeout` defaults to `None` (see tauri-plugin-updater's updater.rs), which
+// means reqwest applies no request-level timeout at all — a connection that never receives a
+// response (a firewall/EDR that silently drops the packets of an unsigned, unrecognized .exe
+// instead of actively rejecting them, unlike a browser's traffic) hangs forever instead of
+// erroring. 2026-09-13: a real user hit exactly this — the same GitHub URL loaded fine in their
+// browser but the in-app check produced no result at all, not even an eventual error, confirming
+// this app's HTTP client (not GitHub or the network path itself) never got a response. 30s is
+// generous enough to cover the ~4MB installer download over a slow connection while still turning
+// an indefinite hang into a bounded, visible `state:'error'` the user can actually report back.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
 use serde::Serialize;
+use std::time::Duration;
 use tauri::{AppHandle, Manager, ResourceId, Runtime};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -45,6 +57,7 @@ pub async fn update_check<R: Runtime>(
         .updater_builder()
         .endpoints(vec![url])
         .map_err(|e| e.to_string())?
+        .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| e.to_string())?;
 
