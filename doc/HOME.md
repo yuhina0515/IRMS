@@ -985,6 +985,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ![[coding-logs.base]]
 
+- **2026-09-14 Codex CLI 第一次握手**
+  ([[log_20260914_codex_cli_first_handshake|完整日誌]]):用 `codex exec` 實測 §1.2 慣例。
+  Codex 第一次嘗試自己讀檔被它自己的 execpolicy 擋下,**誠實回報未讀成而非裝懂**;貼上
+  §1.2 全文後確認理解、無進行中工作。**主動指出開放問題**:Gemini 設計權責(§1.1)因訂閱
+  到期懸置後,沒有人自動接手 UI 決策權,Codex 明確表示不會自行認領——留給使用者之後裁決
+
 ## ✍ 新增日誌
 
 用指令面板 `Insert template` → 選 `coding-log`(模板在 `doc/templates/`),
