@@ -2,6 +2,7 @@ mod ble;
 mod commands;
 mod db;
 mod defaults;
+mod dpi_guard;
 mod downsample;
 mod migrate_electron;
 mod migrations;
@@ -57,6 +58,13 @@ pub fn run() {
             }
             let conn = db::init_database(&db_path)?;
             app.manage(DbState(Mutex::new(conn)));
+            // Correct any startup DPI/scale drift (see dpi_guard.rs) before the splash's
+            // grow-to-match-main handoff reads the main window's size — otherwise a drifted
+            // size would just get baked into the splash animation's target rect.
+            if let Some(main) = app.get_webview_window("main") {
+                dpi_guard::check_and_correct(&main);
+                dpi_guard::watch(&main);
+            }
             // Main window is declared `visible: false` in tauri.conf.json — the boot-splash
             // sequence decides exactly when to reveal it, as part of the grow-border-then-fade-in
             // handoff (see splash.rs). By this point in setup(), DB init above has already run,
