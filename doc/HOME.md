@@ -977,6 +977,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   機器上 `reported`/`expected` 完全一致(2240×1435),drift=0——證實原生視窗框下 Tauri 的
   DPI 換算本身是對的,稍早查到的落差只出現在已棄用(暫時)的自訂標題列路徑
 
+- **2026-09-14 Codex CLI 多代理協作慣例**
+  ([[log_20260914_codex_cli_multi_agent_collaboration_convention|完整日誌]]):使用者告知
+  Codex CLI 已上線,要求與 Claude Code 互相尊重協作。`AI_CODING_RULES.md` 新增 §1.2:開工前
+  先查有無另一個代理留下的未預期變更、不要不明就裡回退對方決定、透過 commit/coding log
+  溝通而非依賴使用者口頭轉述。純文件變更,與 §1.1(Gemini 設計權責)範疇不同不混用
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
