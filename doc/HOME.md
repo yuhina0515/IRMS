@@ -960,6 +960,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   螢幕截圖不慎拍到使用者其他視窗(瀏覽器登入頁),已立即刪除並改用 `PrintWindow` API
   只擷取單一視窗畫面,不再重蹈
 
+- **2026-09-14 暫時改回原生視窗框,實測確認修好點擊偏移**
+  ([[log_20260914_native_decorations_revert_confirmed_fix|完整日誌]]):使用者裁決暫時放棄
+  自訂標題列這條路線。`tauri.conf.json` 主視窗改回 `decorations:true`、`irmsApi.ts` 的
+  `hasCustomTitlebar()` 改回 `false`(沿用既有 RDP fallback 路徑,非新寫程式碼),自訂標題列
+  相關程式碼刻意保留未刪。用同一套真實硬體滑鼠點擊方法(像素量測座標 + `SetCursorPos`+
+  `mouse_event`)重測原生最大化鈕——**這次真的成功了**,rect 確實變成最大化外溢值,證實原生
+  框繞開了整個點擊偏移 bug class。根因(懷疑 175% DPI 縮放下 `tao`/`wry` 座標轉換問題)仍未
+  查清楚,這是暫時方案
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
