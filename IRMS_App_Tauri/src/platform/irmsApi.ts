@@ -168,10 +168,15 @@ export const irms: IrmsApi = {
     isMaximized() {
       return getCurrentWindow().isMaximized()
     },
-    // Phase 3(2026-09-10):tauri.conf.json 的主視窗已改 decorations:false,
-    // TopHeader 改畫自己的拖曳列/控制鈕,不再疊原生裝飾。
+    // 2026-09-14:暫時改回原生視窗框(tauri.conf.json 的 decorations:true)。09-11 起一直
+    // 抓不到的視窗控制鈕點擊偏移,經真實硬體滑鼠事件(非 UI Automation)在像素級量測過的座標
+    // 上實測仍然命中不了元素——連 hover 都不觸發——證實不是本專案的座標計算錯誤,而是這台
+    // 175% DPI 縮放環境下 tao/wry 本身的座標轉換問題(見對應 coding log)。在根因查清楚、或
+    // 有非 100% 縮放的環境可交叉驗證之前,先退回原生框避免這整類 bug——原生控制鈕的 hit-test
+    // 是 OS 自己處理,不會有這個問題。Phase 3(2026-09-10)的自訂標題列/開機動畫程式碼刻意
+    // 保留未刪,回頭切換只需要把這裡跟 tauri.conf.json 的 decorations 一起改回去。
     async hasCustomTitlebar() {
-      return true
+      return false
     },
     onMaximizedChange(cb: (maximized: boolean) => void) {
       let cancelled = false
