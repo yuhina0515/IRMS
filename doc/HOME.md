@@ -947,6 +947,19 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `TerminalQuotaError` 收場,**未取得任何設計回覆**,實作(task #6)因此尚未開始,等額度重置
   或使用者決定改走付費層級/其他模型/退回人工貼網頁版。
 
+- **⚠ 2026-09-14 Gemini 額度放棄改 ChatGPT Plus;TopHeader 點擊偏移真實硬體點擊測試(否定
+  結果)**:使用者說 Gemini 9/15 到期、之後改買 ChatGPT Plus,設計語言重做這條線先擱置
+  (`doc/gemini-handoff-20260914/` brief 留著待之後接手,已存 feedback 記憶)。接著實測
+  `shadow:false` 有沒有解決點擊偏移——用 Win32 `SetCursorPos`+`mouse_event` 真實硬體滑鼠事件
+  (非 UI Automation)在像素級量測過的座標點最大化鈕,`GetCursorPos` 核對游標精確落在目標
+  座標,但**連 hover 樣式都沒觸發**,視窗也沒有最大化(見
+  [[log_20260914_titlebar_click_offset_physical_click_test|完整日誌]])。**`shadow:false`
+  確認無效**,根因比先前設想的更深——這台測試機是 175% DPI 縮放,懷疑是 `tao`/`wry` 的座標
+  轉換問題(視窗實際物理尺寸與設定檔理論縮放值有明顯落差)。下一步(100% 縮放環境驗證、或
+  結構性改回原生視窗框+DWM 主題化)需要使用者裁決,不是能自行決定的技術選擇。過程中第一次
+  螢幕截圖不慎拍到使用者其他視窗(瀏覽器登入頁),已立即刪除並改用 `PrintWindow` API
+  只擷取單一視窗畫面,不再重蹈
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
