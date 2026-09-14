@@ -969,6 +969,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   框繞開了整個點擊偏移 bug class。根因(懷疑 175% DPI 縮放下 `tao`/`wry` 座標轉換問題)仍未
   查清楚,這是暫時方案
 
+- **2026-09-14 新增 dpi_guard 自動偵測縮放模組**
+  ([[log_20260914_dpi_guard_auto_detect_module|完整日誌]]):新增
+  `src-tauri/src/dpi_guard.rs`,開機時與執行期 `ScaleFactorChanged` 都會核對主視窗實際尺寸
+  是否符合設定檔邏輯尺寸 × 目前縮放比例,超出容忍值就強制修正回去,每次檢查都留診斷 log。
+  **直接執行編譯出的 exe 驗證**(繞開 `tauri dev` 背景監看重建造成的困惑):這台 175% 縮放
+  機器上 `reported`/`expected` 完全一致(2240×1435),drift=0——證實原生視窗框下 Tauri 的
+  DPI 換算本身是對的,稍早查到的落差只出現在已棄用(暫時)的自訂標題列路徑
+
 ![[coding-logs.base]]
 
 ## ✍ 新增日誌
