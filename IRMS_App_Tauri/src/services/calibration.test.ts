@@ -165,6 +165,46 @@ describe('buildCalibrationPatch — 驗證', () => {
   })
 })
 
+describe('couplingWarning(2026-09-15 會議:正面貼裝根因,φ 單自由度的殘留耦合提示)', () => {
+  const baseline = stable(raw(0, 0))
+  const thighRaise = stable(raw(40, 0))
+  const kneeFlex = stable(raw(0, -35))
+
+  it('跳過外展 → 兩側皆為 null(不知道,不是沒問題)', () => {
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, null, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.couplingWarning).toEqual({ proximal: null, distal: null })
+  })
+
+  it('外展乾淨(有效 pitch 幾乎不變)→ 該側 false,幅度不足的另一側仍是 null', () => {
+    // thighRoll delta = 20(足夠),thigh pitch 殘留 = 0
+    const abduction = stable(raw(0, 0, 20, 0))
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, abduction, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.couplingWarning.proximal).toBe(false)
+    expect(r.couplingWarning.distal).toBeNull() // shinRoll delta = 0,未達門檻,未評估
+  })
+
+  it('外展時有效 pitch 殘留比例過高 → 該側 true(提示可能換了貼裝面,非擋關)', () => {
+    // thighRoll delta = 20(足夠),thigh pitch 殘留 = 9 → 比例 0.45 > 0.4 門檻
+    const abduction = stable(raw(9, 0, 20, 0))
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, abduction, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.couplingWarning.proximal).toBe(true)
+  })
+
+  it('兩側都做且都乾淨 → 兩側皆 false', () => {
+    const abduction = stable(raw(0, 0, 20, -18))
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, abduction, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.couplingWarning).toEqual({ proximal: false, distal: false })
+  })
+})
+
 describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
   it('反向佩戴:站直≈0、前抬為正、後勾為負、外展 roll 為正、kneeRoll≈0', () => {
     // 上下顛倒佩戴:前抬使 thigh raw 變小、後勾使 shin raw 變大、外展使 roll raw 變小

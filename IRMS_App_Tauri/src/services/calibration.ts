@@ -144,8 +144,27 @@ export function recalibrateAxis(
 
 export type CalibrationError = 'unstable' | 'thighDeltaTooSmall' | 'shinDeltaTooSmall'
 
+/**
+ * 外展時有效 pitch 的殘留量達到該側 roll 動作幅度的這個比例以上 → 視為耦合警示。
+ *
+ * 2026-09-15 會議根因:`recalibrateAxis` 的 φ 只有一個自由度(繞感測器自身法向量),
+ * 理論上只能代表「同一貼裝面上扭轉」,代表不了「換了整個貼裝面」這種可能的雙自由度
+ * 誤差(例如貼正面而非文件建議的外側)。外展理應是純冠狀面動作,若 φ 修正完全正確,
+ * 外展前後的有效 pitch 應該幾乎不變;殘留越大,代表這次解出的 φ 越可能沒有完整代表
+ * 實際貼裝誤差。這不是校準門檻,只是精靈最後一步(人工預覽確認)的額外提示——不擋
+ * 套用、不要求重做。外展動作本身維持選配:它是全精靈唯一需要單腳站立的步驟,對平衡
+ * 受限的復健患者最困難(見 CalibrationWizard.tsx 步驟 5 的既有取捨),今天的會議裁決
+ * 不能反過來強制這個步驟,否則犧牲的是這個專案已經刻意保留的病患可及性。
+ */
+export const COUPLING_RESIDUAL_RATIO_WARN = 0.4
+
 export type CalibrationResult =
-  | { ok: true; patch: Partial<Settings> }
+  | {
+      ok: true
+      patch: Partial<Settings>
+      /** 外展未做或該軸幅度不足以信任時為 null(「不知道」,不可當成「沒問題」)。 */
+      couplingWarning: { proximal: boolean | null; distal: boolean | null }
+    }
   | { ok: false; error: CalibrationError }
 
 /**
@@ -193,6 +212,10 @@ export function buildCalibrationPatch(
   let distalRollInvert = current.distalRollInvert
   let proximalRollVerified = current.proximalRollVerified
   let distalRollVerified = current.distalRollVerified
+  const couplingWarning: { proximal: boolean | null; distal: boolean | null } = {
+    proximal: null,
+    distal: null
+  }
   if (abduction) {
     const effAbd = effectiveRaw(abduction.mean, mapping)
     const dThigh = shortestArcDelta(effBase.thighRoll, effAbd.thighRoll)
@@ -200,10 +223,14 @@ export function buildCalibrationPatch(
     if (Math.abs(dThigh) >= CAPTURE_ROLL_DELTA_MIN) {
       proximalRollInvert = dThigh < 0
       proximalRollVerified = true
+      const pitchResidual = shortestArcDelta(effBase.thigh, effAbd.thigh)
+      couplingWarning.proximal = Math.abs(pitchResidual) / Math.abs(dThigh) > COUPLING_RESIDUAL_RATIO_WARN
     }
     if (Math.abs(dShin) >= CAPTURE_ROLL_DELTA_MIN) {
       distalRollInvert = dShin < 0
       distalRollVerified = true
+      const pitchResidual = shortestArcDelta(effBase.shin, effAbd.shin)
+      couplingWarning.distal = Math.abs(pitchResidual) / Math.abs(dShin) > COUPLING_RESIDUAL_RATIO_WARN
     }
   }
 
@@ -227,7 +254,7 @@ export function buildCalibrationPatch(
     proximalRollZeroRaw: effBase.thighRoll,
     distalRollZeroRaw: effBase.shinRoll
   }
-  return { ok: true, patch }
+  return { ok: true, patch, couplingWarning }
 }
 
 /**

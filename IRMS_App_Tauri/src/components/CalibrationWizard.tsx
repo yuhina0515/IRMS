@@ -48,6 +48,41 @@ const ERROR_TEXT: Record<CalibrationError, string> = {
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
+/**
+ * 小腿貼裝位置示意圖(2026-09-15 會議)。
+ *
+ * 根因是「外側」對獨自作業的患者/照護者是個沒有骨性標記、沒有清楚邊界的模糊目標
+ * (README §2.1 建議的貼法),而小腿的脛骨前緣是全身最容易自行盲摸定位的標記之一。
+ * 與會三方交叉詰問後收斂於「不該用文字定義面向,該用圖示釘死一個解剖上好找的具體
+ * 點」——這張圖只釘小腿:先用手指摸到脛骨前緣(小腿前側中央那條硬骨邊),感測器
+ * 貼在緊鄰它旁邊(不要壓在骨頭邊緣本身上,會不舒服),不是貼在側面。大腿的標記點
+ * 留待真機驗證後再定案(大腿沒有同等明確的骨性邊界),暫時維持原有文字指示。
+ */
+function ShinMountDiagram(): JSX.Element {
+  return (
+    <svg
+      width="96"
+      height="150"
+      viewBox="0 0 96 150"
+      fill="none"
+      stroke="currentColor"
+      style={{ display: 'block', margin: '8px 0' }}
+      aria-hidden="true"
+    >
+      <path d="M28 4 C20 40 18 90 24 140 L72 140 C70 95 72 40 66 4 Z" strokeWidth="2" />
+      <line x1="48" y1="10" x2="48" y2="138" strokeWidth="1" strokeDasharray="3 4" opacity="0.4" />
+      <circle cx="46" cy="52" r="5" strokeWidth="2" />
+      <line x1="51" y1="52" x2="80" y2="52" strokeWidth="1" />
+      <text x="82" y="56" fontSize="11" fill="currentColor" stroke="none">
+        脛骨前緣
+      </text>
+      <text x="82" y="70" fontSize="10" fill="currentColor" stroke="none" opacity="0.7">
+        (緊鄰旁邊貼)
+      </text>
+    </svg>
+  )
+}
+
 interface Props {
   onClose: () => void
 }
@@ -66,6 +101,11 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const [capturing, setCapturing] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [patch, setPatch] = useState<Partial<Settings> | null>(null)
+  /** 外展耦合殘留警示(2026-09-15 會議)——null 表示該軸未做外展或幅度不足,不是「沒問題」 */
+  const [couplingWarning, setCouplingWarning] = useState<{
+    proximal: boolean | null
+    distal: boolean | null
+  } | null>(null)
   /** 免手模式:擺好姿勢並穩住即自動擷取,不必伸手按滑鼠 */
   const [autoCapture, setAutoCapture] = useState(true)
   const capturesRef = useRef<{
@@ -162,6 +202,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       return
     }
     setPatch({ ...result.patch, wearSide })
+    setCouplingWarning(result.couplingWarning)
     setStep(5)
   }
 
@@ -321,9 +362,11 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
             <h4>步驟 1/6 · 佩戴確認</h4>
             <p className="desc">
               確認兩顆感測器已固定:<b>大腿感測器</b>(0x68)綁於大腿外側、
-              <b>小腿感測器</b>(0x69)綁於小腿外側。<b>方向與角度不必在意</b>——精靈會
-              自動偵測貼歪 90°(軸對調)與方向反相並校正,但過程中感測器不可鬆動移位。
+              <b>小腿感測器</b>(0x69)綁於<b>脛骨前緣(小腿前側的硬骨邊)旁邊</b>(見下圖,
+              不是側面)。<b>方向與角度不必在意</b>——精靈會自動偵測貼歪 90°(軸對調)與
+              方向反相並校正,但過程中感測器不可鬆動移位。
             </p>
+            <ShinMountDiagram />
             <p className="desc">
               請選擇這次配戴的<b>腿側</b>:「外側」在左右腿是互為鏡像的方向,
               換邊配戴時內外翻(roll)方向可能相反,精靈需要知道才能在第 5 步提醒你。
@@ -445,6 +488,17 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
               方向校正已計算完成(尚未套用)。請實際動動看:<b>站直時數值應接近 0°、
               前抬大腿時「大腿」變大(正值)、腿向外側擺時內外翻顯示「外翻」</b>。確認無誤再按套用。
             </p>
+            {couplingWarning != null && (couplingWarning.proximal || couplingWarning.distal) && (
+              <p className="wizard-err">
+                ⚠ 偵測到殘留耦合:{couplingWarning.proximal && '大腿'}
+                {couplingWarning.proximal && couplingWarning.distal && '、'}
+                {couplingWarning.distal && '小腿'}
+                外展時,除了內外翻之外,前後角度也明顯跟著變化——外展理應是單純的左右動作。
+                這通常代表感測器實際貼裝的位置跟精靈假設的貼法有落差(例如貼在正面而非外側),
+                這次算出的旋轉角可能沒有完全修正貼歪的角度。<b>不影響本次套用</b>,但建議之後
+                有機會用真機時,對照貼裝位置重新檢查。
+              </p>
+            )}
             <div className="wizard-preview">
               <div className="cell">
                 <div className="metric-sub">大腿 Pitch</div>

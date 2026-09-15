@@ -21,6 +21,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-15 會議+實作:感測器貼正面(非外側)是校正長期不準的根因之一**
+  ([[log_20260915_meeting_anterior_vs_lateral_mounting|日誌]]):裁決不強制改貼外側
+  (外側無骨性標記、可能更不穩定)。已實作:精靈步驟1加小腿貼裝位置圖示(釘脛骨前緣)、
+  步驟6預覽加外展殘留耦合提示(`couplingWarning`,非阻斷)。大腿外展步驟**維持選配**
+  (強制會犧牲既有的單腳站立可及性設計,修正了裁決原文這一點);小腿維持即時預覽人工
+  確認為主力。README §2.1 與真機驗證閘門維持 2026-09-12 會議的決定不變,大腿圖示標記點
+  同樣待真機驗證。
 - **2026-09-15 Tauri updater resource table 修復／v1.2.0-beta.9**([[log_20260915_beta9_updater_resource_table_fix|日誌]]):
   beta7 實機回報 `The resource id ... is invalid`；確認自訂檢查把 `Update` 放進 App table，
   官方 download 卻從 WebView table 取用。改為與官方命令相同的 WebView resource table；
