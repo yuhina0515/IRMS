@@ -1008,6 +1008,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   循環)其實都已修好,可以正式關閉;四頁導覽、主題切換、原生視窗控制鈕、感測器未連線的
   優雅狀態全部正常
 
+- **2026-09-15 同步並測試 beta.6**
+  ([[log_20260915_beta6_sync_and_test|完整日誌]]):同步 Codex CLI 在本機留下的
+  v1.2.0-beta.6(架構稽核 + 韌體選檔 + CSP + CI + 工具鏈升級),實機重新驗證前端 285 條、
+  Rust 60 條測試與 0 npm audit 漏洞皆與其發布日誌一致;`tauri dev` 與正式簽章 release exe
+  雙路徑啟動都正常,新增的 production CSP 沒有擋到字型/圖片/圖表;韌體選檔三顆按鈕在未連線
+  時正確停用——完整 dialog 選檔流程仍需真實 BLE 裝置,與其日誌自陳的缺口一致,非本次遺漏
+
 ## ✍ 新增日誌
 
 用指令面板 `Insert template` → 選 `coding-log`(模板在 `doc/templates/`),
