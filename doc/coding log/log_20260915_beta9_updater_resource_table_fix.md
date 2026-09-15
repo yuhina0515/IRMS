@@ -38,3 +38,11 @@ beta7 與 beta8 都無法透過有缺陷的下載路徑自我修復，必須手�
 ## 尚待實機關閉的驗證
 
 安裝 beta9 後，需以 beta9 對下一個更高測試版本實際完成「檢查 → 下載 → 顯示重新啟動套用 → 安裝」全鏈路，不能再只以 manifest 回應視為 updater E2E 通過。
+
+## 發布
+
+- Commit：`685138c828b1555b3fb8f6723241a57071e36fce`
+- GitHub CI：run `34938243278`，成功，耗時 6m52s。
+- Prerelease：<https://github.com/yuhina0515/IRMS/releases/tag/v1.2.0-beta.9>
+- Installer SHA-256：`DF5C29A9D9CE890ACA57377877BECBB77C1B85A25BAD191A62D9D6BF6EA395F9`
+- Release 與 `beta-latest` manifest 的版本、下載 URL、signature 已回讀比對一致。

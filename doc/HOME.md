@@ -24,7 +24,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-09-15 Tauri updater resource table 修復／v1.2.0-beta.9**([[log_20260915_beta9_updater_resource_table_fix|日誌]]):
   beta7 實機回報 `The resource id ... is invalid`；確認自訂檢查把 `Update` 放進 App table，
   官方 download 卻從 WebView table 取用。改為與官方命令相同的 WebView resource table；
-  beta7／beta8 需手動安裝 beta9 一次，後續 App 內更新才恢復。
+  已發布 `v1.2.0-beta.9` 並更新 `beta-latest`；beta7／beta8 需手動安裝一次，後續
+  App 內更新才恢復。
 - **2026-09-15 Tauri v1.2.0-beta.8 Desktop Workstation UI 重構**([[log_20260915_beta8_desktop_workstation_redesign|日誌]]):
   捨棄舊有網站式側欄、浮動頂欄與卡片海，改為固定命令軌、情境命令列及連續工作面；
   保留 BLE、量測判定、資料庫與更新器邏輯。1280×720／1024×600 renderer 幾何驗證、
