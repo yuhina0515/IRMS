@@ -21,6 +21,9 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-15 Tauri v1.2.0-beta.7 Windows 圖示修正**([[log_20260915_tauri_beta7_windows_icon_fix|日誌]]):
+  找到 Tauri icon 目錄仍是預設黃藍圖示的根因，已用 IRMS 品牌圖標重建 EXE/NSIS/Appx
+  全尺寸資產並發布 beta7；EXE 提取驗證與本機／遠端 CI 全綠，`beta-latest` 已更新。
 - **2026-09-15 Tauri v1.2.0-beta.6 發布**([[log_20260915_tauri_beta6_architecture_repairs_release|日誌]]):
   架構修復已完成簽章 NSIS 打包並發布至 GitHub prerelease，`beta-latest` 已更新；本機
   285 前端 tests + 60 Rust tests 與遠端 Windows CI 全綠，硬體 OTA/E2E 仍待實機。
