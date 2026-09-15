@@ -21,6 +21,9 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-15 Tauri v1.2.0-beta.6 發布**([[log_20260915_tauri_beta6_architecture_repairs_release|日誌]]):
+  架構修復已完成簽章 NSIS 打包並發布至 GitHub prerelease，`beta-latest` 已更新；本機
+  285 前端 tests + 60 Rust tests 與遠端 Windows CI 全綠，硬體 OTA/E2E 仍待實機。
 - **2026-09-15 架構修復 Phase 1**([[log_20260915_architecture_repairs_phase1|日誌]]):完成 Tauri
   韌體 `.bin` 選檔/驗證/MD5、最小 CSP、GitHub PR CI；Vite/Vitest 升級後 npm audit 歸零，
   285 前端 tests + 60 Rust tests + release exe build 全過。硬體 OTA/E2E 仍待實機。
