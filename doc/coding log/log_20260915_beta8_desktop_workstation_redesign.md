@@ -47,3 +47,12 @@ beta7 畫面同時存在 Windows 原生標題列、產品頂欄、可收合側�
 ## 驗證限制
 
 目前自動化環境未提供 Windows native app surface，因此視覺 QA 使用 Vite renderer、DOM 幾何與 accessibility tree 完成；瀏覽器預覽中的 Tauri API undefined 訊息是離開 Tauri runtime 的預期限制，不是封裝版錯誤。簽署後安裝檔仍應在實機進行一次人工視覺與裝置連線驗收。
+
+## 發布
+
+- 程式碼 commit：`5e1db6ee077fde33cfa4549077aeae22b9a8b86e`
+- GitHub CI：run `34936303811`，成功，耗時 7m18s。
+- Prerelease：<https://github.com/yuhina0515/IRMS/releases/tag/v1.2.0-beta.8>
+- Assets：Windows x64 NSIS installer、updater signature、`latest.json`。
+- Installer SHA-256：`8718038E444978E3548073FA5FDF15CDED950885AD7DF64A49C55BC2DD610ECB`
+- `beta-latest/latest.json` 已覆寫並回讀驗證：版本、下載 URL、signature 均與 release manifest 一致。
