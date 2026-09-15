@@ -1,12 +1,12 @@
 // renderer/components/TopHeader.tsx
-// 頂部狀態列:logo/連線狀態/Connect 按鈕/主題切換/(自訂標題列時)拖曳與視窗控制鈕。
+// Beta 8 command bar: current workspace identity, device state and global actions. It is not a
+// second titlebar; Windows decorations remain native while the 175% DPI custom-frame bug exists.
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
 import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { irms } from '../platform/irmsApi'
-import logoIcon from '../assets/logo-icon-only.png'
 
 function SunIcon(): JSX.Element {
   return (
@@ -116,6 +116,7 @@ export function TopHeader(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const statusText = useStore((s) => s.statusText)
   const demoMode = useUiStore((s) => s.demoMode)
+  const view = useUiStore((s) => s.view)
   const reconnect = useStore((s) => s.reconnect)
   const themeMode = useStore((s) => s.settings.themeMode)
   const setSettings = useStore((s) => s.setSettings)
@@ -129,9 +130,16 @@ export function TopHeader(): JSX.Element {
     irms.windowControls.hasCustomTitlebar().then(setHasCustomTitlebar)
   }, [])
 
+  const viewMeta = {
+    dashboard: { index: '01', title: '即時監測', subtitle: 'Live session' },
+    actions: { index: '02', title: '動作處方', subtitle: 'Action protocols' },
+    history: { index: '03', title: '療程紀錄', subtitle: 'Session archive' },
+    settings: { index: '04', title: '系統設定', subtitle: 'Device & system' }
+  }[view]
+
   return (
     <header
-      className="top-header glass"
+      className="command-bar"
       // 雙擊拖曳列切換最大化/還原——比照 Windows/macOS 原生標題列的標準手感。
       // RDP session(hasCustomTitlebar=false)已有原生框自帶這個行為,不重複掛。
       onDoubleClick={hasCustomTitlebar ? () => void irms.windowControls.toggleMaximize() : undefined}
@@ -143,14 +151,16 @@ export function TopHeader(): JSX.Element {
       // 不需要再手動標記每個新按鈕的 no-drag 例外。
       {...(hasCustomTitlebar ? { 'data-tauri-drag-region': true } : {})}
     >
-      <div className="logo">
-        <img src={logoIcon} alt="" className="logo-mark" />
-        <h1>
-          IRMS<span>.</span>
-        </h1>
+      <div className="workspace-title">
+        <span className="workspace-index">{viewMeta.index}</span>
+        <div>
+          <h1>{viewMeta.title}</h1>
+          <p>{viewMeta.subtitle}</p>
+        </div>
       </div>
 
-      <div className="conn">
+      <div className="command-status">
+        <div className="conn">
         <span className={`dot${isConnected ? ' on' : ''}${reconnect ? ' retrying' : ''}`} />
         {/* 重連中顯示確定性進度而非一句籠統的狀態文字:使用者要判斷的是
             「還會不會好」還是「該去看裝置了」,而那取決於還剩幾次。 */}
@@ -167,12 +177,12 @@ export function TopHeader(): JSX.Element {
         ) : (
           <span className="conn-text">{statusText}</span>
         )}
-      </div>
+        </div>
 
       {/* 示範模式下停用真實連線,並把理由講出來而不是留一個按不動的按鈕
           (沿用 SettingsView 已建立的慣例)。bluetoothService.connect() 內另有
           一道提前 return,擋掉任何繞過 UI 的路徑。 */}
-      <div className="row" style={{ gap: 10 }}>
+      <div className="command-actions">
         <button
           className="btn btn-secondary btn-sm"
           title={themeMode === 'dark' ? '切換為 Precision Lab Light' : '切換為 Data-Console Dark'}
@@ -188,6 +198,8 @@ export function TopHeader(): JSX.Element {
         >
           {demoMode ? '示範模式中' : isConnected ? 'Disconnect' : 'Connect Device'}
         </button>
+      </div>
+
       </div>
 
       {hasCustomTitlebar && <WindowControls />}

@@ -95,13 +95,13 @@ export function SettingsView(): JSX.Element {
   }
 
   return (
-    <>
+    <section className="view-surface settings-surface">
       <header className="page-header">
         <h2>Settings</h2>
         <p>感測器校準與系統參數</p>
       </header>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'start' }}>
+      <div className="settings-workbench">
         <div className="panel glass">
           <h3 style={{ marginBottom: 14 }}>Sensor Calibration 校準</h3>
           <p className="text-text-muted text-sm mb-3">
@@ -242,7 +242,7 @@ export function SettingsView(): JSX.Element {
       <div style={{ marginTop: 24 }}>
         <DemoModePanel />
       </div>
-    </>
+    </section>
   )
 }
 

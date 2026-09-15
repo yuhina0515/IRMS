@@ -1,13 +1,6 @@
-/* renderer/styles/tailwind.css — replaces global.css as the app's stylesheet entry point.
-   The old hand-rolled Liquid Glass design system (global.css + styles/profiles/) is archived on
-   the `legacy-ui-liquid-glass` branch / `ui-v1-liquid-glass-archive` tag, not deleted.
-
-   Phase 4 strategy: redefine the SAME class vocabulary most view/component files already use
-   (.panel, .btn, .field, .dialog, .toast, .tabs...) as Tailwind component classes built on the
-   new dark/bento tokens (tailwind.config.js), instead of touching every call site. This gets the
-   whole app to the new look immediately; only the classes that need to change SHAPE, not just
-   skin (nav → SegmentedControl, per-view grid layout), get bespoke JSX work. See
-   doc/UI_REDESIGN.md for the layout blueprint and ROADMAP.md D5 for why no Apple/glass language. */
+/* IRMS renderer stylesheet. Beta 8 retires the sidebar+bento composition in favor of a desktop
+   workstation shell; compatibility selectors remain below for complex domain components and
+   dialogs, while the final Beta 8 layer owns the visible information architecture. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -1176,63 +1169,300 @@
   }
 }
 
-/* ── Dashboard container-query presets ──
-   Deliberately UNLAYERED (not inside @layer components), and moved here from where they were
-   originally written right after .dashboard-grid: Tailwind 3.4's @layer processing corrupts an
-   @container at-rule's prelude when it's nested inside @layer components — the compiled output
-   loses the `dashboard (max-height: ...)` condition entirely, leaving a bare `@container {}`
-   that (empirically, via a real Playwright measurement, not just reading the spec) behaves as
-   "always matches," so the narrowest preset silently won at every container size. Verified by
-   inspecting the actual built CSS in out/renderer/assets/*.css, not by guessing from the source.
-   Unlayered CSS always outranks layered CSS regardless of source order or specificity (that's
-   what "unlayered" means per the CSS cascade spec), so placing these here is not a hack that
-   depends on ending up last in the file — it would work the same placed anywhere outside a
-   @layer block.
-
-   Thresholds recalibrated against measured `.dashboard-workspace` heights, not the 700px/620px
-   Gemini's spec estimated from the *window* sizes without seeing this app's actual chrome
-   overhead (title bar + header + the conditional calib-chip banner eat far more than expected —
-   even the widest tested window, 1600×900, only leaves 677.7px of workspace height):
-     1600×900 "wide"          -> 677.7px  (wants the full/default bento layout)
-     1280×820 "default" launch -> 597.7px (wants the full/default bento layout too)
-     1093×614 "tight laptop"  -> 392.0px  (wants the compact horizontal preset)
-     1024×600 "floor"         -> 377.7px  (wants the numeric-only minimal preset)
-   The last two are only ~14px apart in real workspace height, which makes the exact boundary
-   between them inherently fragile (a font-rendering or DPI difference could tip a given real
-   window from one preset to the other) — that fragility comes from how close Gemini's two anchor
-   window sizes are once the app's fixed chrome is subtracted, not from a mistake in these
-   thresholds. It doesn't threaten the actual guarantee (never page-scrolls): every preset here is
-   independently overflow-safe, so landing on either side of that 14px band still means a usable,
-   fully-contained layout, just with chart+pose vs. numeric-only content. */
-@container dashboard (max-height: 450px) {
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: 'gauge ring chart' 'gauge ring pose';
+/* ── Beta 8 desktop workstation shell ───────────────────────────────────────
+   The previous floating bento/sidebar composition is intentionally retired.
+   This layer keeps domain components intact while giving every workflow one
+   continuous desktop surface: fixed command rail, context bar, and local
+   scrolling inside the work area. */
+@layer components {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
-  .dashboard-grid.no-pose {
-    grid-template-areas: 'gauge ring chart' 'gauge ring chart';
-  }
-}
 
-@container dashboard (max-height: 385px) {
+  body {
+    background:
+      radial-gradient(circle at 72% -20%, rgb(var(--color-accent) / 0.08), transparent 34%),
+      rgb(var(--color-canvas));
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-border)) transparent;
+  }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-border));
+    border: 2px solid rgb(var(--color-canvas));
+    border-radius: 8px;
+  }
+
+  .desktop-shell {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .command-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    background: rgb(var(--sidebar-bg));
+    border-right: 1px solid rgb(var(--sidebar-border));
+  }
+  .command-brand {
+    height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border-bottom: 1px solid rgb(var(--sidebar-border));
+    color: rgb(var(--sidebar-text-hover));
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+  }
+  .command-brand img { width: 24px; height: 24px; object-fit: contain; }
+  .command-rail .sidebar-nav-group {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 9px;
+  }
+  .rail-item {
+    position: relative;
+    width: 66px;
+    min-height: 62px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: rgb(var(--sidebar-text));
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 10px;
+    line-height: 1;
+    transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+  }
+  .rail-item:hover {
+    color: rgb(var(--sidebar-text-hover));
+    background: rgb(var(--color-surface-raised) / 0.48);
+  }
+  .rail-item.active {
+    color: rgb(var(--sidebar-accent));
+    background: rgb(var(--sidebar-accent) / 0.09);
+    border-color: rgb(var(--sidebar-accent) / 0.24);
+  }
+  .rail-item.active::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    width: 3px;
+    height: 24px;
+    border-radius: 0 3px 3px 0;
+    background: rgb(var(--sidebar-accent));
+  }
+  .rail-footer {
+    padding: 13px 0;
+    text-align: center;
+    color: rgb(var(--sidebar-text));
+    border-top: 1px solid rgb(var(--sidebar-border));
+    font: 700 9px/1 JetBrains Mono Variable, monospace;
+    letter-spacing: 0.14em;
+  }
+
+  .workspace-shell {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 72px minmax(0, 1fr);
+  }
+  .command-bar {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 0 22px;
+    background: rgb(var(--color-surface) / 0.92);
+    border-bottom: 1px solid rgb(var(--color-border));
+  }
+  .workspace-title { display: flex; align-items: center; gap: 13px; min-width: 180px; }
+  .workspace-index {
+    color: rgb(var(--color-accent-strong));
+    font: 700 12px/1 JetBrains Mono Variable, monospace;
+    padding-right: 12px;
+    border-right: 1px solid rgb(var(--color-border));
+  }
+  .workspace-title h1 { font-size: 15px; line-height: 1.2; font-weight: 700; }
+  .workspace-title p {
+    margin-top: 3px;
+    color: rgb(var(--color-text-muted));
+    font: 500 10px/1 JetBrains Mono Variable, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+  }
+  .command-status { display: flex; align-items: center; gap: 18px; margin-left: auto; }
+  .command-bar .conn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 150px;
+    justify-content: flex-end;
+    color: rgb(var(--color-text-muted));
+    font-size: 12px;
+  }
+  .command-actions { display: flex; align-items: center; gap: 8px; }
+
+  .workspace-main {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 22px 24px 28px;
+  }
+  .view-surface,
+  .dash-shell { min-height: 100%; }
+  .page-header { display: none; }
+
+  .glass,
+  .panel,
+  .data-surface {
+    border-radius: 4px;
+    border-color: rgb(var(--color-border));
+    background: rgb(var(--color-surface) / 0.78);
+    box-shadow: none;
+  }
+  .glass-elevated {
+    background: rgb(var(--color-surface-raised) / 0.46);
+    box-shadow: inset 3px 0 0 rgb(var(--color-accent));
+  }
+
+  .btn { border-radius: 4px; font-weight: 650; letter-spacing: 0.01em; }
+  .btn-primary { box-shadow: none; }
+  input,
+  .glass-dropdown-trigger { border-radius: 4px; }
+
+  /* Dashboard: primary decision surface on the left, controls and raw evidence on the right. */
+  .dashboard-workspace { height: calc(100vh - 116px); min-height: 540px; }
   .dashboard-grid,
   .dashboard-grid.no-pose {
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    /* Both rows minmax(0, Nfr), NOT `auto` for the numeric row — `auto` sizes to the numeric
-       grid's own content, which is exactly the "child pushes the container" anti-pattern this
-       whole rewrite exists to eliminate (found by measuring, not guessing: an earlier `auto`
-       here let a 6-card stat grid stretch this row to 800px in a 375px-tall container). The
-       numeric cell gets a fixed share of the container's real height and must fit inside it. */
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: 'gauge ring' 'gauge numeric';
+    display: grid;
+    grid-template-columns: minmax(430px, 1.55fr) minmax(300px, 0.8fr);
+    grid-template-rows: minmax(330px, 1fr) minmax(190px, 0.58fr);
+    grid-template-areas:
+      'gauge ring'
+      'chart pose';
+    gap: 12px;
+    height: 100%;
   }
+  .dashboard-grid.no-pose {
+    grid-template-areas:
+      'gauge ring'
+      'chart chart';
+  }
+  .dash-cell-gauge,
+  .dash-cell-ring,
   .dash-cell-chart,
-  .dash-cell-pose {
-    display: none;
-  }
-  .dash-cell-numeric {
+  .dash-cell-pose { min-width: 0; min-height: 0; }
+  .dash-cell-gauge { grid-area: gauge; }
+  .dash-cell-ring { grid-area: ring; }
+  .dash-cell-chart { grid-area: chart; }
+  .dash-cell-pose { grid-area: pose; }
+  .dash-cell-numeric { display: none; }
+
+  /* Actions: a protocol register, not a gallery of independent web cards. */
+  .actions-surface { display: flex; flex-direction: column; gap: 12px; }
+  .view-toolbar,
+  .filter-strip {
     display: flex;
-    min-height: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 54px;
+    padding: 9px 12px;
+    background: rgb(var(--color-surface) / 0.72);
+    border: 1px solid rgb(var(--color-border));
+  }
+  .filter-strip { justify-content: flex-start; min-height: 48px; }
+  .action-group-heading {
+    margin: 16px 0 7px;
+    color: rgb(var(--color-text-muted));
+    font: 700 10px/1 JetBrains Mono Variable, monospace;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .action-register { border: 1px solid rgb(var(--color-border)); border-bottom: 0; }
+  .register-row {
+    display: grid;
+    grid-template-columns: minmax(170px, 1.25fr) 130px minmax(250px, 1.4fr) minmax(180px, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    min-height: 76px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid rgb(var(--color-border));
+    border-radius: 0;
+    background: rgb(var(--color-surface) / 0.64);
+  }
+  .register-row:hover { background: rgb(var(--color-surface-raised) / 0.58); }
+  .register-row h4 { font-size: 14px; }
+  .register-row .meta { margin: 0; }
+  .register-row .row { margin: 0 !important; justify-content: flex-end; }
+
+  /* History and settings use continuous sheets with separators instead of card stacks. */
+  .data-surface { overflow: hidden; border: 1px solid rgb(var(--color-border)); }
+  .data-surface table { margin: 0; }
+  .data-surface thead { background: rgb(var(--color-surface-raised) / .72); }
+  .data-surface th { font: 700 10px/1 JetBrains Mono Variable, monospace; letter-spacing: .08em; }
+  .data-surface td { height: 58px; }
+  .settings-surface { max-width: 1180px; margin: 0 auto; }
+  .settings-workbench {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+    align-items: start;
+    gap: 12px;
+  }
+  .settings-surface > .panel,
+  .settings-workbench > .panel { margin: 0 !important; }
+  .settings-surface > .panel { margin-top: 12px !important; }
+
+  @media (max-width: 1050px) {
+    .desktop-shell { grid-template-columns: 72px minmax(0, 1fr); }
+    .rail-item { width: 54px; }
+    .rail-item span { display: none; }
+    .command-brand span { display: none; }
+    .register-row { grid-template-columns: 1fr 110px 1fr auto; }
+    .register-row .action-card-tier3 { display: none; }
+    .dashboard-grid,
+    .dashboard-grid.no-pose { grid-template-columns: minmax(360px, 1.25fr) minmax(270px, .75fr); }
+  }
+
+  @media (max-width: 820px) {
+    .workspace-main { padding: 16px; }
+    .command-bar { padding: 0 14px; }
+    .workspace-title p { display: none; }
+    .dashboard-workspace { height: auto; min-height: 0; }
+    .dashboard-grid,
+    .dashboard-grid.no-pose {
+      height: auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      grid-template-areas: 'gauge' 'ring' 'chart' 'pose';
+    }
+    .settings-workbench { grid-template-columns: 1fr; }
+    .register-row { grid-template-columns: 1fr auto; }
+    .register-row .badge,
+    .register-row .meta { display: none; }
   }
 }

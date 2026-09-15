@@ -133,13 +133,13 @@ export function ActionsView(): JSX.Element {
   }
 
   return (
-    <>
+    <section className="view-surface actions-surface">
       <header className="page-header">
         <h2>Custom Actions</h2>
         <p>管理各關節協定的復健動作範本</p>
       </header>
 
-      <div className="row" style={{ marginBottom: 16, justifyContent: 'space-between' }}>
+      <div className="view-toolbar">
         <div style={{ width: 220 }}>
           <GlassDropdown
             value={protocol}
@@ -160,7 +160,7 @@ export function ActionsView(): JSX.Element {
       {/* 搜尋 / 排序 / 分組。只有這個協定底下真的有動作時才顯示——
           一個空清單上方擺著搜尋框,是在請使用者搜尋一個他已經知道是空的集合。 */}
       {totalInProtocol > 0 && (
-        <div className="row" style={{ marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
+        <div className="filter-strip">
           <input
             type="search"
             className="action-search"
@@ -216,9 +216,9 @@ export function ActionsView(): JSX.Element {
         groups.map((group) => (
           <div key={group.key ?? '__all__'}>
             {group.key && <h4 className="action-group-heading">{triggerLabel(group.key)}</h4>}
-            <div className="grid cards">
+            <div className="action-register">
               {group.actions.map((a) => (
-                <div key={a.id} className="action-card glass">
+                <div key={a.id} className="action-card register-row">
                   <h4>{a.name}</h4>
                   {/* 漸進式密度(卡片變窄時依序丟棄,見 tailwind.css 的 container query):
                       Tier 1(名稱+下面這行核心參數)永不隱藏;Tier 2(協定標籤)較窄時先藏;
@@ -388,6 +388,6 @@ export function ActionsView(): JSX.Element {
           </div>
         </div>
       )}
-    </>
+    </section>
   )
 }

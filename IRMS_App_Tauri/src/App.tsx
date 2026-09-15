@@ -54,12 +54,11 @@ export default function App(): JSX.Element {
         </div>
       )}
 
-      <div className="app-shell">
-        <TopHeader />
-        <div className="app">
-          <Sidebar />
-          <div className="app-column">
-            <main className="main">
+      <div className="desktop-shell">
+        <Sidebar />
+        <section className="workspace-shell">
+          <TopHeader />
+          <main className="workspace-main">
               {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
               <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
                 <Suspense fallback={null}>
@@ -69,9 +68,8 @@ export default function App(): JSX.Element {
                   {view === 'settings' && <SettingsView />}
                 </Suspense>
               </ErrorBoundary>
-            </main>
-          </div>
-        </div>
+          </main>
+        </section>
       </div>
 
       <ToastHost />

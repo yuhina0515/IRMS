@@ -261,7 +261,7 @@ export function HistoryView(): JSX.Element {
   }
 
   return (
-    <>
+    <section className="view-surface history-surface">
       <header className="page-header">
         <h2>Rehabilitation History</h2>
         <p>檢視與分析過往復健歷程</p>
@@ -270,7 +270,7 @@ export function HistoryView(): JSX.Element {
       {sessions.length === 0 ? (
         <div className="empty glass panel">尚無復健紀錄</div>
       ) : (
-        <div className="panel glass">
+        <div className="data-surface">
           <table>
             <thead>
               <tr>
@@ -331,6 +331,6 @@ export function HistoryView(): JSX.Element {
       )}
 
       {analyzing && <AnalysisModal session={analyzing} onClose={() => setAnalyzing(null)} />}
-    </>
+    </section>
   )
 }

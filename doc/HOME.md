@@ -21,6 +21,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-15 Tauri v1.2.0-beta.8 Desktop Workstation UI 重構**([[log_20260915_beta8_desktop_workstation_redesign|日誌]]):
+  捨棄舊有網站式側欄、浮動頂欄與卡片海，改為固定命令軌、情境命令列及連續工作面；
+  保留 BLE、量測判定、資料庫與更新器邏輯。1280×720／1024×600 renderer 幾何驗證、
+  285 前端 tests、60 Rust tests、build、rustfmt 與 Clippy 全綠。
 - **2026-09-15 Tauri v1.2.0-beta.7 Windows 圖示修正**([[log_20260915_tauri_beta7_windows_icon_fix|日誌]]):
   找到 Tauri icon 目錄仍是預設黃藍圖示的根因，已用 IRMS 品牌圖標重建 EXE/NSIS/Appx
   全尺寸資產並發布 beta7；EXE 提取驗證與本機／遠端 CI 全綠，`beta-latest` 已更新。

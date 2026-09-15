@@ -1,32 +1,9 @@
-// renderer/components/Sidebar.tsx
-// 左側導覽欄——唯一的主導覽介面。原本並存的頂部 SegmentedControl 已移除,雙層導覽
-// 功能重複又視覺混淆;IRMS UI 設計全權交給 Gemini。
-//
-// 視覺規格依 Gemini 的 nav-rail 規格(doc/gemini-handoff-20260905/02)——固定寬度導覽軌、
-// 捨棄整塊填色的 active 狀態改用左側 3px 強調色邊條。刻意保留「元件自己讀 useUiStore」
-// 的寫法而非改成 props 傳遞(view/onNavigate)——那樣得同步改 App.tsx 的呼叫端,而這個
-// self-contained hook 模式跟全站其他元件(TopHeader、SessionControlPanel 等)一致,
-// 不值得為了這個元件另立一套。
-//
-// 收合按鈕:按下後選單按鈕旋轉、側邊欄收合成僅剩圖示的窄軌。收合狀態原本用純本地
-// useState(Phase 2b port 原封不動搬自 Electron 版收合功能剛加入時的寫法)——但
-// Electron 版 2026-09-09 實測回報「每次啟動選單都自動展開」:對使用者不是無感的
-// 暫態,是每次開 App 都要重新收一次的煩擾,改存進 settings.sidebarCollapsed
-// (persist v13)。Tauri 的前端搬遷發生在那次修復之前,一直沒有回頭補上,這裡補齊。
-// 標籤文字收合時不特別做 fade 動畫,靠 .sidebar 本身的 overflow:hidden 在寬度變窄時
-// 自然裁切——比另外寫一組 opacity/width 動畫簡單,效果也一致(見 tailwind.css 的
-// .sidebar 規則)。
-//
-// 旋轉動畫不是「收合時停在旋轉後的角度」(第一版這樣做,3 條水平線轉 90 度變成 3 條
-// 直線,視覺上很難看),而是「每次按下都轉一圈 360 度」——起訖角度相同,純粹是按下
-// 當下的一次性動畫回饋,不是狀態指示。用 spinKey 遞增 + React key 強制重掛載來每次
-// 都重播動畫(CSS animation 若 class 沒有真的從 DOM 移除又重新加入,同一個
-// animation-name 不會重新觸發;重掛載是最直接不會踩空的做法)。hasSpun 額外判斷則是
-// 避免使用者根本還沒按過,App 一啟動 icon 就跟著轉一圈。
-import { useState } from 'react'
+// Beta 8 command rail: fixed desktop navigation, deliberately not collapsible and never
+// overlaid on the clinical workspace. The persisted legacy sidebarCollapsed field is ignored
+// for backward-compatible settings hydration and can be retired in a future schema cleanup.
 import { useUiStore } from '../store/useUiStore'
-import { useStore } from '../store/useStore'
-import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon, MenuIcon } from './NavIcons'
+import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon } from './NavIcons'
+import logoIcon from '../assets/logo-icon-only.png'
 
 const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string; Icon: typeof DashboardIcon }[] = [
   { id: 'dashboard', label: 'Dashboard', Icon: DashboardIcon },
@@ -38,39 +15,22 @@ const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string
 export function Sidebar(): JSX.Element {
   const view = useUiStore((s) => s.view)
   const setView = useUiStore((s) => s.setView)
-  const collapsed = useStore((s) => s.settings.sidebarCollapsed)
-  const setSettings = useStore((s) => s.setSettings)
-  const [spinKey, setSpinKey] = useState(0)
-  const hasSpun = spinKey > 0
-
-  const toggle = (): void => {
-    setSettings({ sidebarCollapsed: !collapsed })
-    setSpinKey((k) => k + 1)
-  }
-
   return (
-    <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-      <button
-        type="button"
-        className="sidebar-toggle"
-        aria-label={collapsed ? '展開選單' : '收起選單'}
-        aria-expanded={!collapsed}
-        onClick={toggle}
-      >
-        <span key={spinKey} className={`sidebar-toggle-icon${hasSpun ? ' spin' : ''}`}>
-          <MenuIcon size={20} />
-        </span>
-      </button>
+    <nav className="command-rail" aria-label="主要功能">
+      <div className="command-brand" aria-label="IRMS">
+        <img src={logoIcon} alt="" />
+        <span>IRMS</span>
+      </div>
       <div className="sidebar-nav-group">
         {NAV.map(({ id, label, Icon }) => {
           const isActive = view === id
           return (
             <button
               key={id}
-              className={`sidebar-item${isActive ? ' active' : ''}`}
+              className={`rail-item${isActive ? ' active' : ''}`}
               onClick={() => setView(id)}
               aria-current={isActive ? 'page' : undefined}
-              title={collapsed ? label : undefined}
+              title={label}
             >
               <Icon size={20} />
               <span>{label}</span>
@@ -78,6 +38,7 @@ export function Sidebar(): JSX.Element {
           )
         })}
       </div>
+      <div className="rail-footer">BETA</div>
     </nav>
   )
 }

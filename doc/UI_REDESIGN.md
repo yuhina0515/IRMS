@@ -1,191 +1,75 @@
-# IRMS UI Redesign — Living Design Reference
+# IRMS Desktop Workstation UI — beta8
 
-> Produced by the `craft-ui-designer` skill, phase by phase. This is a living blueprint Phase 4
-> builds against — update it as decisions change, don't append a history here (that's what
-> `doc/coding log/` is for). See [[HOME]] for the latest status line and links to the phase logs.
+> 這是目前唯一有效的 UI/IA 規格。2026-09-02 的 sidebar＋bento card 方向已退出產品主線；
+> 歷史決策保留在 `doc/coding log/`，不再混入 living reference。
 
-## Direction (Phase 1, confirmed 2026-09-01)
+## 產品定位
 
-- **IA**: single view container, no bottom tab bar. One section shown at a time, not everything
-  stacked into one long scroll — navigation is the left sidebar (see "Shell" below; the original
-  Phase 1 top segmented control was tried, then deleted 2026-09-02 once Gemini's review of the
-  real implementation called dual-layer nav redundant).
-- **Tone**: high-density lab/monitoring-instrument console. Not clinical-clean, not soft/warm.
-- **Visual archetype**: bento-grid cards. No Apple semantics.
-- **Tokens** (Phase 2, superseded 2026-09-02 — see below): originally `slate` neutrals + `cyan`
-  accent only, single fixed dark theme.
-- **2026-09-02 — dual theme, implemented**: external design handoff (`doc/gemini-handoff-20260902/`)
-  came back with two directions ("Data-Console Dark" and "Precision Lab Light"); user picked
-  **both** ("兩個都走") rather than choosing one. `IRMS_App/tailwind.config.js` colors now
-  resolve through CSS variables (`rgb(var(--color-x) / <alpha-value>)`); `tailwind.css` defines
-  the dark set on `:root` and the light set on `.theme-light`, toggled via
-  `services/theme.ts`'s `applyThemeMode()` and persisted as `settings.themeMode`. A handful of
-  the handoff's light-theme hex values failed WCAG when measured (not eyeballed) and were
-  deepened one Tailwind step on the same hue — see the 2026-09-02 "gemini mockup implementation"
-  coding log for the exact before/after numbers. Radii tightened (card 12px, control 6px, was
-  16/8) per the handoff spec, same for both themes.
-- **Sidebar nav**: `Sidebar.tsx` (left, icon+label, reuses `NavIcons.tsx` restored from the
-  archived branch) is the sole primary nav. Briefly went through a dual-layer phase (sidebar +
-  top `SegmentedControl`, both driving the same view state) per the 09-02 handoff, but Gemini's
-  own review of the real implementation called that redundant — see "Shell" below.
-- **"Glow" on active elements, dark theme only**: per the handoff's "lighting" note — a soft
-  accent/success box-shadow on the active nav item / sliding indicator / connected-state dot.
-  Not applied in light theme (a glow on white reads as a blur artifact, not an instrument light).
-- **Numeric readouts go mono**: `JetBrains Mono Variable` self-hosted, wired to number inputs so
-  far (Dashboard doesn't have live readout components yet).
+IRMS 是持續監測患者動作的 Windows 桌面儀器，不是內容網站、行銷 dashboard 或卡片瀏覽器。
+畫面必須讓治療師在一眼內回答三件事：裝置是否可信、患者現在做得是否正確、下一個動作是什麼。
 
-## Shell (Phase 3, revised 2026-09-02 — sidebar-only nav)
+## 資訊架構
 
-```
-┌────────────┬─────────────────────────────────────────────────────┐
-│  [≡] IRMS  │ [logo] IRMS.        ● Disconnected   [☀/🌙][Connect] │ <- TopHeader
-│            ├─────────────────────────────────────────────────────┤
-│ ▸Dashboard │                                                      │
-│  Actions   │                                                      │
-│  History   │                    active section's bento grid       │
-│  Settings  │                                                      │
-│            │                                                      │
-└────────────┴─────────────────────────────────────────────────────┘
-  Sidebar        .app-column (TopHeader / main)
+```text
+┌──────────┬──────────────────────────────────────────────────────────┐
+│ IRMS     │ 01 即時監測 / LIVE SESSION       ● 裝置狀態  [連線]    │
+│          ├──────────────────────────────────────────────────────────┤
+│ 監測     │                                                          │
+│ 處方     │                     單一工作區                           │
+│ 紀錄     │          僅工作區內部允許必要的捲動                     │
+│ 設定     │                                                          │
+│          │                                                          │
+│ BETA     │                                                          │
+└──────────┴──────────────────────────────────────────────────────────┘
 ```
 
-`BottomBar.tsx` / `LiquidKnob`-driven pill nav from the original teardown is retired. Briefly went
-through a dual-layer phase (sidebar + top `SegmentedControl`, both driving the same view state) per
-that day's design handoff, but Gemini's own review of the real implementation called that
-redundant and confusing — sidebar is now the sole primary nav, `SegmentedControl.tsx` deleted (see
-2026-09-02 "ui design delegated nav cockpit" log — this project now implements Gemini's UI/IA
-calls directly rather than re-litigating them with the user). `TopHeader` keeps its job (identity +
-connection state + theme toggle) unchanged in role.
+- 固定 84px command rail 是唯一主導覽，不再展開／收合，也不覆蓋內容。
+- 72px command bar 顯示目前工作區、連線狀態與全域操作；不重複模擬 Windows 標題列。
+- body 與 root 永不捲動；需要長內容時只捲動 `.workspace-main`。
+- 保留原生 Windows decorations，避免 175% DPI 下自訂標題列控制鈕的座標偏移問題。
+- scrollbar 必須使用低對比的產品色，不得回退成白色瀏覽器 scrollbar。
 
-**Note for the mobile prep (see coding log for 2026-09-01 pt.2):** this shell already assumes a
-narrow-viewport-first layout (segmented control instead of a bottom bar reads fine at phone width;
-a bottom bar would have needed a native tab-bar equivalent anyway). That's a happy accident, not a
-substitute for actual mobile interaction design — see that section for what's still open.
+## 視覺語言
 
-## Round 2 (2026-09-02) — real-implementation feedback loop
+- 連續工作面取代浮動卡片海：4px 以下小圓角、單層邊界、無裝飾性陰影。
+- 青色只表示選取、連線或重要操作，不作大面積裝飾。
+- 狀態與數值優先使用 JetBrains Mono；標題與說明使用 Inter。
+- 深／淺主題仍保留，但共享同一資訊層級與幾何結構。
 
-Fed real screenshots (not mockups) back to Gemini for critique. Landed:
-- **Card padding 16px→24px, grid gaps 16px→24px** — round 1's cards read as cramped once real
-  content replaced mockup placeholder text.
-- **Light-theme accent shifted from cyan to sky** (`#0284c7`/`#0369a1`, bg/text roles) — Gemini's
-  read was that the round-1 WCAG-darkened cyan (`#0e7490`) lost the "vibrant lab" mood. Verified
-  Gemini's own proposed fix before applying it: its suggested button-bg value (sky-500 `#0ea5e9`)
-  actually measured 2.77:1 with white text and failed the same bar it was meant to fix —
-  substituted sky-600 (`#0284c7`, 4.10:1) instead. **Dark theme's accent stays cyan** (Gemini's
-  own call, "don't fix what already passed") — the two themes now use different accent hue
-  families, a real divergence, not an oversight.
-- **`accent` split into two roles**: `accent` = background/button only, `accent-strong` = text/
-  link (needs the darker step to stay readable as text on its own). Every `text-accent` call site
-  updated to `text-accent-strong`.
-- **danger deepened** red-600→red-700 (`#b91c1c`, 6.47:1) — Gemini's suggestion, verified better
-  than round 1's fix.
-- **success kept as-is** (emerald-700) — Gemini suggested green-700 as "better contrast," measured
-  it and it's actually worse (5.02:1 vs emerald-700's 5.48:1); kept the existing value.
-- **Canvas** dark→pure-white shifted to slate-50 (`#f8fafc`) per request, cosmetic.
+## 四個工作區
 
-## Dashboard — highest density, 25Hz live data
+### 01 即時監測
 
-**Status (2026-09-02):** styled with the new tokens, three real pre-existing bugs fixed
-(gauge/ring/2D-visualizer were reading dead CSS variable names since the 09-01 teardown — the
-"two black rectangles" seen in early screenshots; `Leg3D.tsx`'s 3D view background was rendering
-white because `THREE.Color()` can't parse CSS4 space-separated `rgb()` syntax, only comma syntax;
-the 2D visualizer SVG had no width cap and rendered mostly off-screen — all three confirmed via
-before/after screenshots), **and restructured to Gemini's always-visible 2-column "Cockpit"**
-(implemented directly per the design-delegation call — see the 2026-09-02 "ui design delegated
-nav cockpit" log).
+- 左側是主判定面：當前動作、主量表、目標區與教練提示。
+- 右側是 session 操作與完成進度。
+- 下方才是證據層：原始數值／趨勢，以及選配的姿態視圖。
+- 主判定與 session controls 在任何桌面尺寸都先於圖表與 3D。
 
-The summary row (primary gauge | progress ring + session controls) is unchanged. Below it, the
-old 4-way tab card (chart/3D/2D/detail) is gone — replaced by two always-visible panels, each
-keeping its own small internal switcher for content Gemini's spec didn't explicitly place:
+### 02 動作處方
 
-```
-┌────────────────────────────────┬───────────────────┐
-│  PRIMARY METRIC GAUGE (large)   │  Progress/Reps     │
-│  target-zone arc + coach hint   │  ring              │
-│                                  ├───────────────────┤
-│                                  │  Session controls  │
-├─ border-t separator, no card bg on this outer row ───┤
-│  Chart panel (8 cols)            │  3D panel (4 cols)  │
-│  toggle: 趨勢圖 / 詳細數值        │  toggle: 3D / 2D    │
-└──────────────────────────────────┴────────────────────┘
-   .cockpit-panel                    .cockpit-panel-3d
-```
+- 使用 protocol toolbar＋filter strip＋register rows。
+- 動作是可執行的處方紀錄，不再呈現為彼此漂浮的商品卡片。
+- 編輯／刪除仍在每列尾端；參數驗證與 Record Pose 契約不變。
 
-## Actions — browse/select (rebuilt 2026-09-02)
+### 03 療程紀錄
 
-```
-┌────────────────────────────────────────────────────┐
-│  [ Search actions...              ]      [+ New]     │
-├───────────┬───────────┬───────────┬──────────────────┤
-│ card       │ card       │ card      │ card             │  <- equal-size bento cells,
-└───────────┴───────────┴───────────┴──────────────────┘     column count responsive
-```
+- 使用連續資料表面，header 固定為欄位語意，列 hover 只協助定位。
+- 示範資料、未正常結束與分析入口必須保持可見。
 
-Cards get a hover state (`border-accent` + color transition) per round-2 feedback — signals
-"this is an executable template," not just a static info card. Deliberately did **not** add a
-Gemini-suggested "Start" button per card — that's a new feature (jump straight to Dashboard with
-this action pre-selected), not a restyle of what exists; noted for a future ask, not implemented
-speculatively.
+### 04 系統設定
 
-## History — deliberately NOT bento (rebuilt 2026-09-02)
+- 校準與一般設定形成首屏雙欄 workbench。
+- 軟體更新、韌體 OTA、示範模式依風險與使用頻率向下排列為全寬 sections。
+- 長頁只在 workspace 內捲動；不讓 rail 或 command bar 隨內容離開視窗。
 
-A chronological session log reads as a list, not independent cards — forcing it into bento grid
-would be applying the archetype where the content shape doesn't fit it. Keep a row-based list;
-selecting a row opens the existing analysis modal.
+## 不變的安全邊界
 
-Round-2 feedback agreed with this call and asked for a div-based row list; implemented as a
-**styled semantic `<table>` instead** — same visual outcome (hover background shift, clear
-metadata hierarchy) with real column alignment and table accessibility semantics a hand-rolled div
-grid would have to reimplement. A deliberate deviation from the literal suggested markup, not the
-visual intent.
+此次重建只捨棄舊排版與 UI 狀態邏輯，不改 BLE protocol、動作判定、session controller、
+SQLite schema／migration、校準數學、OTA 安全限制與 updater 簽章驗證。這些不是視覺設計自由度。
 
-```
-┌────────────────────────────────────────────────────┐
-│  session row  │ date │ action │ reps │ badge          │
-│  session row  │ date │ action │ reps │ badge          │
-│  ...                                                   │
-└────────────────────────────────────────────────────┘
-```
+## 驗收基線
 
-## Settings — one bento card per settings group
-
-Only two groups now, not three — the Appearance/style-profile card is retired along with it
-(Phase 4, 2026-09-02): the app now ships two fixed themes (dark/light, user-toggled, not
-OS-follow), there's no more separate style-profile picker to expose. The dead
-`applyStyleProfile.ts`/`styles/profiles/`/`global.css` system was removed in the Phase 5
-doc/dead-code sync (2026-09-03) — `theme.ts`'s `applyThemeMode()` is the only theming code path
-now.
-
-```
-┌────────────────────┬────────────────────┐
-│  Calibration         │  General             │
-├────────────────────┴────────────────────┤
-│  Demo Mode (full width — more controls than  │
-│  the other groups, doesn't fit a half cell)   │
-└──────────────────────────────────────────┘
-```
-
-## Responsive breakpoints
-
-- **Mobile (<640px)**: everything single-column, Dashboard stacks in priority order:
-  gauge → progress/reps → session controls → secondary-visualization card. ⚠ Sidebar's own
-  narrow-viewport behavior is undefined/unimplemented (no responsive classes in `Sidebar.tsx`
-  as of 2026-09-03) — desktop mobile-width testing hasn't needed it yet, and the actual phone
-  UI is a separate React Native build per [[ROADMAP#D5]], not this sidebar component.
-- **Tablet (768–1024px)**: 2-column bento where content allows (Actions, Settings). Dashboard
-  keeps its 2-column split (gauge | progress+controls stacked).
-- **Wide desktop (>1280px)**: layouts as sketched above; Actions can go 3–4 columns.
-
-## Phase 4 — complete (2026-09-02)
-
-All four views (Dashboard/Actions/History/Settings) rebuilt on the Tailwind token system above,
-sidebar-only nav and the Dashboard Cockpit layout both landed per Gemini's design-delegation
-calls. See [[log_20260902_ui_design_delegated_nav_cockpit|Phase 4 completion log]].
-
-## Phase 5 — doc/dead-code sync (2026-09-03)
-
-No open design questions carried over from Phase 4. Phase 5 was reconciling this doc and the
-other three core docs (`PROJECT_STATUS.md`/`OPTIMIZATION.md`/`AI_CODING_RULES.md`) with the
-now-completed rebuild, and deleting the dead `global.css` file — see
-[[log_20260903_ui_rebuild_phase5_doc_sync|Phase 5 log]]. Next open UI work, if any, starts fresh
-from a new user-specified direction rather than a carried-over Phase 4 backlog.
+- 1280×720：body scrollWidth/scrollHeight 必須等於 viewport；Dashboard workspace 不溢位。
+- 1024×600：主判定與 session controls 可用；次要證據區可向下排列。
+- 所有尺寸：command rail／bar 固定，只有工作區可以捲動。
+- Windows signed build：保留原生標題列、IRMS icon 與可操作的最小化／最大化／關閉按鈕。
