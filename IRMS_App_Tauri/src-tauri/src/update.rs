@@ -33,7 +33,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 use serde::Serialize;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, ResourceId, Runtime};
+use tauri::{Manager, ResourceId, Runtime, Webview};
 use tauri_plugin_updater::UpdaterExt;
 
 #[derive(Serialize, Default)]
@@ -49,7 +49,7 @@ pub struct UpdateMetadata {
 
 #[tauri::command]
 pub async fn update_check<R: Runtime>(
-    app: AppHandle<R>,
+    webview: Webview<R>,
     allow_beta: bool,
 ) -> Result<Option<UpdateMetadata>, String> {
     let endpoint = if allow_beta {
@@ -61,7 +61,7 @@ pub async fn update_check<R: Runtime>(
         .parse()
         .map_err(|e: url::ParseError| e.to_string())?;
 
-    let updater = app
+    let updater = webview
         .updater_builder()
         .endpoints(vec![url])
         .map_err(|e| e.to_string())?
@@ -89,6 +89,10 @@ pub async fn update_check<R: Runtime>(
         date: formatted_date,
         body: update.body.clone(),
         raw_json: update.raw_json.clone(),
-        rid: app.resources_table().add(update),
+        // The updater plugin's download/install commands resolve resource IDs from the calling
+        // WebView's table. Storing this in AppHandle's global table produces a valid-looking ID
+        // that download cannot resolve (`The resource id ... is invalid`). Match the plugin's
+        // own `check` command and keep the Update in this WebView's table.
+        rid: webview.resources_table().add(update),
     }))
 }
