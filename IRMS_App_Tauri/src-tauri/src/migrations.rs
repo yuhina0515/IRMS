@@ -179,7 +179,8 @@ pub const MIGRATIONS: &[Migration] = &[
     },
 ];
 
-pub fn latest_version() -> i32 {
+#[cfg(test)]
+fn latest_version() -> i32 {
     MIGRATIONS.last().map(|m| m.version).unwrap_or(0)
 }
 
@@ -206,7 +207,8 @@ pub fn apply_migrations(
             Ok(()) => {
                 // PRAGMA user_version doesn't take bound parameters, only string interpolation —
                 // m.version comes from this file's own constant list, not external input.
-                if let Err(e) = conn.execute_batch(&format!("PRAGMA user_version = {}", m.version)) {
+                if let Err(e) = conn.execute_batch(&format!("PRAGMA user_version = {}", m.version))
+                {
                     conn.execute_batch("ROLLBACK").ok();
                     return Err(e);
                 }
@@ -313,7 +315,10 @@ mod tests {
         fn reapplying_is_a_noop() {
             let db = fresh();
             apply_migrations(&db, MIGRATIONS, noop_log).unwrap();
-            assert_eq!(apply_migrations(&db, MIGRATIONS, noop_log).unwrap(), Vec::<i32>::new());
+            assert_eq!(
+                apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
+                Vec::<i32>::new()
+            );
             assert_eq!(get_schema_version(&db).unwrap(), latest_version());
         }
     }
@@ -436,16 +441,28 @@ mod tests {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
 
             assert!(db
-                .execute(insert_sql, rusqlite::params!["x", "", "knee", 90.0, -5.0, 2000, "joint_angle"])
+                .execute(
+                    insert_sql,
+                    rusqlite::params!["x", "", "knee", 90.0, -5.0, 2000, "joint_angle"]
+                )
                 .is_err());
             assert!(db
-                .execute(insert_sql, rusqlite::params!["x", "", "knee", 90.0, 10.0, 0, "joint_angle"])
+                .execute(
+                    insert_sql,
+                    rusqlite::params!["x", "", "knee", 90.0, 10.0, 0, "joint_angle"]
+                )
                 .is_err());
             assert!(db
-                .execute(insert_sql, rusqlite::params!["x", "", "knee", 300.0, 10.0, 2000, "joint_angle"])
+                .execute(
+                    insert_sql,
+                    rusqlite::params!["x", "", "knee", 300.0, 10.0, 2000, "joint_angle"]
+                )
                 .is_err());
             assert!(db
-                .execute(insert_sql, rusqlite::params!["ok", "", "knee", 90.0, 10.0, 2000, "joint_angle"])
+                .execute(
+                    insert_sql,
+                    rusqlite::params!["ok", "", "knee", 90.0, 10.0, 2000, "joint_angle"]
+                )
                 .is_ok());
         }
     }
@@ -484,12 +501,21 @@ mod tests {
         #[test]
         fn upgrading_from_v6_backfills_existing_rows_to_device_not_null() {
             let db = at_version_6();
-            db.execute("INSERT INTO sessions (actionName) VALUES (?1)", ["升級前就存在"])
-                .unwrap();
-            db.execute("INSERT INTO sessions (actionName) VALUES (?1)", ["升級前就存在2"])
-                .unwrap();
+            db.execute(
+                "INSERT INTO sessions (actionName) VALUES (?1)",
+                ["升級前就存在"],
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO sessions (actionName) VALUES (?1)",
+                ["升級前就存在2"],
+            )
+            .unwrap();
 
-            assert_eq!(apply_migrations(&db, MIGRATIONS, noop_log).unwrap(), vec![7]);
+            assert_eq!(
+                apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
+                vec![7]
+            );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();
             let sources: Vec<String> = stmt
@@ -541,7 +567,9 @@ mod tests {
             )
             .unwrap();
             let demo_id: i64 = db
-                .query_row("SELECT id FROM sessions WHERE source='demo'", [], |r| r.get(0))
+                .query_row("SELECT id FROM sessions WHERE source='demo'", [], |r| {
+                    r.get(0)
+                })
                 .unwrap();
             db.execute(
                 "INSERT INTO sensor_data (sessionId, timestamp, kneeAngle) VALUES (?1, ?2, ?3)",
@@ -549,7 +577,8 @@ mod tests {
             )
             .unwrap();
 
-            db.execute_batch("DELETE FROM sessions WHERE source = 'demo'").unwrap();
+            db.execute_batch("DELETE FROM sessions WHERE source = 'demo'")
+                .unwrap();
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();
             let remaining: Vec<String> = stmt
@@ -595,7 +624,9 @@ mod tests {
                 rusqlite::params!["被中斷的", 0],
             )
             .unwrap();
-            let id: i64 = db.query_row("SELECT id FROM sessions", [], |r| r.get(0)).unwrap();
+            let id: i64 = db
+                .query_row("SELECT id FROM sessions", [], |r| r.get(0))
+                .unwrap();
             db.execute(
                 "INSERT INTO sensor_data (sessionId, timestamp, kneeAngle) VALUES (?1, ?2, ?3)",
                 rusqlite::params![id, "2026-08-01T10:05:00.000Z", 90.0],

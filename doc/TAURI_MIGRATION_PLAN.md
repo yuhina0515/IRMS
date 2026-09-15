@@ -163,11 +163,11 @@ adaptation logic, not a mechanical `invoke` swap like `sessions`/`actions`/`data
       `sessions`/`data`/`actions` are mechanical `invoke()` wrappers over the Phase 1 DB commands.
       `windowControls` got a real implementation via `@tauri-apps/api/window`'s `getCurrentWindow()`
       (`minimize`/`toggleMaximize`/`close`/`isMaximized`/`onResized`-based maximize-change polling);
-      `hasCustomTitlebar()` returns `false` until Phase 3 lands the frameless window. `updates` only
-      implements `getCurrentVersion()` for real (`@tauri-apps/api/app`'s `getVersion()`); the rest
-      are honest no-ops pending task #54 (Phase 4). `firmware.pickBinary()` returns `null` with a
-      console warning — deferred to a new dedicated task (dialog-picker + MD5), independent of the
-      hardware-gated task #55.
+      `hasCustomTitlebar()` returns `false` until Phase 3 lands the frameless window. `updates` was
+      subsequently completed in Phase 4. `firmware.pickBinary()` was completed on 2026-09-15:
+      a least-privilege native dialog returns the explicitly selected path, then a Rust command
+      validates/reads the `.bin`, enforces a 4 MB ceiling, and computes MD5 before the adapter
+      restores `Uint8Array`; hardware-gated OTA verification remains tracked separately.
 - [x] **New `services/bluetooth.ts` implementation, backed by `ble.rs`'s IPC surface**
       (2026-09-07): same public `BluetoothService` class shape as the Electron version (so
       `store/useStore.ts` and `services/sessionController.ts` needed zero changes), internals swapped

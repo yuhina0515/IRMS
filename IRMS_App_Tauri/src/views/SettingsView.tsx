@@ -373,10 +373,15 @@ function FirmwareOtaPanel(): JSX.Element {
   }
 
   const pickFile = async (): Promise<void> => {
-    const picked = await irms.firmware.pickBinary()
-    if (picked == null) return
-    setFirmware(picked)
-    setProgress(null)
+    try {
+      const picked = await irms.firmware.pickBinary()
+      if (picked == null) return
+      setFirmware(picked)
+      setProgress(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      showToast(`讀取韌體失敗：${message}`, 'error')
+    }
   }
 
   // 版本比對僅供使用者確認用的提示,不是自動判斷「要不要更新」的硬性關卡——

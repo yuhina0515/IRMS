@@ -150,8 +150,16 @@ pub fn parse_angle_packet(value: &str) -> ParsedPacket {
         raw: RawAngles {
             thigh,
             shin,
-            thigh_roll: if has_roll { thigh_roll_raw.unwrap() } else { 0.0 },
-            shin_roll: if has_roll { shin_roll_raw.unwrap() } else { 0.0 },
+            thigh_roll: if has_roll {
+                thigh_roll_raw.unwrap()
+            } else {
+                0.0
+            },
+            shin_roll: if has_roll {
+                shin_roll_raw.unwrap()
+            } else {
+                0.0
+            },
         },
         has_roll,
         truncated,

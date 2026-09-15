@@ -229,6 +229,8 @@
       確保不會變磚);App 端新增 `BluetoothService.performOtaUpdate()` 與 Settings 的
       「Firmware Update」面板。`arduino-cli compile` 乾淨(86.3% flash,較 OTA 前只多
       約 8.2KB)、`npm run ci`(typecheck+284 tests+build)全綠。**誠實的完成度邊界**:
+      - [x] **Tauri C2 選檔接縫**(2026-09-15):原生 dialog → Rust `.bin`/4 MB 驗證 →
+            讀檔/MD5 → TS `Uint8Array` adapter 已閉合，並有 5 項邊界測試；尚待人工點選煙霧測試。
       以下三步需要實體 USB/BLE 硬體存取,AI 無法遠端執行:
       - [ ] B4:燒錄一台測試裝置(`arduino-cli upload -p COM7 --fqbn esp32:esp32:esp32
             IRMS_Sensor`,partition scheme 不變不需額外參數)。
@@ -346,6 +348,20 @@
 ---
 
 ## 三、已知技術債(重寫時保留待辦)
+- [x] **Tauri 前端與 Rust 驗證整合為單一 CI 入口**(2026-09-15):`npm run ci` 現涵蓋
+      typecheck、283 Vitest、production build、rustfmt、57 Rust tests 與 Clippy
+      warnings-as-errors；同批移除既有 Clippy 警告並把 DB mutex poison 從 panic 改為 IPC error。
+- [x] **建立遠端 PR CI gate**(2026-09-15):新增 Windows GitHub Actions workflow，以 Node 24、
+      stable Rust、`npm ci` + `npm run ci` 驗證前端與 Rust。
+- [ ] **補齊 Tauri 邊界與旅程測試**:目前只有 5 個 `.test.tsx`，優先覆蓋
+      App/Dashboard/Settings 的「連線→Session→ERR/斷線→收尾」及 OTA 進度/失敗旅程；
+      TS/Rust IPC 與 BLE protocol 雙份型別另加 contract parity 測試。2026-09-15 已先補
+      firmware Rust 邊界 3 tests + TS adapter 2 tests（總計 285 前端 / 60 Rust）。
+- [x] **Tauri renderer 安全基線**(2026-09-15):建立最小 production/dev CSP；production
+      只允許 self + Tauri IPC 與必要的 asset/data/blob，dev 僅額外開固定 HMR websocket；
+      `tauri build --no-bundle` 成功。
+- [x] **對齊前端工具鏈世代**(2026-09-15):Vite 8.3 + React plugin 6.1 + Vitest 5.0，
+      淘汰警告消失，`npm audit` 從 1 moderate + 1 high 降為 0。
 - [x] `react-chartjs-2` 已列入依賴但實際使用原生 Chart.js,可移除依賴。(2026-06-27 已移除)
 - [ ] 舊版 `irms.sqlite`(v1 schema)未自動遷移至 v2;若需保留歷史資料需寫一次性匯入腳本。
 - [x] 文件中 `AI_CODING_RULES.md` 的檔案路徑仍指向舊位置 `c:/Users/Yuhina/Documents/IRMS`。(2026-06-30 已改為倉庫內相對連結;並一併同步全文件至 v2 架構、修正 3 軸/舊 schema 描述、補齊文件交互指引。)

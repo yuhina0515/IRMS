@@ -21,6 +21,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-15 架構修復 Phase 1**([[log_20260915_architecture_repairs_phase1|日誌]]):完成 Tauri
+  韌體 `.bin` 選檔/驗證/MD5、最小 CSP、GitHub PR CI；Vite/Vitest 升級後 npm audit 歸零，
+  285 前端 tests + 60 Rust tests + release exe build 全過。硬體 OTA/E2E 仍待實機。
+- **2026-09-15 架構與技術稽核**([[log_20260915_architecture_technical_audit|日誌]]):依完整
+  App 測試追查架構邊界；建立前端+Rust 單一 CI（283 Vitest + 57 Rust tests + build +
+  rustfmt + Clippy），修正 DB mutex panic 路徑並排定硬體 E2E、OTA 選檔、CSP、IPC 契約與
+  跨層測試優先序。
 - App 已重寫為 **Electron + Vite + React + TS + better-sqlite3**(v2),詳見 [[log_20260627_app_v2_rewrite|v2 重寫日誌]]
 - 2026-07-03 全面架構審查修復 8 項缺陷(BLE 指令 `\n` 比對失效等),詳見 [[log_20260703_architecture_audit_fixes|審查修復日誌]]
 - **2026-07-05 偵測與顯示全面重構**([[log_20260705_guided_redesign|日誌]]):metric 正規化層、

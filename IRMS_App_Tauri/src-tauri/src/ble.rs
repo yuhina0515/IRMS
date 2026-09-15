@@ -147,7 +147,11 @@ async fn scan_for_device(adapter: &Adapter) -> Result<Peripheral, String> {
 /// events; OTA status notifications get published to ota_status_tx for perform_ota_update to
 /// consume. One stream serves both, same as the ESP32 side notifies both characteristics
 /// independently but the Electron/Web-Bluetooth side already demuxes by characteristic today.
-fn spawn_notification_listener(app: AppHandle, peripheral: Peripheral, ota_status_tx: broadcast::Sender<String>) {
+fn spawn_notification_listener(
+    app: AppHandle,
+    peripheral: Peripheral,
+    ota_status_tx: broadcast::Sender<String>,
+) {
     tauri::async_runtime::spawn(async move {
         let mut stream = match peripheral.notifications().await {
             Ok(s) => s,
@@ -254,7 +258,9 @@ pub async fn ble_send_command(state: State<'_, BleState>, command: String) -> Re
 }
 
 #[tauri::command]
-pub async fn ble_get_firmware_version(state: State<'_, BleState>) -> Result<Option<String>, String> {
+pub async fn ble_get_firmware_version(
+    state: State<'_, BleState>,
+) -> Result<Option<String>, String> {
     let guard = state.peripheral.lock().await;
     let Some(peripheral) = guard.as_ref() else {
         return Ok(None);
@@ -296,7 +302,9 @@ async fn wait_for_ota_status(
 }
 
 fn describe_ota_error(status_text: &str) -> String {
-    let code = status_text.strip_prefix("OTA:ERROR:").unwrap_or(status_text);
+    let code = status_text
+        .strip_prefix("OTA:ERROR:")
+        .unwrap_or(status_text);
     match code {
         "NO_SPACE" => "裝置回報空間不足,無法開始寫入新韌體".to_string(),
         "BAD_START" => "啟動參數格式錯誤(App 端 bug,不應該發生)".to_string(),

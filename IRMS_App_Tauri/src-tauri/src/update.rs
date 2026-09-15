@@ -15,8 +15,10 @@
 // `latest.json` asset under a fixed `beta-latest` tag on every beta release. That publishing step
 // is NOT set up as part of this change (see the Phase 4 coding log) — this command is only the
 // App-side half of the channel toggle.
-const STABLE_ENDPOINT: &str = "https://github.com/yuhina0515/IRMS/releases/latest/download/latest.json";
-const BETA_ENDPOINT: &str = "https://github.com/yuhina0515/IRMS/releases/download/beta-latest/latest.json";
+const STABLE_ENDPOINT: &str =
+    "https://github.com/yuhina0515/IRMS/releases/latest/download/latest.json";
+const BETA_ENDPOINT: &str =
+    "https://github.com/yuhina0515/IRMS/releases/download/beta-latest/latest.json";
 
 // `UpdaterBuilder::timeout` defaults to `None` (see tauri-plugin-updater's updater.rs), which
 // means reqwest applies no request-level timeout at all — a connection that never receives a
@@ -50,8 +52,14 @@ pub async fn update_check<R: Runtime>(
     app: AppHandle<R>,
     allow_beta: bool,
 ) -> Result<Option<UpdateMetadata>, String> {
-    let endpoint = if allow_beta { BETA_ENDPOINT } else { STABLE_ENDPOINT };
-    let url = endpoint.parse().map_err(|e: url::ParseError| e.to_string())?;
+    let endpoint = if allow_beta {
+        BETA_ENDPOINT
+    } else {
+        STABLE_ENDPOINT
+    };
+    let url = endpoint
+        .parse()
+        .map_err(|e: url::ParseError| e.to_string())?;
 
     let updater = app
         .updater_builder()
@@ -63,7 +71,9 @@ pub async fn update_check<R: Runtime>(
 
     let update = updater.check().await.map_err(|e| e.to_string())?;
 
-    let Some(update) = update else { return Ok(None) };
+    let Some(update) = update else {
+        return Ok(None);
+    };
 
     let formatted_date = match update.date {
         Some(date) => Some(

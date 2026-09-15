@@ -54,7 +54,12 @@ pub fn check_and_correct(window: &WebviewWindow) {
 pub fn watch(window: &WebviewWindow) {
     let watched = window.clone();
     window.on_window_event(move |event| {
-        if let WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size, .. } = event {
+        if let WindowEvent::ScaleFactorChanged {
+            scale_factor,
+            new_inner_size,
+            ..
+        } = event
+        {
             correct_drift(&watched, *scale_factor, *new_inner_size);
         }
     });
@@ -76,7 +81,9 @@ fn correct_drift(window: &WebviewWindow, scale_factor: f64, reported: PhysicalSi
     if drift_w <= DRIFT_TOLERANCE_PX && drift_h <= DRIFT_TOLERANCE_PX {
         return;
     }
-    eprintln!("[dpi_guard] drift exceeds tolerance — correcting size back to configured logical size");
+    eprintln!(
+        "[dpi_guard] drift exceeds tolerance — correcting size back to configured logical size"
+    );
     if let Err(err) = window.set_size(LogicalSize::new(MAIN_LOGICAL_WIDTH, MAIN_LOGICAL_HEIGHT)) {
         eprintln!("[dpi_guard] set_size failed: {err}");
     }

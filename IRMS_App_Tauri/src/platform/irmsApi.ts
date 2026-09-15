@@ -14,10 +14,12 @@
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getVersion } from '@tauri-apps/api/app'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import type {
   CustomAction,
   CustomActionInput,
+  FirmwareBinary,
   IrmsApi,
   Session,
   SensorReading,
@@ -33,6 +35,11 @@ interface UpdateMetadata {
   date?: string
   body?: string
   rawJson: Record<string, unknown>
+}
+
+interface RustFirmwareBinary extends Omit<FirmwareBinary, 'data'> {
+  /** Tauri command 經 JSON IPC 傳回 byte array；在 adapter 邊界轉回領域型別 Uint8Array。 */
+  data: number[]
 }
 
 // dev 模式沒有打包後可供比對的 endpoint 內容,checkNow 在這裡仍可手動呼叫,但不自動背景
@@ -145,14 +152,16 @@ export const irms: IrmsApi = {
     }
   },
   firmware: {
-    // 尚未實作:需要 tauri-plugin-dialog(選檔)+ 讀檔 + MD5,追蹤於新任務
-    // 「firmware.pickBinary 的 Tauri 實作(檔案選取器 + MD5)」,與 OTA 硬體驗證
-    // (task #55)分開追蹤,因為這一段本身不需要硬體就能做,只是還沒排到。
-    // SettingsView 的呼叫端本來就把 null 當成「使用者取消」處理,回傳 null
-    // 讓畫面維持在「尚未選擇檔案」的安全狀態,不會拋例外炸畫面。
     async pickBinary() {
-      warnFirmwarePickerUnimplemented()
-      return null
+      const path = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'ESP32 firmware', extensions: ['bin'] }]
+      })
+      if (path == null) return null
+
+      const firmware = await invoke<RustFirmwareBinary>('firmware_read_binary', { path })
+      return { ...firmware, data: Uint8Array.from(firmware.data) }
     }
   },
   windowControls: {
@@ -220,8 +229,4 @@ export const irms: IrmsApi = {
       }
     }
   }
-}
-
-function warnFirmwarePickerUnimplemented(): void {
-  console.warn('irms.firmware.pickBinary: not yet implemented in the Tauri build (see task tracker)')
 }

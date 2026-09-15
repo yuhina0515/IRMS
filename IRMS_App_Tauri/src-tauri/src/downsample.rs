@@ -38,9 +38,9 @@ pub fn lttb(data: &[Point], threshold: usize) -> Vec<Point> {
         let next_len = (next_end.saturating_sub(next_start)).max(1);
         let mut avg_x = 0.0;
         let mut avg_y = 0.0;
-        for j in next_start..next_end {
-            avg_x += data[j].x;
-            avg_y += data[j].y;
+        for point in data.iter().take(next_end).skip(next_start) {
+            avg_x += point.x;
+            avg_y += point.y;
         }
         avg_x /= next_len as f64;
         avg_y /= next_len as f64;
@@ -49,8 +49,8 @@ pub fn lttb(data: &[Point], threshold: usize) -> Vec<Point> {
         let ay = data[a].y;
         let mut max_area = -1.0;
         let mut chosen = range_start;
-        for j in range_start..range_end {
-            let area = ((ax - avg_x) * (data[j].y - ay) - (ax - data[j].x) * (avg_y - ay)).abs();
+        for (j, point) in data.iter().enumerate().take(range_end).skip(range_start) {
+            let area = ((ax - avg_x) * (point.y - ay) - (ax - point.x) * (avg_y - ay)).abs();
             if area > max_area {
                 max_area = area;
                 chosen = j;
@@ -107,7 +107,9 @@ mod tests {
 
     #[test]
     fn output_x_strictly_increasing() {
-        let values: Vec<f64> = (0..3000).map(|i| (i as f64 / 30.0).cos() * 45.0 + 45.0).collect();
+        let values: Vec<f64> = (0..3000)
+            .map(|i| (i as f64 / 30.0).cos() * 45.0 + 45.0)
+            .collect();
         let d = series(&values);
         let out = lttb(&d, 300);
         for i in 1..out.len() {

@@ -87,7 +87,10 @@ async fn animate_bounds(window: &WebviewWindow, from: Rect, to: Rect, duration_m
     for i in 1..=steps {
         let t = ease_out_cubic(i as f64 / steps as f64);
         let r = lerp_rect(from, to, t);
-        if window.set_position(PhysicalPosition::new(r.x, r.y)).is_err() {
+        if window
+            .set_position(PhysicalPosition::new(r.x, r.y))
+            .is_err()
+        {
             return;
         }
         if window.set_size(PhysicalSize::new(r.w, r.h)).is_err() {
@@ -110,7 +113,12 @@ fn assembly_floor_ms(reduced_motion: bool) -> u64 {
 fn window_rect(window: &WebviewWindow) -> tauri::Result<Rect> {
     let pos = window.outer_position()?;
     let size = window.outer_size()?;
-    Ok(Rect { x: pos.x, y: pos.y, w: size.width, h: size.height })
+    Ok(Rect {
+        x: pos.x,
+        y: pos.y,
+        w: size.width,
+        h: size.height,
+    })
 }
 
 /// Fire-and-forget entry point, called once from `setup()` after the DB/window scaffolding is up.
@@ -146,7 +154,11 @@ async fn run_boot_sequence(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let logical_size: LogicalSize<f64> = work.size.to_logical(scale);
 
     let (tx, rx) = oneshot::channel::<bool>();
-    app.state::<SplashReadyState>().0.lock().unwrap().replace(tx);
+    app.state::<SplashReadyState>()
+        .0
+        .lock()
+        .unwrap()
+        .replace(tx);
 
     let splash = WebviewWindowBuilder::new(app, "splash", WebviewUrl::App("splash.html".into()))
         .position(logical_pos.x, logical_pos.y)
@@ -177,12 +189,21 @@ async fn run_boot_sequence(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let to = window_rect(&main)?;
 
     app.emit("splash-advance", ())?;
-    sleep(Duration::from_millis(if reduced_motion { 0 } else { SPLASH_ADVANCE_LEAD_MS })).await;
+    sleep(Duration::from_millis(if reduced_motion {
+        0
+    } else {
+        SPLASH_ADVANCE_LEAD_MS
+    }))
+    .await;
     animate_bounds(
         &splash,
         from,
         to,
-        if reduced_motion { 0 } else { SPLASH_GROWTH_DURATION_MS },
+        if reduced_motion {
+            0
+        } else {
+            SPLASH_GROWTH_DURATION_MS
+        },
     )
     .await;
 
@@ -190,7 +211,12 @@ async fn run_boot_sequence(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let _ = main.set_focus();
 
     app.emit("splash-fade-out-frame", ())?;
-    sleep(Duration::from_millis(if reduced_motion { 0 } else { SPLASH_FRAME_FADE_OUT_MS })).await;
+    sleep(Duration::from_millis(if reduced_motion {
+        0
+    } else {
+        SPLASH_FRAME_FADE_OUT_MS
+    }))
+    .await;
     let _ = splash.close();
 
     Ok(())

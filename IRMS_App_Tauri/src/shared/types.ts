@@ -181,9 +181,9 @@ export interface StoredReading extends SensorReading {
 }
 
 /**
- * 使用者透過檔案選取器挑的韌體 .bin,主行程讀檔 + 算 MD5 後回傳。
- * MD5 放在主行程算(Node `crypto`),不是因為 renderer 裡的 Web Bluetooth 頁面環境
- * 算不動,而是避免多引入一個瀏覽器端雜湊函式庫只為了這一個用途。
+ * 使用者透過檔案選取器挑的韌體 .bin，由可信任的宿主層讀檔 + 算 MD5 後回傳。
+ * Electron 版使用 Node `crypto`，Tauri 版使用 Rust；renderer 不取得通用檔案系統權限，
+ * 也不為這一個用途引入瀏覽器端雜湊函式庫。
  */
 export interface FirmwareBinary {
   path: string
@@ -192,7 +192,7 @@ export interface FirmwareBinary {
   data: Uint8Array
 }
 
-/** electron-updater 生命週期狀態,main 透過 UPDATE_STATUS_CHANGED 推播給 renderer */
+/** App updater 生命週期狀態，由平台 adapter 推播給 renderer。 */
 export type UpdateStatus =
   | { state: 'checking' }
   | { state: 'available'; version: string }
@@ -202,8 +202,8 @@ export type UpdateStatus =
   | { state: 'error'; message: string }
 
 /**
- * preload 透過 contextBridge 暴露給 renderer 的型別安全 API。
- * renderer 以 window.irms 存取,完全取代舊版的 HTTP fetch。
+ * Renderer 使用的型別安全平台 API。Electron 由 preload/contextBridge 實作，Tauri 由
+ * platform/irmsApi.ts 的 command/event adapter 實作；呼叫端不直接接觸宿主 API。
  */
 export interface IrmsApi {
   sessions: {

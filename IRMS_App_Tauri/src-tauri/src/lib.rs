@@ -2,8 +2,9 @@ mod ble;
 mod commands;
 mod db;
 mod defaults;
-mod dpi_guard;
 mod downsample;
+mod dpi_guard;
+mod firmware;
 mod migrate_electron;
 mod migrations;
 mod protocol;
@@ -39,6 +40,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BleState::default())
         .manage(SplashReadyState::default())
@@ -54,7 +56,9 @@ pub fn run() {
             match migrate_electron::migrate_if_needed(&db_path) {
                 Ok(true) => println!("[migrate] imported existing data from the Electron app"),
                 Ok(false) => {}
-                Err(err) => eprintln!("[migrate] Electron data migration failed, starting fresh: {err}"),
+                Err(err) => {
+                    eprintln!("[migrate] Electron data migration failed, starting fresh: {err}")
+                }
             }
             let conn = db::init_database(&db_path)?;
             app.manage(DbState(Mutex::new(conn)));
@@ -82,6 +86,7 @@ pub fn run() {
             ble::ble_get_firmware_version,
             ble::ble_perform_ota_update,
             ble::ble_abort_ota,
+            firmware::firmware_read_binary,
             commands::actions_list,
             commands::actions_create,
             commands::actions_update,

@@ -7,7 +7,9 @@
 use crate::defaults::default_actions;
 use crate::downsample::{lttb, Point};
 use crate::migrations::{apply_migrations, finalize_orphaned_sessions, MIGRATIONS};
-use crate::types::{CustomAction, CustomActionInput, SensorReading, Session, SessionStartInput, StoredReading};
+use crate::types::{
+    CustomAction, CustomActionInput, SensorReading, Session, SessionStartInput, StoredReading,
+};
 use rusqlite::{params, Connection};
 
 /// Opens/creates the DB at the given path and brings it up to the latest schema — mirrors
@@ -104,18 +106,40 @@ pub mod actions_repo {
             params![input.name, input.description, input.protocol, input.target_angle, input.tolerance, input.hold_time_ms, input.trigger_type, input.safety_limit],
         )?;
         let id = conn.last_insert_rowid();
-        conn.query_row("SELECT * FROM custom_actions WHERE id = ?1", [id], row_to_action)
+        conn.query_row(
+            "SELECT * FROM custom_actions WHERE id = ?1",
+            [id],
+            row_to_action,
+        )
     }
 
-    pub fn update(conn: &Connection, id: i64, input: &CustomActionInput) -> rusqlite::Result<CustomAction> {
+    pub fn update(
+        conn: &Connection,
+        id: i64,
+        input: &CustomActionInput,
+    ) -> rusqlite::Result<CustomAction> {
         conn.execute(
             "UPDATE custom_actions
              SET name=?1, description=?2, protocol=?3, targetAngle=?4, tolerance=?5,
                  holdTimeMs=?6, triggerType=?7, safetyLimit=?8
              WHERE id=?9",
-            params![input.name, input.description, input.protocol, input.target_angle, input.tolerance, input.hold_time_ms, input.trigger_type, input.safety_limit, id],
+            params![
+                input.name,
+                input.description,
+                input.protocol,
+                input.target_angle,
+                input.tolerance,
+                input.hold_time_ms,
+                input.trigger_type,
+                input.safety_limit,
+                id
+            ],
         )?;
-        conn.query_row("SELECT * FROM custom_actions WHERE id = ?1", [id], row_to_action)
+        conn.query_row(
+            "SELECT * FROM custom_actions WHERE id = ?1",
+            [id],
+            row_to_action,
+        )
     }
 
     pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
@@ -145,8 +169,8 @@ pub mod sessions_repo {
     use super::*;
 
     pub fn start(conn: &Connection, input: &SessionStartInput) -> rusqlite::Result<i64> {
-        let calibration_json = serde_json::to_string(&input.calibration)
-            .unwrap_or_else(|_| "null".to_string());
+        let calibration_json =
+            serde_json::to_string(&input.calibration).unwrap_or_else(|_| "null".to_string());
         conn.execute(
             "INSERT INTO sessions (targetAngle, tolerance, holdTimeMs, actionId, actionName, protocol, triggerType, safetyLimit, calibration, source)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -168,7 +192,11 @@ pub mod sessions_repo {
 
     /// Called once per completed rep so a killed/closed session still shows real progress
     /// instead of the stale "0 reps" repsCompleted would otherwise freeze at (see end()).
-    pub fn update_reps(conn: &Connection, session_id: i64, reps_completed: i64) -> rusqlite::Result<()> {
+    pub fn update_reps(
+        conn: &Connection,
+        session_id: i64,
+        reps_completed: i64,
+    ) -> rusqlite::Result<()> {
         conn.execute(
             "UPDATE sessions SET repsCompleted = ?1 WHERE id = ?2",
             params![reps_completed, session_id],
@@ -212,7 +240,9 @@ pub mod sessions_repo {
         let mut stmt = conn.prepare(
             "SELECT * FROM sensor_data WHERE sessionId = ?1 ORDER BY timestamp ASC, id ASC",
         )?;
-        let rows: Vec<StoredReading> = stmt.query_map([session_id], row_to_reading)?.collect::<rusqlite::Result<_>>()?;
+        let rows: Vec<StoredReading> = stmt
+            .query_map([session_id], row_to_reading)?
+            .collect::<rusqlite::Result<_>>()?;
 
         let Some(max_points) = max_points else {
             return Ok(rows);
@@ -239,7 +269,11 @@ pub mod sessions_repo {
         // here we rebuild via a parallel index scan since Rust doesn't share object identity.
         let mut out = Vec::with_capacity(sampled.len());
         for p in &sampled {
-            if let Some((idx, _)) = points.iter().enumerate().find(|(_, pt)| pt.x == p.x && pt.y == p.y) {
+            if let Some((idx, _)) = points
+                .iter()
+                .enumerate()
+                .find(|(_, pt)| pt.x == p.x && pt.y == p.y)
+            {
                 out.push(rows[idx].clone());
             }
         }
@@ -257,7 +291,11 @@ pub mod data_repo {
     use super::*;
 
     /// Single-transaction batch insert (replaces the old per-reading HTTP POST from v1).
-    pub fn append_batch(conn: &mut Connection, session_id: i64, readings: &[SensorReading]) -> rusqlite::Result<usize> {
+    pub fn append_batch(
+        conn: &mut Connection,
+        session_id: i64,
+        readings: &[SensorReading],
+    ) -> rusqlite::Result<usize> {
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare(
