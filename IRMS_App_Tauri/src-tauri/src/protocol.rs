@@ -36,12 +36,23 @@ const ERROR_PREFIX: &str = "ERR:";
 const FIELD_PREFIXES: [&str; 6] = ["TR:", "SR:", "KR:", "T:", "S:", "K:"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct AccelVector {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawAngles {
     pub thigh: f64,
     pub shin: f64,
     pub thigh_roll: f64,
     pub shin_roll: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thigh_accel: Option<AccelVector>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shin_accel: Option<AccelVector>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -91,6 +102,8 @@ pub fn parse_angle_packet(value: &str) -> ParsedPacket {
                     shin: knee,
                     thigh_roll: 0.0,
                     shin_roll: 0.0,
+                    thigh_accel: None,
+                    shin_accel: None,
                 },
                 has_roll: false,
                 truncated: false,
@@ -101,9 +114,23 @@ pub fn parse_angle_packet(value: &str) -> ParsedPacket {
 
     let mut field: HashMap<&str, f64> = HashMap::new();
     let mut truncated = false;
+    let mut accel_values: Option<[f64; 6]> = None;
     let last_idx = parts.len() - 1;
 
     for (i, part) in parts.iter().enumerate() {
+        if i == last_idx && part.starts_with("V:") {
+            // 不可 filter_map 丟掉壞欄位，否則七欄含一個壞值會被誤收為有效六欄。
+            let values: Option<Vec<f64>> = part[2..]
+                .split('/')
+                .map(|value| value.trim().parse::<f64>().ok().filter(|n| n.is_finite()))
+                .collect();
+            if let Some(values) = values.and_then(|values| values.try_into().ok()) {
+                accel_values = Some(values);
+            } else {
+                truncated = true;
+            }
+            continue;
+        }
         let prefix = FIELD_PREFIXES.iter().find(|p| part.starts_with(**p));
         let raw_value = prefix.map(|p| &part[p.len()..]).unwrap_or("");
         // Empty string must be rejected explicitly: unlike JS's `Number('')` (which is 0, not
@@ -160,6 +187,16 @@ pub fn parse_angle_packet(value: &str) -> ParsedPacket {
             } else {
                 0.0
             },
+            thigh_accel: accel_values.map(|values| AccelVector {
+                x: values[0],
+                y: values[1],
+                z: values[2],
+            }),
+            shin_accel: accel_values.map(|values| AccelVector {
+                x: values[3],
+                y: values[4],
+                z: values[5],
+            }),
         },
         has_roll,
         truncated,
@@ -169,6 +206,100 @@ pub fn parse_angle_packet(value: &str) -> ParsedPacket {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // 共用 fixture 驗證兩端相同的欄位數、空值與截斷處理。
+    #[test]
+    fn shared_vector_packet_contract() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("../../fixtures/vector-packets.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            let (raw, _, truncated) = angles(&parse_angle_packet(case["packet"].as_str().unwrap()));
+            assert_eq!(
+                truncated,
+                case["truncated"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+            assert_eq!((raw.thigh, raw.shin), (1.0, 2.0));
+            let actual = match (raw.thigh_accel, raw.shin_accel) {
+                (Some(t), Some(s)) => Some(vec![t.x, t.y, t.z, s.x, s.y, s.z]),
+                (None, None) => None,
+                _ => panic!("Partial vector pair"),
+            };
+            let expected: Option<Vec<f64>> =
+                serde_json::from_value(case["vectors"].clone()).unwrap();
+            assert_eq!(actual, expected, "{}", case["name"]);
+        }
+    }
+
+    // 共用 fixture 驗證一般封包解析:合法欄位組合、ERR、malformed、MTU 截斷降級。
+    // 與上面的向量 fixture 分開——那份固定 T:1,S:2 只變化 V: 欄位,這份的每個案例
+    // T:/S: 之外的欄位組合都不同。src/shared/protocol.contract.test.ts 讀同一份 JSON。
+    #[test]
+    fn angle_packet_contract() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("../../fixtures/angle-packets.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let packet = case["packet"].as_str().unwrap();
+            let kind = case["kind"].as_str().unwrap();
+            let parsed = parse_angle_packet(packet);
+
+            match kind {
+                "error" => {
+                    let ParsedPacket::Error { code } = &parsed else {
+                        panic!("{name}: expected Error, got {parsed:?}")
+                    };
+                    assert_eq!(code, case["code"].as_str().unwrap(), "{name}");
+                }
+                "malformed" => {
+                    assert!(
+                        matches!(parsed, ParsedPacket::Malformed { .. }),
+                        "{name}: expected Malformed, got {parsed:?}"
+                    );
+                }
+                "angles" => {
+                    let (raw, has_roll, truncated) = angles(&parsed);
+                    assert_eq!(has_roll, case["hasRoll"].as_bool().unwrap(), "{name}");
+                    assert_eq!(truncated, case["truncated"].as_bool().unwrap(), "{name}");
+                    let expected_raw = &case["raw"];
+                    assert_eq!(raw.thigh, expected_raw["thigh"].as_f64().unwrap(), "{name}");
+                    assert_eq!(raw.shin, expected_raw["shin"].as_f64().unwrap(), "{name}");
+                    assert_eq!(
+                        raw.thigh_roll,
+                        expected_raw["thighRoll"].as_f64().unwrap(),
+                        "{name}"
+                    );
+                    assert_eq!(
+                        raw.shin_roll,
+                        expected_raw["shinRoll"].as_f64().unwrap(),
+                        "{name}"
+                    );
+                    let expected_vec3 = |v: &serde_json::Value| -> Option<[f64; 3]> {
+                        if v.is_null() {
+                            return None;
+                        }
+                        Some([
+                            v["x"].as_f64().unwrap(),
+                            v["y"].as_f64().unwrap(),
+                            v["z"].as_f64().unwrap(),
+                        ])
+                    };
+                    assert_eq!(
+                        raw.thigh_accel.map(|v| [v.x, v.y, v.z]),
+                        expected_vec3(&expected_raw["thighAccel"]),
+                        "{name}"
+                    );
+                    assert_eq!(
+                        raw.shin_accel.map(|v| [v.x, v.y, v.z]),
+                        expected_vec3(&expected_raw["shinAccel"]),
+                        "{name}"
+                    );
+                }
+                other => panic!("{name}: unknown fixture kind {other}"),
+            }
+        }
+    }
 
     fn angles(p: &ParsedPacket) -> (RawAngles, bool, bool) {
         match p {
@@ -181,184 +312,14 @@ mod tests {
         }
     }
 
+    // MTU23 切點本身的長度前提(不涉及解析輸出)——獨立驗證,不與共用 fixture 重複。
+    // 解析輸出的斷言已併入上面的 angle_packet_contract。
     #[test]
-    fn full_six_axis_packet_ignores_derived_k_kr() {
-        let p = parse_angle_packet("T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0");
-        let (raw, ..) = angles(&p);
-        assert_eq!(
-            raw,
-            RawAngles {
-                thigh: 12.5,
-                shin: -45.2,
-                thigh_roll: 1.2,
-                shin_roll: -0.8
-            }
-        );
-    }
-
-    #[test]
-    fn legacy_three_field_packet_zeroes_roll() {
-        let p = parse_angle_packet("T:10.0,S:20.0,K:10.0");
-        let (raw, ..) = angles(&p);
-        assert_eq!(
-            raw,
-            RawAngles {
-                thigh: 10.0,
-                shin: 20.0,
-                thigh_roll: 0.0,
-                shin_roll: 0.0
-            }
-        );
-    }
-
-    #[test]
-    fn tr_sr_prefixes_not_swallowed_by_t_s() {
-        let p = parse_angle_packet("TR:5.5,SR:6.6,T:1.1,S:2.2,K:1.1");
-        let (raw, ..) = angles(&p);
-        assert_eq!(raw.thigh, 1.1);
-        assert_eq!(raw.thigh_roll, 5.5);
-        assert_eq!(raw.shin_roll, 6.6);
-    }
-
-    #[test]
-    fn err_packet_reports_hardware_error_code() {
-        let p = parse_angle_packet("ERR:1");
-        assert_eq!(
-            p,
-            ParsedPacket::Error {
-                code: "ERR:1".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn trailing_whitespace_still_parses() {
-        let p = parse_angle_packet("  ERR:1\n");
-        assert!(matches!(p, ParsedPacket::Error { .. }));
-    }
-
-    #[test]
-    fn invalid_number_is_malformed() {
-        let p = parse_angle_packet("T:abc,S:1.0,K:2.0");
-        assert!(matches!(p, ParsedPacket::Malformed { .. }));
-    }
-
-    #[test]
-    fn bare_number_legacy_firmware_carried_on_shin() {
-        let p = parse_angle_packet("45.5");
-        let (raw, ..) = angles(&p);
-        assert_eq!(raw.shin, 45.5);
-        assert_eq!(raw.thigh, 0.0);
-    }
-
-    #[test]
-    fn unparseable_string_is_malformed() {
-        assert!(matches!(
-            parse_angle_packet("hello"),
-            ParsedPacket::Malformed { .. }
-        ));
-    }
-
-    mod mtu_23_truncation {
-        use super::*;
-
+    fn full_packet_exceeds_default_mtu_but_t_s_survive_the_cut() {
         const FULL: &str = "T:-180.0,S:-180.0,K:360.0,TR:-180.0,SR:-180.0,KR:360.0";
         const MTU23_PAYLOAD: usize = 20;
-
-        #[test]
-        fn full_packet_exceeds_default_mtu_but_t_s_survive_the_cut() {
-            assert!(FULL.len() > MTU23_PAYLOAD);
-            assert!("T:-180.0,S:-180.0,".len() <= MTU23_PAYLOAD);
-        }
-
-        #[test]
-        fn cut_after_k_keeps_pitch_flags_truncated_roll_not_silently_zero() {
-            let cut = &FULL[..MTU23_PAYLOAD];
-            assert_eq!(cut, "T:-180.0,S:-180.0,K:");
-            let p = parse_angle_packet(cut);
-            let (raw, has_roll, truncated) = angles(&p);
-            assert_eq!(raw.thigh, -180.0);
-            assert_eq!(raw.shin, -180.0);
-            assert!(truncated);
-            assert!(!has_roll);
-        }
-
-        #[test]
-        fn cut_mid_prefix_still_degrades_not_discards() {
-            let p = parse_angle_packet("T:-180.0,S:-180.0,K");
-            let (raw, _, truncated) = angles(&p);
-            assert_eq!(raw.thigh, -180.0);
-            assert!(truncated);
-        }
-
-        #[test]
-        fn half_a_roll_pair_is_dropped_not_used_for_varus_valgus() {
-            let p = parse_angle_packet("T:1.0,S:2.0,K:1.0,TR:3.0");
-            let (raw, has_roll, truncated) = angles(&p);
-            assert_eq!(raw.thigh_roll, 0.0);
-            assert!(!has_roll);
-            assert!(truncated);
-        }
-
-        #[test]
-        fn missing_t_or_s_is_malformed_not_degraded() {
-            assert!(matches!(
-                parse_angle_packet("S:2.0,K:1.0,TR:3.0,SR:4.0"),
-                ParsedPacket::Malformed { .. }
-            ));
-            assert!(matches!(
-                parse_angle_packet("T:1.0,K:1.0,TR:3.0,SR:4.0"),
-                ParsedPacket::Malformed { .. }
-            ));
-        }
-
-        #[test]
-        fn mid_packet_garbage_is_malformed_not_truncation() {
-            assert!(matches!(
-                parse_angle_packet("T:1.0,S:abc,K:1.0,TR:3.0,SR:4.0"),
-                ParsedPacket::Malformed { .. }
-            ));
-            assert!(matches!(
-                parse_angle_packet("T:1.0,T:2.0,S:3.0"),
-                ParsedPacket::Malformed { .. }
-            ));
-        }
-    }
-
-    mod has_roll_vs_truncated {
-        use super::*;
-
-        #[test]
-        fn six_axis_has_roll_not_truncated() {
-            let p = parse_angle_packet("T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0");
-            let (_, has_roll, truncated) = angles(&p);
-            assert!(has_roll);
-            assert!(!truncated);
-        }
-
-        #[test]
-        fn true_legacy_three_field_not_truncated() {
-            let p = parse_angle_packet("T:10.0,S:20.0,K:10.0");
-            let (_, has_roll, truncated) = angles(&p);
-            assert!(!has_roll);
-            assert!(!truncated);
-        }
-
-        #[test]
-        fn cut_exactly_on_a_value_boundary_under_reports_rather_than_over_reports() {
-            let p = parse_angle_packet("T:12.5,S:-45.2,K:57.");
-            let (raw, has_roll, truncated) = angles(&p);
-            assert_eq!(raw.thigh, 12.5);
-            assert!(!has_roll);
-            assert!(!truncated);
-        }
-
-        #[test]
-        fn bare_number_legacy_not_truncated() {
-            let p = parse_angle_packet("45.5");
-            let (_, has_roll, truncated) = angles(&p);
-            assert!(!has_roll);
-            assert!(!truncated);
-        }
+        assert!(FULL.len() > MTU23_PAYLOAD);
+        assert!("T:-180.0,S:-180.0,".len() <= MTU23_PAYLOAD);
+        assert_eq!(&FULL[..MTU23_PAYLOAD], "T:-180.0,S:-180.0,K:");
     }
 }

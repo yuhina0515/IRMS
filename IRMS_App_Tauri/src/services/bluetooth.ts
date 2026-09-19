@@ -98,6 +98,16 @@ export class BluetoothService {
     })
 
     await listen<ParsedPacket>('ble:packet', (event) => {
+      // Tauri dev 的前端 HMR 會重建這個 service/store，但 Rust BLE singleton 與既有
+      // GATT 訂閱仍持續運作。新前端因此可能錯過只在連線當下送過一次的
+      // `ble:connection { connected:true }`，形成「封包持續更新、UI 卻顯示斷線」。
+      // 收到 Rust 轉送的真實封包本身就是鏈路存活的強證據，據此補回狀態。
+      if (!this.connected || !useStore.getState().isConnected) {
+        this.connected = true
+        this.manualDisconnect = false
+        useStore.getState().setConnection(true, useStore.getState().deviceName ?? 'IRMS Device')
+        this.store.log('BLE state resynchronized from live packet stream.')
+      }
       this.dispatchParsed(event.payload)
     })
   }
@@ -178,6 +188,11 @@ export class BluetoothService {
 
   disconnect(): void {
     this.manualDisconnect = true
+    // 手動斷線是使用者的明確意圖，先在 renderer 立即清除殭屍狀態；Rust 端仍會
+    // 無條件回送 disconnected 事件，兩層共同保證底層 handle 已遺失時也可復原。
+    this.connected = false
+    useStore.getState().setConnection(false, null)
+    this.resetStreamState()
     void invoke('ble_disconnect').catch((err) => {
       this.store.log(`Disconnect error: ${(err as Error).message ?? err}`)
     })

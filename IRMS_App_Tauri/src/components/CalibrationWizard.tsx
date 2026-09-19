@@ -42,6 +42,8 @@ const AUTO_MIN_SAMPLES = 20
 
 const ERROR_TEXT: Record<CalibrationError, string> = {
   unstable: '偵測到晃動,請於捕捉期間保持靜止後重試',
+  singularBaseline:
+    '目前站姿使感測器落在量測奇異區(Pitch/Roll 接近 90°),角度會因極小雜訊跳動。已停止套用錯誤校正；請先更新支援原始重力向量的感測器韌體,或依硬體安裝指南調整感測器貼裝面後重試。',
   thighDeltaTooSmall: '大腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉',
   shinDeltaTooSmall: '小腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉'
 }
@@ -222,7 +224,12 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     if (autoTriedRef.current.has(step)) return
     const stepSpec: Record<
       number,
-      { limit: number; minDelta: number; axes: readonly (keyof RawAngles)[]; run: () => Promise<void> }
+      {
+        limit: number
+        minDelta: number
+        axes: readonly ('thigh' | 'shin' | 'thighRoll' | 'shinRoll')[]
+        run: () => Promise<void>
+      }
     > = {
       1: { limit: CAPTURE_STD_LIMIT, minDelta: 0, axes: [], run: () => handleCapture('baseline', 2) },
       2: {
@@ -361,8 +368,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
           <div className="wizard-step">
             <h4>步驟 1/6 · 佩戴確認</h4>
             <p className="desc">
-              確認兩顆感測器已固定:<b>大腿感測器</b>(0x68)綁於大腿外側、
-              <b>小腿感測器</b>(0x69)綁於<b>脛骨前緣(小腿前側的硬骨邊)旁邊</b>(見下圖,
+              確認兩顆感測器已固定:<b>大腿感測器</b>(含 ESP32，0x69)綁於大腿外側、
+              <b>小腿外接感測器</b>(0x68)綁於<b>脛骨前緣(小腿前側的硬骨邊)旁邊</b>(見下圖,
               不是側面)。<b>方向與角度不必在意</b>——精靈會自動偵測貼歪 90°(軸對調)與
               方向反相並校正,但過程中感測器不可鬆動移位。
             </p>

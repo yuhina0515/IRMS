@@ -77,6 +77,23 @@ mod tests {
         ))
     }
 
+    // CON-01 (2026-09-17): pins the wire shape irmsApi.ts's `RustFirmwareBinary` interface
+    // depends on. No generated bridge, so a field rename here only surfaces at runtime otherwise.
+    #[test]
+    fn firmware_binary_wire_shape_matches_irms_api_ts() {
+        let firmware = FirmwareBinary {
+            path: "C:\\firmware\\irms.bin".to_string(),
+            size: 3,
+            md5: "abc".to_string(),
+            data: vec![1, 2, 3],
+        };
+        let json = serde_json::to_value(&firmware).unwrap();
+        let obj = json.as_object().unwrap();
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort();
+        assert_eq!(keys, vec!["data", "md5", "path", "size"]);
+    }
+
     #[test]
     fn reads_bin_and_returns_stable_md5() {
         let path = temp_path("bin");

@@ -124,9 +124,16 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **目標視覺回饋 LED**：`GPIO 25`
 * **回饋蜂鳴器 (Active Buzzer)**：`GPIO 26`
 * **I2C 總線腳位**：`SDA (GPIO 21)`、`SCL (GPIO 22)`
-* **I2C 位址**：大腿端 `0x68`，小腿端 `0x69`
+* **I2C 位址**：大腿端（含 ESP32）`0x69`，小腿外接端 `0x68`（2026-09-15 真機逐顆晃動確認）
 
 ### 4.2 BLE 協定契約 (BLE Protocol)
+
+> **2026-09-16 Tauri WIP addendum:** the final optional `V:x/y/z/x/y/z` field carries
+> thigh then shin normalized acceleration. Both parsers require exactly six nonempty finite
+> fields; invalid extensions are discarded together and mark the packet truncated. Valid
+> legacy angle fields remain usable. Shared fixtures: `IRMS_App_Tauri/fixtures/vector-packets.json`.
+> The current firmware requires MTU >= 117 for its 114-byte maximum packet; the older
+> six-angle description below is the legacy baseline, not the complete WIP contract.
 
 > 此節為協定契約速查;權威來源為 [`IRMS_App/src/shared/protocol.ts`](../IRMS_App/src/shared/protocol.ts) 與韌體
 > [`IRMS_Sensor/IRMS_Sensor.ino`](../IRMS_Sensor/IRMS_Sensor.ino),兩端任一變更必須同步。

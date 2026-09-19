@@ -116,6 +116,132 @@ pub struct StoredReading {
 mod tests {
     use super::*;
 
+    // CON-01 (2026-09-17): the BLE wire protocol has shared TS/Rust contract fixtures, but the
+    // Tauri IPC layer's Rust structs and shared/types.ts's hand-written interfaces have no
+    // generated bridge (no ts-rs/specta) — a field rename on either side would not be caught by
+    // either compiler, only discovered at runtime. These tests pin the exact camelCase field set
+    // each IPC-returned struct serializes to, so a drift shows up as a failing Rust test instead
+    // of a silent runtime shape mismatch. Field lists must be kept in sync with the corresponding
+    // interface in src/shared/types.ts by hand until/unless this project adopts type generation.
+    #[test]
+    fn custom_action_wire_shape_matches_shared_types_ts() {
+        let action = CustomAction {
+            id: 1,
+            name: "Knee Flexion".to_string(),
+            description: None,
+            protocol: "knee".to_string(),
+            target_angle: 90.0,
+            tolerance: 5.0,
+            hold_time_ms: 2000,
+            trigger_type: "joint_angle".to_string(),
+            safety_limit: None,
+        };
+        let json = serde_json::to_value(&action).unwrap();
+        let obj = json.as_object().unwrap();
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec![
+                "description",
+                "holdTimeMs",
+                "id",
+                "name",
+                "protocol",
+                "safetyLimit",
+                "targetAngle",
+                "tolerance",
+                "triggerType",
+            ]
+        );
+    }
+
+    #[test]
+    fn session_wire_shape_matches_shared_types_ts() {
+        let session = Session {
+            id: 1,
+            start_time: "2026-09-17T00:00:00Z".to_string(),
+            end_time: None,
+            target_angle: None,
+            tolerance: None,
+            hold_time_ms: None,
+            action_id: None,
+            action_name: None,
+            protocol: None,
+            reps_completed: 0,
+            safety_limit: None,
+            trigger_type: None,
+            calibration: None,
+            abandoned: 0,
+            source: "device".to_string(),
+        };
+        let json = serde_json::to_value(&session).unwrap();
+        let obj = json.as_object().unwrap();
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec![
+                "abandoned",
+                "actionId",
+                "actionName",
+                "calibration",
+                "endTime",
+                "holdTimeMs",
+                "id",
+                "protocol",
+                "repsCompleted",
+                "safetyLimit",
+                "source",
+                "startTime",
+                "targetAngle",
+                "tolerance",
+                "triggerType",
+            ]
+        );
+        // shared/types.ts's Session.targetAngle/tolerance/holdTimeMs were fixed 2026-09-17 to
+        // be `number | null` (the sessions table has no NOT NULL constraint on these columns) —
+        // pin that these really do serialize to JSON null, not get dropped or default to 0.
+        assert_eq!(json.get("targetAngle").unwrap(), &serde_json::Value::Null);
+        assert_eq!(json.get("tolerance").unwrap(), &serde_json::Value::Null);
+        assert_eq!(json.get("holdTimeMs").unwrap(), &serde_json::Value::Null);
+    }
+
+    #[test]
+    fn stored_reading_wire_shape_matches_shared_types_ts() {
+        let reading = StoredReading {
+            id: 1,
+            session_id: 1,
+            knee_angle: 90.0,
+            thigh_angle: 30.0,
+            shin_angle: -60.0,
+            knee_roll: 1.0,
+            thigh_roll: 2.0,
+            shin_roll: 3.0,
+            timestamp: "2026-09-17T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_value(&reading).unwrap();
+        let obj = json.as_object().unwrap();
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort();
+        // shared/types.ts's StoredReading extends SensorReading with id/sessionId — same
+        // proximal/distal wire rename as SensorReading below applies here too.
+        assert_eq!(
+            keys,
+            vec![
+                "distalAngle",
+                "distalRoll",
+                "id",
+                "kneeAngle",
+                "kneeRoll",
+                "proximalAngle",
+                "proximalRoll",
+                "sessionId",
+                "timestamp",
+            ]
+        );
+    }
+
     // Regression lock for the 2026-09-11 wire rename: a JSON key mismatch here would not be
     // caught by the Rust compiler (unknown fields just deserialize to defaults or fail at
     // runtime), so this pins the exact wire shape shared/types.ts's SensorReading depends on.

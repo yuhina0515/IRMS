@@ -348,6 +348,11 @@
 ---
 
 ## 三、已知技術債(重寫時保留待辦)
+
+- [x] **2026-09-16 vector-extension parser boundary fixes:** shared TS/Rust fixtures
+  cover missing/empty/extra/non-finite vector fields. Fixed TS empty-to-zero coercion and
+  Rust filtering invalid fields into a false valid vector pair. Broader IPC parity and
+  end-to-end journeys remain open; this does not complete the entire contract backlog.
 - [x] **Tauri 前端與 Rust 驗證整合為單一 CI 入口**(2026-09-15):`npm run ci` 現涵蓋
       typecheck、283 Vitest、production build、rustfmt、57 Rust tests 與 Clippy
       warnings-as-errors；同批移除既有 Clippy 警告並把 DB mutex poison 從 panic 改為 IPC error。

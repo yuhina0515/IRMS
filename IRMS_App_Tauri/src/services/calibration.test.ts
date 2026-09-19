@@ -17,6 +17,7 @@ import {
   CAPTURE_STD_LIMIT_ABDUCTION,
   buildCalibrationSnapshot,
   calibrationDrift,
+  baselineIsObservable,
   parseCalibrationSnapshot,
   type CaptureStats
 } from './calibration'
@@ -64,6 +65,15 @@ describe('computeCaptureStats', () => {
     expect(stats.mean.thigh).toBeCloseTo(12)
     expect(stats.maxStdDev).toBeCloseTo(Math.sqrt(8 / 3))
   })
+
+  it('新韌體以三維向量判定穩定，不受相容 Euler 欄位在 90° 跳分支影響', () => {
+    const samples = [raw(89, 88, -80, -70), raw(90, 89, 20, 75)].map((sample) => ({
+      ...sample,
+      thighAccel: { x: 0, y: 1, z: 0 },
+      shinAccel: { x: 0, y: 1, z: 0 }
+    }))
+    expect(computeCaptureStats(samples).maxStdDev).toBeCloseTo(0)
+  })
 })
 
 describe('recalibrateAxis / effectiveRaw(2026-09-08 會議:原始向量旋轉法)', () => {
@@ -107,6 +117,22 @@ describe('buildCalibrationPatch — 驗證', () => {
   it('晃動過大 → unstable', () => {
     const r = buildCalibrationPatch({ mean: raw(0, 0), maxStdDev: 5 }, okRaise, okFlex, null, SETTINGS)
     expect(r).toEqual({ ok: false, error: 'unstable' })
+  })
+
+  it('真機站姿落在 atan2 共用分母奇異區 → 拒絕產生錯誤校正', () => {
+    // 2026-09-15 右腿實測的穩定站姿代表值；小腿 az 幾乎為 0，SR 在相同站姿
+    // 仍可跨越數十度。這不是 offset 或 axis rotation 能恢復的資訊。
+    const measuredStand = raw(75.3, 88.4, -26.3, -77.6)
+    expect(baselineIsObservable(measuredStand)).toBe(false)
+
+    const r = buildCalibrationPatch(
+      stable(measuredStand),
+      stable(raw(68, 86, 66, 86)),
+      stable(raw(63, 83, -65, -44)),
+      null,
+      SETTINGS
+    )
+    expect(r).toEqual({ ok: false, error: 'singularBaseline' })
   })
 
   it('大腿/小腿幅度不足 → 對應錯誤碼', () => {
@@ -206,6 +232,70 @@ describe('couplingWarning(2026-09-15 會議:正面貼裝根因,φ 單自由度�
 })
 
 describe('buildCalibrationPatch — round-trip(慣例最終保證)', () => {
+  it('新向量協定可在 z=0 站姿完成校準並避開舊 Euler 奇異值', () => {
+    const withAccel = (angles: RawAngles, thigh: [number, number, number], shin: [number, number, number]): RawAngles => ({
+      ...angles,
+      thighAccel: { x: thigh[0], y: thigh[1], z: thigh[2] },
+      shinAccel: { x: shin[0], y: shin[1], z: shin[2] }
+    })
+    const baseline = stable(withAccel(raw(89, 89, -80, 80), [0, 1, 0], [0, 1, 0]))
+    const thighRaise = stable(withAccel(raw(45, 89, 20, -70), [0, Math.SQRT1_2, Math.SQRT1_2], [0, 1, 0]))
+    const kneeFlex = stable(withAccel(raw(89, 135, -30, 60), [0, 1, 0], [0, Math.SQRT1_2, -Math.SQRT1_2]))
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, null, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const cal = { ...SETTINGS, ...r.patch }
+    expect(applyCalibration(baseline.mean, cal).knee).toBeCloseTo(0)
+    expect(applyCalibration(thighRaise.mean, cal).thigh).toBeCloseTo(45)
+    expect(applyCalibration(kneeFlex.mean, cal).shin).toBeCloseTo(-45)
+  })
+
+  it('任意 3D 貼裝方向(非單純繞感測器自身法向量的扭轉)仍能正確還原(2026-09-15 屈曲軸外積改版)', () => {
+    // 舊版 axisRotationDeg 只解「繞感測器自身法向量」這一個自由度,物理上等於假設
+    // 貼裝面已知、只是扭轉了幾度。這裡的貼裝旋轉同時混合 X/Y/Z 三軸,任何單自由度
+    // 模型都無法正確還原——這正是 buildCalibrationPatchFromVectors 存在的理由。
+    type V3 = { x: number; y: number; z: number }
+    const rotateX = (v: V3, deg: number): V3 => {
+      const r = (deg * Math.PI) / 180
+      return { x: v.x, y: v.y * Math.cos(r) - v.z * Math.sin(r), z: v.y * Math.sin(r) + v.z * Math.cos(r) }
+    }
+    const rotateY = (v: V3, deg: number): V3 => {
+      const r = (deg * Math.PI) / 180
+      return { x: v.x * Math.cos(r) + v.z * Math.sin(r), y: v.y, z: -v.x * Math.sin(r) + v.z * Math.cos(r) }
+    }
+    const rotateZ = (v: V3, deg: number): V3 => {
+      const r = (deg * Math.PI) / 180
+      return { x: v.x * Math.cos(r) - v.y * Math.sin(r), y: v.x * Math.sin(r) + v.y * Math.cos(r), z: v.z }
+    }
+    // 任意混合貼裝旋轉(繞 X/Y/Z 皆非 0,且大腿/小腿各自獨立、互不相同)
+    const mountThigh = (v: V3): V3 => rotateZ(rotateY(rotateX(v, 37), -52), 81)
+    const mountShin = (v: V3): V3 => rotateZ(rotateY(rotateX(v, -64), 18), -29)
+    // 解剖真值:站直重力沿 (0,0,1);前抬大腿/後勾小腿是繞解剖 X 軸的單一鉸鏈轉動
+    const anatomicalStand: V3 = { x: 0, y: 0, z: 1 }
+    const anatomicalRaise = rotateX(anatomicalStand, 40)
+    const anatomicalFlex = rotateX(anatomicalStand, -35)
+
+    const withAccel = (angles: RawAngles, thigh: V3, shin: V3): RawAngles => ({
+      ...angles,
+      thighAccel: mountThigh(thigh),
+      shinAccel: mountShin(shin)
+    })
+    const baseline = stable(withAccel(raw(0, 0), anatomicalStand, anatomicalStand))
+    const thighRaise = stable(withAccel(raw(0, 0), anatomicalRaise, anatomicalStand))
+    const kneeFlex = stable(withAccel(raw(0, 0), anatomicalStand, anatomicalFlex))
+
+    const r = buildCalibrationPatch(baseline, thighRaise, kneeFlex, null, SETTINGS)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const cal = { ...SETTINGS, ...r.patch }
+    const stand = applyCalibration(baseline.mean, cal)
+    expect(stand.thigh).toBeCloseTo(0)
+    expect(stand.shin).toBeCloseTo(0)
+    expect(stand.knee).toBeCloseTo(0)
+    expect(applyCalibration(thighRaise.mean, cal).thigh).toBeCloseTo(40)
+    expect(applyCalibration(kneeFlex.mean, cal).shin).toBeCloseTo(-35)
+  })
+
   it('反向佩戴:站直≈0、前抬為正、後勾為負、外展 roll 為正、kneeRoll≈0', () => {
     // 上下顛倒佩戴:前抬使 thigh raw 變小、後勾使 shin raw 變大、外展使 roll raw 變小
     const baseline = stable(raw(175, -178, 6, -4))

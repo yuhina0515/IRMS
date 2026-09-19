@@ -81,9 +81,14 @@ export interface Session {
   id: number
   startTime: string
   endTime: string | null
-  targetAngle: number
-  tolerance: number
-  holdTimeMs: number
+  /**
+   * SQLite 欄位無 NOT NULL 約束(見 migrations.rs 的 schema),舊資料/遷移列可能是 null。
+   * 型別過去誤標為 number,但 HistoryView.tsx 早已在讀取時防禦性地檢查 != null——
+   * 這裡改成如實反映 Rust `Session.target_angle: Option<f64>` 的契約(2026-09-17 CON-01)。
+   */
+  targetAngle: number | null
+  tolerance: number | null
+  holdTimeMs: number | null
   /** 此 Session 使用的動作 id(對應 custom_actions.id);null 表示臨時動作 */
   actionId: number | null
   /** 動作名稱快照(即使動作日後被刪除,歷史仍可顯示) */
@@ -135,6 +140,13 @@ export interface CalibrationSnapshot {
   proximalRollZeroRaw: number
   distalRollInvert: boolean
   distalRollZeroRaw: number
+  /** 向量協定的站直 3D 關節零位；舊 Session 快照可能沒有此欄。 */
+  kneeZeroRaw?: number
+  proximalZeroAccel?: { x: number; y: number; z: number } | null
+  distalZeroAccel?: { x: number; y: number; z: number } | null
+  /** 屈曲軸(sensor frame 單位向量);2026-09-15 決策,取代單自由度貼裝旋轉角 */
+  proximalHingeAxis?: { x: number; y: number; z: number } | null
+  distalHingeAxis?: { x: number; y: number; z: number } | null
   /** roll 方向是否曾由精靈第 5 步實測驗證;false = 內外翻符號可能相反,判讀時必須知道 */
   proximalRollVerified: boolean
   distalRollVerified: boolean
