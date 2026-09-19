@@ -21,6 +21,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-20 packets.txt stationary-segment hinge-axis check — inconclusive, closes the offline queue**
+  ([[log_20260920_packets_stationary_axis_check|Log]]): Ran the low-priority 09-17
+  task-schedule idea (statistical stationary-segment detection on the existing trace to
+  indirectly check the hip/knee hinge-axis-parallel assumption without timestamps/labels).
+  Result: 9 usable held-pose candidates, derived-axis angles split roughly half
+  near-parallel (2–6°) and half substantially non-parallel (23–94°) — inconclusive, doesn't
+  change CAL-02/CAL-03's standing decision that real-hardware A/B validation is still
+  required. Method/script preserved in `doc/calibration-evidence/20260915/` so the question
+  isn't re-attempted from scratch later. **This was the last item on the 09-16/09-17 offline
+  task queue** — everything remaining (issue #3, Roll/Knee hardware acceptance, OTA hardware
+  steps) is hardware-gated and set aside per user instruction.
+
 - **2026-09-20 DashboardView/SettingsView journey tests close the OPTIMIZATION.md §三 gap**
   ([[log_20260920_dashboard_settings_journey_tests|Log]]): User asked to set hardware-related
   work aside and continue the offline queue. Added `DashboardView.test.tsx` (12 tests: connect/

@@ -32,6 +32,44 @@ clarification does not establish that a separate full settings snapshot was save
 
 These examples constrain the redesign; they do not identify exact real-device mounting or validate a replacement model. The existing pitch improvement remains untouched.
 
+## Statistical stationary-segment check (2026-09-20)
+
+09-17 task schedule listed a low-priority, "not sure if worth it" idea: without timestamps
+or movement labels, can purely statistical stationarity detection on the `V:` vectors find
+"both limbs simultaneously still" segments usable as an indirect check of whether the
+thigh- and shin-derived hinge axes are roughly parallel — the assumption
+`reconcileToReferenceFrame` depends on. Ran it; see `stationary-segment-axis-check.mjs`
+(reproduce with `node stationary-segment-axis-check.mjs` from this directory).
+
+**Method**: rolling 25-sample window (≈1s at the nominal 25Hz rate — unconfirmed, no
+timestamps survive), stationary if max deviation from the window mean stays under 0.02 for
+both limbs at once. 118 contiguous stationary runs found; the dominant one (6,907 samples)
+is the standing baseline. Of the remaining runs ≥0.6s, 9 differ from standing by >15° on
+*both* limbs simultaneously — plausible held poses rather than standing-with-noise. For
+each, derived a candidate hinge axis per limb via `cross(standing, held)` (the same method
+`deriveHingeAxis` uses) and measured the angle between the thigh- and shin-derived axes.
+
+**Result: inconclusive, not a clean pass or fail.** The 9 derived-axis angles split roughly
+in half: four near-parallel (2.0°, 4.7°, 5.4°, 6.3°) and the rest substantially non-parallel
+(23.3°, 28.4°, 68.5°, 71.3°, 94.1° — the last is nearly orthogonal). This does not
+consistently support or refute the parallel-axis assumption.
+
+**Why this doesn't settle it, and shouldn't be over-read**:
+- This is *not* the wizard protocol (which isolates one joint's motion while the other
+  stays at standing). These are incidental pauses in an unstructured trace, so a large
+  derived-axis angle may reflect genuine coupled motion (e.g. torso/hip rotation between
+  squat depths) rather than a clean test of the thigh/shin hinge-axis relationship.
+- Only 9 usable candidates out of 66,560 packets, several as short as 22–39 samples
+  (~1–1.5s) — thin evidence for a claim either way.
+- Consistent with the trace's known limitation (missing hinge-axis/zero-accel settings):
+  this data cannot substitute for a real wizard-protocol capture with movement labels.
+
+**Conclusion**: this line of analysis does not change CAL-02/CAL-03's standing decision —
+real-hardware A/B validation (see
+[[log_20260917_cal02_design_decision|CAL-02 decision doc]] §5) remains required before
+`reconcileToReferenceFrame` can be wired to production. Recorded here so the same
+"is it worth trying" question doesn't get re-asked and re-attempted from scratch later.
+
 ## Next design gate
 
 - Define flexion, relative knee angle, and out-of-plane deviation separately; distinguish a measured tilt/deviation from a full anatomical orientation claim.
