@@ -21,6 +21,18 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-20 DashboardView/SettingsView journey tests close the OPTIMIZATION.md §三 gap**
+  ([[log_20260920_dashboard_settings_journey_tests|Log]]): User asked to set hardware-related
+  work aside and continue the offline queue. Added `DashboardView.test.tsx` (12 tests: connect/
+  action-selection hints, unsupported-protocol precedence, hardware ERR rendering, calibration
+  warning chip, over-limit alarm banner + silence button, Start/End Session buttons) and
+  `SettingsView.test.tsx` (8 tests: firmware OTA panel connection-state gating, file picking,
+  full starting→transferring→finalizing→done progress journey, failure journey, abort flow).
+  Extended `irmsApiStub.ts` with the previously-unimplemented `firmware`/`updates` namespaces
+  (its own header comment said to add them "when actually needed" — this was that moment).
+  337 frontend tests, full `npm run ci` green. Updated `OPTIMIZATION.md` §三 and
+  `PROJECT_STATUS.md` to reflect the closed gap.
+
 - **2026-09-19 Baseline commit + DOC-01 PROJECT_STATUS.md rewrite, issue #3 risk flagged**
   ([[log_20260919_baseline_commit_and_doc01_rewrite|Log]]): User set next-week acceptance
   (device + app usage scenarios, not looks) and asked this session to pick up the offline

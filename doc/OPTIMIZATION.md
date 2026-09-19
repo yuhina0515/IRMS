@@ -358,10 +358,16 @@
       warnings-as-errors；同批移除既有 Clippy 警告並把 DB mutex poison 從 panic 改為 IPC error。
 - [x] **建立遠端 PR CI gate**(2026-09-15):新增 Windows GitHub Actions workflow，以 Node 24、
       stable Rust、`npm ci` + `npm run ci` 驗證前端與 Rust。
-- [ ] **補齊 Tauri 邊界與旅程測試**:目前只有 5 個 `.test.tsx`，優先覆蓋
-      App/Dashboard/Settings 的「連線→Session→ERR/斷線→收尾」及 OTA 進度/失敗旅程；
-      TS/Rust IPC 與 BLE protocol 雙份型別另加 contract parity 測試。2026-09-15 已先補
-      firmware Rust 邊界 3 tests + TS adapter 2 tests（總計 285 前端 / 60 Rust）。
+- [x] **補齊 Tauri 邊界與旅程測試**(2026-09-20):`DashboardView.test.tsx`(12 tests——
+      連線/選動作提示、協定不支援、硬體 ERR、校準警示、超限警報靜音、Start/End Session)與
+      `SettingsView.test.tsx`(8 tests——韌體 OTA 面板的連線態閘門、選檔、starting→
+      transferring→finalizing→done 進度旅程、失敗旅程、中止)補齊 OPTIMIZATION 點名的
+      「連線→Session→ERR/斷線→收尾」與「OTA 進度/失敗旅程」缺口。過程中發現
+      `irmsApiStub.ts` 從未實作 `firmware`/`updates` 命名空間(檔頭原本明講「真的用到時再
+      補」),一併照既有 stub 模式補上。TS/Rust IPC 契約 parity 已由 CON-01(09-17)的
+      wire-shape 鎖定測試涵蓋,不在本項範圍內重複。`DashboardView`/`SettingsView` 之外的
+      元件(`Sidebar`/`TopHeader`/`ConfirmDialog` 等純 UI 殼層)仍無測試,判定為投報率低,
+      未列入本次範圍。337 前端測試(自 317 起)+ 50 Rust,`npm run ci` 全綠。
 - [x] **Tauri renderer 安全基線**(2026-09-15):建立最小 production/dev CSP；production
       只允許 self + Tauri IPC 與必要的 asset/data/blob，dev 僅額外開固定 HMR websocket；
       `tauri build --no-bundle` 成功。

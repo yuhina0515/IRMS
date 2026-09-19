@@ -18,8 +18,8 @@ coding log,不憑印象轉述。
 
 桌面端現役實作是 **`IRMS_App_Tauri`**(Tauri 2 + Rust + React/TypeScript,`v1.2.0-beta.10`),
 取代已退場的 Electron v2(`IRMS_App`,保留於 repo 供歷史參考,未正式除役但不再開發)。
-`npm run ci`(typecheck + 317 前端測試 + production build + rustfmt + 50 Rust 測試 + Clippy
-`-D warnings`)**全綠**(2026-09-19 本機驗證)。硬體迴路**前半段**(燒錄 → BLE 連線 → 校準)
+`npm run ci`(typecheck + 337 前端測試 + production build + rustfmt + 50 Rust 測試 + Clippy
+`-D warnings`)**全綠**(2026-09-20 本機驗證)。硬體迴路**前半段**(燒錄 → BLE 連線 → 校準)
 已在 Electron 世代的真裝置上驗證正常;**Tauri 版完整真機 E2E(連線 → 達標 → 超限 → 斷線復原)
 尚未驗證**,是 GitHub issue [#3](https://github.com/yuhina0515/IRMS/issues/3) 的現行範圍。
 
@@ -32,11 +32,11 @@ coding log,不憑印象轉述。
 | 項目 | 狀態 |
 |---|---|
 | 應用端版本 | **`IRMS_App_Tauri` v1.2.0-beta.10**(現役,已發布至 GitHub prerelease,`beta-latest` manifest 已更新,`tauri-plugin-updater` 自動更新生效)。Electron 版(`IRMS_App`,曾發布至 v1.0.5)保留於 repo,不再開發 |
-| 自動化測試 | **317 前端測試(Vitest,雙 project:node 純邏輯 + dom 元件)+ 50 Rust 測試(cargo test)**;`npm run ci` = typecheck + test + build(前端)+ rustfmt + cargo test + Clippy `-D warnings`(Rust),2026-09-19 本機全綠;遠端 GitHub Actions(Windows runner,Node 24 + stable Rust)跑同一套 |
+| 自動化測試 | **337 前端測試(Vitest,雙 project:node 純邏輯 + dom 元件)+ 50 Rust 測試(cargo test)**;`npm run ci` = typecheck + test + build(前端)+ rustfmt + cargo test + Clippy `-D warnings`(Rust),2026-09-20 本機全綠;遠端 GitHub Actions(Windows runner,Node 24 + stable Rust)跑同一套 |
 | DB schema | SQLite(`rusqlite`,bundled),`PRAGMA user_version = 7`(遞增式 migration,每版單一交易、失敗回滾),Electron 舊安裝的一次性資料遷移已有專屬 `migrate_electron.rs` + 測試覆蓋 |
 | IPC / 契約 | 20 個 `#[tauri::command]`,2026-09-17 CON-01 稽核全數確認呼叫端一致、無孤兒指令;修正一個真實型別契約漏洞(`Session.targetAngle/tolerance/holdTimeMs` 應為 `number \| null`);每個 IPC 回傳結構皆有 TS/Rust wire-shape 鎖定測試。**已知文件落差**:`IRMS_App_Tauri/README.md` 聲稱 `platform/irmsApi.ts` 是「唯一的 IPC adapter」,實際上 `services/bluetooth.ts`(6 個 `ble_*` 指令)與 `splash.ts`(`splash_ready`)也直接呼叫 `invoke()`——本次一併修正該文件敘述(見下方檔案狀態表) |
 | 無硬體演練 | **沿用自 Electron 世代並延續到 Tauri**:單一 `ingest(text)` 注入接縫 + 純函式模擬器(封包編碼器逐位元對齊韌體 `snprintf`)+ 出貨版示範模式(`sessions.source` CHECK 約束,示範資料無法冒充臨床紀錄)。`sessionController` 的完整指令序列(LED/警報/GOAL 下發順序、去重、斷線重連、MTU 截斷)以此為基礎建立指令稽核測試(T1–T6,見下方已完成的驗證),**這證明的是 App 送出正確的字串與順序,不證明它們真的驅動 GPIO**——那一步只有真機能證明 |
-| 桌面端 backlog | 見 [OPTIMIZATION](OPTIMIZATION.md) §三已知技術債:主要剩餘項是 Tauri 元件/旅程層測試覆蓋(目前只有 5 個 `.test.tsx`,App/Dashboard/Settings 的連線→Session→ERR/斷線→收尾與 OTA 進度/失敗旅程尚無元件層測試,底層邏輯已由 `sessionController.test.ts` 等服務層測試覆蓋)。i18n、ESLint(~35 項)、Windows 程式碼簽章、多關節泛化皆被會議明確延後,不佔用本檔的「待完成」敘述 |
+| 桌面端 backlog | [OPTIMIZATION](OPTIMIZATION.md) §三已知技術債的 Tauri 元件/旅程層測試缺口已於 2026-09-20 補齊(`DashboardView`/`SettingsView`,337 前端測試)。i18n、ESLint(~35 項)、Windows 程式碼簽章、多關節泛化皆被會議明確延後,不佔用本檔的「待完成」敘述 |
 | 架構 | App-Driven(判定 100% 在 App,決策 D1 延續);Tauri 原生層(`src-tauri/src`)負責 SQLite、BLE(`btleplug`)、韌體 OTA、App 自動更新與原生視窗生命週期;React/TS 層(`src/views`、`src/components`、`src/services`、`src/store`)負責 UI、判定引擎、校準邏輯與 session 協調 |
 | 韌體 | v3 模組化(`config.h` / `imu.h` / `.ino`),與 Electron/Tauri 兩版 App 共用同一份 BLE 協定,協定本身不受桌面端遷移影響。2026-08-28 最近一次於真裝置重新燒錄驗證。2026-09-16/17 修復了 App 端 Roll 計算的深屈膝退化 bug(見下方校準狀態),**韌體本身未變動** |
 | 校準狀態(CAL-02/CAL-03) | Roll 已於 2026-09-16/17 重新定義為「重力向量偏離屈曲平面的角度」,修好深屈膝 ±180° 退化、結構性收斂於 [-90°,90°],**尚未真機驗證**(見 [[log_20260917_cal02_design_decision]] 第五節的量化驗收門檻)。Knee(膝夾角)**有已知未修的結構性風險**:兩顆獨立貼裝 IMU 的原始向量座標系彼此獨立,直接比較在某些貼裝下會算出假的相對角;候選修法 `reconcileToReferenceFrame` 已合成驗證但**刻意未接上生產路徑**,需要真機 A/B 比較(CAL-03)才能決定是否啟用——這是目前唯一卡住的正式閘門,不是遺漏 |
@@ -96,7 +96,7 @@ coding log,不憑印象轉述。
 | 🟡 **Knee 公式有已知未修的結構性風險**(CAL-03,阻塞中) | 兩顆獨立貼裝 IMU 的原始向量座標系彼此獨立,`calibration.redesign.test.ts` 的合成反例證明某些貼裝下直接比較會算出假的相對角。候選修法 `reconcileToReferenceFrame` 已合成驗證但刻意未接上生產路徑,依賴「髖屈軸與膝屈軸方向平行」這個從未真機驗證過的假設。需要真機 A/B 比較才能決定啟用與否,見 [[log_20260917_cal02_design_decision]] 第五節第 3 項量化驗收門檻 |
 | 🟡 **Roll 修復未經真機驗證** | 2026-09-16/17 重新定義的 Roll 語意(修好深屈膝 ±180° 退化)只經合成/既有真機觀察推論驗證,尚未在真裝置上跑過回歸測試,見 [[log_20260917_cal02_design_decision]] 第五節第 1、2 項 |
 | 🟡 **BLE OTA 硬體驗證未完成**(B4/D1/D2) | 燒錄測試裝置、App 觸發更新的端對端測試、傳輸中途斷電/斷連的變磚防護驗證三步皆需實體 USB/BLE,同樣卡在裝置可用性上 |
-| 🟡 **Tauri 元件/旅程層測試覆蓋不足** | 目前只有 5 個 `.test.tsx`(`CalibrationWizard`/`MetricGauge`/`useGlobalShortcut`/`ActionsView`/`HistoryView`),`DashboardView`/`SettingsView` 的連線→Session→ERR/斷線→收尾旅程與 OTA 進度/失敗旅程尚無元件層測試——底層邏輯已由 `sessionController.test.ts`(T1–T6 指令稽核)與 `reconnect.test.ts` 覆蓋,缺口是「畫面是否正確反映這些狀態」這一層,不是判定/指令邏輯本身 |
+| 🟢 **Tauri 元件/旅程層測試(2026-09-20 補齊)** | `DashboardView.test.tsx`(12 tests)與 `SettingsView.test.tsx`(8 tests)補上連線→Session→ERR/斷線→收尾旅程與 OTA 進度/失敗旅程的元件層覆蓋,337 前端測試全綠。`Sidebar`/`TopHeader`/`ConfirmDialog` 等純 UI 殼層仍無測試,判定投報率低,未列入範圍 |
 | 🟡 **Gemini 設計權責懸置** | Gemini CLI 訂閱到期,非互動環境呼叫直接掛住無回應;OTA Settings 面板的 IA 位置覆核因此卡住。使用者已聲明本次驗收不以外觀為目標,此項風險對驗收本身影響低,但架構規範 §1.1 的既有慣例仍待使用者裁決是否重新啟用/指定替代 |
 | 🟢 **未簽章** | 安裝檔未做 Windows 程式碼簽章,安裝時會跳 SmartScreen |
 | 🟢 **舊版 Electron 資料無自動遷移路徑到 Tauri 以外的情境** | `migrate_electron.rs` 已覆蓋 Electron→Tauri 這一條路徑並有測試;更早的 v1(Express 時期)資料庫格式未涵蓋 |
@@ -107,9 +107,15 @@ coding log,不憑印象轉述。
 
 ### Tauri 世代(2026-09-10 起)
 
-- **CI(2026-09-19 本機重新驗證)**:317 前端測試(Vitest,雙 project)+ 50 Rust 測試(cargo
+- **CI(2026-09-20 本機重新驗證)**:337 前端測試(Vitest,雙 project)+ 50 Rust 測試(cargo
   test)+ typecheck + production build + rustfmt + Clippy `-D warnings`,全綠。遠端 GitHub
   Actions(Windows runner)跑同一套 `npm ci && npm run ci`。
+- **元件/旅程層測試(2026-09-20)**:`DashboardView.test.tsx`(12 tests)覆蓋連線/選動作
+  提示、協定不支援、硬體 ERR 顯示、校準警示、超限警報靜音按鈕、Start/End Session 按鈕;
+  `SettingsView.test.tsx`(8 tests)覆蓋韌體 OTA 面板的連線態閘門、選檔、
+  starting→transferring→finalizing→done 進度旅程、失敗旅程、中止。補齊 OPTIMIZATION.md
+  §三點名的「畫面是否正確反映狀態」缺口——底層指令/判定邏輯本就由 `sessionController.test.ts`
+  等服務層測試覆蓋,這裡驗證的是渲染層有沒有正確接上。
 - **指令稽核測試(T1–T6,`sessionController.test.ts`)**:透過 `bluetoothService.ingest` 注入
   模擬封包(與真實封包解析走同一條路),對 `bluetoothService.send` spy 取得有序指令稽核。
   涵蓋:超限警報鳴響/靜音/自動重新武裝、未開始 Session 不鳴響、`ERR:` 強制關閉並繞過去重、
