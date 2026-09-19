@@ -21,6 +21,19 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-19 Baseline commit + DOC-01 PROJECT_STATUS.md rewrite, issue #3 risk flagged**
+  ([[log_20260919_baseline_commit_and_doc01_rewrite|Log]]): User set next-week acceptance
+  (device + app usage scenarios, not looks) and asked this session to pick up the offline
+  queue in parallel with Codex. Verified the 09-16/09-17 offline batch with a clean full
+  `npm run ci` and committed it (`af6d300`) as a baseline. Completed DOC-01's
+  `PROJECT_STATUS.md` section-by-section rewrite for Tauri reality (317 frontend / 50 Rust
+  tests, schema v7, CON-01 findings, CAL-02/CAL-03 status), fixed a stale claim in
+  `IRMS_App_Tauri/README.md`. **Surfaced a real risk while doing so**: issue #3 (Tauri
+  real-device E2E) has never been verified since the 09-10 migration, was assigned to
+  teammate `harold1008` on 09-11 with no response since, and the user's own device is also
+  currently unavailable — both paths to real-hardware verification before acceptance are
+  stalled. Not something this session can resolve; flagged for the user to act on.
+
 - **2026-09-17 OTA Gemini review — blocked, not done**
   ([[log_20260917_ota_gemini_review_blocked|Log]]): Gemini CLI hangs non-interactively here,
   consistent with the 09-14 finding that Gemini's design authority is suspended (subscription

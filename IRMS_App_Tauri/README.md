@@ -30,7 +30,9 @@ GitHub push/PR 會在 Windows runner 執行同一套 `npm ci` + `npm run ci`。
 
 - `src/views`、`src/components`：React presentation layer。
 - `src/services`、`src/store`：判定、校準、Session 與 UI/application state。
-- `src/platform/irmsApi.ts`：唯一的 Tauri IPC adapter。
+- `src/platform/irmsApi.ts`：主要的 Tauri IPC adapter，**但非唯一**——`src/services/bluetooth.ts`
+  （BLE 相關指令）與 `src/splash.ts`（`splash_ready`）直接呼叫 `invoke()`，未經過此層（見
+  [`doc/PROJECT_STATUS.md`](../doc/PROJECT_STATUS.md) 與 2026-09-17 CON-01 稽核紀錄）。
 - `src-tauri/src`：SQLite、BLE、OTA、更新器與原生應用生命週期。
 
 不需要硬體的檢查應全部由 `npm run ci` 完成。BLE OTA、GPIO 回饋、真實感測資料與斷線復原
