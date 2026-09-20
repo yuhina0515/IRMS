@@ -21,6 +21,16 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-20 PR #7 merged, device coming back**: The 09-19/09-20 offline batch (Roll/CON-01
+  baseline, DOC-01 rewrite, Dashboard/Settings journey tests, packets.txt stationary-segment
+  check) went through PR #7 → merged to `main` via a standard merge commit (repo convention,
+  matches PR #1). Local `main` fast-forwarded, PR branch deleted both sides. **User says the
+  device is coming back today** — next session, the hardware-gated queue unblocks: issue #3
+  real-device E2E (still assigned to `harold1008`, unconfirmed if he's responded), Roll-fix
+  regression (CAL-02 §5 thresholds), knee-formula A/B (CAL-03 gate), OTA hardware steps
+  (B4/D1/D2) — and **remember to capture full `*HingeAxis`/`*ZeroAccel` settings alongside
+  any new trace this time**, since that's what made the 09-15 trace unreplayable.
+
 - **2026-09-20 packets.txt stationary-segment hinge-axis check — inconclusive, closes the offline queue**
   ([[log_20260920_packets_stationary_axis_check|Log]]): Ran the low-priority 09-17
   task-schedule idea (statistical stationary-segment detection on the existing trace to
