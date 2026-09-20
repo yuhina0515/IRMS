@@ -12,10 +12,15 @@ import { CALIBRATION_KEYS, CALIBRATION_TRANSFORM_KEYS, type Settings } from '../
 import {
   circularMeanDeg,
   circularStdDevDeg,
+  deriveHingeAxis,
+  projectOntoHingeFrame,
   reconstructTiltVector,
+  rotateAccelerationAxes,
   rotateRawAxes,
-  shortestArcDelta
+  shortestArcDelta,
+  vectorAngleDeg
 } from './angleMath'
+import type { AccelVector } from '@shared/protocol'
 
 /** 捕捉期間允許的最大標準差(度)——超過視為晃動 */
 export const CAPTURE_STD_LIMIT = 3
@@ -25,6 +30,8 @@ export const CAPTURE_STD_LIMIT_ABDUCTION = 4
 export const CAPTURE_DELTA_MIN = 20
 /** 判斷 roll invert(外展)所需的最小動作幅度(度)——大腿/小腿分別獨立判定 */
 export const CAPTURE_ROLL_DELTA_MIN = 15
+/** 韌體的兩個 atan2 共用 az；低於此值時角度分支對雜訊過度敏感。 */
+export const MIN_BASELINE_AZ = 0.1
 
 export interface CaptureStats {
   mean: RawAngles
@@ -32,7 +39,8 @@ export interface CaptureStats {
   maxStdDev: number
 }
 
-const AXES: (keyof RawAngles)[] = ['thigh', 'shin', 'thighRoll', 'shinRoll']
+const AXES = ['thigh', 'shin', 'thighRoll', 'shinRoll'] as const
+type AngleKey = (typeof AXES)[number]
 
 /** 前後向動作(前抬 / 後勾)看 pitch 兩軸 */
 export const PITCH_AXES = ['thigh', 'shin'] as const
@@ -51,9 +59,17 @@ export const ROLL_AXES = ['thighRoll', 'shinRoll'] as const
 export function maxAxisDelta(
   baseline: RawAngles,
   current: RawAngles,
-  axes: readonly (keyof RawAngles)[]
+  axes: readonly AngleKey[]
 ): number {
   if (axes.length === 0) return 0
+  // 新協定下，前後動作門檻直接量完整重力向量的角位移。接近 z=0 時 Euler pitch
+  // 可能幾乎不變或跨分支跳動，但 3D 向量仍完整記錄了真實動作。
+  if (axes === PITCH_AXES && baseline.thighAccel && baseline.shinAccel && current.thighAccel && current.shinAccel) {
+    return Math.max(
+      vectorAngleDeg(baseline.thighAccel, current.thighAccel),
+      vectorAngleDeg(baseline.shinAccel, current.shinAccel)
+    )
+  }
   return Math.max(...axes.map((k) => Math.abs(shortestArcDelta(baseline[k], current[k]))))
 }
 
@@ -66,10 +82,34 @@ export function maxAxisDelta(
 export function computeCaptureStats(samples: RawAngles[]): CaptureStats {
   const mean: RawAngles = { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0 }
   let maxStdDev = 0
+  const hasCompleteAccel =
+    samples.length > 0 && samples.every((sample) => sample.thighAccel && sample.shinAccel)
   for (const k of AXES) {
     const series = samples.map((s) => s[k])
     mean[k] = circularMeanDeg(series)
-    maxStdDev = Math.max(maxStdDev, circularStdDevDeg(series))
+    // 新韌體的 Euler 欄位只為舊 App 相容，靠近 az=0 時仍會跳分支；穩定性改由
+    // 未丟失資訊的三維向量判定，不能讓相容欄位否決有效資料。
+    if (!hasCompleteAccel) maxStdDev = Math.max(maxStdDev, circularStdDevDeg(series))
+  }
+  for (const [key, target] of [
+    ['thighAccel', 'thighAccel'],
+    ['shinAccel', 'shinAccel']
+  ] as const) {
+    const vectors = samples.map((s) => s[key]).filter((v) => v !== undefined)
+    if (vectors.length === samples.length && vectors.length > 0) {
+      const x = vectors.reduce((sum, v) => sum + v.x, 0)
+      const y = vectors.reduce((sum, v) => sum + v.y, 0)
+      const z = vectors.reduce((sum, v) => sum + v.z, 0)
+      const norm = Math.hypot(x, y, z) || 1
+      mean[target] = { x: x / norm, y: y / norm, z: z / norm }
+      const angularErrors = vectors.map((v) => {
+        const vNorm = Math.hypot(v.x, v.y, v.z) || 1
+        const dot = (v.x * x + v.y * y + v.z * z) / (vNorm * norm)
+        return (Math.acos(Math.max(-1, Math.min(1, dot))) * 180) / Math.PI
+      })
+      const rms = Math.sqrt(angularErrors.reduce((sum, error) => sum + error * error, 0) / angularErrors.length)
+      maxStdDev = Math.max(maxStdDev, rms)
+    }
   }
   return { mean, maxStdDev }
 }
@@ -81,8 +121,12 @@ export interface AxisMapping {
 
 /** 依軸旋轉角取得「有效」raw 值(見 angleMath.ts 的 rotateRawAxes——2026-09-08 會議裁決的原始向量旋轉法) */
 export function effectiveRaw(raw: RawAngles, m: AxisMapping): RawAngles {
-  const thigh = rotateRawAxes(raw.thigh, raw.thighRoll, m.proximalAxisRotationDeg)
-  const shin = rotateRawAxes(raw.shin, raw.shinRoll, m.distalAxisRotationDeg)
+  const thigh = raw.thighAccel
+    ? rotateAccelerationAxes(raw.thighAccel, m.proximalAxisRotationDeg)
+    : rotateRawAxes(raw.thigh, raw.thighRoll, m.proximalAxisRotationDeg)
+  const shin = raw.shinAccel
+    ? rotateAccelerationAxes(raw.shinAccel, m.distalAxisRotationDeg)
+    : rotateRawAxes(raw.shin, raw.shinRoll, m.distalAxisRotationDeg)
   return { thigh: thigh.pitch, thighRoll: thigh.roll, shin: shin.pitch, shinRoll: shin.roll }
 }
 
@@ -132,17 +176,38 @@ export function recalibrateAxis(
 
   // reconstructTiltVector(見 angleMath.ts):不能單純用 tan() 反推,pitch 超過 ±90°
   // (膝彎曲常見)時 tan() 的 180° 週期會與 atan2 原本記下的象限資訊互相矛盾
-  const b = reconstructTiltVector(baseline[pitchKey], baseline[rollKey])
-  const m = reconstructTiltVector(moved[pitchKey], moved[rollKey])
+  const baselineAccel = limb === 'thigh' ? baseline.thighAccel : baseline.shinAccel
+  const movedAccel = limb === 'thigh' ? moved.thighAccel : moved.shinAccel
+  const b = baselineAccel
+    ? { ax: baselineAccel.x, ay: baselineAccel.y, az: baselineAccel.z }
+    : reconstructTiltVector(baseline[pitchKey], baseline[rollKey])
+  const m = movedAccel
+    ? { ax: movedAccel.x, ay: movedAccel.y, az: movedAccel.z }
+    : reconstructTiltVector(moved[pitchKey], moved[rollKey])
   const numerator = m.ax * b.az - b.ax * m.az
   const denominator = m.ay * b.az - b.ay * m.az
 
   const rotationDeg = foldRotationDeg((Math.atan2(numerator, denominator) * 180) / Math.PI)
 
-  return { rotationDeg, delta: Math.max(dPitch, dRoll) }
+  const vectorDelta = baselineAccel && movedAccel ? vectorAngleDeg(baselineAccel, movedAccel) : 0
+  return { rotationDeg, delta: Math.max(dPitch, dRoll, vectorDelta) }
 }
 
-export type CalibrationError = 'unstable' | 'thighDeltaTooSmall' | 'shinDeltaTooSmall'
+export type CalibrationError =
+  | 'unstable'
+  | 'singularBaseline'
+  | 'thighDeltaTooSmall'
+  | 'shinDeltaTooSmall'
+
+/** 站姿是否離韌體 atan2(ay,az) / atan2(ax,az) 的共同奇異點足夠遠。 */
+export function baselineIsObservable(baseline: RawAngles): boolean {
+  // 新協定保留完整向量，不再依靠 Euler 角反推，因此即使 z≈0 仍可由連續向量
+  // 正確判讀。舊協定才需要拒絕不可觀測的站姿。
+  if (baseline.thighAccel && baseline.shinAccel) return true
+  const thigh = reconstructTiltVector(baseline.thigh, baseline.thighRoll)
+  const shin = reconstructTiltVector(baseline.shin, baseline.shinRoll)
+  return Math.abs(thigh.az) >= MIN_BASELINE_AZ && Math.abs(shin.az) >= MIN_BASELINE_AZ
+}
 
 /**
  * 外展時有效 pitch 的殘留量達到該側 roll 動作幅度的這個比例以上 → 視為耦合警示。
@@ -185,9 +250,31 @@ export function buildCalibrationPatch(
   if (abduction && abduction.maxStdDev > CAPTURE_STD_LIMIT_ABDUCTION) {
     return { ok: false, error: 'unstable' }
   }
+  // 奇異區的靜態平均可能看似穩定，但下一次 az 穿越 0 就會跳到另一角度分支。
+  // 這項資訊在韌體各自濾波兩個角度時已遺失，App 不應產生看似成功的錯誤校正。
+  if (!baselineIsObservable(baseline.mean)) return { ok: false, error: 'singularBaseline' }
 
-  // 1. 軸向解算(先於一切符號判定)——2026-09-08 會議裁決:原始向量旋轉法,
-  //    取代舊版二元 detectAxisSwap,見 recalibrateAxis
+  const hasFullVectors =
+    baseline.mean.thighAccel && baseline.mean.shinAccel && thighRaise.mean.thighAccel && kneeFlex.mean.shinAccel
+  if (hasFullVectors) {
+    return buildCalibrationPatchFromVectors(baseline, thighRaise, kneeFlex, abduction, current)
+  }
+  return buildCalibrationPatchFromEuler(baseline, thighRaise, kneeFlex, abduction, current)
+}
+
+/**
+ * 舊協定(僅 Euler 角)路徑——2026-09-08 會議裁決的原始向量旋轉法,單自由度
+ * `axisRotationDeg` 假設感測器貼裝面已知、只是繞自身法向量扭轉。新協定(完整重力
+ * 向量)一律改走 `buildCalibrationPatchFromVectors`,這裡只服務尚未升級韌體的裝置。
+ */
+function buildCalibrationPatchFromEuler(
+  baseline: CaptureStats,
+  thighRaise: CaptureStats,
+  kneeFlex: CaptureStats,
+  abduction: CaptureStats | null,
+  current: Settings
+): CalibrationResult {
+  // 1. 軸向解算(先於一切符號判定)
   const thighAxis = recalibrateAxis(baseline.mean, thighRaise.mean, 'thigh')
   if (thighAxis.delta < CAPTURE_DELTA_MIN) return { ok: false, error: 'thighDeltaTooSmall' }
   const shinAxis = recalibrateAxis(baseline.mean, kneeFlex.mean, 'shin')
@@ -258,6 +345,82 @@ export function buildCalibrationPatch(
 }
 
 /**
+ * 新協定(完整重力向量)路徑——2026-09-15 決策:放棄「貼裝面已知、只是繞自身法向量
+ * 扭轉」這個單自由度假設,改用 `deriveHingeAxis` 從基準 + 單一參考動作外積直接解出
+ * 任意 3D 貼裝方向的屈曲軸,不管實際怎麼佩戴。零位不再是某個旋轉後的 Euler 角,而是
+ * 基準重力向量本身;即時角度由 `projectOntoHingeFrame` 把目前向量投影進「屈曲軸/
+ * 側軸/基準軸」這組由外積天生正交的座標系求得(見 useStore.ts applyCalibration)。
+ */
+function buildCalibrationPatchFromVectors(
+  baseline: CaptureStats,
+  thighRaise: CaptureStats,
+  kneeFlex: CaptureStats,
+  abduction: CaptureStats | null,
+  current: Settings
+): CalibrationResult {
+  const baseThigh = baseline.mean.thighAccel as AccelVector
+  const baseShin = baseline.mean.shinAccel as AccelVector
+  const raiseThigh = thighRaise.mean.thighAccel as AccelVector
+  const flexShin = kneeFlex.mean.shinAccel as AccelVector
+
+  const thighDelta = vectorAngleDeg(baseThigh, raiseThigh)
+  if (thighDelta < CAPTURE_DELTA_MIN) return { ok: false, error: 'thighDeltaTooSmall' }
+  const shinDelta = vectorAngleDeg(baseShin, flexShin)
+  if (shinDelta < CAPTURE_DELTA_MIN) return { ok: false, error: 'shinDeltaTooSmall' }
+
+  const proximalHingeAxis = deriveHingeAxis(baseThigh, raiseThigh)
+  const distalHingeAxis = deriveHingeAxis(baseShin, flexShin)
+
+  // pitch invert:前抬大腿 → 慣例下 thigh 應變大;站立後勾小腿 → shin 應變小。
+  // 基準姿勢投影恆為 0(見 projectOntoHingeFrame),動作終點的投影本身就是位移量。
+  const proximalRaisePitch = projectOntoHingeFrame(raiseThigh, proximalHingeAxis, baseThigh).pitch
+  const distalFlexPitch = projectOntoHingeFrame(flexShin, distalHingeAxis, baseShin).pitch
+  const proximalInvert = proximalRaisePitch < 0
+  const distalInvert = distalFlexPitch > 0
+
+  // roll invert + 耦合殘留提示,邏輯與 Euler 路徑相同,只是改讀投影後的 pitch/roll。
+  let proximalRollInvert = current.proximalRollInvert
+  let distalRollInvert = current.distalRollInvert
+  let proximalRollVerified = current.proximalRollVerified
+  let distalRollVerified = current.distalRollVerified
+  const couplingWarning: { proximal: boolean | null; distal: boolean | null } = {
+    proximal: null,
+    distal: null
+  }
+  if (abduction && abduction.mean.thighAccel && abduction.mean.shinAccel) {
+    const abdThigh = projectOntoHingeFrame(abduction.mean.thighAccel, proximalHingeAxis, baseThigh)
+    const abdShin = projectOntoHingeFrame(abduction.mean.shinAccel, distalHingeAxis, baseShin)
+    if (Math.abs(abdThigh.roll) >= CAPTURE_ROLL_DELTA_MIN) {
+      proximalRollInvert = abdThigh.roll < 0
+      proximalRollVerified = true
+      couplingWarning.proximal = Math.abs(abdThigh.pitch) / Math.abs(abdThigh.roll) > COUPLING_RESIDUAL_RATIO_WARN
+    }
+    if (Math.abs(abdShin.roll) >= CAPTURE_ROLL_DELTA_MIN) {
+      distalRollInvert = abdShin.roll < 0
+      distalRollVerified = true
+      couplingWarning.distal = Math.abs(abdShin.pitch) / Math.abs(abdShin.roll) > COUPLING_RESIDUAL_RATIO_WARN
+    }
+  }
+
+  const patch: Partial<Settings> = {
+    proximalAxisRotationVerified: true,
+    distalAxisRotationVerified: true,
+    proximalInvert,
+    distalInvert,
+    proximalRollInvert,
+    distalRollInvert,
+    proximalRollVerified,
+    distalRollVerified,
+    proximalHingeAxis,
+    distalHingeAxis,
+    proximalZeroAccel: baseThigh,
+    distalZeroAccel: baseShin,
+    kneeZeroRaw: vectorAngleDeg(baseThigh, baseShin)
+  }
+  return { ok: true, patch, couplingWarning }
+}
+
+/**
  * 快速歸零:沿用現有 axisRotationDeg/invert 設定,只用「當下姿勢 = 0°」重設四個 zeroRaw。
  * 必須先套用 effectiveRaw 做軸向修正——和 buildCalibrationPatch 步驟 4 用同一組已校正軸,
  * 否則貼歪的感測器會把零位算在錯的物理軸上(SettingsView 曾經直接用
@@ -270,12 +433,19 @@ export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial
     proximalAxisRotationDeg: settings.proximalAxisRotationDeg,
     distalAxisRotationDeg: settings.distalAxisRotationDeg
   })
-  return {
+  const patch: Partial<Settings> = {
     proximalZeroRaw: eff.thigh,
     distalZeroRaw: eff.shin,
     proximalRollZeroRaw: eff.thighRoll,
     distalRollZeroRaw: eff.shinRoll
   }
+  if (raw.thighAccel && raw.shinAccel) {
+    // 沿用既有屈曲軸(貼裝方向沒變,只是重新定義「零位」是哪個姿勢),只重設基準向量本身。
+    patch.proximalZeroAccel = raw.thighAccel
+    patch.distalZeroAccel = raw.shinAccel
+    patch.kneeZeroRaw = vectorAngleDeg(raw.thighAccel, raw.shinAccel)
+  }
+  return patch
 }
 
 /**

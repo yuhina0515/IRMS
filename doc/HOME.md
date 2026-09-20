@@ -21,6 +21,139 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-20 packets.txt stationary-segment hinge-axis check — inconclusive, closes the offline queue**
+  ([[log_20260920_packets_stationary_axis_check|Log]]): Ran the low-priority 09-17
+  task-schedule idea (statistical stationary-segment detection on the existing trace to
+  indirectly check the hip/knee hinge-axis-parallel assumption without timestamps/labels).
+  Result: 9 usable held-pose candidates, derived-axis angles split roughly half
+  near-parallel (2–6°) and half substantially non-parallel (23–94°) — inconclusive, doesn't
+  change CAL-02/CAL-03's standing decision that real-hardware A/B validation is still
+  required. Method/script preserved in `doc/calibration-evidence/20260915/` so the question
+  isn't re-attempted from scratch later. **This was the last item on the 09-16/09-17 offline
+  task queue** — everything remaining (issue #3, Roll/Knee hardware acceptance, OTA hardware
+  steps) is hardware-gated and set aside per user instruction.
+
+- **2026-09-20 DashboardView/SettingsView journey tests close the OPTIMIZATION.md §三 gap**
+  ([[log_20260920_dashboard_settings_journey_tests|Log]]): User asked to set hardware-related
+  work aside and continue the offline queue. Added `DashboardView.test.tsx` (12 tests: connect/
+  action-selection hints, unsupported-protocol precedence, hardware ERR rendering, calibration
+  warning chip, over-limit alarm banner + silence button, Start/End Session buttons) and
+  `SettingsView.test.tsx` (8 tests: firmware OTA panel connection-state gating, file picking,
+  full starting→transferring→finalizing→done progress journey, failure journey, abort flow).
+  Extended `irmsApiStub.ts` with the previously-unimplemented `firmware`/`updates` namespaces
+  (its own header comment said to add them "when actually needed" — this was that moment).
+  337 frontend tests, full `npm run ci` green. Updated `OPTIMIZATION.md` §三 and
+  `PROJECT_STATUS.md` to reflect the closed gap.
+
+- **2026-09-19 Baseline commit + DOC-01 PROJECT_STATUS.md rewrite, issue #3 risk flagged**
+  ([[log_20260919_baseline_commit_and_doc01_rewrite|Log]]): User set next-week acceptance
+  (device + app usage scenarios, not looks) and asked this session to pick up the offline
+  queue in parallel with Codex. Verified the 09-16/09-17 offline batch with a clean full
+  `npm run ci` and committed it (`af6d300`) as a baseline. Completed DOC-01's
+  `PROJECT_STATUS.md` section-by-section rewrite for Tauri reality (317 frontend / 50 Rust
+  tests, schema v7, CON-01 findings, CAL-02/CAL-03 status), fixed a stale claim in
+  `IRMS_App_Tauri/README.md`. **Surfaced a real risk while doing so**: issue #3 (Tauri
+  real-device E2E) has never been verified since the 09-10 migration, was assigned to
+  teammate `harold1008` on 09-11 with no response since, and the user's own device is also
+  currently unavailable — both paths to real-hardware verification before acceptance are
+  stalled. Not something this session can resolve; flagged for the user to act on.
+
+- **2026-09-17 OTA Gemini review — blocked, not done**
+  ([[log_20260917_ota_gemini_review_blocked|Log]]): Gemini CLI hangs non-interactively here,
+  consistent with the 09-14 finding that Gemini's design authority is suspended (subscription
+  lapsed, no auto-successor). Did not route around this via engineering-side aesthetic judgment —
+  that's explicitly barred by AI_CODING_RULES §1.1. Needs the user's own decision (reactivate
+  subscription / name an interim authority / leave queued).
+
+- **2026-09-17 Dynamic-module spike: CSP feasibility answered**
+  ([[log_20260917_dynamic_module_spike_csp_feasibility|Log]]): The 09-11-scoped hello-world spike
+  question resolved by reading the actual config rather than building a live prototype (CSP is
+  declarative/deterministic, so this has the same certainty). Current CSP/capabilities block
+  remote-module loading by deliberate 09-15 hardening, but there's a known-safe path that avoids
+  `'unsafe-eval'` entirely: Rust-trusted-side download+verify (network access never touches the
+  WebView), served locally via a scoped `assetProtocol`. Continue/stop decision recorded per the
+  09-11 requirement: continue, next step is a small independent runtime-verification task, not
+  scheduled yet.
+
+- **2026-09-17 CAL-02 formal design decision** ([[log_20260917_cal02_design_decision|Log]]):
+  Consolidated the three scattered 09-16 analysis logs into one reviewable decision doc —
+  measurement semantics table, explicit mounting assumptions (including the
+  hip-axis/knee-axis-parallel assumption `reconcileToReferenceFrame` depends on), existing
+  capture-quality thresholds tabulated for the first time, and concrete quantitative acceptance
+  criteria for the next hardware session (pitch/roll regression, a P0 knee-formula A/B
+  comparison, repeated-capture consistency). Explicitly flags what's still open (live
+  confidence indicator, independent limb recalibration) rather than inventing numbers without
+  hardware data. CAL-03 stays blocked until the knee A/B comparison runs on real hardware.
+
+- **2026-09-17 CON-01 IPC layer audit — found and fixed a real nullability contract gap**
+  ([[log_20260917_con01_ipc_layer_contract_audit|Log]]): Audited all 20 Tauri commands.
+  `Session.targetAngle/tolerance/holdTimeMs` were typed non-nullable in `shared/types.ts` despite
+  being `Option<f64>`/`Option<i64>` in Rust (nullable DB columns) — fixed to `number | null`;
+  `HistoryView.tsx` already handled this defensively, so no behavior change, just an honest type.
+  Added wire-shape regression tests for every IPC-returned struct that lacked one (CustomAction,
+  Session, StoredReading, FirmwareBinary, UpdateMetadata). Full CI green (317 frontend + 50 Rust).
+  Noted README's "irmsApi.ts is the only IPC adapter" claim is stale (bluetooth.ts/splash.ts also
+  call invoke() directly) — left for DOC-01.
+
+- **2026-09-17 Meeting: offline batch scope/sequencing**
+  ([[log_20260917_meeting_offline_batch_scope_sequencing|Minutes]]): Chaired 3-agent meeting
+  decided tonight's hardware-independent work order: finish CON-01 IPC layer → CAL-02 design
+  doc (main depth) → dynamic-module spike (run only if it can reach a recorded continue/stop
+  decision in one sitting) → OTA Gemini-review catch-up (light) → PROJECT_STATUS rewrite
+  explicitly left alone.
+
+- **2026-09-17 Next-session task schedule** ([[log_20260917_next_session_task_schedule|Log]]):
+  Re-prioritized after the 09-16 offline batch. Offline-doable next: write the formal CAL-02
+  design-decision doc (the one remaining blocker before CAL-03 can start), continue CON-01 into
+  the Tauri IPC command layer, continue DOC-01's PROJECT_STATUS section-by-section rewrite.
+  Hardware-gated work (full settings snapshot capture, deep-flexion acceptance, knee-formula A/B,
+  issue #3 remaining checklist, OTA/release gates) queued with no date — device still unavailable.
+
+- **2026-09-16 DOC-01: README/PROJECT_STATUS point at Tauri**
+  ([[log_20260916_doc01_readme_status_tauri_reconciliation|Log]]): Added prominent corrections to
+  `doc/README.md` (new §5.2 Tauri quick-start, Electron sections relabeled as legacy v2) and
+  `doc/PROJECT_STATUS.md` (staleness banner pointing here). Did not rewrite `PROJECT_STATUS.md`'s
+  Electron-era detail claims wholesale — that needs a dedicated section-by-section re-verification
+  pass, not a same-night bolt-on.
+
+- **2026-09-16 CON-01: shared angle-packet contract fixture** ([[log_20260916_con01_shared_angle_packet_fixture|Log]]):
+  Extended the TS/Rust shared-fixture pattern (previously only `V:` vector edge cases) to cover
+  TR:/SR:/ERR:/malformed/MTU-truncation too (`fixtures/angle-packets.json`, 18 cases), removing ~17
+  hand-duplicated test cases that could silently drift between the two implementations. Full CI green
+  (317 frontend + 45 Rust).
+
+- **2026-09-16 Knee-angle cross-sensor-frame reconciliation candidate**
+  ([[log_20260916_knee_frame_reconciliation_candidate|Log]]): Added `reconcileToReferenceFrame` in
+  `angleMath.ts`, synthetically validated to resolve the second CAL-02 counterexample (independently
+  mounted sensor frames producing a false relative angle). Deliberately **not** wired into `useStore.ts`'s
+  live knee formula — needs hardware comparison first; knee is the primary clinical metric, higher stakes
+  than the Roll display fix below.
+
+- **2026-09-16 Hinge-frame Roll shared-denominator fix** ([[log_20260916_hinge_roll_shared_denominator_fix|Log]]):
+  Resumed after the session close below (device still unavailable). Fixed `projectOntoHingeFrame`'s Roll
+  formula (`atan2(x,z)` → `asin(x/|v|)`), removing the shared-denominator degeneracy that drove deep-flexion
+  Roll to ±180°. Full CI green (316 frontend + 62 Rust). This is partial CAL-02 progress — the second
+  synthetic counterexample (independently-mounted sensor-frame comparison) and hardware verification remain
+  open.
+
+- **2026-09-16 Session closed / device unavailable** ([[log_20260916_session_close_hardware_unavailable|Handoff]]):
+  User packed away the device; physical tests are paused. Work and 66,927 trace packets are
+  saved locally, uncommitted. Next session may continue offline design/tests; calibration,
+  OTA and hardware acceptance remain open. No background follow-up requested.
+
+- **2026-09-16 Claude report review / first implementation batch** ([[log_20260916_claude_review_calibration_evidence|Log]]):
+  Preserved 66,927 live trace packets and added replay tooling. Fixed TS/Rust invalid vector
+  field handling with shared fixtures. Full CI: 315 frontend passes + 1 explicit expected
+  failure, 62 Rust passes. Roll redesign remains open; exact historical calibration settings
+  are missing, and synthetic evidence also requires independent sensor-frame alignment.
+
+- **2026-09-16 Status assessment and task plan** ([[log_20260916_status_and_task_plan|Plan]]):
+  Tauri manifests are at `1.2.0-beta.10`; current uncommitted calibration/firmware work passes
+  303 frontend tests + 61 Rust tests and full CI. The latest [[log_20260915_live_calibration_singularity|live calibration log]]
+  still reports deep-flexion Roll instability. Next: preserve replay evidence, define measurement
+  semantics and redesign capture/calibration, then complete contract coverage and hardware release gates.
+  Older Electron-oriented overview documents need reconciliation; remote release/issue state was not rechecked.
+
 - **2026-09-15 校正貼裝根因修復／v1.2.0-beta.10**
   ([[log_20260915_beta10_shin_mount_diagram_and_coupling_advisory|發版日誌]] ·
   [[log_20260915_meeting_anterior_vs_lateral_mounting|會議裁決]]):感測器貼正面

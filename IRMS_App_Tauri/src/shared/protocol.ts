@@ -136,7 +136,12 @@ export interface RawAngles {
   shin: number
   thighRoll: number
   shinRoll: number
+  /** 新韌體提供的 atan2 前正規化加速度；舊韌體缺席時維持 undefined。 */
+  thighAccel?: AccelVector
+  shinAccel?: AccelVector
 }
+
+export interface AccelVector { x: number; y: number; z: number }
 
 /** 韌體會送出的欄位前綴。順序有意義:較長的 TR/SR/KR 必須先比,否則 'T:' 會誤吃 'TR:'。 */
 const FIELD_PREFIXES = ['TR:', 'SR:', 'KR:', 'T:', 'S:', 'K:'] as const
@@ -183,9 +188,18 @@ export function parseAnglePacket(value: string): ParsedPacket {
 
   const field = new Map<string, number>()
   let truncated = false
+  let accelValues: number[] | null = null
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]
+    if (i === parts.length - 1 && part.startsWith('V:')) {
+      // 空字串不能經 Number 轉成 0；六個欄位必須原位完整通過驗證。
+      const fields = part.slice(2).split('/').map((field) => field.trim())
+      const values = fields.map(Number)
+      if (fields.length === 6 && fields.every((field) => field.length > 0) && values.every(Number.isFinite)) accelValues = values
+      else truncated = true
+      continue
+    }
     const prefix = FIELD_PREFIXES.find((f) => part.startsWith(f))
     // 空字串必須另外擋:`Number('')` 是 0 而不是 NaN,只看 isFinite 會讓 `K:` 過關,
     // 而 `K:` 正是 20 bytes 切點最典型的殘骸。
@@ -216,9 +230,22 @@ export function parseAnglePacket(value: string): ParsedPacket {
   const hasRoll = thighRoll !== undefined && shinRoll !== undefined
   if (!hasRoll && (thighRoll !== undefined || shinRoll !== undefined)) truncated = true
 
+  const hasAccel = accelValues !== null
+
   return {
     kind: 'angles',
-    raw: { thigh, shin, thighRoll: hasRoll ? thighRoll : 0, shinRoll: hasRoll ? shinRoll : 0 },
+    raw: {
+      thigh,
+      shin,
+      thighRoll: hasRoll ? thighRoll : 0,
+      shinRoll: hasRoll ? shinRoll : 0,
+      ...(hasAccel
+        ? {
+            thighAccel: { x: accelValues![0], y: accelValues![1], z: accelValues![2] },
+            shinAccel: { x: accelValues![3], y: accelValues![4], z: accelValues![5] }
+          }
+        : {})
+    },
     hasRoll,
     truncated
   }

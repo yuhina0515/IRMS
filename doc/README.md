@@ -8,11 +8,25 @@
 
 ## 1. 系統概述 (System Overview)
 
-本系統旨在提供一套精準、即時且具備雙向參數同步與互動回饋機制的智慧復健輔助方案。透過穿戴式 ESP32 物聯網 (IoT) 裝置擷取人體運動力學數據，結合邊緣運算 (Edge Computing) 與桌面監測端應用程式 (Electron App)，協助物理治療師與患者即時監控關節夾角變化，並將所有復健歷程自動儲存於本地 SQLite 資料庫中，以進行量化分析與成效追蹤。
+本系統旨在提供一套精準、即時且具備雙向參數同步與互動回饋機制的智慧復健輔助方案。透過穿戴式 ESP32 物聯網 (IoT) 裝置擷取人體運動力學數據，結合邊緣運算 (Edge Computing) 與桌面監測端應用程式，協助物理治療師與患者即時監控關節夾角變化，並將所有復健歷程自動儲存於本地 SQLite 資料庫中，以進行量化分析與成效追蹤。
+
+> **2026-09-16 現役實作更正:**桌面監測端現役實作是 `IRMS_App_Tauri`(Tauri 2 + Rust +
+> React/TypeScript),取代下面第 3、4、5 節仍在描述的 Electron v2 架構。Electron
+> (`IRMS_App`)目前仍留在 repo 內、尚未正式除役(遷移退場條件見
+> [TAURI_MIGRATION_PLAN.md](TAURI_MIGRATION_PLAN.md)),故下方 Electron 相關章節保留為
+> **歷史/v2 世代文件**,不代表現況。現役架構與開發指引請見
+> [`IRMS_App_Tauri/README.md`](../IRMS_App_Tauri/README.md)。硬體(ESP32 韌體、腳位、
+> BLE 協定)章節不受此更正影響,雙方應用程式共用同一份韌體協定。
 
 ---
 
 ## 2. 硬體架構與腳位配置 (Hardware Architecture & Pinout)
+
+> **2026-09-16 protocol WIP:** Tauri and current firmware support the final optional
+> `V:x/y/z/x/y/z` acceleration extension (thigh then shin). Exactly six nonempty finite
+> values are required; invalid extensions mark truncation and supply neither vector.
+> Legacy angle parsing remains supported. Current maximum payload is 114 bytes (MTU >=117).
+> See `IRMS_App_Tauri/fixtures/vector-packets.json` for shared TS/Rust regression cases.
 
 硬體端以低功耗、高整合度的 ESP32 微控制器為核心，搭配高精度雙慣性感測器，組成穿戴式感測節點。
 
@@ -20,7 +34,7 @@
 * **姿態感測單元 (IMU)**：雙 MPU6050 (六軸加速度計與角速度計)，分別配戴於關節兩側（大腿與小腿端），透過 I2C 總線與 MCU 通訊：
   * **SDA 腳位**：GPIO 21
   * **SCL 腳位**：GPIO 22
-  * **I2C 位址**：大腿端位址為 `0x68`，小腿端位址為 `0x69` (小腿 AD0 腳位接至 3.3V)
+  * **I2C 位址**：真機逐顆動態辨識確認，大腿端（含 ESP32）為 `0x69`，小腿外接端為 `0x68`。
 * **警示與回饋單元**：
   * **狀態指示燈 (System LED)**：GPIO 2 (內建 LED)，用於呈現藍牙廣告、連線、錯誤與目標達成之閃爍狀態。
   * **目標區間視覺回饋燈 (Ext LED)**：GPIO 25，當關節夾角處於目標容錯區間內時自動點亮。
@@ -51,6 +65,10 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
 ---
 
 ## 3. 韌體與軟體架構 (Software Architecture)
+
+> **本節第 3.2、4.2、5.3 小節描述的是 Electron v2 架構,現已被 Tauri 取代為現役實作**
+> (見第 1 節更正)。保留在此供 Electron 尚未除役前的維護參考與歷史沿革,韌體(3.1、4.1)
+> 章節維持現況適用。
 
 系統採用多執行緒與分散式架構設計，將即時性要求極高的感測濾波運算，與資料庫讀寫及 UI 渲染進行解耦。
 
@@ -161,7 +179,21 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
 3. 選擇對應的開發板型號（如 ESP32 Dev Module），確認 I2C 接腳與周邊配置無誤。
 4. 編譯並燒錄韌體至 ESP32 晶片中。
 
-### 5.2 應用端 (Electron App) 安裝與執行 (v2)
+### 5.2 應用端(現役,Tauri App)安裝與執行
+
+完整內容見 [`IRMS_App_Tauri/README.md`](../IRMS_App_Tauri/README.md)(開發環境需求、架構邊界、
+CI 涵蓋範圍)。摘要:
+
+```powershell
+cd IRMS_App_Tauri
+npm ci
+npm run tauri dev    # 開發模式
+npm run ci           # TypeScript + Vitest + build + rustfmt + Rust tests + Clippy
+```
+
+技術棧:Tauri 2 (Rust) · React 18 · TypeScript 5 · Vite · rusqlite(bundled) · btleplug 0.11。
+
+### 5.3 應用端(v2 世代,Electron App)安裝與執行——保留供尚未除役前參考
 1. 進入 `IRMS_App` 目錄:
    ```bash
    cd IRMS_App

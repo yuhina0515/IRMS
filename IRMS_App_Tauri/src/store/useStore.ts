@@ -6,9 +6,17 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CustomAction, JointProtocol } from '@shared/types'
-import type { LiveAngles, RawAngles } from '@shared/protocol'
+import type { AccelVector, LiveAngles, RawAngles } from '@shared/protocol'
 import type { EnginePhase } from '../services/triggerEngine'
-import { jointAngleDeg, normalizeDeg, rotateRawAxes, shortestArcDelta } from '../services/angleMath'
+import {
+  jointAngleDeg,
+  normalizeDeg,
+  projectOntoHingeFrame,
+  rotateAccelerationAxes,
+  rotateRawAxes,
+  shortestArcDelta,
+  vectorAngleDeg
+} from '../services/angleMath'
 
 /** 感測器校準與一般 UI 設定(持久化) */
 export interface Settings {
@@ -39,6 +47,20 @@ export interface Settings {
   proximalRollZeroRaw: number
   distalRollInvert: boolean
   distalRollZeroRaw: number
+  /** 新向量協定下站直時兩感測器的原始 3D 夾角；用來消除綁帶安裝差。 */
+  kneeZeroRaw?: number
+  /** 新向量協定的站姿基準向量(未旋轉)；搭配 *HingeAxis 張出投影用的正交座標系。 */
+  proximalZeroAccel?: AccelVector | null
+  distalZeroAccel?: AccelVector | null
+  /**
+   * 新向量協定的屈曲軸(sensor frame 下的單位向量)——2026-09-15 決策,由
+   * `deriveHingeAxis` 從基準 + 單一參考動作外積解出,取代單自由度
+   * `proximalAxisRotationDeg` 旋轉修正。任意 3D 貼裝方向皆可由此還原正確角度,
+   * 不再假設貼裝面已知。缺此欄位(舊校準資料)時 applyCalibration 退回
+   * axisRotationDeg 路徑,直到重跑精靈。
+   */
+  proximalHingeAxis?: AccelVector | null
+  distalHingeAxis?: AccelVector | null
   /** 大腿/小腿 roll 方向是否曾由精靈第 5 步(外展)實測驗證過;false = 仍在沿用預設或跳過時的舊值,內外翻方向可能相反 */
   proximalRollVerified: boolean
   distalRollVerified: boolean
@@ -130,6 +152,11 @@ const DEFAULT_SETTINGS: Settings = {
   proximalRollZeroRaw: 0,
   distalRollInvert: false,
   distalRollZeroRaw: 0,
+  kneeZeroRaw: 0,
+  proximalZeroAccel: null,
+  distalZeroAccel: null,
+  proximalHingeAxis: null,
+  distalHingeAxis: null,
   proximalRollVerified: false,
   distalRollVerified: false,
   protocol: 'knee',
@@ -163,7 +190,12 @@ export const CALIBRATION_TRANSFORM_KEYS = [
   'proximalRollInvert',
   'proximalRollZeroRaw',
   'distalRollInvert',
-  'distalRollZeroRaw'
+  'distalRollZeroRaw',
+  'kneeZeroRaw',
+  'proximalZeroAccel',
+  'distalZeroAccel',
+  'proximalHingeAxis',
+  'distalHingeAxis'
 ] as const satisfies readonly (keyof Settings)[]
 
 /**
@@ -600,32 +632,62 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
 
 /**
  * 依目前校準設定,將原始角度轉換為校正後的即時角度。
- * 順序:軸向旋轉修正 (axisRotationDeg) → 反相 (invert) → 偏移 (offset)。
+ * 新向量協定(有 *HingeAxis):`projectOntoHingeFrame` 把目前重力向量投影進由
+ * 外積天生正交的「屈曲軸/側軸/基準軸」座標系,任意 3D 貼裝方向皆可還原正確角度
+ * ——2026-09-15 決策,取代下面 else 分支的單自由度 axisRotationDeg 旋轉修正法,
+ * 見 services/calibration.ts 的 deriveHingeAxis。
+ * else 分支(舊協定或尚未以新邏輯重跑校準):軸向旋轉修正 (axisRotationDeg) →
+ * 反相 (invert) → 偏移 (offset)。
  * 統一方向慣例(校準後):
  * - Pitch:0° = 站直,正 = 向前抬
  * - Roll:0° = 站直,正 = 向外側傾
  * - kneeRoll:帶符號 shinRoll − thighRoll,正 = 外翻 (valgus)、負 = 內翻 (varus)
  */
 export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
-  const thighAxis = rotateRawAxes(raw.thigh, raw.thighRoll, s.proximalAxisRotationDeg)
-  const shinAxis = rotateRawAxes(raw.shin, raw.shinRoll, s.distalAxisRotationDeg)
-  const rawThigh = thighAxis.pitch
-  const rawThighRoll = thighAxis.roll
-  const rawShin = shinAxis.pitch
-  const rawShinRoll = shinAxis.roll
+  let thigh: number
+  let thighRoll: number
+  if (raw.thighAccel && s.proximalZeroAccel && s.proximalHingeAxis) {
+    const proj = projectOntoHingeFrame(raw.thighAccel, s.proximalHingeAxis, s.proximalZeroAccel)
+    thigh = normalizeDeg(proj.pitch * (s.proximalInvert ? -1 : 1))
+    thighRoll = normalizeDeg(proj.roll * (s.proximalRollInvert ? -1 : 1))
+  } else {
+    const thighAxis = raw.thighAccel
+      ? rotateAccelerationAxes(raw.thighAccel, s.proximalAxisRotationDeg)
+      : rotateRawAxes(raw.thigh, raw.thighRoll, s.proximalAxisRotationDeg)
+    // 先減零位、再反相(順序不可顛倒——顛倒等於回到會被 invert 事後翻轉破壞的舊
+    // 「符號摺疊」offset 表示法)。減法與乘法之後必須重新正規化回 (-180, 180]:
+    // 結果可能被推出值域,之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
+    thigh = normalizeDeg((thighAxis.pitch - s.proximalZeroRaw) * (s.proximalInvert ? -1 : 1))
+    thighRoll = normalizeDeg((thighAxis.roll - s.proximalRollZeroRaw) * (s.proximalRollInvert ? -1 : 1))
+  }
 
-  // 先減零位、再反相(順序不可顛倒——顛倒等於回到會被 invert 事後翻轉破壞的舊
-  // 「符號摺疊」offset 表示法)。減法與乘法之後必須重新正規化回 (-180, 180]:
-  // 結果可能被推出值域,之後任何線性差值運算(knee、kneeRoll)都會算出繞遠路的結果
-  const thigh = normalizeDeg((rawThigh - s.proximalZeroRaw) * (s.proximalInvert ? -1 : 1))
-  const shin = normalizeDeg((rawShin - s.distalZeroRaw) * (s.distalInvert ? -1 : 1))
-  const thighRoll = normalizeDeg((rawThighRoll - s.proximalRollZeroRaw) * (s.proximalRollInvert ? -1 : 1))
-  const shinRoll = normalizeDeg((rawShinRoll - s.distalRollZeroRaw) * (s.distalRollInvert ? -1 : 1))
+  let shin: number
+  let shinRoll: number
+  if (raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis) {
+    const proj = projectOntoHingeFrame(raw.shinAccel, s.distalHingeAxis, s.distalZeroAccel)
+    shin = normalizeDeg(proj.pitch * (s.distalInvert ? -1 : 1))
+    shinRoll = normalizeDeg(proj.roll * (s.distalRollInvert ? -1 : 1))
+  } else {
+    const shinAxis = raw.shinAccel
+      ? rotateAccelerationAxes(raw.shinAccel, s.distalAxisRotationDeg)
+      : rotateRawAxes(raw.shin, raw.shinRoll, s.distalAxisRotationDeg)
+    shin = normalizeDeg((shinAxis.pitch - s.distalZeroRaw) * (s.distalInvert ? -1 : 1))
+    shinRoll = normalizeDeg((shinAxis.roll - s.distalRollZeroRaw) * (s.distalRollInvert ? -1 : 1))
+  }
+
+  // 新韌體保留 atan2 前的完整重力向量,兩肢段 3D 夾角本身與貼裝旋轉無關(向量旋轉
+  // 不改變兩向量間夾角),直接算、扣除站直安裝差即可,不需先做屈曲軸投影。
+  // 膝彎在感測器接近 z=0 時可能主要落在 x/y 平面，若轉回 pitch 再相減會再次把它
+  // 丟掉（2026-09-15 右腳實測：實際約 60°、舊路徑顯示 0°）。
+  let knee = jointAngleDeg(thigh, shin)
+  if (raw.thighAccel && raw.shinAccel) {
+    knee = Math.abs(vectorAngleDeg(raw.thighAccel, raw.shinAccel) - (s.kneeZeroRaw ?? 0))
+  }
 
   return {
     thigh,
     shin,
-    knee: jointAngleDeg(thigh, shin),
+    knee,
     thighRoll,
     shinRoll,
     kneeRoll: shortestArcDelta(thighRoll, shinRoll),

@@ -96,3 +96,33 @@ pub async fn update_check<R: Runtime>(
         rid: webview.resources_table().add(update),
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // CON-01 (2026-09-17): pins the wire shape irmsApi.ts's `performCheck` depends on
+    // (`invoke<UpdateMetadata | null>('update_check', ...)` fed straight into
+    // `@tauri-apps/plugin-updater`'s `Update` constructor) — see that file's `UpdateMetadata`
+    // interface. No generated bridge between this struct and the TS interface, so a field
+    // rename here would only surface at runtime without this test.
+    #[test]
+    fn update_metadata_wire_shape_matches_irms_api_ts() {
+        let metadata = UpdateMetadata::default();
+        let json = serde_json::to_value(&metadata).unwrap();
+        let obj = json.as_object().unwrap();
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec![
+                "body",
+                "currentVersion",
+                "date",
+                "rawJson",
+                "rid",
+                "version"
+            ]
+        );
+    }
+}

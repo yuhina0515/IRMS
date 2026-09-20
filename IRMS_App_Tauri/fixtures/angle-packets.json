@@ -1,0 +1,128 @@
+[
+  {
+    "name": "full six-axis packet ignores derived K/KR",
+    "packet": "T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0",
+    "kind": "angles",
+    "raw": { "thigh": 12.5, "shin": -45.2, "thighRoll": 1.2, "shinRoll": -0.8, "thighAccel": null, "shinAccel": null },
+    "hasRoll": true,
+    "truncated": false
+  },
+  {
+    "name": "extended packet preserves pre-atan2 acceleration vectors",
+    "packet": "T:75,S:88,K:13,TR:-25,SR:-78,KR:53,V:0.100/0.990/0.020/-0.200/0.979/-0.030",
+    "kind": "angles",
+    "raw": {
+      "thigh": 75, "shin": 88, "thighRoll": -25, "shinRoll": -78,
+      "thighAccel": { "x": 0.1, "y": 0.99, "z": 0.02 },
+      "shinAccel": { "x": -0.2, "y": 0.979, "z": -0.03 }
+    },
+    "hasRoll": true,
+    "truncated": false
+  },
+  {
+    "name": "partial vector field drops the whole pair and flags truncated",
+    "packet": "T:1,S:2,K:1,TR:3,SR:4,KR:1,V:0.1/0.2",
+    "kind": "angles",
+    "raw": { "thigh": 1, "shin": 2, "thighRoll": 3, "shinRoll": 4, "thighAccel": null, "shinAccel": null },
+    "hasRoll": true,
+    "truncated": true
+  },
+  {
+    "name": "legacy three-field packet zeroes roll",
+    "packet": "T:10.0,S:20.0,K:10.0",
+    "kind": "angles",
+    "raw": { "thigh": 10, "shin": 20, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": false
+  },
+  {
+    "name": "TR/SR prefixes are not swallowed by T:/S:",
+    "packet": "TR:5.5,SR:6.6,T:1.1,S:2.2,K:1.1",
+    "kind": "angles",
+    "raw": { "thigh": 1.1, "shin": 2.2, "thighRoll": 5.5, "shinRoll": 6.6, "thighAccel": null, "shinAccel": null },
+    "hasRoll": true,
+    "truncated": false
+  },
+  {
+    "name": "ERR packet reports the hardware error code",
+    "packet": "ERR:1",
+    "kind": "error",
+    "code": "ERR:1"
+  },
+  {
+    "name": "trailing whitespace still parses as an error packet",
+    "packet": "  ERR:1\n",
+    "kind": "error",
+    "code": "ERR:1"
+  },
+  {
+    "name": "invalid number is malformed",
+    "packet": "T:abc,S:1.0,K:2.0",
+    "kind": "malformed"
+  },
+  {
+    "name": "bare number legacy firmware is carried on shin",
+    "packet": "45.5",
+    "kind": "angles",
+    "raw": { "thigh": 0, "shin": 45.5, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": false
+  },
+  {
+    "name": "unparseable string is malformed",
+    "packet": "hello",
+    "kind": "malformed"
+  },
+  {
+    "name": "MTU23 cut after K: keeps pitch, flags truncated, roll not silently zero",
+    "packet": "T:-180.0,S:-180.0,K:",
+    "kind": "angles",
+    "raw": { "thigh": -180, "shin": -180, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": true
+  },
+  {
+    "name": "MTU23 cut mid-prefix still degrades, not discards",
+    "packet": "T:-180.0,S:-180.0,K",
+    "kind": "angles",
+    "raw": { "thigh": -180, "shin": -180, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": true
+  },
+  {
+    "name": "half a roll pair is dropped, not used for varus/valgus",
+    "packet": "T:1.0,S:2.0,K:1.0,TR:3.0",
+    "kind": "angles",
+    "raw": { "thigh": 1, "shin": 2, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": true
+  },
+  {
+    "name": "missing T: is malformed, not degraded",
+    "packet": "S:2.0,K:1.0,TR:3.0,SR:4.0",
+    "kind": "malformed"
+  },
+  {
+    "name": "missing S: is malformed, not degraded",
+    "packet": "T:1.0,K:1.0,TR:3.0,SR:4.0",
+    "kind": "malformed"
+  },
+  {
+    "name": "mid-packet garbage is malformed, not truncation",
+    "packet": "T:1.0,S:abc,K:1.0,TR:3.0,SR:4.0",
+    "kind": "malformed"
+  },
+  {
+    "name": "duplicate T: key mid-packet is malformed, not truncation",
+    "packet": "T:1.0,T:2.0,S:3.0",
+    "kind": "malformed"
+  },
+  {
+    "name": "cut exactly on a value boundary under-reports rather than over-reports",
+    "packet": "T:12.5,S:-45.2,K:57.",
+    "kind": "angles",
+    "raw": { "thigh": 12.5, "shin": -45.2, "thighRoll": 0, "shinRoll": 0, "thighAccel": null, "shinAccel": null },
+    "hasRoll": false,
+    "truncated": false
+  }
+]

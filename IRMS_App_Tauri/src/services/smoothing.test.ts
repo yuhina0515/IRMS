@@ -19,6 +19,12 @@ function angles(thigh: number, shin = 0, thighRoll = 0, shinRoll = 0): LiveAngle
 }
 
 describe('AngleSmoother', () => {
+  it('保留獨立 3D knee 並做 EMA，不再以 pitch 差覆寫', () => {
+    const s = new AngleSmoother(0.5)
+    s.next({ ...angles(0), thigh: 0, shin: 0, knee: 0 })
+    const out = s.next({ ...angles(60), thigh: 0, shin: 0, knee: 60 })
+    expect(out.knee).toBe(30)
+  })
   it('首筆直接播種(不從 0 拖出假角度)', () => {
     const s = new AngleSmoother()
     const out = s.next(angles(45, 10, 3, 7))

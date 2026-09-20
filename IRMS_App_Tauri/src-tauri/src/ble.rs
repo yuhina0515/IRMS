@@ -166,6 +166,12 @@ fn spawn_notification_listener(
         while let Some(notification) = stream.next().await {
             if notification.uuid == angle_uuid {
                 let text = String::from_utf8_lossy(&notification.value).to_string();
+                // Opt-in calibration trace for supervised real-device tuning. Keep production
+                // silent; developers can launch with IRMS_CALIBRATION_TRACE=1 and capture the
+                // exact wire packets without changing their timing or the frontend transform.
+                if std::env::var_os("IRMS_CALIBRATION_TRACE").is_some() {
+                    eprintln!("[calibration-trace] {}", text.trim());
+                }
                 let parsed: ParsedPacket = protocol::parse_angle_packet(&text);
                 let _ = app.emit("ble:packet", &parsed);
             } else if notification.uuid == ota_status_uuid {
@@ -230,12 +236,24 @@ pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<S
 }
 
 #[tauri::command]
-pub async fn ble_disconnect(state: State<'_, BleState>) -> Result<(), String> {
+pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Result<(), String> {
     let mut guard = state.peripheral.lock().await;
-    if let Some(p) = guard.take() {
-        p.disconnect().await.map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    let result = if let Some(p) = guard.take() {
+        p.disconnect().await.map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    };
+    // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
+    // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
+    // 還保有 Peripheral handle 才更新 UI。
+    let _ = app.emit(
+        "ble:connection",
+        ConnectionEvent {
+            connected: false,
+            device_name: None,
+        },
+    );
+    result
 }
 
 /// Writes a control command string (see shared BleCommand constants) to the profile-RX

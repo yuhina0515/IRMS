@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { CustomAction } from '@shared/types'
 import type { LiveAngles } from '@shared/protocol'
 import { effectiveRaw } from '../services/calibration'
+import { deriveHingeAxis } from '../services/angleMath'
 import {
   applyCalibration,
   CALIBRATION_KEYS,
@@ -167,6 +168,87 @@ describe('migrateSettings', () => {
 })
 
 describe('applyCalibration', () => {
+  it('新韌體有加速度向量時優先使用向量，不受奇異區舊 Euler 欄位污染', () => {
+    const raw = {
+      thigh: 75,
+      shin: 88,
+      thighRoll: -25,
+      shinRoll: -78,
+      thighAccel: { x: 0, y: 1, z: 0 },
+      shinAccel: { x: 0, y: 1, z: 0 }
+    }
+    const s = { ...BASE_SETTINGS, proximalZeroRaw: 90, distalZeroRaw: 90 }
+    const out = applyCalibration(raw, s)
+    expect(out.thigh).toBeCloseTo(0)
+    expect(out.shin).toBeCloseTo(0)
+    expect(out.knee).toBeCloseTo(0)
+  })
+
+  it('右腳實測回歸：z≈0 時屈膝資訊落在 x/y 平面，仍以 3D 向量算出關節角', () => {
+    const stand = {
+      thigh: 84,
+      shin: 92,
+      thighRoll: -30,
+      shinRoll: 80,
+      thighAccel: { x: -0.06, y: 0.993, z: 0.1 },
+      shinAccel: { x: 0, y: 1, z: -0.023 }
+    }
+    const flex = {
+      thigh: 88,
+      shin: 88,
+      thighRoll: -87,
+      shinRoll: 83,
+      thighAccel: { x: -0.636, y: 0.771, z: 0.031 },
+      shinAccel: { x: 0.347, y: 0.937, z: 0.036 }
+    }
+    const standingRawAngle = applyCalibration(stand, BASE_SETTINGS).knee
+    const s = { ...BASE_SETTINGS, kneeZeroRaw: standingRawAngle }
+
+    expect(applyCalibration(stand, s).knee).toBeCloseTo(0, 5)
+    expect(applyCalibration(flex, s).knee).toBeGreaterThan(45)
+    expect(applyCalibration(flex, s).knee).toBeLessThan(65)
+  })
+
+  it('向量站姿基準 + 屈曲軸讓 THIGH/SHIN/roll 在 Euler 奇異區仍可真正歸零(2026-09-15 3D 貼裝改版)', () => {
+    const thighZero = { x: -0.06, y: 0.993, z: 0.1 }
+    const shinZero = { x: 0, y: 1, z: -0.023 }
+    const raw = {
+      thigh: 84,
+      shin: 92,
+      thighRoll: -30,
+      shinRoll: 80,
+      thighAccel: thighZero,
+      shinAccel: shinZero
+    }
+    // 任意「移動終點」皆可推出一個與基準垂直的屈曲軸——這個測試只驗證站姿本身
+    // 歸零,不依賴屈曲軸的實際物理方向。
+    const proximalHingeAxis = deriveHingeAxis(thighZero, { x: thighZero.x + 0.2, y: thighZero.y, z: thighZero.z })
+    const distalHingeAxis = deriveHingeAxis(shinZero, { x: shinZero.x, y: shinZero.y, z: shinZero.z + 0.2 })
+    const s = {
+      ...BASE_SETTINGS,
+      proximalZeroAccel: thighZero,
+      distalZeroAccel: shinZero,
+      proximalHingeAxis,
+      distalHingeAxis
+    }
+    const out = applyCalibration(raw, s)
+
+    expect(out.thigh).toBeCloseTo(0)
+    expect(out.shin).toBeCloseTo(0)
+    expect(out.thighRoll).toBeCloseTo(0)
+    expect(out.shinRoll).toBeCloseTo(0)
+  })
+
+  it('僅有站姿基準、無屈曲軸(舊資料未重跑精靈)→ 退回 Euler 路徑,不假裝已知貼裝方向', () => {
+    const thighZero = { x: -0.06, y: 0.993, z: 0.1 }
+    const raw = { thigh: 84, shin: 0, thighRoll: -30, shinRoll: 0, thighAccel: thighZero }
+    const s = { ...BASE_SETTINGS, proximalZeroAccel: thighZero }
+    const out = applyCalibration(raw, s)
+    // Euler 路徑用 raw.thighAccel 算出的 pitch 減 proximalZeroRaw(預設 0),不等於 0——
+    // 這正是提示使用者需要重跑精靈以取得 proximalHingeAxis 的訊號,而不是靜默算錯。
+    expect(out.thigh).not.toBeCloseTo(0)
+  })
+
   it('無校準時原樣輸出;knee 為絕對值,kneeRoll 帶符號(shinRoll−thighRoll,正=外翻)', () => {
     const out = applyCalibration({ thigh: 30, shin: -60, thighRoll: 5, shinRoll: 2 }, BASE_SETTINGS)
     expect(out.thigh).toBe(30)

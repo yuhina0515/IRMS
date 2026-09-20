@@ -40,6 +40,8 @@ export interface IrmsStub {
   sessions: { [K in keyof IrmsApi['sessions']]: Mock }
   data: { [K in keyof IrmsApi['data']]: Mock }
   actions: { [K in keyof IrmsApi['actions']]: Mock }
+  firmware: { [K in keyof IrmsApi['firmware']]: Mock }
+  updates: { [K in keyof IrmsApi['updates']]: Mock }
   /**
    * 依呼叫順序攤平的所有 appendBatch 讀數。
    * 省去測試自己去拆 data.appendBatch.mock.calls[i][1] 再 flat——
@@ -57,21 +59,25 @@ export interface IrmsStubOverrides {
   sessions?: Partial<IrmsApi['sessions']>
   data?: Partial<IrmsApi['data']>
   actions?: Partial<IrmsApi['actions']>
+  firmware?: Partial<IrmsApi['firmware']>
+  updates?: Partial<IrmsApi['updates']>
 }
 
 /**
  * `vi.mock('@renderer/platform/irmsApi', () => mockIrmsApiModule)` 的回傳值。
  * 各測試檔案在自己的 vi.mock 呼叫裡直接回傳這個物件的參考(不是重新建構一個),
- * 讓 installIrmsStub 之後對 sessions/data/actions 的原地重新指派對所有 call site
- * 都可見。firmware/windowControls/updates 目前沒有任何已搬遷的測試需要
- * ——Electron 版的 IrmsStub 同樣沒有實作它們(該檔案沒有這三個命名空間),
- * 真的用到時再補,而不是先猜一個形狀。
+ * 讓 installIrmsStub 之後對 sessions/data/actions/firmware/updates 的原地重新指派對所有
+ * call site 都可見。**windowControls 仍未實作**——目前沒有已搬遷的測試需要它,真的用到時
+ * 再補,而不是先猜一個形狀(firmware/updates 這兩個原本也是空的,2026-09-20 的
+ * `DashboardView`/`SettingsView` 旅程測試第一次用到才照這裡的說明補上)。
  */
-export const mockIrmsApiModule: { irms: Pick<IrmsApi, 'sessions' | 'data' | 'actions'> } = {
+export const mockIrmsApiModule: { irms: Pick<IrmsApi, 'sessions' | 'data' | 'actions' | 'firmware' | 'updates'> } = {
   irms: {
     sessions: {} as IrmsApi['sessions'],
     data: {} as IrmsApi['data'],
-    actions: {} as IrmsApi['actions']
+    actions: {} as IrmsApi['actions'],
+    firmware: {} as IrmsApi['firmware'],
+    updates: {} as IrmsApi['updates']
   }
 }
 
@@ -101,6 +107,18 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       update: async (id: number, input: unknown) => ({ id, ...(input as object) }) as CustomAction,
       delete: async (_id: number) => ({ success: true as const }),
       restoreDefaults: async (): Promise<CustomAction[]> => []
+    },
+    // 使用者取消選檔是常態操作,不是例外——預設回傳 null 而非丟出錯誤
+    firmware: {
+      pickBinary: async () => null
+    },
+    updates: {
+      getCurrentVersion: async () => '0.0.0-test',
+      checkNow: async () => {},
+      restartNow: async () => {},
+      setAllowPrerelease: async (_allow: boolean) => {},
+      // 預設不主動推播任何狀態;需要斷言特定狀態序列的測試自行覆寫並手動呼叫回呼
+      onStatusChange: (_cb: (status: unknown) => void) => () => {}
     }
   }
 
@@ -115,17 +133,23 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
   const sessionsStub = wrap(defaults.sessions, overrides.sessions)
   const dataStub = wrap(defaults.data, overrides.data)
   const actionsStub = wrap(defaults.actions, overrides.actions)
+  const firmwareStub = wrap(defaults.firmware, overrides.firmware)
+  const updatesStub = wrap(defaults.updates, overrides.updates)
 
-  // 原地重新指派 mockIrmsApiModule.irms.{sessions,data,actions} 底下的葉節點,
-  // 不重建這三個子物件本身——見檔頭關於 stale-reference 的說明。
+  // 原地重新指派 mockIrmsApiModule.irms.{sessions,data,actions,firmware,updates} 底下的
+  // 葉節點,不重建這些子物件本身——見檔頭關於 stale-reference 的說明。
   Object.assign(mockIrmsApiModule.irms.sessions, sessionsStub)
   Object.assign(mockIrmsApiModule.irms.data, dataStub)
   Object.assign(mockIrmsApiModule.irms.actions, actionsStub)
+  Object.assign(mockIrmsApiModule.irms.firmware, firmwareStub)
+  Object.assign(mockIrmsApiModule.irms.updates, updatesStub)
 
   return {
     sessions: sessionsStub as IrmsStub['sessions'],
     data: dataStub as IrmsStub['data'],
     actions: actionsStub as IrmsStub['actions'],
+    firmware: firmwareStub as IrmsStub['firmware'],
+    updates: updatesStub as IrmsStub['updates'],
     appended,
     uninstall: () => {}
   }

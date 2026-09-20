@@ -19,6 +19,20 @@ const pose = (thigh: number, shin: number, thighRoll = 0, shinRoll = 0): RawAngl
 const BASELINE = pose(0, 0, 0, 0)
 
 describe('maxAxisDelta', () => {
+  it('新向量協定在 Euler pitch 不變時仍可偵測真實前抬', () => {
+    const baseline: RawAngles = {
+      ...pose(89, 89),
+      thighAccel: { x: 0, y: 1, z: 0 },
+      shinAccel: { x: 0, y: 1, z: 0 }
+    }
+    const raised: RawAngles = {
+      ...pose(89, 89),
+      thighAccel: { x: Math.SQRT1_2, y: Math.SQRT1_2, z: 0 },
+      shinAccel: { x: Math.SQRT1_2, y: Math.SQRT1_2, z: 0 }
+    }
+    expect(maxAxisDelta(baseline, raised, PITCH_AXES)).toBeCloseTo(45)
+  })
+
   it('只看被指定的軸', () => {
     const rollOnly = pose(0, 0, 22, 18)
     expect(maxAxisDelta(BASELINE, rollOnly, ROLL_AXES)).toBeCloseTo(22)

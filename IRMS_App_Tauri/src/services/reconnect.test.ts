@@ -37,6 +37,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 }))
 
 import { useStore } from '../store/useStore'
+import { parseAnglePacket } from '@shared/protocol'
 import { bluetoothService } from './bluetooth'
 
 /** 模擬 Rust 端發出一個事件,同步驅動已註冊的 handler。*/
@@ -87,6 +88,28 @@ afterEach(() => {
 })
 
 describe('重連進度', () => {
+  it('手動斷線立即清除 renderer 殭屍連線狀態，不等待 Rust 事件', () => {
+    useStore.getState().setConnection(true, 'IRMS-fake')
+    ;(bluetoothService as unknown as { connected: boolean }).connected = true
+
+    bluetoothService.disconnect()
+
+    expect(useStore.getState().isConnected).toBe(false)
+    expect(useStore.getState().statusText).toBe('Disconnected')
+    expect((bluetoothService as unknown as { connected: boolean }).connected).toBe(false)
+    expect(invokeMock).toHaveBeenCalledWith('ble_disconnect')
+  })
+
+  it('前端熱更新錯過 connection 事件時，由持續到達的真實封包補回連線狀態', async () => {
+    // 等待 constructor 的非同步 listen 註冊完成。
+    await Promise.resolve()
+    emit('ble:packet', parseAnglePacket('T:10,S:5,K:5,TR:0,SR:0,KR:0'))
+
+    expect(useStore.getState().isConnected).toBe(true)
+    expect(useStore.getState().statusText).toContain('Connected')
+    expect((bluetoothService as unknown as { connected: boolean }).connected).toBe(true)
+  })
+
   it('逐次遞增,而且是使用者看得到的結構化狀態', async () => {
     installFakeConnect(2) // 前兩次失敗,第三次成功
     const seen: (number | null)[] = []
