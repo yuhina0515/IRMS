@@ -154,14 +154,19 @@ export function DashboardView(): JSX.Element {
   return (
     <div className="dash-shell">
       <header className="page-header">
-        <h2>Guided Monitoring</h2>
-        <p>圍繞當前動作的主指標即時引導復健</p>
+        <div><span className="page-eyebrow">MOVEMENT STUDIO</span>
+          <h2>專注當下的每一次動作</h2>
+          <p>選擇動作、確認校準，開始你的訓練。</p>
+        </div>
+        <span className={`session-status-pill${session.running ? ' is-running' : ''}`}>
+          <span aria-hidden="true" />{session.running ? '訓練進行中' : '準備開始'}
+        </span>
       </header>
 
       {lastCalibratedAt == null && (
-        <div className="calib-chip" onClick={() => setWizardOpen(true)}>
+        <button type="button" className="calib-chip" onClick={() => setWizardOpen(true)}>
           ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
-        </div>
+        </button>
       )}
       {/* 內外翻方向未驗證的警示不放在這裡:roll 完全不進入任何判定路徑——
           computeMetricSample 只讀 thigh/knee,三種 triggerType 全是 pitch 導向。
@@ -203,6 +208,7 @@ export function DashboardView(): JSX.Element {
           </div>
 
           <div className="dash-cell-ring panel glass">
+            <div className="panel-heading"><span className="page-eyebrow">YOUR SESSION</span><h3>訓練控制</h3></div>
             {session.alarmActive && (
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
                 <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>

@@ -17,6 +17,7 @@ import '@fontsource-variable/inter/wght.css'
 // 同樣只引入 wght 軸,同樣自架(SIL OFL)。
 import '@fontsource-variable/jetbrains-mono/wght.css'
 import './styles/tailwind.css'
+import './styles/refresh.css'
 
 // 啟動時載入自訂動作清單
 async function bootstrap(): Promise<void> {

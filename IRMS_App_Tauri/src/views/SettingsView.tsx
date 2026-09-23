@@ -97,8 +97,8 @@ export function SettingsView(): JSX.Element {
   return (
     <section className="view-surface settings-surface">
       <header className="page-header">
-        <h2>Settings</h2>
-        <p>感測器校準與系統參數</p>
+        <div><span className="page-eyebrow">DEVICE & PREFERENCES</span><h2>讓裝置準備就緒</h2>
+        <p>管理感測器校準、顯示偏好與軟體更新。</p></div>
       </header>
 
       <div className="settings-workbench">
@@ -224,7 +224,7 @@ export function SettingsView(): JSX.Element {
               onChange={(v) => set('show3D2DPose', v)}
             />
             <p className="field-hint" style={{ marginTop: 6 }}>
-              兩者預設關閉,讓 Dashboard 在任何視窗尺寸下都不需要捲動;關閉不影響資料
+            兩者預設關閉,讓 Dashboard 優先呈現主要數值與訓練操作;關閉不影響資料
               收集,開啟後立刻看得到累積的歷史曲線/姿態。
             </p>
           </div>

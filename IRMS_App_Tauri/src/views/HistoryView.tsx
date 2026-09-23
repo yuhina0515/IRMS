@@ -263,8 +263,8 @@ export function HistoryView(): JSX.Element {
   return (
     <section className="view-surface history-surface">
       <header className="page-header">
-        <h2>Rehabilitation History</h2>
-        <p>檢視與分析過往復健歷程</p>
+        <div><span className="page-eyebrow">SESSION ARCHIVE</span><h2>回看每一次訓練</h2>
+        <p>查看完成次數、角度變化，保留你的訓練紀錄。</p></div>
       </header>
 
       {sessions.length === 0 ? (

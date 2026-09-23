@@ -16,6 +16,13 @@ npm run tauri dev
 
 ## 驗證
 
+### Browser-only UI preview
+
+Run `npm run dev -- --port 1428`, then open `http://localhost:1428/ui-preview.html`.
+This development-only entry renders the actual React UI with Tauri IPC mocks and sample actions.
+It does not access native BLE or SQLite, save records, or validate native device behavior.
+It starts in light/demo mode; the production build only includes `index.html` and `splash.html`.
+
 ```powershell
 # TypeScript、Vitest、production frontend build、Rustfmt、Rust tests、Clippy
 npm run ci

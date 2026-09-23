@@ -135,8 +135,8 @@ export function ActionsView(): JSX.Element {
   return (
     <section className="view-surface actions-surface">
       <header className="page-header">
-        <h2>Custom Actions</h2>
-        <p>管理各關節協定的復健動作範本</p>
+        <div><span className="page-eyebrow">ACTION LIBRARY</span><h2>為每次訓練做好準備</h2>
+        <p>管理動作範本，設定目標角度與保持時間。</p></div>
       </header>
 
       <div className="view-toolbar">

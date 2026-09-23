@@ -21,6 +21,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-24 UI refresh** ([[log_20260924_ui_refresh|Log]]): User directly requested Codex
+  redesign and continued implementation. Updated the desktop shell and four views with a
+  green light/dark palette, full navigation labels, page introductions, content-driven Dashboard
+  sizing, and accessible calibration/theme controls. Added a browser-only mock preview.
+  Previous audit findings remain open; this UI batch does not fix native BLE/OTA/Session logic.
+
 - **2026-09-24 status and code review** ([[log_20260924_status_and_code_review|Report]]):
   Local `main` at `6352a41`, Tauri `1.2.0-beta.10`; full CI freshly passed (337 frontend / 50 Rust).
   Review found open Windows BLE disconnect handling, Session false-save/data-loss, OTA response

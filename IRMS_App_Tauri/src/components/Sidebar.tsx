@@ -6,10 +6,10 @@ import { DashboardIcon, ActionsIcon, HistoryIcon, SettingsIcon } from './NavIcon
 import logoIcon from '../assets/logo-icon-only.png'
 
 const NAV: { id: 'dashboard' | 'actions' | 'history' | 'settings'; label: string; Icon: typeof DashboardIcon }[] = [
-  { id: 'dashboard', label: 'Dashboard', Icon: DashboardIcon },
-  { id: 'actions', label: 'Actions', Icon: ActionsIcon },
-  { id: 'history', label: 'History', Icon: HistoryIcon },
-  { id: 'settings', label: 'Settings', Icon: SettingsIcon }
+  { id: 'dashboard', label: '即時監測', Icon: DashboardIcon },
+  { id: 'actions', label: '動作管理', Icon: ActionsIcon },
+  { id: 'history', label: '歷史紀錄', Icon: HistoryIcon },
+  { id: 'settings', label: '系統設定', Icon: SettingsIcon }
 ]
 
 export function Sidebar(): JSX.Element {
@@ -19,8 +19,9 @@ export function Sidebar(): JSX.Element {
     <nav className="command-rail" aria-label="主要功能">
       <div className="command-brand" aria-label="IRMS">
         <img src={logoIcon} alt="" />
-        <span>IRMS</span>
+        <div className="brand-copy"><span>IRMS</span><small>Movement, understood.</small></div>
       </div>
+      <div className="rail-section-label">WORKSPACE</div>
       <div className="sidebar-nav-group">
         {NAV.map(({ id, label, Icon }) => {
           const isActive = view === id
@@ -38,7 +39,7 @@ export function Sidebar(): JSX.Element {
           )
         })}
       </div>
-      <div className="rail-footer">BETA</div>
+      <div className="rail-footer"><span className="rail-edition">IRMS · BETA</span><span>每一次動作，都看得更清楚。</span></div>
     </nav>
   )
 }
