@@ -21,6 +21,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-24 status and code review** ([[log_20260924_status_and_code_review|Report]]):
+  Local `main` at `6352a41`, Tauri `1.2.0-beta.10`; full CI freshly passed (337 frontend / 50 Rust).
+  Review found open Windows BLE disconnect handling, Session false-save/data-loss, OTA response
+  subscription and cancellation, and concurrent Session-start defects. Three temporary fault/
+  concurrency reproductions failed as expected; source and output retained in `doc/review-evidence/20260924/`.
+  Production code unchanged. Hardware acceptance and CAL-03 gates remain unverified by this run;
+  device availability and remote issue updates were not checked. These findings reopen offline work.
+
 - **2026-09-20 PR #7 merged, device coming back**: The 09-19/09-20 offline batch (Roll/CON-01
   baseline, DOC-01 rewrite, Dashboard/Settings journey tests, packets.txt stationary-segment
   check) went through PR #7 → merged to `main` via a standard merge commit (repo convention,

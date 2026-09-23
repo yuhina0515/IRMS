@@ -1,7 +1,24 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System — IRMS)
 
-> 穿戴式 ESP32 物聯網感測 × Electron 桌面監測端的智慧復健輔助系統。
+> 穿戴式 ESP32 物聯網感測 × Tauri 桌面監測端的智慧復健輔助系統。
 > 本檔為專案總覽與文件入口;細節請依下方索引進入各文件。
+
+> **Current implementation (2026-09-24):** Desktop development uses
+> [`IRMS_App_Tauri`](IRMS_App_Tauri/README.md), version `1.2.0-beta.10`.
+> The Electron v2 architecture and commands below are retained as historical reference.
+> See [project status](doc/PROJECT_STATUS.md) and the
+> [current code review](doc/coding%20log/log_20260924_status_and_code_review.md) for validation and open defects.
+
+### Current desktop quick start (Tauri)
+
+Requires Node.js, Rust, Windows build tools and WebView2; see the Tauri directory README.
+
+```bash
+cd IRMS_App_Tauri
+npm ci
+npm run tauri dev
+npm run ci
+```
 
 ---
 
