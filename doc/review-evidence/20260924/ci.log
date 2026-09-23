@@ -1,0 +1,146 @@
+
+> irms_app_tauri@1.2.0-beta.10 ci
+> npm run ci:frontend && npm run ci:rust
+
+
+> irms_app_tauri@1.2.0-beta.10 ci:frontend
+> npm run typecheck && npm run test && npm run build
+
+
+> irms_app_tauri@1.2.0-beta.10 typecheck
+> tsc --noEmit
+
+
+> irms_app_tauri@1.2.0-beta.10 test
+> vitest run
+
+
+ RUN  v5.0.0 E:/Monitoring-and-IoT/IRMS/IRMS_App_Tauri
+
+
+ Test Files  31 passed (31)
+      Tests  337 passed (337)
+   Start at  00:23:03
+   Duration  17.42s (environment 73%, setup 16%, import 4%, tests 4%, transform 3%)
+
+  Transform  |node| transforming modules took 2.57s · 61% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+
+> irms_app_tauri@1.2.0-beta.10 build
+> tsc && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 88 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                     0.56 kB │ gzip:   0.32 kB
+dist/splash.html                                                    4.17 kB │ gzip:   1.47 kB
+dist/assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2    7.50 kB
+dist/assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2         9.00 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2            10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2             11.23 kB
+dist/assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2     12.10 kB
+dist/assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2    15.19 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2              18.74 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                 18.99 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2          25.96 kB
+dist/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2        40.40 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                 48.25 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2             85.06 kB
+dist/assets/logo-icon-only-DyFdErPu.png                           138.22 kB
+dist/assets/splash-PaQJIgwk.css                                     3.28 kB │ gzip:   1.05 kB
+dist/assets/main-a6IQ-0eq.css                                      49.80 kB │ gzip:  11.22 kB
+dist/assets/splash-BE6FfOEA.js                                      2.09 kB │ gzip:   1.01 kB
+dist/assets/LiveChart-Cn6n6Rnt.js                                   2.55 kB │ gzip:   1.14 kB
+dist/assets/event-BuN324Ot.js                                       3.80 kB │ gzip:   1.58 kB
+dist/assets/HistoryView-B-gF7D6E.js                                 6.69 kB │ gzip:   2.91 kB
+dist/assets/ActionsView-r5bhB4yz.js                                 8.62 kB │ gzip:   3.14 kB
+dist/assets/SettingsView-BJjKvStT.js                               18.26 kB │ gzip:   7.02 kB
+dist/assets/jsx-runtime-BcFKnhG-.js                                18.26 kB │ gzip:   6.65 kB
+dist/assets/chart-cfkDqzmS.js                                     168.13 kB │ gzip:  58.68 kB
+dist/assets/main-CQ1Ii1Pr.js                                      217.87 kB │ gzip:  70.21 kB
+dist/assets/Leg3D-CBMHjx_c.js                                     548.09 kB │ gzip: 137.03 kB
+
+✓ built in 968ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+> irms_app_tauri@1.2.0-beta.10 ci:rust
+> cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.93s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\irms_app_tauri_lib-82c1419415cdea45.exe)
+
+running 50 tests
+test downsample::tests::preserves_multiple_spikes ... ok
+test downsample::tests::below_threshold_returns_unchanged ... ok
+test downsample::tests::first_and_last_points_always_kept ... ok
+test downsample::tests::lttb_catches_a_spike_uniform_striding_would_miss ... ok
+test downsample::tests::output_length_equals_threshold ... ok
+test downsample::tests::output_x_strictly_increasing ... ok
+test downsample::tests::preserves_an_isolated_spike ... ok
+test downsample::tests::threshold_at_or_below_two_does_not_sample ... ok
+test db::tests::purge_demo_only_deletes_demo_sessions ... ok
+test db::tests::sessions_repo_start_update_end_roundtrip ... ok
+test db::tests::restore_defaults_clears_and_reloads_without_duplicates ... ok
+test db::tests::actions_repo_crud_roundtrip ... ok
+test db::tests::cascade_delete_removes_sensor_data_with_session ... ok
+test db::tests::data_repo_append_batch_and_get_data_full_fidelity ... ok
+test db::tests::get_data_downsamples_when_over_max_points ... ok
+test firmware::tests::reads_bin_and_returns_stable_md5 ... ok
+test db::tests::fresh_database_seeds_default_actions ... ok
+test firmware::tests::rejects_binary_larger_than_device_flash ... ok
+test firmware::tests::firmware_binary_wire_shape_matches_irms_api_ts ... ok
+test commands::tests::poisoned_db_lock_becomes_an_ipc_error_instead_of_panicking_again ... ok
+test firmware::tests::rejects_wrong_extension_and_empty_binary ... ok
+test migrate_electron::tests::no_source_db_is_a_clean_noop ... ok
+test protocol::tests::angle_packet_contract ... ok
+test protocol::tests::full_packet_exceeds_default_mtu_but_t_s_survive_the_cut ... ok
+test protocol::tests::shared_vector_packet_contract ... ok
+test types::tests::custom_action_wire_shape_matches_shared_types_ts ... ok
+test types::tests::sensor_reading_deserializes_from_proximal_distal_wire_names ... ok
+test types::tests::sensor_reading_serializes_with_proximal_distal_wire_names_not_thigh_shin ... ok
+test types::tests::session_wire_shape_matches_shared_types_ts ... ok
+test types::tests::stored_reading_wire_shape_matches_shared_types_ts ... ok
+test update::tests::update_metadata_wire_shape_matches_irms_api_ts ... ok
+test migrate_electron::tests::corrupt_copy_is_not_deleted ... ok
+test migrate_electron::tests::migrates_and_deletes_source_on_success ... ok
+test migrations::tests::finalize_orphaned_sessions_tests::does_not_touch_a_properly_ended_session ... ok
+test migrations::tests::migration_7_sessions_source::fresh_install_defaults_unspecified_source_to_device ... ok
+test migrations::tests::apply_migrations_rolls_back_on_failure::a_broken_migration_does_not_advance_user_version ... ok
+test migrations::tests::migration_7_sessions_source::demo_is_a_legal_value ... ok
+test migrations::tests::migration_7_sessions_source::check_constraint_makes_a_third_value_structurally_impossible ... ok
+test migrations::tests::v101_upgrade_path::illegal_existing_params_are_clamped_not_rejected_on_upgrade ... ok
+test migrations::tests::v101_upgrade_path::calibration_snapshot_json_roundtrips_after_migration_6 ... ok
+test migrations::tests::finalize_orphaned_sessions_tests::backfills_end_time_and_marks_abandoned ... ok
+test migrations::tests::migration_7_sessions_source::upgrading_from_v6_backfills_existing_rows_to_device_not_null ... ok
+test migrations::tests::fresh_install::reapplying_is_a_noop ... ok
+test migrations::tests::migration_7_sessions_source::purge_demo_delete_only_hits_demo_rows_cascade_removes_sensor_data ... ok
+test migrations::tests::check_constraints_are_the_last_line_of_defense::rejects_negative_tolerance_and_zero_hold_time ... ok
+test migrations::tests::v101_upgrade_path::existing_tables_survive_migration_1_with_data_intact ... ok
+test migrations::tests::finalize_orphaned_sessions_tests::falls_back_to_start_time_with_no_sensor_data ... ok
+test migrations::tests::fresh_install::applies_zero_to_latest_in_order ... ok
+test migrations::tests::v101_upgrade_path::migration_6_leaves_existing_session_calibration_null ... ok
+test migrations::tests::v101_upgrade_path::new_columns_exist_after_upgrade ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\irms_app_tauri-76c91c1e049f7662.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests irms_app_tauri_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.15s
