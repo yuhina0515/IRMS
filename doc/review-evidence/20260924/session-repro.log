@@ -1,0 +1,203 @@
+
+ RUN  v5.0.0 E:/Monitoring-and-IoT/IRMS/IRMS_App_Tauri
+
+stdout | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[00:24:24] Simulated link up: review
+
+stdout | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[00:24:24] Started session #1 (custom).
+
+stdout | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[00:24:24] Failed to end session: disk full
+[00:24:24] → CMD:LED_OFF (simulated)
+[00:24:24] → CMD:ALARM_OFF (simulated)
+
+stdout | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[00:24:24] Simulated link down.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[00:24:24] Simulated link up: review
+
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[00:24:24] Started session #1 (custom).
+
+
+stderr | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[00:24:24] Packet #1
+[00:24:24] → CMD:ALARM_OFF (simulated)
+
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[00:24:24] Batch write failed, buffer restored: disk full
+
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[00:24:24] Ended session #1. Reps: 0.
+[00:24:24] → CMD:LED_OFF (simulated)
+
+stdout | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[00:24:24] Simulated link down.
+
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must create only one session while start is pending
+[00:24:24] Simulated link up: review
+
+stdout | src/services/review20260924.test.ts > must create only one session while start is pending
+[00:24:24] Started session #1 (custom).
+[00:24:24] Started session #2 (custom).
+
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must create only one session while start is pending
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must create only one session while start is pending
+[00:24:24] Ended session #2. Reps: 0.
+[00:24:24] → CMD:LED_OFF (simulated)
+[00:24:24] → CMD:ALARM_OFF (simulated)
+
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must create only one session while start is pending
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+stdout | src/services/review20260924.test.ts > must create only one session while start is pending
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[00:24:24] Simulated link down.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must create only one session while start is pending
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+stderr | src/services/review20260924.test.ts > must create only one session while start is pending
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'irms-settings', the given storage is currently unavailable.
+
+ ❯ |node| src/services/review20260924.test.ts (3 tests | 3 failed) 24ms
+   × must not report saved when the session-end write rejects 18ms
+   × must not report saved when the final reading batch rejects 3ms
+   × must create only one session while start is pending 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |node| src/services/review20260924.test.ts > must not report saved when the session-end write rejects
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/services/review20260924.test.ts:25:48
+     23|   installIrmsStub({ sessions: { end: async () => { throw new Error('di…
+     24|   await sessionController.startSession()
+     25|   expect(await sessionController.endSession()).toBe(false)
+       |                                                ^
+     26| })
+     27|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |node| src/services/review20260924.test.ts > must not report saved when the final reading batch rejects
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/services/review20260924.test.ts:32:48
+     30|   await sessionController.startSession()
+     31|   bluetoothService.ingest('T:0,S:20,K:20,TR:0,SR:0,KR:0')
+     32|   expect(await sessionController.endSession()).toBe(false)
+       |                                                ^
+     33| })
+     34|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |node| src/services/review20260924.test.ts > must create only one session while start is pending
+AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+ ❯ src/services/review20260924.test.ts:45:31
+     43|   await Promise.all([first, second])
+     44|   await sessionController.endSession()
+     45|   expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+       |                               ^
+     46| })
+     47|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  00:24:24
+   Duration  231ms (transform 56%, import 24%, tests 18%, worker 2%)
+

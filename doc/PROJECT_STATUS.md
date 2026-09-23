@@ -4,6 +4,16 @@
 
 ## 📅 更新日期
 
+**2026-09-24 review update:** Local `main` at `6352a41`, Tauri `1.2.0-beta.10`.
+Full CI freshly passed: 337 frontend tests / 50 Rust tests, typecheck/build/rustfmt/Clippy.
+However, code review identified open BLE disconnect, Session persistence/concurrency, and OTA
+response/cancellation defects. Three additional Session fault/concurrency reproductions fail
+against the current code. See [dated review and evidence](coding%20log/log_20260924_status_and_code_review.md)
+for priorities and next steps. Production fixes are not included in this review.
+Hardware acceptance is still unverified by this run. Device availability, issue #3 responses,
+remote CI and published releases were not checked; the older availability/deadline statements
+below describe their original dates, not confirmed current conditions.
+
 **2026-09-19**(DOC-01 逐節重寫,對齊 `IRMS_App_Tauri` 現況——上一版寫於 Tauri 遷移前,
 描述的是已退場的 Electron v2 世代)。每個數字皆回頭核對當日 `npm run ci` 實際輸出或對應
 coding log,不憑印象轉述。

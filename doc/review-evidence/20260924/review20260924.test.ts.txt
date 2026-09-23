@@ -1,0 +1,46 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { installIrmsStub, mockIrmsApiModule } from '../test/irmsApiStub'
+vi.mock('@renderer/platform/irmsApi', () => mockIrmsApiModule)
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }))
+import { useStore } from '../store/useStore'
+import { bluetoothService } from './bluetooth'
+import { sessionController } from './sessionController'
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  installIrmsStub()
+  useStore.getState().resetSession()
+  bluetoothService.beginSimulated('review')
+})
+afterEach(() => {
+  useStore.getState().resetSession()
+  bluetoothService.endSimulated()
+  vi.clearAllTimers()
+  vi.useRealTimers()
+})
+
+it('must not report saved when the session-end write rejects', async () => {
+  installIrmsStub({ sessions: { end: async () => { throw new Error('disk full') } } })
+  await sessionController.startSession()
+  expect(await sessionController.endSession()).toBe(false)
+})
+
+it('must not report saved when the final reading batch rejects', async () => {
+  installIrmsStub({ data: { appendBatch: async () => { throw new Error('disk full') } } })
+  await sessionController.startSession()
+  bluetoothService.ingest('T:0,S:20,K:20,TR:0,SR:0,KR:0')
+  expect(await sessionController.endSession()).toBe(false)
+})
+
+it('must create only one session while start is pending', async () => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  let id = 0
+  const stub = installIrmsStub({ sessions: { start: async () => { await gate; return { sessionId: ++id } } } })
+  const first = sessionController.startSession()
+  const second = sessionController.startSession()
+  release()
+  await Promise.all([first, second])
+  await sessionController.endSession()
+  expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+})

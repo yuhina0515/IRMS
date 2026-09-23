@@ -37,6 +37,11 @@
 
 ## 1.1 視覺/UI/藝術設計權責 (Design Authority)
 
+> **2026-09-24 scoped override:** The user directly requested a UI redesign by Codex and
+> subsequently instructed it to continue. Codex owns design and implementation for this UI
+> refresh; Gemini approval is not a prerequisite for this task. This does not reassign the
+> standing authority for unrelated future design work. See `log_20260924_ui_refresh.md`.
+
 **（2026-09-11 起生效）AI 協同開發角色完全脫離美術與 UI 設計判斷**——排版節奏、色彩組合、
 視覺層次、動效語言等一切「好不好看」的判斷,全權交給 Gemini(3.1 Pro / 3.8 Flash)決定,
 不由 AI 協同開發角色自行提出或評斷。

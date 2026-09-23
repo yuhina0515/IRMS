@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IRMS UI preview — simulated platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <aside style="position:fixed;bottom:10px;right:18px;z-index:1000;padding:6px 10px;border-radius:6px;background:#1b302c;color:white;font:12px sans-serif;pointer-events:none">UI 預覽 · 變更不會寫入資料庫</aside>
+    <script type="module">
+      import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
+      // 此入口只供本機介面檢查，不在正式建置入口中，也不連接原生裝置或資料庫。
+      if (!import.meta.env.DEV) throw new Error('UI preview requires the local dev server');
+      mockWindows('main');
+      const actions = [
+        { id: 1, name: '坐姿膝伸展', description: '慢慢伸直小腿，保持穩定後回到起始位置。', protocol: 'knee', targetAngle: 90, tolerance: 10, holdTimeMs: 3000, triggerType: 'joint_angle', safetyLimit: 120 },
+        { id: 2, name: '直腿抬高', description: '保持膝蓋伸直，平穩抬起大腿。', protocol: 'knee', targetAngle: 45, tolerance: 8, holdTimeMs: 3000, triggerType: 'segment_elevation', safetyLimit: 80 }
+      ];
+      let nextId = 0;
+      // 僅提供外觀預覽需要的回應；這些替身不是原生功能的驗收證據。
+      mockIPC((cmd, args) => {
+        if (cmd === 'actions_list' || cmd === 'actions_restore_defaults') return actions;
+        if (cmd === 'sessions_list') return [];
+        if (cmd === 'sessions_start') return ++nextId;
+        if (cmd === 'plugin:app|version') return '1.2.0-beta.10';
+        if (cmd === 'data_append_batch') return args.readings.length;
+        return null;
+      }, { shouldMockEvents: true });
+      await import('/src/main.tsx');
+      const { useStore } = await import('/src/store/useStore.ts');
+      const { useUiStore } = await import('/src/store/useUiStore.ts');
+      const { bluetoothService } = await import('/src/services/bluetooth.ts');
+      useStore.getState().setSettings({ themeMode: 'light' });
+      useUiStore.getState().setDemoMode(true);
+      bluetoothService.beginSimulated('UI preview device');
+    </script>
+  </body>
+</html>

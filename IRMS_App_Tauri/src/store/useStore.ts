@@ -167,7 +167,7 @@ const DEFAULT_SETTINGS: Settings = {
   show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
-  themeMode: 'dark',
+  themeMode: 'light',
   allowBetaUpdates: true,
   sidebarCollapsed: false
 }

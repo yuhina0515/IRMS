@@ -185,7 +185,8 @@ export function TopHeader(): JSX.Element {
       <div className="command-actions">
         <button
           className="btn btn-secondary btn-sm"
-          title={themeMode === 'dark' ? '切換為 Precision Lab Light' : '切換為 Data-Console Dark'}
+          aria-label={themeMode === 'dark' ? '切換淺色模式' : '切換深色模式'}
+          title={themeMode === 'dark' ? '切換淺色模式' : '切換深色模式'}
           onClick={() => setSettings({ themeMode: themeMode === 'dark' ? 'light' : 'dark' })}
         >
           {themeMode === 'dark' ? <SunIcon /> : <MoonIcon />}
