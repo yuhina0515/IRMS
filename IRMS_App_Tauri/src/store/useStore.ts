@@ -101,9 +101,13 @@ export interface Settings {
    * 内外翻方向會左右相反且沒有任何提示(2026-08-28 實測發現)。
    */
   wearSide: 'left' | 'right' | null
-  /** 兩套固定主題之一(外部設計 handoff 定案,見 doc/gemini-handoff-20260902/)——
-   *  不是舊版可切換風格設定檔那種任意命名的系統,只有這兩個值。 */
-  themeMode: 'dark' | 'light'
+  /** 設計語言 v2(doc/UI_DESIGN_LANGUAGE_V2.md):「日間」(light)、「低光」(dark),或跟隨系統。
+   *  既有安裝保留原本選的 dark/light;v14 起新安裝預設跟隨系統。 */
+  themeMode: 'system' | 'dark' | 'light'
+  /** 介面語言(2026-09-24 使用者裁定:語言檔分為英文與中文,見 src/i18n/) */
+  language: 'zh-TW' | 'en'
+  /** 病患專注模式:隱藏證據層與控制欄,主指標放到最大(設計語言 v2 §8.2) */
+  focusMode: boolean
   /**
    * 是否接收 beta 版自動更新推播(對應 electron-updater 的 allowPrerelease)。
    * 預設 true——這是這個 App 至今唯一的釋出管道,關掉這裡不會讓「已裝的 beta」
@@ -167,7 +171,9 @@ const DEFAULT_SETTINGS: Settings = {
   show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
-  themeMode: 'dark',
+  themeMode: 'system',
+  language: 'zh-TW',
+  focusMode: false,
   allowBetaUpdates: true,
   sidebarCollapsed: false
 }
@@ -473,7 +479,7 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 13, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 14, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
@@ -481,6 +487,8 @@ export const useStore = create<StoreState>()(
       // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
       // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       // v13:sidebarCollapsed——補上 Electron 09-09 已修但 Tauri 前端搬遷未回頭補的持久化缺口
+      // v14:language、focusMode,themeMode 新增 'system'(UI 重建,設計語言 v2)。既有使用者的
+      // themeMode 保留原值——只有從未存過設定的新安裝才會落在預設的 'system'。
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

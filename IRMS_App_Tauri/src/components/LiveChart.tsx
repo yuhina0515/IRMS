@@ -15,6 +15,7 @@ import {
 } from 'chart.js'
 import { useStore } from '../store/useStore'
 import { chartTheme, onThemeChange } from '../services/theme'
+import { getT, messagesFor } from '../i18n'
 
 Chart.register(
   LineController,
@@ -34,24 +35,26 @@ export function LiveChart(): JSX.Element {
   useEffect(() => {
     if (!canvasRef.current) return
     const t = chartTheme()
+    const m = getT().chart
+    // 系列線型與設計語言 v2 §3.4 一致:大腿實線、小腿虛線、Roll 點線——三條系列色亮度相近,
+    // 灰階下只靠顏色分不出來。主指標(膝夾角)畫成墨色粗線。
     const chart = new Chart(canvasRef.current, {
       type: 'line',
       data: {
         labels: [],
         datasets: [
-          { label: '夾角 Knee', data: [], borderColor: t.knee, borderWidth: 2, fill: true, backgroundColor: t.kneeFill, pointRadius: 0, tension: 0.3 },
-          { label: '大腿 Thigh', data: [], borderColor: t.thigh, borderWidth: 1, fill: false, pointRadius: 0 },
-          { label: '小腿 Shin', data: [], borderColor: t.shin, borderWidth: 1, fill: false, pointRadius: 0 },
-          // 內外翻走**獨立的右側 y 軸**:它是帶符號的量(正=外翻、負=內翻)且量級
-          // 只有 ±15° 上下,和 0–150° 的矢狀面角度共用刻度會被壓成一條貼底的直線,
-          // 看起來像「沒有變化」——那正好是內外翻最需要被看見的時候會說的謊。
+          { label: m.knee, data: [], borderColor: t.knee, borderWidth: 2, fill: true, backgroundColor: t.kneeFill, pointRadius: 0, tension: 0.3 },
+          { label: m.thigh, data: [], borderColor: t.thigh, borderWidth: 1.5, fill: false, pointRadius: 0 },
+          { label: m.shin, data: [], borderColor: t.shin, borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 },
+          // 內外翻走**獨立的右側 y 軸**:它是帶符號的量且量級只有 ±15° 上下,和 0–150° 的
+          // 矢狀面角度共用刻度會被壓成一條貼底的直線,看起來像「沒有變化」。
           // 資料照樣一直 push,只用 hidden 切換顯示,切換時不必重建整張圖。
           {
-            label: '內外翻 Varus/Valgus',
+            label: m.varusValgus,
             data: [],
             borderColor: t.roll,
             borderWidth: 1.5,
-            borderDash: [4, 3],
+            borderDash: [2, 3],
             fill: false,
             pointRadius: 0,
             yAxisID: 'yRoll',
@@ -110,6 +113,12 @@ export function LiveChart(): JSX.Element {
         chart.update('none')
         return
       }
+      // 切換介面語言:只換圖例文字,不重建圖表
+      if (state.settings.language !== prev.settings.language) {
+        const lm = messagesFor(state.settings.language).chart
+        ;[lm.knee, lm.thigh, lm.shin, lm.varusValgus].forEach((label, i) => (chart.data.datasets[i].label = label))
+        chart.update('none')
+      }
       // 切換內外翻顯示:只翻 hidden,不重建圖表,已累積的歷史點才不會被清掉
       if (state.settings.showKneeRoll !== prev.settings.showKneeRoll) {
         chart.data.datasets[3].hidden = !state.settings.showKneeRoll
@@ -143,12 +152,12 @@ export function LiveChart(): JSX.Element {
     }
   }, [])
 
-  // Fills whatever height the flex parent (.cockpit-content) actually has. Chart.js's
+  // Fills whatever height the parent (.evidence__body) actually has. Chart.js's
   // `responsive: true` + `maintainAspectRatio: false` (set above) resize the canvas to match
   // this div via its own ResizeObserver, so a plain fill-parent div is all this needs — a fixed
   // height here would stop the chart from shrinking on short windows.
   return (
-    <div className="w-full h-full min-h-0">
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <canvas ref={canvasRef} />
     </div>
   )

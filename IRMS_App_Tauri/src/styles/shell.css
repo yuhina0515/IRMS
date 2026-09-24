@@ -1,0 +1,305 @@
+/* 外殼:固定命令軌 + 情境命令列 + 唯一可捲動的工作區(設計語言 v2 §7)。
+   視窗與 body 永不捲動;原生 Windows 標題列保留(tauri.conf.json decorations:true)。 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.demo-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-6);
+  border-left: var(--state-border) solid rgb(var(--color-warning));
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgb(var(--color-warning) / 0.04) 0 8px,
+      transparent 8px 16px
+    ),
+    rgb(var(--color-warning) / 0.12);
+  color: rgb(var(--color-text));
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+
+.shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+}
+
+/* ── 命令軌 ── */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding: var(--sp-3) 0;
+  border-right: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-canvas));
+}
+.rail__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid rgb(var(--color-border));
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.rail__brand img {
+  width: 30px;
+  height: 30px;
+}
+.rail__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-1);
+  border: 0;
+  background: transparent;
+  color: rgb(var(--color-text-dim));
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+.rail__item:hover {
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-surface-raised) / 0.6);
+}
+.rail__item[aria-current='page'] {
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-accent) / 0.1);
+}
+.rail__item[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: rgb(var(--color-accent));
+}
+.rail__footer {
+  margin-top: auto;
+  text-align: center;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgb(var(--color-text-muted));
+}
+
+/* ── 工作區 ── */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: rgb(var(--color-surface));
+}
+
+.cmdbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: var(--cmdbar-height);
+  padding: 0 var(--sp-6);
+  border-bottom: 1px solid rgb(var(--color-border));
+}
+.cmdbar__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.cmdbar__index {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-muted));
+}
+.cmdbar__title h1 {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cmdbar__status {
+  margin-left: auto;
+}
+.cmdbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--color-text-muted));
+}
+.status-pill--on .status-dot {
+  border-color: rgb(var(--color-success));
+  background: rgb(var(--color-success));
+}
+.status-pill--retry {
+  border-color: rgb(var(--color-warning));
+}
+.status-pill--retry .status-dot {
+  border-color: rgb(var(--color-warning));
+}
+.status-track {
+  width: 48px;
+  height: 3px;
+  background: rgb(var(--color-border));
+}
+.status-track span {
+  display: block;
+  height: 100%;
+  background: rgb(var(--color-warning));
+  transition: width var(--motion-base);
+}
+
+.workspace__main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-6);
+  background: rgb(var(--color-canvas));
+}
+.workspace__main--flush {
+  overflow: hidden;
+}
+
+/* 視窗控制鈕:只在 RDP 以外、自訂標題列生效時渲染(目前 decorations:true,正常不會出現) */
+.window-controls {
+  display: flex;
+  margin-right: calc(var(--sp-6) * -1);
+}
+.window-controls button {
+  width: 46px;
+  height: var(--cmdbar-height);
+  border: 0;
+  background: transparent;
+  color: rgb(var(--color-text-dim));
+  cursor: pointer;
+}
+.window-controls button:hover {
+  background: rgb(var(--color-surface-raised));
+}
+.window-controls button.is-close:hover {
+  background: rgb(var(--color-danger));
+  color: rgb(var(--color-on-danger));
+}
+
+/* ── 頁面標頭(動作/紀錄/設定)── */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: 1280px;
+}
+.view__lead {
+  color: rgb(var(--color-text-dim));
+}
+
+/* ── 更新橫幅、硬體錯誤遮罩 ── */
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: var(--sp-6);
+  z-index: 1100;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid rgb(var(--color-border));
+  border-left: var(--state-border) solid rgb(var(--color-accent));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-label);
+}
+
+.hw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8);
+  background: rgb(var(--color-canvas) / 0.92);
+}
+.hw-overlay__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: min(560px, 100%);
+  padding: var(--sp-8);
+  border: var(--state-border) solid rgb(var(--color-danger));
+  border-radius: var(--radius);
+  background: linear-gradient(rgb(var(--color-danger) / 0.12), rgb(var(--color-danger) / 0.12)), rgb(var(--color-surface));
+  box-shadow: var(--shadow-float);
+}
+.hw-overlay__card h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-alert);
+  font-weight: 700;
+  color: rgb(var(--color-danger));
+}
+
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border-left: var(--state-border) solid rgb(var(--color-danger));
+}
+.error-boundary pre {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface-raised));
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --rail-width: 72px;
+  }
+  .cmdbar {
+    gap: var(--sp-3);
+    padding: 0 var(--sp-4);
+  }
+  .workspace__main {
+    padding: var(--sp-4);
+  }
+}

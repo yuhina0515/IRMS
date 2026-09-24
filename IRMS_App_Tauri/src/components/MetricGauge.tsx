@@ -1,11 +1,14 @@
-// 主指標弧形量表:目前值大字 + 半圓量表(目標帶/超限刻線/休息刻線)。
-// 一切以 movementMetric 的正規化空間繪製——量表上的值就是判定用的值。
+// 主指標弧形量表(設計語言 v2 §8.2)。一切以 movementMetric 的正規化空間繪製——
+// 量表上的值就是判定用的值。數值移出 SVG 改為 HTML 文字,字級才能精確套用 display token。
+// 上色:目標區外中性、區內 success、超限/錯誤 danger;accent 不用來表示「做對」。
+import { metricLabel, useT } from '../i18n'
 import type { EnginePhase } from '../services/triggerEngine'
 import type { MetricInfo, MetricSample, MetricZone } from '../services/movementMetric'
+import { valueTone } from '../services/dashboardState'
 
 const CX = 120
-const CY = 122
-const R = 92
+const CY = 132
+const R = 100
 
 interface Props {
   sample: MetricSample | null
@@ -15,17 +18,11 @@ interface Props {
   alarm: boolean
   error: boolean
   /**
-   * 資料是否已過期(斷線中)。斷線後 store 的 angles 不會被清掉,所以量表會繼續
-   * 顯示最後一筆數值長達 15 秒的重連期間,看起來完全像即時值——使用者無從得知
-   * 那條腿現在到底在哪裡。
+   * 資料是否已過期(斷線中)。斷線後 store 的 angles 不會被清掉,量表會繼續顯示最後一筆
+   * 數值長達整個重連期間,看起來完全像即時值。
    */
   stale?: boolean
-  /**
-   * 目前協定的判定是否尚未支援。為真時量表照樣畫得出目標帶與超限刻線——因為
-   * 那些數字全部來自動作參數,與感測器裝在哪條肢體無關——於是畫面看起來完全
-   * 正常,卻與下方停用的開始按鈕互相矛盾。量表是這個畫面上最大、最像「正在
-   * 運作」的元件,不能讓它繼續代表一個不會發生的量測。
-   */
+  /** 目前協定的判定是否尚未支援——量表是畫面上最像「正在運作」的元件,不能讓它代表一個不會發生的量測 */
   unsupported?: boolean
 }
 
@@ -40,73 +37,83 @@ function arc(v1: number, v2: number, r: number, domainMax: number): string {
   return `M ${s.x} ${s.y} A ${r} ${r} 0 0 1 ${e.x} ${e.y}`
 }
 
-function tick(v: number, domainMax: number): string {
-  const a = point(v, R - 13, domainMax)
-  const b = point(v, R + 13, domainMax)
+function tick(v: number, domainMax: number, inner: number, outer: number): string {
+  const a = point(v, R - inner, domainMax)
+  const b = point(v, R + outer, domainMax)
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 }
 
-export function MetricGauge({
-  sample,
-  zone,
-  info,
-  phase,
-  alarm,
-  error,
-  stale = false,
-  unsupported = false
-}: Props): JSX.Element {
-  // 「殘值」必須真的有一個值才能殘。冷開機從未連線過時 sample 是 null,量表顯示
-  // 「--」,此時掛上「數值已過期」是在警告一個不存在的數字——而假警告會訓練
-  // 使用者忽略真警告。這裡用結構保證,而非要求每個呼叫端自己記得判斷。
+const TONE_COLOR = {
+  out: 'rgb(var(--color-text-dim))',
+  in: 'rgb(var(--color-success))',
+  over: 'rgb(var(--color-danger))'
+} as const
+
+export function MetricGauge({ sample, zone, info, phase, alarm, error, stale = false, unsupported = false }: Props): JSX.Element {
+  const t = useT()
+  // 「殘值」必須真的有一個值才能殘:冷開機從未連線過時 sample 是 null,掛上「已過期」
+  // 是在警告一個不存在的數字——假警告會訓練使用者忽略真警告。
   const showStale = stale && sample != null
-  // 未支援優先於過期:協定根本不會被量測,「數值過期」是次要且誤導的說法。
-  const notice = unsupported
-    ? `此協定尚未支援 — 量表讀的仍是${info.label}`
-    : showStale
-      ? '斷線中 · 數值已過期'
-      : null
+  // 未支援優先於過期:協定根本不會被量測,「數值過期」是次要且誤導的說法
+  const notice = unsupported ? t.dashboard.unsupportedGauge(metricLabel(t, info)) : showStale ? t.dashboard.stale : null
+
   const domainMax = zone.overLimit + 15
   const clamp = (v: number): number => Math.min(domainMax, Math.max(0, v))
   const value = sample ? clamp(sample.value) : 0
   const bandMax = Math.min(zone.max, zone.overLimit)
-
-  const valueColor =
-    error || alarm
-      ? 'rgb(var(--color-danger))'
-      : phase === 'holding'
-        ? 'rgb(var(--color-success))'
-        : 'rgb(var(--color-accent))'
+  const tone = error || alarm ? 'over' : phase === 'holding' ? 'in' : valueTone(sample, zone)
+  const muted = notice != null
   // 大字取整數:0.1° 位在即時流下每筆都在變,只會傳達「不穩」而非資訊
   const display = error ? 'ERR' : sample ? sample.value.toFixed(0) : '--'
-  const targetText =
-    zone.max === Infinity ? `目標 ≥ ${zone.min}°` : `目標 ${zone.min}–${zone.max}°`
+  const targetText = zone.max === Infinity ? t.dashboard.targetAtLeast(zone.min) : t.dashboard.target(zone.min, zone.max)
 
   return (
-    <div className={`metric-gauge${notice ? ' muted' : ''}`}>
-      <svg viewBox="0 0 240 150">
-        <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="rgb(var(--color-border))" strokeWidth="14" strokeLinecap="round" />
-        <path d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)} fill="none" stroke="rgb(var(--color-accent) / 0.25)" strokeWidth="14" strokeLinecap="butt" />
-        {value > 0 && (
-          <path d={arc(0, value, R, domainMax)} fill="none" stroke={valueColor} strokeWidth="7" strokeLinecap="round" />
-        )}
-        <path d={tick(clamp(zone.rest), domainMax)} stroke="rgb(var(--color-text-dim))" strokeWidth="2" strokeDasharray="3 3" />
-        <path d={tick(clamp(zone.overLimit), domainMax)} stroke="rgb(var(--color-danger))" strokeWidth="3" />
-        <text x={CX} y={92} textAnchor="middle" fontSize="34" fontWeight="700" fill={valueColor} fontFamily="'JetBrains Mono Variable', monospace">
-          {display}
-        </text>
-        <text x={CX} y={116} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
-          {info.label}(°)
-        </text>
-        <text x={CX} y={140} textAnchor="middle" fontSize="12" fill="rgb(var(--color-text-dim))">
-          {targetText} · 回位 ≤ {zone.rest}° · <tspan fill="rgb(var(--color-danger))">超限 {zone.overLimit}°</tspan>
-        </text>
-      </svg>
-      {notice && <div className="metric-gauge-notice">{notice}</div>}
-      {sample?.kneeMax != null && (
-        <div className={`knee-badge${sample.kneeStraightOk ? ' ok' : ''}`}>
-          膝直前置:{sample.knee.toFixed(0)}° / 需 ≤ {sample.kneeMax}°
+    <div className="stack" style={{ alignItems: 'center', gap: 'var(--sp-3)', width: '100%' }}>
+      <div className={`gauge${muted ? ' gauge--muted' : ''}`}>
+        <svg viewBox="0 0 240 150" role="img" aria-label={`${metricLabel(t, info)} ${display}°`}>
+          <path d={arc(0, domainMax, R, domainMax)} fill="none" stroke="rgb(var(--color-border))" strokeWidth="14" strokeLinecap="round" />
+          <path
+            d={arc(clamp(zone.min), clamp(bandMax), R, domainMax)}
+            fill="none"
+            stroke="rgb(var(--color-success) / 0.28)"
+            strokeWidth="14"
+          />
+          {value > 0 && (
+            <path
+              d={arc(0, value, R, domainMax)}
+              fill="none"
+              stroke={muted ? 'rgb(var(--color-text-muted))' : TONE_COLOR[tone]}
+              strokeWidth="6"
+              strokeLinecap="round"
+            />
+          )}
+          <path d={tick(clamp(zone.rest), domainMax, 12, 12)} stroke="rgb(var(--color-text-muted))" strokeWidth="2" strokeDasharray="3 3" />
+          <path d={tick(clamp(zone.overLimit), domainMax, 14, 14)} stroke="rgb(var(--color-danger))" strokeWidth="3" />
+        </svg>
+        <div className="gauge__readout">
+          <span>
+            <span className={`gauge__value value--${muted ? 'out' : tone}`}>{display}</span>
+            {display !== 'ERR' && display !== '--' && (
+              <span className={`gauge__deg value--${muted ? 'out' : tone}`} aria-hidden>
+                °
+              </span>
+            )}
+          </span>
+          {!muted && tone === 'in' && (
+            <span className="badge badge--success gauge__state">✓ {t.dashboard.inZone}</span>
+          )}
         </div>
+      </div>
+      <div className="gauge-legend">
+        <span>{targetText}</span>
+        <span>{t.dashboard.rest(zone.rest)}</span>
+        <span className="is-limit">{t.dashboard.overLimitAt(zone.overLimit)}</span>
+      </div>
+      {notice && <div className="notice notice--warning">{notice}</div>}
+      {sample?.kneeMax != null && (
+        <span className={`badge knee-gate ${sample.kneeStraightOk ? 'badge--success' : 'badge--warning'}`}>
+          {t.dashboard.kneeGate(sample.knee.toFixed(0), sample.kneeMax)}
+        </span>
       )}
     </div>
   )

@@ -11,6 +11,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { sessionController } from '../services/sessionController'
 import { useStore } from '../store/useStore'
+import { getT } from '../i18n'
 
 interface Props {
   /** 出錯區塊的名稱,顯示給使用者也寫進 log */
@@ -45,22 +46,24 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children
 
     const running = useStore.getState().session.running
+    // class component 不能用 hook;渲染當下讀一次目前語言即可(錯誤畫面不需要即時跟著切換)
+    const t = getT()
     return (
-      <div className="panel glass error-boundary">
-        <h3>⚠ 這個區塊發生錯誤</h3>
+      <div className="panel error-boundary" role="alert">
+        <h2 className="panel__title">{t.dialogs.errorBoundaryTitle}</h2>
         <p>
-          {this.props.name} 無法顯示,但 App 的其餘部分仍可使用。
-          {running && ' 目前有 Session 進行中——請先結束並儲存,以免資料變成未完成紀錄。'}
+          {t.dialogs.errorBoundaryBody(this.props.name)}
+          {running && ` ${t.dialogs.errorBoundaryRunning}`}
         </p>
-        <pre className="error-boundary-detail">{error.message}</pre>
-        <div className="row" style={{ gap: 10 }}>
+        <pre>{error.message}</pre>
+        <div className="row">
           {running && (
-            <button className="btn btn-primary" onClick={this.endSession}>
-              結束並儲存 Session
+            <button type="button" className="btn btn--primary" onClick={this.endSession}>
+              {t.common.endAndSaveSession}
             </button>
           )}
-          <button className="btn" onClick={this.reset}>
-            重試
+          <button type="button" className="btn" onClick={this.reset}>
+            {t.common.retry}
           </button>
         </div>
       </div>

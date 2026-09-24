@@ -1,73 +1,71 @@
-// renderer/App.tsx
+// renderer/App.tsx — 外殼:固定命令軌 + 情境命令列 + 唯一可捲動的工作區(設計語言 v2 §7)。
 import { lazy, Suspense, useEffect } from 'react'
+import { useT } from './i18n'
 import { useStore } from './store/useStore'
 import { useUiStore } from './store/useUiStore'
 import { applyThemeMode } from './services/theme'
 import { irms } from './platform/irmsApi'
-import { TopHeader } from './components/TopHeader'
-import { Sidebar } from './components/Sidebar'
+import { Rail } from './components/Rail'
+import { CommandBar } from './components/CommandBar'
 import { ToastHost } from './components/ToastHost'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorOverlay } from './components/ErrorOverlay'
 import { UpdateBanner } from './components/UpdateBanner'
-import { DashboardView } from './views/DashboardView'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { AlertIcon } from './components/Icons'
+import { DashboardView } from './views/DashboardView'
 
-// Dashboard is the landing view and stays eagerly bundled; the other three are only needed once
-// the user navigates there, so splitting them keeps first paint down to Dashboard's own code.
+// 監測是開啟後的第一個畫面,維持直接打包;其餘三頁到使用者切過去時才載入
 const ActionsView = lazy(() => import('./views/ActionsView').then((m) => ({ default: m.ActionsView })))
 const HistoryView = lazy(() => import('./views/HistoryView').then((m) => ({ default: m.HistoryView })))
 const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })))
 
-const VIEW_NAMES: Record<string, string> = {
-  dashboard: '即時監測',
-  actions: '動作設定',
-  history: '歷史紀錄',
-  settings: '設定'
-}
-
 export default function App(): JSX.Element {
+  const t = useT()
   const view = useUiStore((s) => s.view)
   const demoMode = useUiStore((s) => s.demoMode)
   const themeMode = useStore((s) => s.settings.themeMode)
+  const language = useStore((s) => s.settings.language)
   const allowBetaUpdates = useStore((s) => s.settings.allowBetaUpdates)
 
-  // 套用主題:含初次載入(讀取持久化設定)與使用者切換時。
   useEffect(() => {
     applyThemeMode(themeMode)
   }, [themeMode])
 
-  // 送到 main 對應 autoUpdater.allowPrerelease——zustand persist 用同步的 localStorage,
-  // 這裡拿到的已經是水合後的值,遠早於 updater.ts 的 5 秒啟動檢查延遲。
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
+  // 送到原生層對應 allowPrerelease——persist 用同步的 localStorage,這裡拿到的已是水合後的值
   useEffect(() => {
     void irms.updates.setAllowPrerelease(allowBetaUpdates)
   }, [allowBetaUpdates])
 
   return (
-    <>
-      {/* 示範模式的全域橫幅,刻意不可關閉、且渲染在最外層而非任何單一視圖裡。
-          少了它,一張 Dashboard 的截圖與真實量測的截圖完全無法區分——而 demo 模式
-          存在的理由正是「拿去給人看」,所以截圖被誤認的機率不是理論風險。 */}
+    <div className="app">
+      {/* 示範模式的全域橫幅,刻意不可關閉、且渲染在最外層:少了它,一張監測畫面的截圖與
+          真實量測的截圖完全無法區分——而示範模式存在的理由正是「拿去給人看」。 */}
       {demoMode && (
         <div className="demo-banner" role="status">
-          ⚠ 示範模式 — 畫面上的資料由模擬器產生,不是真實量測
+          <AlertIcon />
+          {t.shell.demoBanner}
         </div>
       )}
 
-      <div className="desktop-shell">
-        <Sidebar />
-        <section className="workspace-shell">
-          <TopHeader />
-          <main className="workspace-main">
-              {/* key=view:切換分頁時重建 boundary,讓某一頁崩潰後換頁再換回來能自動復原 */}
-              <ErrorBoundary key={view} name={VIEW_NAMES[view]}>
-                <Suspense fallback={null}>
-                  {view === 'dashboard' && <DashboardView />}
-                  {view === 'actions' && <ActionsView />}
-                  {view === 'history' && <HistoryView />}
-                  {view === 'settings' && <SettingsView />}
-                </Suspense>
-              </ErrorBoundary>
+      <div className="shell">
+        <Rail />
+        <section className="workspace">
+          <CommandBar />
+          <main className="workspace__main">
+            {/* key=view:切換分頁時重建 boundary,某一頁崩潰後換頁再換回來能自動復原 */}
+            <ErrorBoundary key={view} name={t.workspaces[view].title}>
+              <Suspense fallback={null}>
+                {view === 'dashboard' && <DashboardView />}
+                {view === 'actions' && <ActionsView />}
+                {view === 'history' && <HistoryView />}
+                {view === 'settings' && <SettingsView />}
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </section>
       </div>
@@ -76,6 +74,6 @@ export default function App(): JSX.Element {
       <ConfirmDialog />
       <ErrorOverlay />
       <UpdateBanner />
-    </>
+    </div>
   )
 }

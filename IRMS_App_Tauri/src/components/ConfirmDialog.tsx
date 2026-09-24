@@ -2,12 +2,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUiStore } from '../store/useUiStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useT } from '../i18n'
 
-// 150ms——必須對齊 tailwind.css 裡 .overlay.closing/.dialog.closing 的 animation-duration,
+// 150ms——必須對齊 styles/tokens.css 的 --motion-exit(.overlay--closing 的退場動畫),
 // 退場動畫才有時間播完再真正卸載。
 const CLOSE_ANIM_MS = 150
 
 export function ConfirmDialog(): JSX.Element | null {
+  const t = useT()
   const confirm = useUiStore((s) => s.confirm)
   const resolve = useUiStore((s) => s.resolveConfirm)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -45,22 +47,28 @@ export function ConfirmDialog(): JSX.Element | null {
   if (!visible) return null
 
   return (
-    <div className={`overlay${closing ? ' closing' : ''}`} onClick={() => resolve(false)}>
+    <div className={`overlay${closing ? ' overlay--closing' : ''}`} onClick={() => resolve(false)}>
       <div
-        className={`dialog glass${closing ? ' closing' : ''}`}
+        className="dialog"
         role="alertdialog"
         aria-modal="true"
-        aria-label={visible.title}
+        aria-labelledby="confirm-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3>{visible.title}</h3>
-        <p>{visible.message}</p>
-        <div className="actions">
-          <button ref={cancelRef} className="btn btn-secondary" onClick={() => resolve(false)}>
-            取消
+        <div className="dialog__header">
+          <h2 id="confirm-title" className="dialog__title">
+            {visible.title}
+          </h2>
+        </div>
+        <div className="dialog__body">
+          <p style={{ whiteSpace: 'pre-line' }}>{visible.message}</p>
+        </div>
+        <div className="dialog__footer">
+          <button ref={cancelRef} type="button" className="btn" onClick={() => resolve(false)}>
+            {t.common.cancel}
           </button>
-          <button className="btn btn-danger" onClick={() => resolve(true)}>
-            確認
+          <button type="button" className="btn btn--danger" onClick={() => resolve(true)}>
+            {t.common.confirm}
           </button>
         </div>
       </div>

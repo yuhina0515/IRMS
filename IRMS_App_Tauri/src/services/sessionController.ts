@@ -180,6 +180,11 @@ class SessionController {
    * 手動靜音警報(供 UI 呼叫)。蜂鳴器綁在患者腿上,必須有軟體開關;
    * 但只靜音 ALARM_SILENCE_MS,時間到仍超限會自動重新鳴響。
    */
+  /** 警報手動靜音的到期時間(epoch ms;0 = 未靜音)。唯讀,供 UI 顯示「靜音中 Ns」倒數 */
+  get alarmSilencedUntilMs(): number {
+    return this.alarmSilencedUntil
+  }
+
   silenceAlarm(): void {
     this.alarmSilencedUntil = Date.now() + ALARM_SILENCE_MS
     this.applyAlarmOutput()

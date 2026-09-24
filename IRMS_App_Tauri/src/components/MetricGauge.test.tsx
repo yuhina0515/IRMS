@@ -55,7 +55,7 @@ describe('MetricGauge', () => {
 
   it('stale 且確實有數值時,才顯示過期警告', () => {
     renderGauge({ stale: true })
-    expect(screen.getByText(/斷線中 · 數值已過期/)).toBeInTheDocument()
+    expect(screen.getByText(/數值已過期/)).toBeInTheDocument()
   })
 
   // ── 迴歸鎖 #2 ──

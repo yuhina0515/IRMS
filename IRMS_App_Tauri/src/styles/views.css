@@ -1,0 +1,261 @@
+/* 動作處方 / 療程紀錄 / 系統設定 / 校準精靈(設計語言 v2 §9)。 */
+
+/* ── 共用工具列 ── */
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.filter-strip {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 160px 160px;
+  gap: var(--sp-2);
+}
+
+/* ── 動作處方:register rows ── */
+.register {
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+}
+.register__group {
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-raised) / 0.6);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: rgb(var(--color-text-dim));
+}
+.register__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid rgb(var(--color-border));
+}
+.register__row:last-child {
+  border-bottom: 0;
+}
+.register__row:hover {
+  background: rgb(var(--color-surface-raised) / 0.4);
+}
+.register__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.register__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-heading);
+  font-weight: 600;
+}
+.register__params {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-dim));
+}
+.register__desc {
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-muted));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-12) var(--sp-6);
+  border: 1px dashed rgb(var(--color-control-border));
+  border-radius: var(--radius);
+  color: rgb(var(--color-text-dim));
+  text-align: center;
+}
+
+.record-pose {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed rgb(var(--color-control-border));
+  border-radius: var(--radius);
+  font-size: var(--fs-label);
+}
+.record-pose strong {
+  font-family: var(--font-mono);
+  font-size: var(--fs-heading);
+}
+
+/* ── 療程紀錄:資料表 ── */
+.table-surface {
+  overflow: auto;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+}
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-raised));
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: rgb(var(--color-text-dim));
+  text-align: left;
+  white-space: nowrap;
+}
+.data-table td {
+  height: 44px;
+  padding: 0 var(--sp-4);
+  border-bottom: 1px solid rgb(var(--color-border));
+  vertical-align: middle;
+}
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+.data-table tbody tr:hover {
+  background: rgb(var(--color-surface-raised) / 0.4);
+}
+.data-table tr.is-demo {
+  background: repeating-linear-gradient(45deg, rgb(var(--color-warning) / 0.06) 0 8px, transparent 8px 16px);
+}
+.data-table .cell-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+.data-table .cell-tags {
+  display: inline-flex;
+  gap: var(--sp-2);
+  margin-left: var(--sp-2);
+  vertical-align: middle;
+}
+
+.history-chart {
+  height: min(420px, 50vh);
+}
+
+/* ── 系統設定:雙欄 workbench + 全寬 sections ── */
+.workbench {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.settings-group + .settings-group {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid rgb(var(--color-border));
+}
+.fold summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: rgb(var(--color-text-dim));
+}
+.fold[open] summary {
+  margin-bottom: var(--sp-3);
+}
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(var(--color-border));
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  background: rgb(var(--color-accent));
+  transition: width 150ms linear;
+}
+.progress--error span {
+  background: rgb(var(--color-danger));
+}
+.divider {
+  height: 1px;
+  border: 0;
+  margin: var(--sp-2) 0;
+  background: rgb(var(--color-border));
+}
+
+/* ── 校準精靈 ── */
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-1);
+}
+.wizard-steps span {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(var(--color-border));
+}
+.wizard-steps span.is-done {
+  background: rgb(var(--color-accent));
+}
+.wizard-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-numeric-l);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1;
+}
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.wizard-step h3 {
+  font-size: var(--fs-heading);
+  font-weight: 600;
+}
+.wizard-step .step-index {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-muted));
+  margin-right: var(--sp-2);
+}
+.wizard-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-2);
+}
+.shin-diagram {
+  color: rgb(var(--color-text-dim));
+}
+
+@media (max-width: 900px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .filter-strip {
+    grid-template-columns: minmax(0, 1fr) 1fr;
+  }
+}

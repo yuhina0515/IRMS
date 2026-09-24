@@ -7,6 +7,8 @@ import { useStore } from './useStore'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
+export type WorkspaceId = 'dashboard' | 'actions' | 'history' | 'settings'
+
 export interface Toast {
   id: number
   message: string
@@ -22,7 +24,7 @@ interface ConfirmRequest {
 interface UiState {
   toasts: Toast[]
   confirm: ConfirmRequest | null
-  view: 'dashboard' | 'actions' | 'history' | 'settings'
+  view: WorkspaceId
   /**
    * 示範模式:資料由模擬器產生,不是真實量測。
    *

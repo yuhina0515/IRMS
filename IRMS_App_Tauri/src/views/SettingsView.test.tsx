@@ -54,7 +54,7 @@ async function pickFirmware(): Promise<void> {
 describe('SettingsView 韌體 OTA 面板:連線態閘門', () => {
   it('未連線時操作按鈕停用並顯示原因', () => {
     render(<SettingsView />)
-    expect(screen.getByText('需要先於頂部連線真實裝置')).toBeInTheDocument()
+    expect(screen.getByText('需要先連線真實裝置')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '查詢裝置目前版本' })).toBeDisabled()
   })
@@ -62,7 +62,7 @@ describe('SettingsView 韌體 OTA 面板:連線態閘門', () => {
   it('Session 進行中時顯示鎖定原因', () => {
     useStore.setState({ isConnected: true, session: { ...useStore.getState().session, running: true } })
     render(<SettingsView />)
-    expect(screen.getByText(/Session 進行中無法更新韌體/)).toBeInTheDocument()
+    expect(screen.getByText(/療程進行中無法更新韌體/)).toBeInTheDocument()
   })
 
   it('已連線且無 Session 時按鈕可用', () => {
@@ -129,7 +129,7 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
     await screen.findByText('寫入完成,裝置驗證中…')
 
     holder.emit?.({ phase: 'done', bytesSent: FIRMWARE.size, totalBytes: FIRMWARE.size })
-    await screen.findByText('✅ 完成,裝置重新開機中')
+    await screen.findByText('完成,裝置重新開機中')
     // done 不在 inFlight 清單裡,中止鈕應隨之消失
     await waitFor(() => expect(screen.queryByRole('button', { name: '中止' })).not.toBeInTheDocument())
   })
@@ -145,8 +145,8 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
     await pickFirmware()
     await userEvent.click(screen.getByRole('button', { name: '開始更新' }))
 
-    await screen.findByText('❌ NO_SPACE')
-    expect(screen.queryByText('✅ 完成,裝置重新開機中')).not.toBeInTheDocument()
+    await screen.findByText('NO_SPACE')
+    expect(screen.queryByText('完成,裝置重新開機中')).not.toBeInTheDocument()
   })
 
   it('中止時呼叫 bluetoothService.abortOtaUpdate 並清空進度', async () => {

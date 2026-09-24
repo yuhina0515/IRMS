@@ -1,21 +1,7 @@
-// renderer/views/ActionsView.tsx
+// 動作處方(設計語言 v2 §9):協定工具列 + 篩選列 + register rows。
+// 安全上限以 danger 小徽章呈現,不再是窄視窗下會被截斷的說明文字。
 import { useState } from 'react'
-import { useStore } from '../store/useStore'
-import { useUiStore } from '../store/useUiStore'
-import {
-  JOINT_PROTOCOLS,
-  TRIGGER_TYPES,
-  type CustomAction,
-  type CustomActionInput,
-  type TriggerType
-} from '@shared/types'
-import {
-  countActions,
-  filterSortGroupActions,
-  type ActionGroupBy,
-  type ActionSortBy
-} from '../services/actionQuery'
-import { GlassDropdown } from '../components/GlassDropdown'
+import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput, type TriggerType } from '@shared/types'
 import {
   HOLD_TIME_BOUND,
   TARGET_ANGLE_BOUND,
@@ -25,9 +11,15 @@ import {
   clampTolerance,
   clampTriggerParams
 } from '@shared/validation'
+import { metricLabel, useT } from '../i18n'
+import { useStore } from '../store/useStore'
+import { useUiStore } from '../store/useUiStore'
+import { countActions, filterSortGroupActions, type ActionGroupBy, type ActionSortBy } from '../services/actionQuery'
 import { computeMetricSample, metricInfo, OVER_EXTENSION_MARGIN } from '../services/movementMetric'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { irms } from '../platform/irmsApi'
+import { Dropdown } from '../components/Dropdown'
+import { CloseIcon } from '../components/Icons'
 
 const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   name: '',
@@ -40,16 +32,13 @@ const blankForm = (protocol: CustomAction['protocol']): CustomActionInput => ({
   safetyLimit: null
 })
 
-/** 分組標題用可讀標籤,而不是 'segment_elevation' 這種內部識別字 */
-function triggerLabel(t: TriggerType): string {
-  return TRIGGER_TYPES.find((x) => x.value === t)?.label ?? t
-}
-
 export function ActionsView(): JSX.Element {
+  const t = useT()
   const actions = useStore((s) => s.customActions)
   const setCustomActions = useStore((s) => s.setCustomActions)
   const protocol = useStore((s) => s.settings.protocol)
   const setSettings = useStore((s) => s.setSettings)
+  const selectedActionId = useStore((s) => s.selectedActionId)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
 
@@ -57,332 +46,326 @@ export function ActionsView(): JSX.Element {
   const [form, setForm] = useState<CustomActionInput | null>(null)
 
   // Record Pose:沒有這個功能,治療師必須在感測器已經綁在患者腿上的情況下「盲打」
-  // 一個目標角度,每一個處方目標都是猜的——這是臨床上錯誤目標的最大來源。
+  // 一個目標角度——這是臨床上錯誤目標的最大來源。
   const angles = useStore((s) => s.angles)
   const isConnected = useStore((s) => s.isConnected)
-  /** 依目前表單的判定型別,算出「此刻的姿勢對應的目標角度」 */
-  const liveMetric =
-    angles == null || form == null
-      ? null
-      : computeMetricSample(angles, form.triggerType, form.tolerance).value
+  const liveMetric = angles == null || form == null ? null : computeMetricSample(angles, form.triggerType, form.tolerance).value
 
-  // 編輯中才綁 Esc(未開啟表單時 Esc 不應有作用)
   useEscapeKey(form ? () => setForm(null) : null)
 
-  // 協定篩選是既有行為(每個協定只看得到自己的動作),查詢/排序/分組疊在它之上。
-  // 查詢邏輯放 actionQuery.ts:這個檔案已經 306 行,再塞一個狀態機進來就只剩
-  // 「把 app 開起來一個一個點」能驗證它。
   const [query, setQuery] = useState('')
   const [sortBy, setSortBy] = useState<ActionSortBy>('name')
   const [groupBy, setGroupBy] = useState<ActionGroupBy>('none')
 
-  const groups = filterSortGroupActions(
-    actions.filter((a) => a.protocol === protocol),
-    { query, sortBy, groupBy }
-  )
+  const inProtocol = actions.filter((a) => a.protocol === protocol)
+  const groups = filterSortGroupActions(inProtocol, { query, sortBy, groupBy })
   const total = countActions(groups)
-  /** 這個協定底下總共有幾個動作(未套用搜尋)——用來區分「沒有動作」與「搜尋無結果」 */
-  const totalInProtocol = actions.filter((a) => a.protocol === protocol).length
+  const triggerLabel = (tt: TriggerType): string => t.triggerTypes[tt]
 
   const reload = async (): Promise<void> => {
     setCustomActions(await irms.actions.list())
   }
 
-  const openCreate = (): void => {
-    setEditing(null)
-    setForm(blankForm(protocol))
-  }
-  const openEdit = (a: CustomAction): void => {
-    setEditing(a)
-    setForm({ ...a })
-  }
-
   const save = async (): Promise<void> => {
     if (!form) return
     if (!form.name.trim()) {
-      showToast('動作名稱不可為空', 'warning')
+      showToast(t.actions.nameRequired, 'warning')
       return
     }
-    // 儲存前一律鉗制:動作會被反覆載入使用,一個不合法的參數存進去會永久影響
-    // 每一場用到它的 Session(負容錯 → rep 靜默永不前進)
+    // 儲存前一律鉗制:一個不合法的參數存進去會永久影響每一場用到它的療程
     const safe = clampTriggerParams(form)
     try {
       if (editing) await irms.actions.update(editing.id, safe)
       else await irms.actions.create(safe)
-      showToast(editing ? '動作已更新' : '動作已建立', 'success')
+      showToast(editing ? t.actions.updated : t.actions.created, 'success')
       setForm(null)
       await reload()
     } catch {
-      showToast('儲存失敗', 'error')
+      showToast(t.actions.saveFailed, 'error')
     }
   }
 
   const remove = async (a: CustomAction): Promise<void> => {
-    const ok = await requestConfirm('刪除動作', `確定要刪除「${a.name}」嗎?此操作不可撤銷。`)
+    const ok = await requestConfirm(t.actions.deleteTitle, t.actions.deleteConfirm(a.name))
     if (!ok) return
     await irms.actions.delete(a.id)
-    showToast('動作已刪除', 'success')
+    showToast(t.actions.deleted, 'success')
     await reload()
   }
 
   const restoreDefaults = async (): Promise<void> => {
-    const ok = await requestConfirm('還原預設', '這將清除所有自訂動作並重建預設範本,確定嗎?')
+    const ok = await requestConfirm(t.actions.restoreTitle, t.actions.restoreConfirm)
     if (!ok) return
     setCustomActions(await irms.actions.restoreDefaults())
-    showToast('已還原預設動作範本', 'success')
+    showToast(t.actions.restored, 'success')
   }
 
-  return (
-    <section className="view-surface actions-surface">
-      <header className="page-header">
-        <h2>Custom Actions</h2>
-        <p>管理各關節協定的復健動作範本</p>
-      </header>
+  const derivedLimit = (a: { targetAngle: number; tolerance: number }): number => a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN
 
-      <div className="view-toolbar">
-        <div style={{ width: 220 }}>
-          <GlassDropdown
+  return (
+    <section className="view">
+      <p className="view__lead">{t.actions.subtitle}</p>
+
+      <div className="toolbar">
+        <div className="field" style={{ width: 260 }}>
+          <label className="field__label" htmlFor="actions-protocol">
+            {t.actions.protocolLabel}
+          </label>
+          <Dropdown
+            id="actions-protocol"
             value={protocol}
             onChange={(v) => setSettings({ protocol: v as CustomAction['protocol'] })}
-            options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
+            options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: t.protocols[p.value] }))}
           />
         </div>
         <div className="row">
-          <button className="btn btn-secondary" onClick={() => void restoreDefaults()}>
-            還原預設
+          <button type="button" className="btn" onClick={() => void restoreDefaults()}>
+            {t.actions.restoreDefaults}
           </button>
-          <button className="btn btn-primary" onClick={openCreate}>
-            + 新增動作
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => {
+              setEditing(null)
+              setForm(blankForm(protocol))
+            }}
+          >
+            + {t.actions.create}
           </button>
         </div>
       </div>
 
-      {/* 搜尋 / 排序 / 分組。只有這個協定底下真的有動作時才顯示——
-          一個空清單上方擺著搜尋框,是在請使用者搜尋一個他已經知道是空的集合。 */}
-      {totalInProtocol > 0 && (
+      {/* 只有這個協定底下真的有動作時才顯示搜尋——對空集合擺搜尋框沒有意義 */}
+      {inProtocol.length > 0 && (
         <div className="filter-strip">
           <input
             type="search"
-            className="action-search"
-            placeholder="搜尋名稱或說明…"
+            className="input"
+            placeholder={t.actions.search}
+            aria-label={t.actions.search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <div style={{ width: 150 }}>
-            <GlassDropdown
-              value={sortBy}
-              onChange={(v) => setSortBy(v as ActionSortBy)}
-              options={[
-                { value: 'name', label: '依名稱' },
-                { value: 'target', label: '依目標角度' },
-                { value: 'created', label: '依建立順序' }
-              ]}
-            />
-          </div>
-          <div style={{ width: 150 }}>
-            <GlassDropdown
-              value={groupBy}
-              onChange={(v) => setGroupBy(v as ActionGroupBy)}
-              options={[
-                { value: 'none', label: '不分組' },
-                { value: 'triggerType', label: '依判定型別' }
-              ]}
-            />
-          </div>
+          <Dropdown
+            ariaLabel={t.actions.sortLabel}
+            value={sortBy}
+            onChange={(v) => setSortBy(v as ActionSortBy)}
+            options={[
+              { value: 'name', label: t.actions.sortName },
+              { value: 'target', label: t.actions.sortTarget },
+              { value: 'created', label: t.actions.sortCreated }
+            ]}
+          />
+          <Dropdown
+            ariaLabel={t.actions.groupLabel}
+            value={groupBy}
+            onChange={(v) => setGroupBy(v as ActionGroupBy)}
+            options={[
+              { value: 'none', label: t.actions.groupNone },
+              { value: 'triggerType', label: t.actions.groupTrigger }
+            ]}
+          />
         </div>
       )}
 
       {total === 0 ? (
-        <div className="empty glass panel">
-          {/* 「沒有動作」與「搜尋不到」是兩件事,給的出口也不同:前者要載入範本,
-              後者要清掉搜尋字串。混成同一句會讓使用者按下一個幫不上忙的按鈕。 */}
-          {totalInProtocol === 0 ? (
+        <div className="empty">
+          {/* 「沒有動作」與「搜尋不到」是兩件事,給的出口也不同 */}
+          {inProtocol.length === 0 ? (
             <>
-              <p>此協定尚無動作範本</p>
-              <button className="btn btn-secondary" onClick={() => void restoreDefaults()}>
-                載入預設範本
+              <p>{t.actions.emptyProtocol}</p>
+              <button type="button" className="btn" onClick={() => void restoreDefaults()}>
+                {t.actions.loadDefaults}
               </button>
             </>
           ) : (
             <>
-              <p>找不到符合「{query.trim()}」的動作</p>
-              <button className="btn btn-secondary" onClick={() => setQuery('')}>
-                清除搜尋
+              <p>{t.actions.noMatch(query.trim())}</p>
+              <button type="button" className="btn" onClick={() => setQuery('')}>
+                {t.actions.clearSearch}
               </button>
             </>
           )}
         </div>
       ) : (
-        groups.map((group) => (
-          <div key={group.key ?? '__all__'}>
-            {group.key && <h4 className="action-group-heading">{triggerLabel(group.key)}</h4>}
-            <div className="action-register">
+        <div className="register">
+          {groups.map((group) => (
+            <div key={group.key ?? '__all__'} role="list" aria-label={group.key ? triggerLabel(group.key) : undefined}>
+              {group.key && <div className="register__group">{triggerLabel(group.key)}</div>}
               {group.actions.map((a) => (
-                <div key={a.id} className="action-card register-row">
-                  <h4>{a.name}</h4>
-                  {/* 漸進式密度(卡片變窄時依序丟棄,見 tailwind.css 的 container query):
-                      Tier 1(名稱+下面這行核心參數)永不隱藏;Tier 2(協定標籤)較窄時先藏;
-                      Tier 3(安全上限、說明文字)最先藏——兩者都是輔助資訊,不是達標判定
-                      本身依賴的數字。 */}
-                  <span className="badge action-card-tier2">{triggerLabel(a.triggerType)}</span>
-                  <div className="meta">
-                    Target {a.targetAngle}° · Tol ±{a.tolerance}° · Hold {a.holdTimeMs}ms
+                <div
+                  key={a.id}
+                  role="listitem"
+                  className="register__row"
+                  style={a.id === selectedActionId ? { boxShadow: 'inset 3px 0 0 rgb(var(--color-accent))' } : undefined}
+                >
+                  <div className="register__main">
+                    <div className="register__name">
+                      <span>{a.name}</span>
+                      <span className="badge">{triggerLabel(a.triggerType)}</span>
+                      <span className="badge badge--danger">
+                        {t.actions.safetyLimit}{' '}
+                        {a.safetyLimit != null ? `${a.safetyLimit}°` : t.actions.safetyDerived(derivedLimit(a))}
+                      </span>
+                    </div>
+                    <div className="register__params">{t.actions.params(a.targetAngle, a.tolerance, a.holdTimeMs)}</div>
+                    {a.description && <div className="register__desc" title={a.description}>{a.description}</div>}
                   </div>
-                  <div className="meta action-card-tier3">
-                    安全上限{' '}
-                    {a.safetyLimit != null
-                      ? `${a.safetyLimit}°`
-                      : `${a.targetAngle + a.tolerance + OVER_EXTENSION_MARGIN}°(導出)`}
-                  </div>
-                  {a.description && <div className="meta action-card-tier3">{a.description}</div>}
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>
-                      Edit
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      onClick={() => {
+                        setEditing(a)
+                        setForm({ ...a })
+                      }}
+                    >
+                      {t.common.edit}
                     </button>
-                    <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(a)}>
-                      Delete
+                    <button type="button" className="btn btn--sm btn--danger-ghost" onClick={() => void remove(a)}>
+                      {t.common.delete}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
 
       {form && (
         <div className="overlay" onClick={() => setForm(null)}>
-          <div className="modal glass" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editing ? 'Edit Action' : 'Create Action'}</h3>
-              <button className="close-x" onClick={() => setForm(null)}>
-                ×
+          <div
+            className="dialog dialog--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="action-form-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dialog__header">
+              <h2 id="action-form-title" className="dialog__title">
+                {editing ? t.actions.editTitle : t.actions.createTitle}
+              </h2>
+              <button type="button" className="btn btn--ghost btn--icon" aria-label={t.common.close} onClick={() => setForm(null)}>
+                <CloseIcon />
               </button>
             </div>
-            <div className="field">
-              <label>Name 動作名稱</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>Description 說明</label>
-              <input
-                value={form.description ?? ''}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label>Trigger Type 判定規則</label>
-              <GlassDropdown
-                value={form.triggerType}
-                onChange={(v) => setForm({ ...form, triggerType: v as CustomActionInput['triggerType'] })}
-                options={TRIGGER_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-              />
-            </div>
-            <div className="row">
-              <div className="field" style={{ flex: 1 }}>
-                <label>Target (°)</label>
+            <div className="dialog__body">
+              <label className="field">
+                <span className="field__label">{t.actions.name}</span>
+                <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </label>
+              <label className="field">
+                <span className="field__label">{t.actions.description}</span>
                 <input
+                  className="input"
+                  value={form.description ?? ''}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </label>
+              <div className="field">
+                <label className="field__label" htmlFor="action-trigger">
+                  {t.actions.triggerType}
+                </label>
+                <Dropdown
+                  id="action-trigger"
+                  value={form.triggerType}
+                  onChange={(v) => setForm({ ...form, triggerType: v as CustomActionInput['triggerType'] })}
+                  options={TRIGGER_TYPES.map((tt) => ({ value: tt.value, label: t.triggerTypes[tt.value] }))}
+                />
+              </div>
+              <div className="fields">
+                <label className="field">
+                  <span className="field__label">{t.actions.target}</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={TARGET_ANGLE_BOUND.min}
+                    max={TARGET_ANGLE_BOUND.max}
+                    value={form.targetAngle}
+                    onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) })}
+                    onBlur={(e) => setForm({ ...form, targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field__label">{t.actions.tolerance}</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={TOLERANCE_BOUND.min}
+                    max={TOLERANCE_BOUND.max}
+                    value={form.tolerance}
+                    onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) })}
+                    onBlur={(e) => setForm({ ...form, tolerance: clampTolerance(parseFloat(e.target.value)) })}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field__label">{t.actions.holdMs}</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={HOLD_TIME_BOUND.min}
+                    max={HOLD_TIME_BOUND.max}
+                    step={100}
+                    value={form.holdTimeMs}
+                    onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) })}
+                    onBlur={(e) => setForm({ ...form, holdTimeMs: clampHoldTimeMs(parseInt(e.target.value, 10)) })}
+                  />
+                </label>
+              </div>
+              {/* 安全上限:獨立於容錯的一個決定。空白 = 沿用舊的導出值,行為與過去相同。 */}
+              <label className="field">
+                <span className="field__label">{t.actions.safetyLabel(OVER_EXTENSION_MARGIN)}</span>
+                <input
+                  className="input"
                   type="number"
                   min={TARGET_ANGLE_BOUND.min}
-                  max={TARGET_ANGLE_BOUND.max}
-                  value={form.targetAngle}
-                  onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) })}
+                  max={180}
+                  placeholder={t.actions.safetyPlaceholder(derivedLimit(form))}
+                  value={form.safetyLimit ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, safetyLimit: e.target.value === '' ? null : parseFloat(e.target.value) })
+                  }
                   onBlur={(e) =>
-                    setForm({ ...form, targetAngle: clampTargetAngle(parseFloat(e.target.value)) })
+                    setForm({
+                      ...form,
+                      safetyLimit:
+                        e.target.value === ''
+                          ? null
+                          : Math.min(180, Math.max(form.targetAngle + form.tolerance, parseFloat(e.target.value) || 0))
+                    })
                   }
                 />
-              </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Tolerance (±°)</label>
-                <input
-                  type="number"
-                  min={TOLERANCE_BOUND.min}
-                  max={TOLERANCE_BOUND.max}
-                  value={form.tolerance}
-                  onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) })}
-                  onBlur={(e) =>
-                    setForm({ ...form, tolerance: clampTolerance(parseFloat(e.target.value)) })
-                  }
-                />
-              </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Hold (ms)</label>
-                <input
-                  type="number"
-                  min={HOLD_TIME_BOUND.min}
-                  max={HOLD_TIME_BOUND.max}
-                  step={100}
-                  value={form.holdTimeMs}
-                  onChange={(e) => setForm({ ...form, holdTimeMs: parseInt(e.target.value, 10) })}
-                  onBlur={(e) =>
-                    setForm({ ...form, holdTimeMs: clampHoldTimeMs(parseInt(e.target.value, 10)) })
-                  }
-                />
-              </div>
-            </div>
-            {/* 安全上限:獨立於容錯的一個決定。空白 = 沿用舊的導出值,行為與過去相同。 */}
-            <div className="field">
-              <label>
-                Safety Limit 安全上限 (°) — 留空則沿用 target + tolerance +{' '}
-                {OVER_EXTENSION_MARGIN}
+                <span className="field__hint">{t.actions.safetyHint}</span>
               </label>
-              <input
-                type="number"
-                min={TARGET_ANGLE_BOUND.min}
-                max={180}
-                placeholder={`未設定(目前導出為 ${form.targetAngle + form.tolerance + OVER_EXTENSION_MARGIN}°)`}
-                value={form.safetyLimit ?? ''}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    safetyLimit: e.target.value === '' ? null : parseFloat(e.target.value)
-                  })
-                }
-                onBlur={(e) =>
-                  setForm({
-                    ...form,
-                    safetyLimit:
-                      e.target.value === ''
-                        ? null
-                        : Math.min(180, Math.max(form.targetAngle + form.tolerance, parseFloat(e.target.value) || 0))
-                  })
-                }
-              />
-              <p className="field-hint">
-                超過此角度會觸發長鳴警報。這是解剖上的上限,與「算不算達標」無關——
-                放寬容錯讓患者容易達標時,<b>不應該</b>連帶把這個值往外推。
-              </p>
-            </div>
 
-            {/* Record Pose:讓患者擺出要達成的姿勢,直接把當下數值收成目標角度 */}
-            <div className="record-pose">
-              {isConnected && liveMetric != null ? (
-                <>
-                  <span className="record-pose-live">
-                    目前 {metricInfo(form.triggerType).label}:
-                    <strong>{liveMetric.toFixed(1)}°</strong>
-                  </span>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() =>
-                      setForm({ ...form, targetAngle: clampTargetAngle(Math.round(liveMetric)) })
-                    }
-                  >
-                    ⤓ 擷取目前角度為目標
-                  </button>
-                </>
-              ) : (
-                <span className="record-pose-live" style={{ opacity: 0.7 }}>
-                  連線裝置後,可讓患者擺出目標姿勢並一鍵擷取角度,不必憑空輸入
-                </span>
-              )}
+              {/* Record Pose:讓患者擺出要達成的姿勢,直接把當下數值收成目標角度 */}
+              <div className="record-pose">
+                {isConnected && liveMetric != null ? (
+                  <>
+                    <span>
+                      {t.actions.recordLive(metricLabel(t, metricInfo(form.triggerType)))}
+                      <strong>{liveMetric.toFixed(1)}°</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      onClick={() => setForm({ ...form, targetAngle: clampTargetAngle(Math.round(liveMetric)) })}
+                    >
+                      {t.actions.recordCapture}
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-muted">{t.actions.recordHint}</span>
+                )}
+              </div>
             </div>
-            <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button className="btn btn-secondary" onClick={() => setForm(null)}>
-                取消
+            <div className="dialog__footer">
+              <button type="button" className="btn" onClick={() => setForm(null)}>
+                {t.common.cancel}
               </button>
-              <button className="btn btn-primary" onClick={() => void save()}>
-                儲存
+              <button type="button" className="btn btn--primary" onClick={() => void save()}>
+                {t.common.save}
               </button>
             </div>
           </div>

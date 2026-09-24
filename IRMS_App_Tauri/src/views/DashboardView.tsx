@@ -1,283 +1,375 @@
-// renderer/views/DashboardView.tsx
-// 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;下方是
-// 「Cockpit」即時資料區:左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排。
-import { lazy, Suspense, useRef, useState } from 'react'
+// 即時監測(設計語言 v2 §8):以「狀態」為中心。deriveDashboardMode 決定目前是哪一種狀態,
+// 主面板依狀態換構圖——不能量測時顯示阻斷面板而非量表、超限時整片轉為警報、保持中整圈 success。
+// 右側控制欄是療程操作,下方證據層(趨勢圖/數值/姿態)可收合;專注模式只留主面板。
+import { lazy, Suspense, useState } from 'react'
 import { isProtocolSupported } from '@shared/types'
+import { guidanceText, metricLabel, useT, type Messages } from '../i18n'
 import { useStore } from '../store/useStore'
-import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
-import { computeGuidance, guidanceText } from '../services/guidance'
+import { useUiStore } from '../store/useUiStore'
+import { computeMetricSample, computeMetricZone, metricInfo, type MetricSample, type MetricZone } from '../services/movementMetric'
+import { computeGuidance } from '../services/guidance'
+import { BLOCKING_MODES, deriveDashboardMode, valueTone, type DashboardMode } from '../services/dashboardState'
+import { sessionController } from '../services/sessionController'
+import { bluetoothService } from '../services/bluetooth'
+import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { AngleVisualizer } from '../components/AngleVisualizer'
 import { MetricGauge } from '../components/MetricGauge'
-import { CoachHint } from '../components/CoachHint'
 import { ProgressRing } from '../components/ProgressRing'
-import { SessionControlPanel } from '../components/SessionControlPanel'
+import { SessionButton, SessionControlPanel, useSessionActions } from '../components/SessionControlPanel'
 import { CalibrationWizard } from '../components/CalibrationWizard'
-import { useLiquidKnob } from '../components/LiquidKnob'
-import { sessionController } from '../services/sessionController'
+import { AlertIcon, ListIcon, MuteIcon, PlugIcon, SettingsIcon } from '../components/Icons'
 
-// chart.js / three.js are both sizable and only needed once the user actually opens these tabs
-// (show3D2DPose/showTrendChart both default off) — dynamic import keeps them out of the initial bundle.
+// chart.js / three.js 都不小,且只在使用者打開對應分頁時才需要
 const LiveChart = lazy(() => import('../components/LiveChart').then((m) => ({ default: m.LiveChart })))
 const Leg3D = lazy(() => import('../components/Leg3D').then((m) => ({ default: m.Leg3D })))
 
-type LeftTab = 'chart' | 'detail'
-type RightTab = '3d' | '2d'
+type EvidenceTab = 'chart' | 'detail' | 'pose3d' | 'pose2d'
 
-const LEFT_TABS: { id: LeftTab; label: string }[] = [
-  { id: 'chart', label: '趨勢圖' },
-  { id: 'detail', label: '詳細數值' }
-]
-const RIGHT_TABS: { id: RightTab; label: string }[] = [
-  { id: '3d', label: '3D 姿態' },
-  { id: '2d', label: '2D 姿態' }
-]
+/** 視窗高度不足時證據層預設收合,把高度留給主面板(§8.2) */
+const EVIDENCE_OPEN_MIN_HEIGHT = 900
 
-/**
- * subLabel(中文說明,如「大腿」「夾角」)是漸進式密度的 Tier-2:卡片變窄時第一個丟掉
- * (見 tailwind.css `.stat` 的 container query)。label 本身與 value 是 Tier-1,
- * 任何寬度都不隱藏——value 是實際量到的數字,label 是唯一的英文識別字,兩者都是
- * 判讀所需的最低限度資訊。
- */
-function Stat({
-  label,
-  subLabel,
-  value,
-  cls
-}: {
-  label: string
-  subLabel?: string
-  value: string
-  cls?: string
-}): JSX.Element {
+const MODE_CLASS: Partial<Record<DashboardMode, string>> = {
+  hardwareError: 'primary--error',
+  stale: 'primary--warning',
+  alarm: 'primary--alarm',
+  silenced: 'primary--silenced',
+  holding: 'primary--holding',
+  inZone: 'primary--inzone'
+}
+
+// ── 阻斷面板 ──────────────────────────────────────────────────────────────────
+
+function Blocker({ mode }: { mode: DashboardMode }): JSX.Element {
+  const t = useT()
+  const setView = useUiStore((s) => s.setView)
+  const demoMode = useUiStore((s) => s.demoMode)
+  const b = t.dashboard.blocked
+  switch (mode) {
+    case 'hardwareError':
+      return (
+        <div className="blocker blocker--danger" role="alert">
+          <AlertIcon />
+          <h2>{b.hardwareError.title}</h2>
+          <p>{b.hardwareError.body}</p>
+        </div>
+      )
+    case 'unsupported':
+      return (
+        <div className="blocker">
+          <SettingsIcon />
+          <h2>{b.unsupported.title}</h2>
+          <p>{b.unsupported.body}</p>
+          <button type="button" className="btn btn--primary btn--lg" onClick={() => setView('settings')}>
+            {b.unsupported.action}
+          </button>
+        </div>
+      )
+    case 'noAction':
+      return (
+        <div className="blocker">
+          <ListIcon />
+          <h2>{b.noAction.title}</h2>
+          <p>{b.noAction.body}</p>
+          <button type="button" className="btn btn--lg" onClick={() => setView('actions')}>
+            {b.noAction.action}
+          </button>
+        </div>
+      )
+    default:
+      return (
+        <div className="blocker">
+          <PlugIcon />
+          <h2>{b.disconnected.title}</h2>
+          <p>{b.disconnected.body}</p>
+          <button
+            type="button"
+            className="btn btn--primary btn--lg"
+            disabled={demoMode}
+            title={demoMode ? t.shell.demoConnectBlocked : undefined}
+            onClick={() => void bluetoothService.connect()}
+          >
+            {b.disconnected.action}
+          </button>
+        </div>
+      )
+  }
+}
+
+// ── 專注模式的線性目標條 ────────────────────────────────────────────────────────
+
+function LinearGauge({ sample, zone }: { sample: MetricSample | null; zone: MetricZone }): JSX.Element {
+  const t = useT()
+  const domainMax = zone.overLimit + 15
+  const pct = (v: number): string => `${(Math.min(domainMax, Math.max(0, v)) / domainMax) * 100}%`
+  const tone = valueTone(sample, zone)
+  const bandMax = Math.min(zone.max, zone.overLimit)
   return (
-    <div className="panel glass stat">
-      <div className="label">
-        {label}
-        {subLabel && <span className="label-sub"> {subLabel}</span>}
+    <div className="lgauge">
+      <div className={`lgauge__value value--${tone}`}>{sample ? `${sample.value.toFixed(0)}°` : '--'}</div>
+      <div className="lgauge__track" aria-hidden>
+        <div className="lgauge__band" style={{ left: pct(zone.min), width: `calc(${pct(bandMax)} - ${pct(zone.min)})` }} />
+        <div className="lgauge__limit" style={{ left: pct(zone.overLimit) }} />
+        {sample && <div className={`lgauge__marker value--${tone}`} style={{ left: pct(sample.value) }} />}
       </div>
-      <div className={`value ${cls ?? ''}`}>{value}</div>
+      <div className="gauge-legend">
+        <span>{zone.max === Infinity ? t.dashboard.targetAtLeast(zone.min) : t.dashboard.target(zone.min, zone.max)}</span>
+        <span className="is-limit">{t.dashboard.overLimitAt(zone.overLimit)}</span>
+      </div>
     </div>
   )
 }
 
-interface DetailStatsGridProps {
-  angles: ReturnType<typeof useStore.getState>['angles']
-  hardwareError: string | null
-}
+// ── 證據層 ────────────────────────────────────────────────────────────────────
 
-// 抽成獨立元件:同一組數值卡片有兩個各自獨立的出現位置——一般尺寸下作為左欄
-// 「詳細數值」分頁的內容,container 極窄時作為強制數字回退(numeric fallback)——
-// 抽出來避免兩處各寫一份一樣的 6 張 Stat 卡片,以後改欄位只需要改一個地方。
-function DetailStatsGrid({ angles, hardwareError }: DetailStatsGridProps): JSX.Element {
-  const fmt = (n: number | undefined): string =>
-    hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
+function DetailStats({ t }: { t: Messages }): JSX.Element {
+  const angles = useStore((s) => s.angles)
+  const hardwareError = useStore((s) => s.hardwareError)
+  const fmt = (n: number | undefined): string => (hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`)
+  const d = t.dashboard.detail
+  const varus =
+    hardwareError
+      ? 'ERR'
+      : angles == null
+        ? '--'
+        : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? d.valgus : d.varus}`
+  const stats: { label: string; value: string; swatch?: string; color?: string }[] = [
+    { label: d.thigh, value: fmt(angles?.thigh), swatch: '', color: 'rgb(var(--color-thigh))' },
+    { label: d.shin, value: fmt(angles?.shin), swatch: 'stat__swatch--dashed', color: 'rgb(var(--color-shin))' },
+    { label: d.knee, value: fmt(angles?.knee), swatch: '', color: 'rgb(var(--color-knee))' },
+    { label: d.thighRoll, value: fmt(angles?.thighRoll) },
+    { label: d.shinRoll, value: fmt(angles?.shinRoll) },
+    { label: d.varusValgus, value: varus, swatch: 'stat__swatch--dotted', color: 'rgb(var(--color-roll))' }
+  ]
   return (
-    <div className="grid cards w-full">
-      <Stat label="Thigh" subLabel="大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-      <Stat label="Shin" subLabel="小腿" value={fmt(angles?.shin)} cls="color-shin" />
-      <Stat label="Knee" subLabel="夾角" value={fmt(angles?.knee)} cls="color-accent" />
-      <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
-      <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
-      <Stat
-        label="Varus/Valgus"
-        subLabel="內外翻"
-        value={
-          hardwareError
-            ? 'ERR'
-            : angles == null
-              ? '--'
-              : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
-        }
-      />
+    <div className="stat-grid">
+      {stats.map((s) => (
+        <div key={s.label} className="stat">
+          <div className="stat__label">
+            {s.swatch !== undefined && <span className={`stat__swatch ${s.swatch}`} style={{ color: s.color }} />}
+            {s.label}
+          </div>
+          <div className="stat__value">{s.value}</div>
+        </div>
+      ))}
     </div>
   )
 }
+
+function Evidence(): JSX.Element {
+  const t = useT()
+  const showTrendChart = useStore((s) => s.settings.showTrendChart)
+  const show3D2DPose = useStore((s) => s.settings.show3D2DPose)
+  const [open, setOpen] = useState(() => window.innerHeight >= EVIDENCE_OPEN_MIN_HEIGHT)
+  const [tab, setTab] = useState<EvidenceTab>(showTrendChart ? 'chart' : 'detail')
+  const tabs: EvidenceTab[] = [
+    ...(showTrendChart ? (['chart'] as const) : []),
+    'detail',
+    ...(show3D2DPose ? (['pose3d', 'pose2d'] as const) : [])
+  ]
+  // 設定關掉某分頁時不額外同步 state,直接在渲染時退回可見的分頁
+  const active = tabs.includes(tab) ? tab : 'detail'
+
+  return (
+    <section className="evidence" aria-label={t.dashboard.evidence}>
+      <div className="evidence__bar">
+        <span className="evidence__title">{t.dashboard.evidence}</span>
+        <div className="tabs" role="tablist">
+          {tabs.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              className="tab"
+              aria-selected={open && active === id}
+              onClick={() => {
+                setTab(id)
+                setOpen(true)
+              }}
+            >
+              {t.dashboard.tabs[id]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? t.dashboard.hideEvidence : t.dashboard.showEvidence}
+        </button>
+      </div>
+      {open && (
+        <div className="evidence__body" role="tabpanel">
+          {active === 'chart' && (
+            <Suspense fallback={null}>
+              <LiveChart />
+            </Suspense>
+          )}
+          {active === 'detail' && <DetailStats t={t} />}
+          {active === 'pose3d' && (
+            <Suspense fallback={null}>
+              <Leg3D />
+            </Suspense>
+          )}
+          {active === 'pose2d' && <AngleVisualizer />}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── 主畫面 ────────────────────────────────────────────────────────────────────
 
 export function DashboardView(): JSX.Element {
+  const t = useT()
   const angles = useStore((s) => s.angles)
   const hardwareError = useStore((s) => s.hardwareError)
   const session = useStore((s) => s.session)
   const params = useStore((s) => s.params)
   const isConnected = useStore((s) => s.isConnected)
+  const reconnect = useStore((s) => s.reconnect)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
   const protocol = useStore((s) => s.settings.protocol)
+  const focusMode = useStore((s) => s.settings.focusMode)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
-  // 兩者預設收起(見 useStore.ts 的欄位註解),Settings 可個別開啟
-  const showTrendChart = useStore((s) => s.settings.showTrendChart)
-  const show3D2DPose = useStore((s) => s.settings.show3D2DPose)
-
-  const [leftTab, setLeftTab] = useState<LeftTab>('chart')
-  const [rightTab, setRightTab] = useState<RightTab>('3d')
-  // 趨勢圖被關掉時,「chart」根本不在可見分頁清單裡——不額外用 useEffect 同步
-  // leftTab state,單純渲染時算出「實際要顯示哪一個」,設定切回開啟時自然復原。
-  const visibleLeftTabs = showTrendChart ? LEFT_TABS : LEFT_TABS.filter((t) => t.id !== 'chart')
-  const effectiveLeftTab: LeftTab = !showTrendChart && leftTab === 'chart' ? 'detail' : leftTab
   const [wizardOpen, setWizardOpen] = useState(false)
-  const leftTabsRef = useRef<HTMLDivElement>(null)
-  const rightTabsRef = useRef<HTMLDivElement>(null)
-  const left = useLiquidKnob({
-    containerRef: leftTabsRef,
-    activeKey: leftTab,
-    orientation: 'horizontal',
-    onSelect: (key) => setLeftTab(key as LeftTab)
-  })
-  const right = useLiquidKnob({
-    containerRef: rightTabsRef,
-    activeKey: rightTab,
-    orientation: 'horizontal',
-    onSelect: (key) => setRightTab(key as RightTab)
-  })
+  const actions = useSessionActions()
+
+  // Ctrl/Cmd+Enter 開始或結束療程,與按鈕同一組守衛(見 useSessionActions)。
+  // handler 為 null 時 hook 不掛 listener,「現在不可用」是結構性的。
+  useGlobalShortcut(
+    { key: 'Enter' },
+    actions.running ? () => void actions.end() : actions.canStart ? () => void actions.start() : null
+  )
 
   const triggerType = action?.triggerType ?? 'joint_angle'
   const info = metricInfo(triggerType)
   // 必須帶上動作的 safetyLimit,否則量表畫的超限刻線會與引擎實際判定的門檻不一致
   const zone = computeMetricZone({ ...params, triggerType, safetyLimit: action?.safetyLimit ?? null })
   const sample = angles && !hardwareError ? computeMetricSample(angles, triggerType, params.tolerance) : null
-
   const protocolOk = isProtocolSupported(protocol)
+  const now = Date.now()
+  const silencedUntil = sessionController.alarmSilencedUntilMs
 
+  const mode = deriveDashboardMode({
+    hardwareError: hardwareError != null,
+    protocolSupported: protocolOk,
+    isConnected,
+    reconnecting: reconnect != null,
+    hasAction: action != null,
+    sessionRunning: session.running,
+    alarmActive: session.alarmActive,
+    alarmSilencedUntil: silencedUntil,
+    now,
+    phase: session.phase,
+    sample,
+    zone
+  })
+  const blocking = BLOCKING_MODES.has(mode)
   const guidance = computeGuidance(sample, zone, session.phase, session.holdProgress, params.holdTimeMs)
-  // 未支援的協定排在連線之前:接上裝置也不會讓它變成可用的量測,先叫使用者
-  // 去連線等於把人推向一條走不通的路。
-  const hintText = hardwareError
-    ? '硬體異常,等待感測器復原…'
-    : !protocolOk
-      ? '此協定尚未支援,請於設定切換回膝關節'
-      : !isConnected
-        ? '請先於頂部連線裝置'
-        : !action
-          ? '請先選擇復健動作'
-          : guidanceText(guidance, info)
-  const tone: 'normal' | 'success' | 'danger' =
-    hardwareError || session.alarmActive ? 'danger' : session.phase === 'holding' ? 'success' : 'normal'
+  const excess = sample ? Math.max(0, sample.value - zone.overLimit).toFixed(1) : null
+
+  const primaryBody = blocking ? (
+    <Blocker mode={mode} />
+  ) : focusMode ? (
+    <LinearGauge sample={sample} zone={zone} />
+  ) : (
+    <MetricGauge
+      sample={sample}
+      zone={zone}
+      info={info}
+      phase={session.phase}
+      alarm={session.alarmActive}
+      error={false}
+      stale={mode === 'stale'}
+    />
+  )
+
+  // 警報只出現在一處:視線所在的主面板(§8.3)
+  const footer =
+    mode === 'alarm' || mode === 'silenced' ? (
+      <div className="alarm-bar" role="alert">
+        <div className="alarm-bar__title">
+          <AlertIcon />
+          {excess != null && Number(excess) > 0 ? t.dashboard.alarmTitle(excess) : t.dashboard.alarmTitleNoValue}
+        </div>
+        {mode === 'alarm' ? (
+          <button type="button" className="btn btn--danger btn--lg" onClick={() => sessionController.silenceAlarm()}>
+            <MuteIcon />
+            {t.dashboard.silence}
+          </button>
+        ) : (
+          <button type="button" className="btn btn--lg" disabled>
+            <MuteIcon />
+            {t.dashboard.silenced(Math.max(0, Math.ceil((silencedUntil - now) / 1000)))}
+          </button>
+        )}
+      </div>
+    ) : blocking ? null : (
+      <div
+        className={`coach${mode === 'holding' || mode === 'inZone' ? ' coach--success' : mode === 'stale' ? ' coach--warning' : ''}`}
+      >
+        <span className={`phase-badge${session.phase === 'holding' ? ' phase-badge--holding' : ''}`}>
+          {t.phase[session.phase]}
+        </span>
+        <span>{guidanceText(t, guidance, info)}</span>
+      </div>
+    )
 
   return (
-    <div className="dash-shell">
-      <header className="page-header">
-        <h2>Guided Monitoring</h2>
-        <p>圍繞當前動作的主指標即時引導復健</p>
-      </header>
-
+    <div className={`dash${focusMode ? ' dash--focus' : ''}`}>
       {lastCalibratedAt == null && (
-        <div className="calib-chip" onClick={() => setWizardOpen(true)}>
-          ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
+        <div className="notice notice--warning calib-strip">
+          <AlertIcon />
+          <span>{t.dashboard.notCalibrated}</span>
+          <button type="button" className="btn btn--sm" onClick={() => setWizardOpen(true)}>
+            {t.dashboard.startWizard}
+          </button>
         </div>
       )}
-      {/* 內外翻方向未驗證的警示不放在這裡:roll 完全不進入任何判定路徑——
-          computeMetricSample 只讀 thigh/knee,三種 triggerType 全是 pitch 導向。
-          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號。roll 影響的
-          僅有 3D 模型、詳細數值、History 疊圖與 CSV,相關提示已移至 Settings 的
-          3D 顯示區塊。 */}
 
-      {/* 由上而下的絕對空間分配:.dashboard-workspace 是唯一吃「剩餘空間」
-          (flex-1 min-h-0)的節點,底下用 container query 依「這個容器實際還剩多少
-          高度」切三種 layout preset,而不是猜視窗總尺寸——calib-chip 這類條件渲染的
-          橫幅多佔的高度,會自動從這個容器的剩餘空間扣掉,不需要另外為它調整任何常數。
-          單一 .dashboard-grid 用 grid-template-areas 佈五個語意格(gauge/ring/
-          chart/pose/numeric)——preset B(窄筆電高度)需要把量表、控制環、cockpit
-          排成同一橫排,分開的 grid 做不到這件事。 */}
-      <div className="dashboard-workspace">
-        <div
-          className={`dashboard-grid${show3D2DPose ? '' : ' no-pose'}`}
-        >
-          <div
-            className={`dash-cell-gauge panel glass glass-elevated${isConnected ? '' : ' panel-stale'}`}
-          >
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-              <div>
-                <div className="metric-action">{action?.name ?? '未選擇動作'}</div>
-                <div className="metric-sub">主指標:{info.label}</div>
-              </div>
+      <div className="dash__grid">
+        <section className={`primary ${MODE_CLASS[mode] ?? ''}`} aria-label={t.workspaces.dashboard.title}>
+          <div className="primary__head">
+            <div>
+              <div className="primary__action">{action?.name ?? t.dashboard.noActionName}</div>
+              <div className="primary__metric">{t.dashboard.metricLabel(metricLabel(t, info))}</div>
             </div>
-            <MetricGauge
-              sample={sample}
-              zone={zone}
-              info={info}
-              phase={session.phase}
-              alarm={session.alarmActive}
-              error={hardwareError != null}
-              stale={!isConnected}
-              unsupported={!protocolOk}
-            />
-            <CoachHint phase={session.phase} text={hintText} tone={tone} />
-          </div>
-
-          <div className="dash-cell-ring panel glass">
-            {session.alarmActive && (
-              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-                <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>
-                  ⚠ 超限警報
-                </p>
-                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
-                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
-                  🔕 靜音 30 秒
-                </button>
+            {focusMode && (
+              <div className="primary__reps">
+                <div className="label">{t.dashboard.reps}</div>
+                <span className="num">{session.reps}</span>
               </div>
             )}
-            <SessionControlPanel ring={<ProgressRing percent={session.holdProgress} reps={session.reps} />} />
           </div>
-
-          <div className="dash-cell-chart cockpit-panel panel glass">
-            {visibleLeftTabs.length > 1 && (
-              <div className="tabs" ref={leftTabsRef}>
-                {left.knobElement}
-                {visibleLeftTabs.map((t) => (
-                  <button
-                    key={t.id}
-                    data-knob-key={t.id}
-                    className={`tab-btn${effectiveLeftTab === t.id ? ' active' : ''}`}
-                    onClick={() => setLeftTab(t.id)}
-                    {...left.getItemProps(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="cockpit-content">
-              {effectiveLeftTab === 'chart' && (
-                <Suspense fallback={null}>
-                  <LiveChart />
-                </Suspense>
-              )}
-              {effectiveLeftTab === 'detail' && <DetailStatsGrid angles={angles} hardwareError={hardwareError} />}
-            </div>
-          </div>
-
-          {show3D2DPose && (
-            <div className="dash-cell-pose cockpit-panel panel glass">
-              <div className="tabs" ref={rightTabsRef}>
-                {right.knobElement}
-                {RIGHT_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    data-knob-key={t.id}
-                    className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
-                    onClick={() => setRightTab(t.id)}
-                    {...right.getItemProps(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <div className="cockpit-content">
-                {rightTab === '3d' && (
-                  <Suspense fallback={null}>
-                    <Leg3D />
-                  </Suspense>
-                )}
-                {rightTab === '2d' && <AngleVisualizer />}
+          <div className="primary__body">{primaryBody}</div>
+          {footer}
+          {focusMode && (
+            <div className="row row--end">
+              <div style={{ width: 240 }}>
+                <SessionButton actions={actions} size="md" />
               </div>
             </div>
           )}
+        </section>
 
-          {/* 只在最窄的 preset(container 高度 ≤620px)顯示,由 CSS 強制切換,跟使用者
-              在 Settings 選了什麼無關——這個高度下已經沒有空間畫 3D 模型或折線圖,
-              治療師需要的是明確角度數字,不是被壓在 150px 高的方塊裡的骨架動畫。 */}
-          <div className="dash-cell-numeric panel glass">
-            <DetailStatsGrid angles={angles} hardwareError={hardwareError} />
-          </div>
-        </div>
+        {!focusMode && (
+          <aside className="side" aria-label={t.session.action}>
+            <div className="side__counts">
+              <div className={`side__reps${session.reps > 0 ? ' side__reps--bump' : ''}`}>
+                <div className="label">{t.dashboard.reps}</div>
+                <span key={session.reps} className="num">
+                  {session.reps}
+                </span>
+              </div>
+              <ProgressRing percent={session.holdProgress} label={t.dashboard.hold} />
+            </div>
+            <SessionControlPanel actions={actions} />
+          </aside>
+        )}
+
+        {!focusMode && <Evidence />}
       </div>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}

@@ -55,6 +55,8 @@ const SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
+  language: 'zh-TW',
+  focusMode: false,
   allowBetaUpdates: true,
   sidebarCollapsed: false
 }

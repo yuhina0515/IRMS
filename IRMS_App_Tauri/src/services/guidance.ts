@@ -50,6 +50,12 @@ export function computeGuidance(
   if (!Number.isFinite(zone.max)) {
     return { kind: 'hold', heldSec: 0, totalSec: holdTimeMs / 1000 }
   }
+  // joint_angle 已在目標帶內但引擎仍在 idle(例如療程尚未開始、或引擎這一拍還沒轉進
+  // holding):同上,正確的提示是「保持」。少了這個分支會落到下面的 lower,算出負的
+  // 差值,畫面顯示「回降 -12.0° 進入目標區」(2026-09-24 UI 重建截圖驗證時發現)。
+  if (sample.value <= zone.max) {
+    return { kind: 'hold', heldSec: 0, totalSec: holdTimeMs / 1000 }
+  }
   // joint_angle 過頭但未超限(value > max)
   return { kind: 'lower', deltaDeg: sample.value - zone.max }
 }

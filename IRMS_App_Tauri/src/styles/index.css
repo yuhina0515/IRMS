@@ -1,0 +1,9 @@
+/* IRMS renderer stylesheet — 設計語言 v2(doc/UI_DESIGN_LANGUAGE_V2.md)。
+   2026-09-24 UI 推掉重建:beta8 的 tailwind.css(舊層 + 覆寫層共 1468 行)整份移除,
+   改為依 token → 基礎元件 → 外殼 → 監測 → 其他工作區 分檔。Tailwind 只保留 preflight 重設。 */
+@import './reset.css';
+@import './tokens.css';
+@import './base.css';
+@import './shell.css';
+@import './dashboard.css';
+@import './views.css';

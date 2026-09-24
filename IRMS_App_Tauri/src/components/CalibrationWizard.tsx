@@ -16,11 +16,12 @@ import {
   PITCH_AXES,
   ROLL_AXES,
   maxAxisDelta,
-  type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
 import { createTrailingThrottle } from '../services/uiThrottle'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useT } from '../i18n'
+import { AlertIcon, CloseIcon } from './Icons'
 
 const SAMPLE_COUNT = 30
 const CAPTURE_TIMEOUT_MS = 3000
@@ -40,13 +41,6 @@ const AUTO_STABLE_MS = 1500
 /** 判定穩定所需的最少樣本數(25Hz 下 1.5 秒約 37 筆,取保守值) */
 const AUTO_MIN_SAMPLES = 20
 
-const ERROR_TEXT: Record<CalibrationError, string> = {
-  unstable: '偵測到晃動,請於捕捉期間保持靜止後重試',
-  singularBaseline:
-    '目前站姿使感測器落在量測奇異區(Pitch/Roll 接近 90°),角度會因極小雜訊跳動。已停止套用錯誤校正；請先更新支援原始重力向量的感測器韌體,或依硬體安裝指南調整感測器貼裝面後重試。',
-  thighDeltaTooSmall: '大腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉',
-  shinDeltaTooSmall: '小腿動作幅度不足(需 ≥ 20°),請加大幅度重新捕捉'
-}
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
@@ -60,26 +54,18 @@ const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * 貼在緊鄰它旁邊(不要壓在骨頭邊緣本身上,會不舒服),不是貼在側面。大腿的標記點
  * 留待真機驗證後再定案(大腿沒有同等明確的骨性邊界),暫時維持原有文字指示。
  */
-function ShinMountDiagram(): JSX.Element {
+function ShinMountDiagram({ bone, hint }: { bone: string; hint: string }): JSX.Element {
   return (
-    <svg
-      width="96"
-      height="150"
-      viewBox="0 0 96 150"
-      fill="none"
-      stroke="currentColor"
-      style={{ display: 'block', margin: '8px 0' }}
-      aria-hidden="true"
-    >
+    <svg className="shin-diagram" width="180" height="150" viewBox="0 0 180 150" fill="none" stroke="currentColor" aria-hidden="true">
       <path d="M28 4 C20 40 18 90 24 140 L72 140 C70 95 72 40 66 4 Z" strokeWidth="2" />
       <line x1="48" y1="10" x2="48" y2="138" strokeWidth="1" strokeDasharray="3 4" opacity="0.4" />
       <circle cx="46" cy="52" r="5" strokeWidth="2" />
       <line x1="51" y1="52" x2="80" y2="52" strokeWidth="1" />
       <text x="82" y="56" fontSize="11" fill="currentColor" stroke="none">
-        脛骨前緣
+        {bone}
       </text>
       <text x="82" y="70" fontSize="10" fill="currentColor" stroke="none" opacity="0.7">
-        (緊鄰旁邊貼)
+        {hint}
       </text>
     </svg>
   )
@@ -90,6 +76,8 @@ interface Props {
 }
 
 export function CalibrationWizard({ onClose }: Props): JSX.Element {
+  const t = useT()
+  const w = t.wizard
   const isConnected = useStore((s) => s.isConnected)
   // BLE MTU 沒協商上去時 Roll 欄位根本沒送到,rawAngles 的兩個 roll 會恆為 0。
   // 這一步校的正是 roll 方向,拿一串 0 去算會得出一份看似成功、實則無意義的校準。
@@ -167,12 +155,12 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     setCapturing(false)
     if (cancelledRef.current) return null
     if (samples.length < 10) {
-      setErrMsg('感測資料不足,請確認裝置連線正常後重試')
+      setErrMsg(w.errors.notEnoughData)
       return null
     }
     const stats = computeCaptureStats(samples)
     if (stats.maxStdDev > stdLimit) {
-      setErrMsg('偵測到晃動,請保持靜止後重試')
+      setErrMsg(w.errors.shaking)
       return null
     }
     return stats
@@ -197,7 +185,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     if (!baseline || !thighRaise || !kneeFlex) return
     const result = buildCalibrationPatch(baseline, thighRaise, kneeFlex, abduction, settings)
     if (!result.ok) {
-      setErrMsg(ERROR_TEXT[result.error])
+      setErrMsg(w.errors[result.error])
       // 幅度錯誤退回對應步驟重捕
       if (result.error === 'thighDeltaTooSmall') setStep(2)
       else if (result.error === 'shinDeltaTooSmall') setStep(3)
@@ -304,238 +292,238 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
   const apply = (): void => {
     if (!patch) return
     setSettings({ ...patch, lastCalibratedAt: new Date().toISOString() })
-    showToast('校準完成,已套用至偵測與 3D/2D 顯示', 'success')
+    showToast(w.applied, 'success')
     onClose()
   }
 
   // 預覽:以暫存 patch 即時換算(尚未寫入 settings)
   const preview = patch && previewRaw ? applyCalibration(previewRaw, { ...settings, ...patch }) : null
 
+  const sideName = (side: 'left' | 'right'): string => (side === 'left' ? t.common.left : t.common.right)
+  const limbs = (proximal: boolean | null, distal: boolean | null): string =>
+    [proximal && t.common.thigh, distal && t.common.shin].filter(Boolean).join(t.common.listSep)
+  const title = (n: number, text: string): string => `${w.step(n)} · ${text}`
+  const error = (msg: string | null): JSX.Element | null =>
+    msg ? (
+      <div className="notice notice--danger" role="alert">
+        <AlertIcon />
+        {msg}
+      </div>
+    ) : null
+
   const captureButton = (key: 'baseline' | 'thighRaise' | 'kneeFlex', next: number): JSX.Element => (
-    <button className="btn btn-primary" disabled={capturing} onClick={() => void handleCapture(key, next)}>
-      {capturing ? (countdown != null ? `${countdown}…` : '捕捉中…') : '開始捕捉(倒數 3 秒)'}
+    <button type="button" className="btn btn--primary btn--lg" disabled={capturing} onClick={() => void handleCapture(key, next)}>
+      {capturing ? (countdown != null ? `${countdown}…` : w.capturing) : w.captureButton}
     </button>
   )
 
   return (
     <div className="overlay">
-      <div className="modal glass" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>感測器校準精靈</h3>
-          <button className="close-x" onClick={onClose}>
-            ×
+      <div
+        className="dialog dialog--wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wizard-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dialog__header">
+          <h2 id="wizard-title" className="dialog__title">
+            {w.title}
+          </h2>
+          <button type="button" className="btn btn--ghost btn--icon" aria-label={t.common.close} onClick={onClose}>
+            <CloseIcon />
           </button>
         </div>
 
-        {/* 免手模式與返回:兩者都是為了「擺好姿勢的人拿不到滑鼠」這件事而存在 */}
-        <div className="wizard-toolbar">
-          <label className="wizard-auto">
-            <input
-              type="checkbox"
-              checked={autoCapture}
-              onChange={(e) => {
-                // 重新勾選視為「我要再試一次」——清掉已嘗試記錄,否則打開開關卻沒反應
-                if (e.target.checked) autoTriedRef.current.clear()
-                setAutoCapture(e.target.checked)
-              }}
-            />
-            免手擷取:擺好姿勢並穩住 {AUTO_STABLE_MS / 1000} 秒即自動開始
-          </label>
-          {step > 0 && step < 5 && (
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={capturing}
-              onClick={() => {
-                // 回上一步是明確的「重捕」意圖,該步必須重新允許自動擷取
-                autoTriedRef.current.delete(step - 1)
-                setStep(step - 1)
-              }}
-            >
-              ← 上一步(重捕)
-            </button>
+        <div className="dialog__body">
+          <div className="wizard-steps" aria-hidden>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span key={i} className={i <= step ? 'is-done' : undefined} />
+            ))}
+          </div>
+
+          {/* 免手模式與返回:兩者都是為了「擺好姿勢的人拿不到滑鼠」這件事而存在 */}
+          <div className="row row--between">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={autoCapture}
+                onChange={(e) => {
+                  // 重新勾選視為「我要再試一次」——清掉已嘗試記錄,否則打開開關卻沒反應
+                  if (e.target.checked) autoTriedRef.current.clear()
+                  setAutoCapture(e.target.checked)
+                }}
+              />
+              {w.autoCapture(AUTO_STABLE_MS / 1000)}
+            </label>
+            {step > 0 && step < 5 && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={capturing}
+                onClick={() => {
+                  // 回上一步是明確的「重捕」意圖,該步必須重新允許自動擷取
+                  autoTriedRef.current.delete(step - 1)
+                  setStep(step - 1)
+                }}
+              >
+                ← {w.back}
+              </button>
+            )}
+          </div>
+
+          {countdown != null && (
+            <div className="wizard-count" aria-live="assertive">
+              {countdown}
+            </div>
           )}
-        </div>
 
-        <div className="wizard-steps-nav">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={`dot-step${i <= step ? ' done' : ''}`} />
-          ))}
-        </div>
-
-        {countdown != null && <div className="wizard-count">{countdown}</div>}
-
-        {step === 0 && (
-          <div className="wizard-step">
-            <h4>步驟 1/6 · 佩戴確認</h4>
-            <p className="desc">
-              確認兩顆感測器已固定:<b>大腿感測器</b>(含 ESP32，0x69)綁於大腿外側、
-              <b>小腿外接感測器</b>(0x68)綁於<b>脛骨前緣(小腿前側的硬骨邊)旁邊</b>(見下圖,
-              不是側面)。<b>方向與角度不必在意</b>——精靈會自動偵測貼歪 90°(軸對調)與
-              方向反相並校正,但過程中感測器不可鬆動移位。
-            </p>
-            <ShinMountDiagram />
-            <p className="desc">
-              請選擇這次配戴的<b>腿側</b>:「外側」在左右腿是互為鏡像的方向,
-              換邊配戴時內外翻(roll)方向可能相反,精靈需要知道才能在第 5 步提醒你。
-            </p>
-            <div className="row">
-              <button
-                className={`btn ${wearSide === 'left' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setWearSide('left')}
-              >
-                左腿
-              </button>
-              <button
-                className={`btn ${wearSide === 'right' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setWearSide('right')}
-              >
-                右腿
-              </button>
+          {step === 0 && (
+            <div className="wizard-step">
+              <h3>{title(1, w.s1.title)}</h3>
+              <p>{w.s1.body}</p>
+              <ShinMountDiagram bone={w.s1.diagramBone} hint={w.s1.diagramHint} />
+              <p>{w.s1.side}</p>
+              <div className="row">
+                <button
+                  type="button"
+                  className={`btn btn--lg${wearSide === 'left' ? ' btn--selected' : ''}`}
+                  aria-pressed={wearSide === 'left'}
+                  onClick={() => setWearSide('left')}
+                >
+                  {t.common.left}
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn--lg${wearSide === 'right' ? ' btn--selected' : ''}`}
+                  aria-pressed={wearSide === 'right'}
+                  onClick={() => setWearSide('right')}
+                >
+                  {t.common.right}
+                </button>
+              </div>
+              {!isConnected && error(w.s1.notConnected)}
+              {isConnected && wearSide == null && <p className="field__hint">{w.s1.chooseSide}</p>}
+              <div>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--lg"
+                  disabled={!isConnected || wearSide == null}
+                  onClick={() => setStep(1)}
+                >
+                  {w.s1.start}
+                </button>
+              </div>
             </div>
-            {!isConnected && <p className="wizard-err">⚠ 裝置未連線,請先於頂部連線後再開始。</p>}
-            {isConnected && wearSide == null && <p className="wizard-err">請先選擇配戴側。</p>}
-            <button
-              className="btn btn-primary"
-              disabled={!isConnected || wearSide == null}
-              onClick={() => setStep(1)}
-            >
-              開始
-            </button>
-          </div>
-        )}
+          )}
 
-        {step === 1 && (
-          <div className="wizard-step">
-            <h4>步驟 2/6 · 站直捕捉零位</h4>
-            <p className="desc">請自然站直、雙腿垂直於地面,按下按鈕後保持靜止約 4 秒。</p>
-            {errMsg && <p className="wizard-err">{errMsg}</p>}
-            {captureButton('baseline', 2)}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="wizard-step">
-            <h4>步驟 3/6 · 向前抬起大腿</h4>
-            <p className="desc">
-              向<b>前方</b>抬起大腿(膝蓋可彎),抬到明顯高度(約 45° 以上)後定住,
-              按下按鈕保持姿勢約 4 秒。
-            </p>
-            {errMsg && <p className="wizard-err">{errMsg}</p>}
-            {captureButton('thighRaise', 3)}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="wizard-step">
-            <h4>步驟 4/6 · 站立後勾小腿</h4>
-            <p className="desc">
-              大腿保持直立,將<b>腳跟向後上方勾起</b>(彎膝),勾到明顯角度(約 45°)後定住,
-              按下按鈕保持姿勢約 4 秒。
-            </p>
-            {errMsg && <p className="wizard-err">{errMsg}</p>}
-            {captureButton('kneeFlex', 4)}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="wizard-step">
-            {/* 這一步是全精靈唯一需要單腳站立的動作,對平衡受限的復健患者最困難——
-                而它校準的 roll invert 完全不進入判定路徑(達標、次數、超限警報都不讀 roll)。
-                因此明確標示為選配,且把「略過」做成與「捕捉」同等份量的主要動作,
-                而不是看起來像放棄的次要按鈕。 */}
-            <h4>步驟 5/6 · 腿向外側擺(選配)</h4>
-            <p className="desc">
-              這一步<b>只影響顯示</b>:3D 姿態、內外翻數值與圖表的正負方向。
-              <b>達標判定、次數計算與超限警報都不使用這個資料</b>,略過不會讓校準不完整。
-            </p>
-            <p className="desc">
-              需要單腳站立,若平衡不便請直接略過。要做的話:全腿伸直,將整條腿向
-              <b>身體外側</b>側擺約 20–30° 後定住,按下按鈕保持約 4 秒。大腿與小腿分開判定,
-              某一側幅度不足時該側沿用現有設定,不影響另一側。
-            </p>
-            {wearSide != null && previousWearSideRef.current != null && wearSide !== previousWearSideRef.current && (
-              <p className="wizard-err">
-                ⚠ 你這次選的是「{wearSide === 'left' ? '左腿' : '右腿'}」,上次校準是「
-                {previousWearSideRef.current === 'left' ? '左腿' : '右腿'}」。「外側」在左右腿是互為鏡像的方向,
-                <b>略過這一步會沿用上次那一側判定出的內外翻方向,現在很可能左右相反</b>
-                (只影響顯示,不影響達標/警報判定)。強烈建議完成這一步。
-              </p>
-            )}
-            {linkTruncated && (
-              <p className="wizard-err">
-                ⚠ BLE 連線的 MTU 沒有協商成功,冠狀面(roll)資料沒有送達,目前恆為 0°。
-                這一步校的就是 roll 方向,現在做只會得到一份無意義的校準,請直接略過。
-                重新連線或重新燒錄韌體後可再校正顯示方向。
-              </p>
-            )}
-            {errMsg && <p className="wizard-err">{errMsg}</p>}
-            <div className="row">
-              <button className="btn btn-primary" disabled={capturing} onClick={() => void finish(false)}>
-                略過,直接完成校準
-              </button>
-              <button
-                className="btn btn-secondary"
-                disabled={capturing || linkTruncated}
-                onClick={() => void finish(true)}
-              >
-                {capturing
-                  ? countdown != null
-                    ? `${countdown}…`
-                    : '捕捉中…'
-                  : '仍要校正顯示方向(倒數 3 秒)'}
-              </button>
+          {step === 1 && (
+            <div className="wizard-step">
+              <h3>{title(2, w.s2.title)}</h3>
+              <p>{w.s2.body}</p>
+              {error(errMsg)}
+              <div>{captureButton('baseline', 2)}</div>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 5 && (
-          <div className="wizard-step">
-            <h4>步驟 6/6 · 預覽確認</h4>
-            <p className="desc">
-              方向校正已計算完成(尚未套用)。請實際動動看:<b>站直時數值應接近 0°、
-              前抬大腿時「大腿」變大(正值)、腿向外側擺時內外翻顯示「外翻」</b>。確認無誤再按套用。
-            </p>
-            {couplingWarning != null && (couplingWarning.proximal || couplingWarning.distal) && (
-              <p className="wizard-err">
-                ⚠ 偵測到殘留耦合:{couplingWarning.proximal && '大腿'}
-                {couplingWarning.proximal && couplingWarning.distal && '、'}
-                {couplingWarning.distal && '小腿'}
-                外展時,除了內外翻之外,前後角度也明顯跟著變化——外展理應是單純的左右動作。
-                這通常代表感測器實際貼裝的位置跟精靈假設的貼法有落差(例如貼在正面而非外側),
-                這次算出的旋轉角可能沒有完全修正貼歪的角度。<b>不影響本次套用</b>,但建議之後
-                有機會用真機時,對照貼裝位置重新檢查。
-              </p>
-            )}
-            <div className="wizard-preview">
-              <div className="cell">
-                <div className="metric-sub">大腿 Pitch</div>
-                <div className="v">{preview ? `${preview.thigh.toFixed(1)}°` : '--'}</div>
+          {step === 2 && (
+            <div className="wizard-step">
+              <h3>{title(3, w.s3.title)}</h3>
+              <p>{w.s3.body}</p>
+              {error(errMsg)}
+              <div>{captureButton('thighRaise', 3)}</div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="wizard-step">
+              <h3>{title(4, w.s4.title)}</h3>
+              <p>{w.s4.body}</p>
+              {error(errMsg)}
+              <div>{captureButton('kneeFlex', 4)}</div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="wizard-step">
+              {/* 全精靈唯一需要單腳站立的步驟,對平衡受限的患者最困難——而它校準的 roll invert
+                  完全不進入判定路徑。因此明確標示為選配,且「略過」與「捕捉」同等份量。 */}
+              <h3>{title(5, w.s5.title)}</h3>
+              <div className="notice notice--info">{w.s5.displayOnly}</div>
+              <p>{w.s5.body}</p>
+              {wearSide != null && previousWearSideRef.current != null && wearSide !== previousWearSideRef.current && (
+                <div className="notice notice--warning">
+                  <AlertIcon />
+                  {w.s5.sideChanged(sideName(wearSide), sideName(previousWearSideRef.current))}
+                </div>
+              )}
+              {linkTruncated && (
+                <div className="notice notice--warning">
+                  <AlertIcon />
+                  {w.s5.truncated}
+                </div>
+              )}
+              {error(errMsg)}
+              <div className="row">
+                <button type="button" className="btn btn--primary btn--lg" disabled={capturing} onClick={() => void finish(false)}>
+                  {w.s5.skip}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--lg"
+                  disabled={capturing || linkTruncated}
+                  onClick={() => void finish(true)}
+                >
+                  {capturing ? (countdown != null ? `${countdown}…` : w.capturing) : w.s5.doIt}
+                </button>
               </div>
-              <div className="cell">
-                <div className="metric-sub">小腿 Pitch</div>
-                <div className="v">{preview ? `${preview.shin.toFixed(1)}°` : '--'}</div>
-              </div>
-              <div className="cell">
-                <div className="metric-sub">膝夾角</div>
-                <div className="v">{preview ? `${preview.knee.toFixed(1)}°` : '--'}</div>
-              </div>
-              <div className="cell">
-                <div className="metric-sub">內外翻</div>
-                <div className="v">
-                  {preview
-                    ? `${Math.abs(preview.kneeRoll).toFixed(1)}° ${preview.kneeRoll >= 0 ? '外翻' : '內翻'}`
-                    : '--'}
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="wizard-step">
+              <h3>{title(6, w.s6.title)}</h3>
+              <p>{w.s6.body}</p>
+              {couplingWarning != null && (couplingWarning.proximal || couplingWarning.distal) && (
+                <div className="notice notice--warning">
+                  <AlertIcon />
+                  {w.s6.coupling(limbs(couplingWarning.proximal, couplingWarning.distal))}
+                </div>
+              )}
+              <div className="wizard-preview">
+                <div className="stat">
+                  <div className="stat__label">{w.s6.thighPitch}</div>
+                  <div className="stat__value">{preview ? `${preview.thigh.toFixed(1)}°` : '--'}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__label">{w.s6.shinPitch}</div>
+                  <div className="stat__value">{preview ? `${preview.shin.toFixed(1)}°` : '--'}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__label">{w.s6.knee}</div>
+                  <div className="stat__value">{preview ? `${preview.knee.toFixed(1)}°` : '--'}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__label">{w.s6.varusValgus}</div>
+                  <div className="stat__value">
+                    {preview
+                      ? `${Math.abs(preview.kneeRoll).toFixed(1)}° ${preview.kneeRoll >= 0 ? t.dashboard.detail.valgus : t.dashboard.detail.varus}`
+                      : '--'}
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="row" style={{ justifyContent: 'flex-end', gap: 10 }}>
-              <button className="btn btn-secondary" onClick={() => setStep(1)}>
-                重新校準
-              </button>
-              <button className="btn btn-success" onClick={apply}>
-                確認套用
-              </button>
-            </div>
+          )}
+        </div>
+
+        {step === 5 && (
+          <div className="dialog__footer">
+            <button type="button" className="btn" onClick={() => setStep(1)}>
+              {w.s6.recalibrate}
+            </button>
+            <button type="button" className="btn btn--primary" onClick={apply}>
+              {w.s6.apply}
+            </button>
           </div>
         )}
       </div>

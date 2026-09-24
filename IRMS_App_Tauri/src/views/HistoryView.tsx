@@ -1,38 +1,65 @@
-// renderer/views/HistoryView.tsx
+// 療程紀錄(設計語言 v2 §9):連續資料表 + 分析對話框。示範資料與未正常結束的標記
+// 必須在任何主題、任何語言下都一眼可辨——那是這個畫面防止誤判的主要手段。
 import { useEffect, useRef, useState } from 'react'
 import { Chart } from 'chart.js'
+import type { Session, StoredReading } from '@shared/types'
+import { metricLabel, useT, type Messages } from '../i18n'
+import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
-import type { Session, StoredReading } from '@shared/types'
 import { computeMetricZone, metricInfo } from '../services/movementMetric'
 import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
-import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { irms } from '../platform/irmsApi'
+import { AlertIcon, CloseIcon, InfoIcon } from '../components/Icons'
 
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
 const CHART_MAX_POINTS = 1200
 
-function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
+/** 校準欄位名(CALIBRATION_TRANSFORM_KEYS)→ 目前語言的可讀名稱。舊版直接把欄位識別字丟給使用者看。 */
+function calibrationFieldLabel(t: Messages, key: string): string {
+  const f = t.history.calibrationFields
+  const limb = key.startsWith('proximal') ? t.common.thigh : key.startsWith('distal') ? t.common.shin : ''
+  const field = key.endsWith('AxisRotationDeg')
+    ? f.axisRotation
+    : key.endsWith('RollInvert')
+      ? f.rollInvert
+      : key.endsWith('RollZeroRaw')
+        ? f.rollZero
+        : key.endsWith('Invert')
+          ? f.invert
+          : key === 'kneeZeroRaw'
+            ? f.kneeZero
+            : key.endsWith('ZeroRaw')
+              ? f.zero
+              : key.endsWith('ZeroAccel')
+                ? f.zeroAccel
+                : key.endsWith('HingeAxis')
+                  ? f.hingeAxis
+                  : key
+  return t.common.limbField(limb, field)
+}
+
+function AnalysisDialog({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
+  const t = useT()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [readings, setReadings] = useState<StoredReading[]>([])
   const settings = useStore((s) => s.settings)
 
-  // 這條曲線是由「當時那組校準轉換」算出來的。如果之後重跑過精靈,同一條曲線的
-  // 意義就變了——沒有這個比對,督導會拿今天的座標系去讀上個月的資料而毫無察覺。
-  // migration 6 之前的舊列沒有快照,回傳 null:此時不宣稱一致,也不宣稱不一致。
+  // 這條曲線是由「當時那組校準轉換」算出來的。之後重跑過精靈,同一條曲線的意義就變了。
+  // migration 6 之前的舊列沒有快照(null):此時不宣稱一致,也不宣稱不一致。
   const snapshot = parseCalibrationSnapshot(session.calibration)
   const drift = calibrationDrift(snapshot, settings)
 
   useEffect(() => {
     let chart: Chart<'line'> | null = null
     void (async () => {
-      // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js
-      // 會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
+      // 原生層 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量餵 Chart.js 會明顯卡住。LTTB 保留峰值。
       const data = await irms.sessions.getData(session.id, CHART_MAX_POINTS)
       setReadings(data)
       if (!canvasRef.current) return
-      const t = chartTheme()
+      const c = chartTheme()
+      const m = t.chart
 
       // 畫出「這場實際被判定的那個指標」。舊資料沒有 triggerType 快照,退回膝角。
       const info = metricInfo(session.triggerType ?? 'joint_angle')
@@ -52,15 +79,12 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
               tolerance: session.tolerance,
               holdTimeMs: session.holdTimeMs ?? 2000,
               triggerType: session.triggerType ?? 'joint_angle',
-              // 必須用這場「當下實際生效」的安全上限。少了它會退回導出值
-              // (target+tolerance+10),於是回顧圖上畫出一條當時根本不存在的紅線——
-              // 督導據此判斷患者有沒有超限,線畫錯等於病歷記錯。
+              // 必須用這場「當下實際生效」的安全上限,否則回顧圖上會畫出一條當時不存在的紅線。
               // 舊資料 safetyLimit 為 NULL,退回導出值才是對的(那時就是導出的)。
               safetyLimit: session.safetyLimit ?? null
             })
           : null
 
-      /** 常數線資料集:讓督導一眼看出曲線有沒有進到目標帶、有沒有越過安全上限 */
       const constantLine = (label: string, value: number, color: string, dash: number[]) => ({
         label,
         data: data.map(() => value),
@@ -77,29 +101,28 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
           labels: data.map((r) => new Date(r.timestamp).toLocaleTimeString([], { hour12: false })),
           datasets: [
             {
-              label: info.label,
+              label: metricLabel(t, info),
               data: data.map(metricOf),
-              borderColor: t.knee,
+              borderColor: c.knee,
               borderWidth: 2,
               fill: true,
-              backgroundColor: t.kneeFill,
+              backgroundColor: c.kneeFill,
               pointRadius: 0,
               tension: 0.3
             },
             ...(zone
               ? [
-                  constantLine('目標下限', zone.min, t.thigh, [6, 4]),
-                  ...(Number.isFinite(zone.max)
-                    ? [constantLine('目標上限', zone.max, t.thigh, [6, 4])]
-                    : []),
-                  constantLine('超限門檻', zone.overLimit, t.danger, [2, 3])
+                  constantLine(m.targetMin, zone.min, c.target, [6, 4]),
+                  ...(Number.isFinite(zone.max) ? [constantLine(m.targetMax, zone.max, c.target, [6, 4])] : []),
+                  constantLine(m.overLimit, zone.overLimit, c.danger, [2, 3])
                 ]
               : []),
             {
-              label: 'Varus/Valgus(顯示用)',
+              label: m.varusValgusDisplay,
               data: data.map((r) => r.kneeRoll),
-              borderColor: t.shin,
+              borderColor: c.roll,
               borderWidth: 1,
+              borderDash: [2, 3],
               fill: false,
               pointRadius: 0
             }
@@ -109,32 +132,25 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: { grid: { color: t.grid }, ticks: { color: t.tick, maxTicksLimit: 10 } },
-            y: { grid: { color: t.grid }, ticks: { color: t.tick } }
+            x: { grid: { color: c.grid }, ticks: { color: c.tick, maxTicksLimit: 10 } },
+            y: { grid: { color: c.grid }, ticks: { color: c.tick } }
           },
-          plugins: { legend: { labels: { color: t.text } } }
+          plugins: { legend: { labels: { color: c.text } } }
         }
       })
     })()
     return () => chart?.destroy()
-  }, [
-    session.id,
-    session.triggerType,
-    session.targetAngle,
-    session.tolerance,
-    session.holdTimeMs,
-    session.safetyLimit
-  ])
+    // t 變化(切換語言)時重建圖表,讓圖例跟著換
+  }, [session.id, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs, session.safetyLimit, t])
 
   useEscapeKey(onClose)
 
   const exportCsv = async (): Promise<void> => {
-    // 圖表吃的是抽樣後的資料;匯出必須另外取全量,否則使用者拿到的是被抽掉的資料集
+    // 圖表吃的是抽樣後的資料;匯出必須另外取全量
     const full = await irms.sessions.getData(session.id)
-    // 前置 metadata:沒有 target/tolerance/動作 的話,匯出的 CSV 單獨拿去分析是無法解讀的
+    // CSV 表頭維持固定英文欄位名,不隨介面語言變動——匯出檔會被別的工具以欄位名解析。
     const meta = [
-      // source 放**第一行**:匯出的 CSV 常常被寄出或丟進別的工具,
-      // 讀到它的人未必知道這個 app 有示範模式。放在最前面才不會被當成一般欄位跳過。
+      // source 放第一行:讀到 CSV 的人未必知道這個 app 有示範模式
       `# source,${session.source}`,
       `# session,${session.id}`,
       `# action,${session.actionName ?? ''}`,
@@ -143,90 +159,85 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
       `# targetAngle,${session.targetAngle ?? ''}`,
       `# tolerance,${session.tolerance ?? ''}`,
       `# holdTimeMs,${session.holdTimeMs ?? ''}`,
-      // 空值代表「當時沿用導出值」,與圖表的退回規則一致
       `# safetyLimit,${session.safetyLimit ?? ''}`,
       `# startTime,${session.startTime}`,
       `# endTime,${session.endTime ?? ''}`,
       `# repsCompleted,${session.repsCompleted}`,
       `# abandoned,${session.abandoned}`,
-      // 匯出的 CSV 常常是拿去離線分析的那一份,而校準轉換決定這些數字代表什麼。
-      // JSON 本身含逗號與雙引號,必須照 CSV 規則整段包起來並把 " 加倍,
-      // 否則這一行在任何按逗號切欄位的工具裡都會散成一堆欄位。
+      // JSON 含逗號與雙引號,依 CSV 規則整段包起來並把 " 加倍
       `# calibration,"${(session.calibration ?? '').replace(/"/g, '""')}"`
     ].join('\n')
     const header = '\ntimestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll\n'
     const body = full
-      .map((r) =>
-        [r.timestamp, r.kneeAngle, r.proximalAngle, r.distalAngle, r.kneeRoll, r.proximalRoll, r.distalRoll].join(
-          ','
-        )
-      )
+      .map((r) => [r.timestamp, r.kneeAngle, r.proximalAngle, r.distalAngle, r.kneeRoll, r.proximalRoll, r.distalRoll].join(','))
       .join('\n')
     const blob = new Blob([meta + header + body], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    // 檔名比表頭重要:檔案會被寄出、被丟進試算表,沒有人會讀到第 12 行,
-    // 但每一個人都會看到檔名。
-    a.download =
-      session.source === 'demo'
-        ? `irms_DEMO_session_${session.id}.csv`
-        : `irms_session_${session.id}.csv`
+    // 檔名比表頭重要:每一個人都會看到檔名
+    a.download = session.source === 'demo' ? `irms_DEMO_session_${session.id}.csv` : `irms_session_${session.id}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
+  const legacyLimbs = snapshot
+    ? [!snapshot.proximalAxisRotationVerified && t.common.thigh, !snapshot.distalAxisRotationVerified && t.common.shin]
+        .filter(Boolean)
+        .join(t.common.listSep)
+    : ''
+
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal glass" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>
-            Session #{session.id} Analysis
-            {session.source === 'demo' && <span className="badge-demo">示範資料</span>}
-          </h3>
-          <button className="close-x" onClick={onClose}>
-            ×
+      <div
+        className="dialog dialog--xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="analysis-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dialog__header">
+          <h2 id="analysis-title" className="dialog__title">
+            {t.history.analysisTitle(session.id)}
+            {session.source === 'demo' && <span className="badge badge--warning">{t.history.demoBadge}</span>}
+          </h2>
+          <button type="button" className="btn btn--ghost btn--icon" aria-label={t.common.close} onClick={onClose}>
+            <CloseIcon />
           </button>
         </div>
-        <div className="history-chart-viewport">
-          <canvas ref={canvasRef} />
+        <div className="dialog__body">
+          <div className="history-chart">
+            <canvas ref={canvasRef} />
+          </div>
+          {/* 示範資料警示常駐,不與校準漂移提示互斥:兩者回答的是不同問題 */}
+          {session.source === 'demo' && (
+            <div className="notice notice--warning">
+              <AlertIcon />
+              {t.history.demoWarning}
+            </div>
+          )}
+          {snapshot == null ? (
+            <div className="notice">
+              <InfoIcon />
+              {t.history.noSnapshot}
+            </div>
+          ) : drift.length > 0 ? (
+            <div className="notice notice--warning">
+              <AlertIcon />
+              {t.history.drift(drift.map((k) => calibrationFieldLabel(t, k)).join(t.common.listSep))}
+            </div>
+          ) : legacyLimbs ? (
+            // 舊版布林 axisSwap 遷移來的貼裝角度未經新方法重新驗證——數字沒變但可信度低,語氣較輕
+            <div className="notice">
+              <InfoIcon />
+              {t.history.legacyAxis(legacyLimbs)}
+            </div>
+          ) : null}
         </div>
-        {/* 非阻斷性提示,刻意不用實心警示色:這不是「出事了」,是「解讀這張圖前要知道的事」。 */}
-        {/* 示範資料的警示是**常駐**的,不與校準漂移提示互斥:漂移提示回答
-            「這條曲線能不能跟別場比」,這一條回答「這條曲線是不是真的量到的」。
-            後者一旦被前者的分支蓋掉,一張模擬資料的圖就會看起來完全像病歷。 */}
-        {session.source === 'demo' && (
-          <p className="field-hint text-warning" style={{ marginTop: 10 }}>
-            ⚠ 這是示範模式產生的模擬資料,不是真實量測,不可作為臨床判讀依據。
-          </p>
-        )}
-        {snapshot == null ? (
-          <p className="field-hint" style={{ marginTop: 10 }}>
-            這場沒有校準快照(建立於本功能之前),無法確認它與目前設定是否為同一組轉換。
-          </p>
-        ) : drift.length > 0 ? (
-          <p className="field-hint text-warning" style={{ marginTop: 10 }}>
-            ⚠ 這場的校準與目前設定不同({drift.join('、')}),曲線的零點或正負方向可能
-            與現在不一致,請勿與近期紀錄直接比較。
-          </p>
-        ) : !snapshot.proximalAxisRotationVerified || !snapshot.distalAxisRotationVerified ? (
-          // 2026-09-08 會議裁決:舊版布林 axisSwap 遷移來的貼裝角度未經新方法(recalibrateAxis)
-          // 重新驗證過——數字本身沒有變(false→0/true→90 是精確映射),但比可信度低,
-          // 與「數值真的變了」的漂移警告分開表示,語氣也較輕。
-          <p className="field-hint" style={{ marginTop: 10 }}>
-            ⚠ 這場的
-            {!snapshot.proximalAxisRotationVerified && '大腿'}
-            {!snapshot.proximalAxisRotationVerified && !snapshot.distalAxisRotationVerified && '、'}
-            {!snapshot.distalAxisRotationVerified && '小腿'}
-            貼裝軸向判定沿用舊版校準邏輯換算而來,尚未經新方法以真實動作重新驗證。
-          </p>
-        ) : null}
-        <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
-          <span className="text-text-dim">
-            {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps
-          </span>
-          <button className="btn btn-secondary" onClick={() => void exportCsv()} disabled={readings.length === 0}>
-            匯出 CSV
+        <div className="dialog__footer" style={{ justifyContent: 'space-between' }}>
+          <span className="text-dim">{t.history.pointsSummary(readings.length, session.repsCompleted)}</span>
+          <button type="button" className="btn" onClick={() => void exportCsv()} disabled={readings.length === 0}>
+            {t.history.exportCsv}
           </button>
         </div>
       </div>
@@ -235,6 +246,8 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
 }
 
 export function HistoryView(): JSX.Element {
+  const t = useT()
+  const language = useStore((s) => s.settings.language)
   const [sessions, setSessions] = useState<Session[]>([])
   const [analyzing, setAnalyzing] = useState<Session | null>(null)
   const showToast = useUiStore((s) => s.showToast)
@@ -244,7 +257,7 @@ export function HistoryView(): JSX.Element {
     try {
       setSessions(await irms.sessions.list())
     } catch {
-      showToast('載入歷史失敗', 'error')
+      showToast(t.history.loadFailed, 'error')
     }
   }
 
@@ -253,73 +266,71 @@ export function HistoryView(): JSX.Element {
   }, [])
 
   const remove = async (s: Session): Promise<void> => {
-    const ok = await requestConfirm('刪除紀錄', `確定刪除 Session #${s.id} 的紀錄嗎?`)
+    const ok = await requestConfirm(t.history.deleteTitle, t.history.deleteConfirm(s.id))
     if (!ok) return
     await irms.sessions.delete(s.id)
-    showToast(`Session #${s.id} 已刪除`, 'success')
+    showToast(t.history.deleted(s.id), 'success')
     await load()
   }
 
   return (
-    <section className="view-surface history-surface">
-      <header className="page-header">
-        <h2>Rehabilitation History</h2>
-        <p>檢視與分析過往復健歷程</p>
-      </header>
+    <section className="view">
+      <p className="view__lead">{t.history.subtitle}</p>
 
       {sessions.length === 0 ? (
-        <div className="empty glass panel">尚無復健紀錄</div>
+        <div className="empty">{t.history.empty}</div>
       ) : (
-        <div className="data-surface">
-          <table>
+        <div className="table-surface">
+          <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>開始時間</th>
-                <th>動作</th>
-                <th>Reps</th>
-                <th>操作</th>
+                <th>{t.history.colId}</th>
+                <th>{t.history.colStart}</th>
+                <th>{t.history.colAction}</th>
+                <th>{t.history.colReps}</th>
+                <th style={{ textAlign: 'right' }}>{t.history.colOps}</th>
               </tr>
             </thead>
             <tbody>
               {sessions.map((s) => (
-                <tr key={s.id}>
-                  <td>#{s.id}</td>
-                  <td>{new Date(s.startTime).toLocaleString()}</td>
+                <tr key={s.id} className={s.source === 'demo' ? 'is-demo' : undefined}>
+                  <td className="num">#{s.id}</td>
+                  <td className="num">{new Date(s.startTime).toLocaleString(language)}</td>
                   <td>
-                    {s.actionName ?? '—'}
-                    {/* 示範資料刻意**不從列表隱藏**:藏起來的列在任何一份資料庫副本裡
-                        依然存在,只是更難察覺。顯示出來、大聲標示,再配合 Settings 的
-                        「清除所有示範紀錄」,才回答得了「這個資料庫乾不乾淨」。 */}
+                    <span>{s.actionName ?? t.common.none}</span>
+                    {/* 示範資料刻意不從列表隱藏:藏起來的列在資料庫副本裡依然存在,只是更難察覺 */}
                     {s.source === 'demo' && (
-                      <span
-                        className="badge-demo"
-                        title="這場是示範模式產生的模擬資料,不是真實量測"
-                      >
-                        示範資料
+                      <span className="cell-tags">
+                        <span className="badge badge--warning" title={t.history.demoTitle}>
+                          {t.history.demoBadge}
+                        </span>
                       </span>
                     )}
                   </td>
                   <td>
-                    {s.repsCompleted}
-                    {/* 非正常結束的 Session:結束時間是啟動時推估的,reps 可能少計。
-                        把不確定性標示出來,而不是把數字當成事實呈現。 */}
+                    <span className="num">{s.repsCompleted}</span>
+                    {/* 非正常結束:結束時間是推估的,reps 可能少計——把不確定性標示出來 */}
                     {s.abandoned === 1 && (
-                      <span
-                        className="badge-warn"
-                        title="這場 Session 未正常結束(關窗或當機),結束時間為推估值,次數可能不完整"
-                      >
-                        未正常結束
+                      <span className="cell-tags">
+                        <span className="badge badge--warning" title={t.history.abandonedTitle}>
+                          {t.history.abandonedBadge}
+                        </span>
                       </span>
                     )}
                   </td>
                   <td>
-                    <div className="row">
-                      <button className="btn btn-primary btn-sm" onClick={() => setAnalyzing(s)}>
-                        分析
+                    <div className="cell-actions">
+                      <button type="button" className="btn btn--sm" onClick={() => setAnalyzing(s)}>
+                        {t.history.analyze}
                       </button>
-                      <button className="btn btn-danger-ghost btn-sm" onClick={() => void remove(s)}>
-                        ✕
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--danger-ghost btn--icon"
+                        aria-label={t.history.deleteLabel(s.id)}
+                        title={t.history.deleteLabel(s.id)}
+                        onClick={() => void remove(s)}
+                      >
+                        <CloseIcon size={16} />
                       </button>
                     </div>
                   </td>
@@ -330,7 +341,7 @@ export function HistoryView(): JSX.Element {
         </div>
       )}
 
-      {analyzing && <AnalysisModal session={analyzing} onClose={() => setAnalyzing(null)} />}
+      {analyzing && <AnalysisDialog session={analyzing} onClose={() => setAnalyzing(null)} />}
     </section>
   )
 }

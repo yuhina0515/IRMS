@@ -1,0 +1,498 @@
+/* 即時監測(設計語言 v2 §8):主面板 68% + 控制欄 32%,證據層在下且可收合。
+   主面板的狀態邊框規則見 §6.2;專注模式(.dash--focus)只留主面板。 */
+
+.dash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  height: 100%;
+  min-height: 0;
+}
+
+.calib-strip {
+  flex: none;
+}
+.calib-strip .btn {
+  margin-left: auto;
+}
+
+.dash__grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 68fr) minmax(280px, 32fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'primary side'
+    'evidence evidence';
+  gap: var(--sp-3);
+}
+.dash--focus .dash__grid {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'primary';
+}
+
+/* ── 主面板 ── */
+.primary {
+  grid-area: primary;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 0;
+  padding: var(--sp-6);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
+}
+.primary--inzone {
+  box-shadow: inset var(--state-border) 0 0 rgb(var(--color-success));
+}
+.primary--warning {
+  box-shadow: inset var(--state-border) 0 0 rgb(var(--color-warning));
+}
+.primary--holding {
+  border: var(--state-border) solid rgb(var(--color-success));
+  background: rgb(var(--color-success) / 0.12);
+}
+.primary--alarm,
+.primary--silenced,
+.primary--error {
+  border: var(--state-border) solid rgb(var(--color-danger));
+  background: rgb(var(--color-danger) / 0.12);
+}
+.primary--alarm {
+  animation: alarm-border 1s ease-in-out infinite alternate;
+}
+.primary--silenced {
+  border-style: dashed;
+}
+@keyframes alarm-border {
+  from {
+    border-color: rgb(var(--color-danger));
+  }
+  to {
+    border-color: rgb(var(--color-danger) / 0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary--alarm {
+    animation: none;
+  }
+}
+
+.primary__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.primary__action {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.primary__metric {
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-dim));
+}
+.primary__reps {
+  text-align: right;
+}
+.primary__reps .num {
+  font-size: var(--fs-numeric-l);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.primary__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+/* 弧形量表:SVG 畫弧,數值用 HTML 疊在中央,字級才可精確控制(§8.2) */
+.gauge {
+  position: relative;
+  /* 預留下方目標/超限圖例與提示的高度,整組才不會溢出主面板蓋到教練提示列 */
+  width: min(100cqw, calc((100cqh - 72px) * 1.6));
+  aspect-ratio: 240 / 150;
+}
+.gauge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.gauge__readout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.gauge__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(48px, 24cqh, var(--fs-display));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.gauge__deg {
+  font-family: var(--font-mono);
+  font-size: clamp(22px, 10cqh, 42px);
+  font-weight: 600;
+  vertical-align: top;
+  margin-left: 2px;
+}
+.gauge__state {
+  margin-top: var(--sp-2);
+}
+.gauge--muted .gauge__value,
+.gauge--muted .gauge__deg {
+  color: rgb(var(--color-text-muted));
+}
+
+.gauge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-dim));
+}
+.gauge-legend .is-limit {
+  color: rgb(var(--color-danger));
+  font-weight: 600;
+}
+
+.value--out {
+  color: rgb(var(--color-text));
+}
+.value--in {
+  color: rgb(var(--color-success));
+}
+.value--over {
+  color: rgb(var(--color-danger));
+}
+
+/* 線性目標條(專注模式)*/
+.lgauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  width: min(100%, 960px);
+}
+.lgauge__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(88px, 34cqh, var(--fs-display-focus));
+  font-weight: 600;
+  line-height: 1;
+}
+.lgauge__track {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  border-radius: var(--radius);
+  background: rgb(var(--color-border));
+}
+.lgauge__band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgb(var(--color-success) / 0.35);
+}
+.lgauge__limit {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  background: rgb(var(--color-danger));
+}
+.lgauge__marker {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 2px;
+  background: rgb(var(--color-text));
+  transition: left var(--motion-data);
+}
+.lgauge__marker.value--in {
+  background: rgb(var(--color-success));
+}
+.lgauge__marker.value--over {
+  background: rgb(var(--color-danger));
+}
+
+.knee-gate {
+  font-size: var(--fs-label);
+}
+
+/* 教練提示列 / 警報列 */
+.coach {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: var(--state-border) solid rgb(var(--color-text-muted));
+  background: rgb(var(--color-surface-raised) / 0.6);
+  font-size: var(--fs-coach);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.coach--success {
+  border-left-color: rgb(var(--color-success));
+}
+.coach--warning {
+  border-left-color: rgb(var(--color-warning));
+}
+.phase-badge {
+  flex: none;
+  padding: 2px var(--sp-2);
+  border: 1px solid rgb(var(--color-control-border));
+  border-radius: var(--radius-badge);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: rgb(var(--color-text-dim));
+}
+.phase-badge--holding {
+  border-color: rgb(var(--color-success));
+  color: rgb(var(--color-success));
+}
+
+.alarm-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: rgb(var(--color-surface) / 0.7);
+  border-radius: var(--radius);
+}
+.alarm-bar__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  font-size: var(--fs-alert);
+  font-weight: 700;
+  line-height: 1.2;
+  color: rgb(var(--color-danger));
+}
+.alarm-bar__title .icon {
+  width: 32px;
+  height: 32px;
+}
+
+/* 阻斷面板:不能量測時取代量表,不畫一個看起來在運作的量表(§8.1)*/
+.blocker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: 520px;
+  text-align: center;
+}
+.blocker .icon {
+  width: 32px;
+  height: 32px;
+  color: rgb(var(--color-text-muted));
+}
+.blocker--danger .icon,
+.blocker--danger h2 {
+  color: rgb(var(--color-danger));
+}
+.blocker h2 {
+  font-size: var(--fs-alert);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.blocker p {
+  color: rgb(var(--color-text-dim));
+}
+.blocker .btn {
+  margin-top: var(--sp-2);
+}
+
+/* ── 控制欄 ── */
+.side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-4) var(--sp-6);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+}
+.side__counts {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.side__reps .num {
+  display: inline-block;
+  padding: 0 var(--sp-1);
+  margin-left: calc(var(--sp-1) * -1);
+  border-radius: var(--radius);
+  font-size: var(--fs-numeric-l);
+  font-weight: 600;
+  line-height: 1;
+}
+.side__reps--bump .num {
+  animation: rep-bump 600ms var(--motion-base);
+}
+@keyframes rep-bump {
+  from {
+    background: rgb(var(--color-success) / 0.25);
+  }
+  to {
+    background: transparent;
+  }
+}
+.hold-ring {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+.hold-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.hold-ring__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.hold-ring__label .num {
+  font-size: var(--fs-heading);
+  font-weight: 600;
+}
+.side__clock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-label);
+}
+.side__clock .num {
+  font-size: var(--fs-heading);
+  font-weight: 600;
+}
+.side__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ── 證據層 ── */
+.evidence {
+  grid-area: evidence;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+  background: rgb(var(--color-surface));
+}
+.evidence__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-3) 0 var(--sp-4);
+}
+.evidence__bar .tabs {
+  flex: 1;
+  border-bottom: 0;
+}
+.evidence__title {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: rgb(var(--color-text-muted));
+}
+.evidence__body {
+  height: 220px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid rgb(var(--color-border));
+}
+.evidence__body > * {
+  width: 100%;
+  height: 100%;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-2);
+  align-content: start;
+}
+.stat {
+  padding: var(--sp-3);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius);
+}
+.stat__label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-label);
+  color: rgb(var(--color-text-dim));
+}
+.stat__swatch {
+  width: 14px;
+  height: 0;
+  border-top: 3px solid currentColor;
+}
+.stat__swatch--dashed {
+  border-top-style: dashed;
+}
+.stat__swatch--dotted {
+  border-top-style: dotted;
+}
+.stat__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.visualizer,
+.leg3d-viewport {
+  width: 100%;
+  height: 100%;
+}
+.visualizer svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-height: 760px) {
+  .evidence__body {
+    height: 180px;
+  }
+}
+@media (max-width: 900px) {
+  .dash__grid {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}

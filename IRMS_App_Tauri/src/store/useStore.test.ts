@@ -38,6 +38,8 @@ const BASE_SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
+  language: 'zh-TW',
+  focusMode: false,
   allowBetaUpdates: true,
   sidebarCollapsed: false
 }
@@ -125,6 +127,20 @@ describe('migrateSettings', () => {
     expect(settings.sidebarCollapsed).toBe(false) // 新欄位補預設(展開)
     expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
     expect(settings.allowBetaUpdates).toBe(false)
+  })
+
+  it('v13 的 persist 資料補上 v14 新欄位 language/focusMode,且保留既有 themeMode', () => {
+    const v13 = {
+      settings: {
+        protocol: 'knee',
+        themeMode: 'light',
+        sidebarCollapsed: false
+      }
+    }
+    const { settings } = migrateSettings(v13)
+    expect(settings.language).toBe('zh-TW') // 新欄位補預設(繁中)
+    expect(settings.focusMode).toBe(false)
+    expect(settings.themeMode).toBe('light') // 既有使用者選過的主題不被改成 'system'
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {

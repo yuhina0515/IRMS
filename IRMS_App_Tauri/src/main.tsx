@@ -16,7 +16,7 @@ import '@fontsource-variable/inter/wght.css'
 // 改用 mono 字體,這一項改動就能做到一半把 wellness app 感跟 lab instrument 感區分開」。
 // 同樣只引入 wght 軸,同樣自架(SIL OFL)。
 import '@fontsource-variable/jetbrains-mono/wght.css'
-import './styles/tailwind.css'
+import './styles/index.css'
 
 // 啟動時載入自訂動作清單
 async function bootstrap(): Promise<void> {

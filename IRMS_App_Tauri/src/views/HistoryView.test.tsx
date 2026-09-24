@@ -9,6 +9,10 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import type { Session } from '@shared/types'
 import { installIrmsStub } from '../test/irmsApiStub'
 import { HistoryView } from './HistoryView'
+import { zhTW } from '../i18n/zh-TW'
+
+/** 2026-09-24 UI 重建後徽章文字取自語言檔(「示範」),斷言同步改從語言檔取 */
+const DEMO = zhTW.history.demoBadge
 
 // Chart.js 需要 canvas 2D context,jsdom 與 happy-dom 都沒有。
 // 這裡測的是列表與徽章,不是圖表,所以整個 mock 掉。
@@ -61,8 +65,8 @@ describe('HistoryView 示範資料標記', () => {
     const demoRow = await screen.findByText('示範療程')
 
     // 徽章與動作名稱同一格:demo 有、device 沒有
-    expect(within(demoRow.closest('td')!).getByText('示範資料')).toBeInTheDocument()
-    expect(within(realRow.closest('td')!).queryByText('示範資料')).not.toBeInTheDocument()
+    expect(within(demoRow.closest('td')!).getByText(DEMO)).toBeInTheDocument()
+    expect(within(realRow.closest('td')!).queryByText(DEMO)).not.toBeInTheDocument()
   })
 
   it('全部都是真實紀錄時,畫面上不出現任何示範標記', async () => {
@@ -75,7 +79,7 @@ describe('HistoryView 示範資料標記', () => {
     render(<HistoryView />)
 
     await waitFor(() => expect(screen.getByText('膝關節屈曲')).toBeInTheDocument())
-    expect(screen.queryByText('示範資料')).not.toBeInTheDocument()
+    expect(screen.queryByText(DEMO)).not.toBeInTheDocument()
   })
 
   // 徽章之所以不能是唯一的防線:列表可以被捲過去、截圖可以只截到一半。
@@ -87,7 +91,7 @@ describe('HistoryView 示範資料標記', () => {
 
     render(<HistoryView />)
 
-    const badge = await screen.findByText('示範資料')
+    const badge = await screen.findByText(DEMO)
     expect(badge).toHaveAttribute('title', expect.stringContaining('模擬資料'))
   })
 })

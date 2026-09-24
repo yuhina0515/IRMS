@@ -1,0 +1,2 @@
+/* Tailwind preflight 重設——必須最先載入,後面的 base.css 才能覆寫它。 */
+@tailwind base;
