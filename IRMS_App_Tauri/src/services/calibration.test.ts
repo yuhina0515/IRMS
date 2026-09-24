@@ -56,7 +56,10 @@ const SETTINGS: Settings = {
   wearSide: null,
   themeMode: 'dark',
   allowBetaUpdates: true,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  telemetryEnabled: false,
+  telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
+  telemetryToken: ''
 }
 
 describe('computeCaptureStats', () => {

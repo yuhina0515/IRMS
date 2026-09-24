@@ -117,6 +117,13 @@ export interface Settings {
    * settings 並持久化,但 Tauri 的前端搬遷發生在那次修復之前,從未回頭補上。
    */
   sidebarCollapsed: boolean
+  /**
+   * 實機測試遙測上傳(src-tauri/src/telemetry.rs)。預設關閉;金鑰由使用者在設定頁
+   * 貼入——repo 是公開的,金鑰不能寫進原始碼或安裝檔。
+   */
+  telemetryEnabled: boolean
+  telemetryEndpoint: string
+  telemetryToken: string
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -169,7 +176,10 @@ const DEFAULT_SETTINGS: Settings = {
   wearSide: null,
   themeMode: 'dark',
   allowBetaUpdates: true,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  telemetryEnabled: false,
+  telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
+  telemetryToken: ''
 }
 
 /**
@@ -301,6 +311,12 @@ interface StoreState {
 }
 
 const MAX_LOG_LINES = 200
+
+/**
+ * log() 的旁聽者(目前只有遙測上傳 services/telemetry.ts)。用註冊而非讓 store 直接
+ * import 遙測模組,避免 store ↔ service 的循環相依。
+ */
+export const logListeners = new Set<(message: string) => void>()
 
 /**
  * 依動作清單與當前協定,校正選取狀態:
@@ -458,6 +474,7 @@ export const useStore = create<StoreState>()(
         const line = `[${time}] ${message}`
         // eslint-disable-next-line no-console
         console.log(line)
+        logListeners.forEach((cb) => cb(message))
         const logs = [...get().logs, line]
         set({ logs: logs.length > MAX_LOG_LINES ? logs.slice(logs.length - MAX_LOG_LINES) : logs })
       }
@@ -473,7 +490,7 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 13, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 14, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
@@ -481,6 +498,7 @@ export const useStore = create<StoreState>()(
       // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
       // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       // v13:sidebarCollapsed——補上 Electron 09-09 已修但 Tauri 前端搬遷未回頭補的持久化缺口
+      // v14:telemetryEnabled/telemetryEndpoint/telemetryToken——實機測試遙測上傳(預設關閉)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

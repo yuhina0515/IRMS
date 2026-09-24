@@ -13,10 +13,12 @@ use crate::protocol::{
     CHAR_OTA_STATUS, CHAR_PROFILE_RX, OTA_CHUNK_DELAY_MS, OTA_CHUNK_SIZE, OTA_SERVICE_UUID,
     SERVICE_UUID,
 };
+use crate::telemetry;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::StreamExt;
 use serde::Serialize;
+use serde_json::json;
 use std::str::FromStr;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
@@ -156,7 +158,9 @@ fn spawn_notification_listener(
         let mut stream = match peripheral.notifications().await {
             Ok(s) => s,
             Err(e) => {
-                let _ = app.emit("ble:error", format!("notification stream failed: {e}"));
+                let message = format!("notification stream failed: {e}");
+                telemetry::record(&app, "ble_error", json!({ "message": message }));
+                let _ = app.emit("ble:error", message);
                 return;
             }
         };
@@ -172,10 +176,14 @@ fn spawn_notification_listener(
                 if std::env::var_os("IRMS_CALIBRATION_TRACE").is_some() {
                     eprintln!("[calibration-trace] {}", text.trim());
                 }
+                // Raw wire text, not the parsed form: offline replay/re-parsing (calibration,
+                // protocol changes) needs exactly what the device sent.
+                telemetry::record(&app, "packet", json!({ "raw": text.trim() }));
                 let parsed: ParsedPacket = protocol::parse_angle_packet(&text);
                 let _ = app.emit("ble:packet", &parsed);
             } else if notification.uuid == ota_status_uuid {
                 let text = String::from_utf8_lossy(&notification.value).to_string();
+                telemetry::record(&app, "ota_status", json!({ "status": text }));
                 let _ = ota_status_tx.send(text);
             }
         }
@@ -183,6 +191,11 @@ fn spawn_notification_listener(
         // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
         // stream) that a full reconnect-loop port should listen to separately; this skeleton
         // only reports the notification stream closing, not full reconnect orchestration.
+        telemetry::record(
+            &app,
+            "connection",
+            json!({ "connected": false, "reason": "notification_stream_ended" }),
+        );
         let _ = app.emit(
             "ble:connection",
             ConnectionEvent {
@@ -195,6 +208,23 @@ fn spawn_notification_listener(
 
 #[tauri::command]
 pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<String, String> {
+    let result = connect(&app, &state).await;
+    match &result {
+        Ok(name) => telemetry::record(
+            &app,
+            "connection",
+            json!({ "connected": true, "deviceName": name }),
+        ),
+        Err(message) => telemetry::record(
+            &app,
+            "ble_error",
+            json!({ "op": "connect", "message": message }),
+        ),
+    }
+    result
+}
+
+async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
     let adapter = find_adapter().await?;
     let peripheral = scan_for_device(&adapter).await?;
 
@@ -243,6 +273,11 @@ pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Resul
     } else {
         Ok(())
     };
+    telemetry::record(
+        &app,
+        "connection",
+        json!({ "connected": false, "reason": "manual", "error": result.as_ref().err() }),
+    );
     // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
     // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
     // 還保有 Peripheral handle 才更新 UI。
@@ -259,8 +294,17 @@ pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Resul
 /// Writes a control command string (see shared BleCommand constants) to the profile-RX
 /// characteristic. Silently no-ops if not connected, matching bluetooth.ts's send() behavior.
 #[tauri::command]
-pub async fn ble_send_command(state: State<'_, BleState>, command: String) -> Result<(), String> {
+pub async fn ble_send_command(
+    app: AppHandle,
+    state: State<'_, BleState>,
+    command: String,
+) -> Result<(), String> {
     let guard = state.peripheral.lock().await;
+    telemetry::record(
+        &app,
+        "ble_command",
+        json!({ "command": command, "connected": guard.is_some() }),
+    );
     let Some(peripheral) = guard.as_ref() else {
         return Ok(());
     };
@@ -350,6 +394,10 @@ pub async fn ble_perform_ota_update(
 ) -> Result<String, String> {
     let total = data.len();
     let emit_progress = |p: OtaProgress| {
+        // Per-chunk Transferring updates are noise for diagnosis; phase changes are what matter.
+        if !matches!(p, OtaProgress::Transferring { .. }) {
+            telemetry::record(&app, "ota_progress", json!(p));
+        }
         let _ = app.emit("ble:ota-progress", p);
     };
 

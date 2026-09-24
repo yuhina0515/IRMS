@@ -1,0 +1,11 @@
+services:
+  irms-telemetry:
+    build: .
+    container_name: irms-telemetry
+    restart: unless-stopped
+    # INGEST_TOKEN / READ_TOKEN live only in the server-side .env (never committed).
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "8120:8120"

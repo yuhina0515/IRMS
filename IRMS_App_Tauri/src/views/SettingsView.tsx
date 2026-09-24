@@ -6,6 +6,7 @@ import { JOINT_PROTOCOLS } from '@shared/types'
 import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
+import { TelemetryPanel } from '../components/TelemetryPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
@@ -241,6 +242,9 @@ export function SettingsView(): JSX.Element {
       </div>
       <div style={{ marginTop: 24 }}>
         <DemoModePanel />
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <TelemetryPanel />
       </div>
     </section>
   )

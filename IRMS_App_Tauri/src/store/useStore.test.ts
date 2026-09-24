@@ -39,7 +39,10 @@ const BASE_SETTINGS: Settings = {
   wearSide: null,
   themeMode: 'dark',
   allowBetaUpdates: true,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  telemetryEnabled: false,
+  telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
+  telemetryToken: ''
 }
 
 describe('migrateSettings', () => {
@@ -125,6 +128,15 @@ describe('migrateSettings', () => {
     expect(settings.sidebarCollapsed).toBe(false) // 新欄位補預設(展開)
     expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
     expect(settings.allowBetaUpdates).toBe(false)
+  })
+
+  it('v13 的 persist 資料補上 v14 遙測欄位(預設關閉),且不動使用者既有值', () => {
+    const v13 = { settings: { protocol: 'knee', sidebarCollapsed: true } }
+    const { settings } = migrateSettings(v13)
+    expect(settings.telemetryEnabled).toBe(false)
+    expect(settings.telemetryToken).toBe('')
+    expect(settings.telemetryEndpoint).toBe('https://hina-tw.ddns.net/irms-api')
+    expect(settings.sidebarCollapsed).toBe(true)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {
