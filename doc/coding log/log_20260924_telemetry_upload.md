@@ -74,6 +74,22 @@ per-tester ingest token contradicts that (and could never be secret in a public 
   (404) keeps the event queued. Test rows deleted afterwards.
 - Still not verified: the panel inside a running app and a real-device session.
 
+## Consent prompt + release v1.2.0-beta.11 (same day)
+
+- User asked that the action-name caveat be shown at the moment of enabling: toggle-on now
+  goes through `requestConfirm` warning that user-typed action names are uploaded and must not
+  contain patient names; cancel leaves upload off without calling Rust. `TelemetryPanel.test.tsx`
+  covers confirm/cancel/Rust-rejects/disable (4 tests).
+- `npm run ci` green (342 frontend / 54 Rust). Version synced in `package.json`,
+  `tauri.conf.json`, `Cargo.toml` (+ Cargo.lock) → `1.2.0-beta.11` (`f7ca1a4`).
+- Signed `npm run tauri build` (key from `IRMS_secrets`, env vars removed after). Release exe
+  launched and showed its main window, then closed.
+- Prerelease <https://github.com/yuhina0515/IRMS/releases/tag/v1.2.0-beta.11>, **tagged on
+  `feat/telemetry-upload`**, not main (PR #9 still open): installer, `.sig`, hand-built
+  `latest.json`. `beta-latest/latest.json` replaced; API download byte-identical to local;
+  installer URL 200; public CDN URL already served beta.11.
+- Not included: PR #8 UI refresh (unmerged), R1–R5 fixes.
+
 ## Handoff
 
 - User setup: Settings → Telemetry 即時遙測上傳 → toggle on. The status line shows
