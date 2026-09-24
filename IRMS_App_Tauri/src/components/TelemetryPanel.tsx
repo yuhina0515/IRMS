@@ -13,6 +13,7 @@ export function TelemetryPanel(): JSX.Element {
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const showToast = useUiStore((s) => s.showToast)
+  const requestConfirm = useUiStore((s) => s.requestConfirm)
   const [endpoint, setEndpoint] = useState(settings.telemetryEndpoint)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<TelemetryStatus | null>(null)
@@ -38,6 +39,14 @@ export function TelemetryPanel(): JSX.Element {
       setSettings({ telemetryEnabled: false })
       return
     }
+    // 動作名稱是使用者自己取的自由文字,會隨 session_start 一起上傳——這是唯一可能夾帶
+    // 個人資料的欄位,所以在開啟的當下明確提醒,而不是只寫在面板說明裡。
+    const agreed = await requestConfirm(
+      '開啟即時遙測上傳?',
+      '訓練開始時會一併上傳「動作名稱」。如果你曾用病人或個人姓名命名動作,請先到動作頁改名,' +
+        '或不要開啟上傳。其餘上傳內容不含姓名、帳號或電腦名稱,可隨時關閉。'
+    )
+    if (!agreed) return
     setBusy(true)
     try {
       await configureTelemetry({ telemetryEnabled: true, telemetryEndpoint: endpoint })
@@ -58,7 +67,7 @@ export function TelemetryPanel(): JSX.Element {
         App。你可以隨時關閉,關閉時尚未送出的資料會直接捨棄。
       </p>
       <ul className="text-text-muted text-sm mb-3" style={{ paddingLeft: 18, listStyle: 'disc' }}>
-        <li>會上傳:感測器原始角度封包、連線/斷線狀態、韌體更新狀態、訓練開始與結束(含動作名稱、目標參數、校準參數)、App 日誌。</li>
+        <li>會上傳:感測器原始角度封包、連線/斷線狀態、韌體更新狀態、訓練開始與結束(含動作名稱、目標參數、校準參數)、App 日誌。動作名稱是你自己取的,請勿使用病人或個人姓名。</li>
         <li>不會上傳:姓名、帳號、電腦名稱或其他可直接識別你的資料。每次啟動 App 使用一組新的隨機 ID。</li>
         <li>伺服器保留 90 天後自動刪除。本機紀錄照常保存,上傳失敗不影響量測。</li>
       </ul>
