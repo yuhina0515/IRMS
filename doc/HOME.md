@@ -21,6 +21,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-24 Main window clamped to monitor work area (unverified on Windows)**
+  ([[log_20260924_window_work_area_clamp|Log]]): PR #10's Win11 125%/1080p check found the
+  1280×820 main window taller than the work area, hiding the Dashboard's bottom evidence bar
+  behind the taskbar (also on `main`). `dpi_guard`'s target size is now
+  min(configured, work area − native frame), never below 1024×600, plus a startup-only nudge
+  back inside the work area. Unit-tested pure helpers, `npm run ci` green; **needs a real
+  Windows check at 100%/125%/175%**.
+
 - **2026-09-20 PR #7 merged, device coming back**: The 09-19/09-20 offline batch (Roll/CON-01
   baseline, DOC-01 rewrite, Dashboard/Settings journey tests, packets.txt stationary-segment
   check) went through PR #7 → merged to `main` via a standard merge commit (repo convention,
