@@ -18,8 +18,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
 | [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Electron 三進程互動圖 |
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D4) 與 Phase 0–5 開發路線圖 |
+| [[UI_REDESIGN_V2_PLAN\|🎨 UI 大改版計畫]] | beta8 之後的 UI 改版階段計畫與待裁決事項(2026-09-24,草案) |
 
 ## ⚠ 目前狀態速記
+
+- **2026-09-24 UI 大改版計畫(僅計畫,未動程式碼)**
+  ([[log_20260924_ui_redesign_plan|Log]] · [[UI_REDESIGN_V2_PLAN|計畫]]): 盤點 beta.10 UI 技術債
+  (樣式表雙層覆寫、三套工作區命名、無視覺回歸基準),規劃 P0 決策閘門 → P1 零視覺差異地基整理 →
+  P2 設計 token → P3 Dashboard 狀態驅動重構 → P4/P5 → P6 實機驗收。美術判斷依 §1.1 全留為設計
+  輸入槽;**待使用者裁決 D-1(誰出設計)與 D-2(驗收前後合併)**。
 
 - **2026-09-20 PR #7 merged, device coming back**: The 09-19/09-20 offline batch (Roll/CON-01
   baseline, DOC-01 rewrite, Dashboard/Settings journey tests, packets.txt stationary-segment
