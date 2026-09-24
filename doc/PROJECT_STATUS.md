@@ -97,7 +97,7 @@ coding log,不憑印象轉述。
 | 🟡 **Roll 修復未經真機驗證** | 2026-09-16/17 重新定義的 Roll 語意(修好深屈膝 ±180° 退化)只經合成/既有真機觀察推論驗證,尚未在真裝置上跑過回歸測試,見 [[log_20260917_cal02_design_decision]] 第五節第 1、2 項 |
 | 🟡 **BLE OTA 硬體驗證未完成**(B4/D1/D2) | 燒錄測試裝置、App 觸發更新的端對端測試、傳輸中途斷電/斷連的變磚防護驗證三步皆需實體 USB/BLE,同樣卡在裝置可用性上 |
 | 🟢 **Tauri 元件/旅程層測試(2026-09-20 補齊)** | `DashboardView.test.tsx`(12 tests)與 `SettingsView.test.tsx`(8 tests)補上連線→Session→ERR/斷線→收尾旅程與 OTA 進度/失敗旅程的元件層覆蓋,337 前端測試全綠。`Sidebar`/`TopHeader`/`ConfirmDialog` 等純 UI 殼層仍無測試,判定投報率低,未列入範圍 |
-| 🟡 **Gemini 設計權責懸置** | Gemini CLI 訂閱到期,非互動環境呼叫直接掛住無回應;OTA Settings 面板的 IA 位置覆核因此卡住。使用者已聲明本次驗收不以外觀為目標,此項風險對驗收本身影響低,但架構規範 §1.1 的既有慣例仍待使用者裁決是否重新啟用/指定替代 |
+| 🟢 **設計權責(2026-09-24 改定)** | 使用者裁定設計稿改由 Claude Code 或 GPT 6 Astra 產出,`AI_CODING_RULES.md` §1.1 已改寫,Gemini 退出設計角色。第一版設計語言規格見 [[UI_DESIGN_LANGUAGE_V2]],改版計畫見 [[UI_REDESIGN_V2_PLAN]];驗收前不合併任何改版程式碼的時程仍待使用者裁決 |
 | 🟢 **未簽章** | 安裝檔未做 Windows 程式碼簽章,安裝時會跳 SmartScreen |
 | 🟢 **舊版 Electron 資料無自動遷移路徑到 Tauri 以外的情境** | `migrate_electron.rs` 已覆蓋 Electron→Tauri 這一條路徑並有測試;更早的 v1(Express 時期)資料庫格式未涵蓋 |
 

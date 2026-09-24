@@ -19,8 +19,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Electron 三進程互動圖 |
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D4) 與 Phase 0–5 開發路線圖 |
 | [[UI_REDESIGN_V2_PLAN\|🎨 UI 大改版計畫]] | beta8 之後的 UI 改版階段計畫與待裁決事項(2026-09-24,草案) |
+| [[UI_DESIGN_LANGUAGE_V2\|🎨 設計語言 v2]] | 色票、字級、動效與 Dashboard 狀態構圖規格(2026-09-24,提案) |
 
 ## ⚠ 目前狀態速記
+
+- **2026-09-24 設計權責改定 + 設計語言 v2 規格**
+  ([[log_20260924_design_language_v2|Log]] · [[UI_DESIGN_LANGUAGE_V2|規格]]): 使用者裁定設計稿改由
+  Claude Code 或 GPT 6 Astra 產出(§1.1 已改寫,Gemini 退出)。第一版規格:雙主題「日間/低光」色票
+  (腳本實算全數通過 WCAG AA)、狀態色與系列色分離、主指標 104px/專注模式 160px、Dashboard 12 狀態
+  構圖。**待使用者審閱規格、裁決 D-2、確認 D-4(全面繁中)。**
 
 - **2026-09-24 UI 大改版計畫(僅計畫,未動程式碼)**
   ([[log_20260924_ui_redesign_plan|Log]] · [[UI_REDESIGN_V2_PLAN|計畫]]): 盤點 beta.10 UI 技術債
