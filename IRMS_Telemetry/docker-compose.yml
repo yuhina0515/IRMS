@@ -3,8 +3,11 @@ services:
     build: .
     container_name: irms-telemetry
     restart: unless-stopped
-    # INGEST_TOKEN / READ_TOKEN live only in the server-side .env (never committed).
+    # READ_TOKEN lives only in the server-side .env (never committed). Ingest is open.
     env_file: .env
+    environment:
+      # Desktop running Caddy; only it may assert the client IP via X-Forwarded-For.
+      TRUSTED_PROXY: "192.168.50.143"
     volumes:
       - ./data:/data
     ports:

@@ -1,14 +1,15 @@
-// telemetry.rs — opt-in upload of test telemetry to the IRMS telemetry collector
+// telemetry.rs — opt-in live telemetry upload to the IRMS telemetry collector
 // (IRMS_Telemetry/, deployed behind https://hina-tw.ddns.net/irms-api/).
 //
-// Purpose: real-device acceptance runs are done by teammates holding the hardware, so raw BLE
-// packets, connection transitions and OTA status need to reach the developer without anyone
+// Purpose: any app user may choose to stream raw BLE packets, connection transitions, OTA status
+// and Session events to the developer, so real-device behaviour can be analysed without anyone
 // copying log files around. Design rules:
-// - Default OFF. The endpoint and ingest token come from Settings at runtime, never from source —
-//   the repository is public.
+// - Default OFF; the user turns it on in Settings. There is no ingest secret — the app and repo
+//   are public, so one could not stay secret. The collector bounds abuse (rate limits, size cap,
+//   retention) and keeps reading behind its own token.
 // - Recording is a cheap in-memory push; network I/O happens on a separate task. An unreachable
-//   server, a bad token or a slow network must never block BLE handling, Session logic or the
-//   local SQLite store, which stays the source of truth.
+//   server, a rejected request or a slow network must never block BLE handling, Session logic or
+//   the local SQLite store, which stays the source of truth.
 // - The queue is bounded. When the server is unreachable for long, the oldest events are dropped
 //   and the drop count is reported, instead of growing memory without limit.
 // - Every event carries a per-launch run id and a monotonic seq, so a retried batch is
@@ -41,7 +42,6 @@ struct Event {
 struct Inner {
     enabled: bool,
     endpoint: String,
-    token: String,
     next_seq: u64,
     queue: VecDeque<Event>,
     sent: u64,
@@ -132,7 +132,7 @@ fn normalize_endpoint(endpoint: &str) -> Result<String, String> {
     let parsed = url::Url::parse(trimmed).map_err(|e| format!("無效的伺服器網址:{e}"))?;
     match parsed.scheme() {
         "https" => Ok(trimmed.to_string()),
-        // Plain HTTP only for a collector on this machine (development); the token must not
+        // Plain HTTP only for a collector on this machine (development); sensor data must not
         // cross a network in clear text.
         "http" if matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")) => {
             Ok(trimmed.to_string())
@@ -147,12 +147,8 @@ pub fn telemetry_configure(
     state: tauri::State<'_, TelemetryState>,
     enabled: bool,
     endpoint: String,
-    token: String,
 ) -> Result<TelemetryStatus, String> {
     let endpoint = if enabled {
-        if token.trim().is_empty() {
-            return Err("請先填入上傳金鑰".to_string());
-        }
         normalize_endpoint(&endpoint)?
     } else {
         String::new()
@@ -162,7 +158,6 @@ pub fn telemetry_configure(
         let turned_on = enabled && !inner.enabled;
         inner.enabled = enabled;
         inner.endpoint = endpoint;
-        inner.token = token.trim().to_string();
         inner.last_error = None;
         if !enabled {
             // Turning upload off discards what has not been sent — the user asked for no
@@ -218,12 +213,11 @@ pub fn spawn_uploader(app: AppHandle) {
             return;
         };
         let version = app.package_info().version.to_string();
-        let host = std::env::var("COMPUTERNAME").unwrap_or_default();
         let mut backoff = FLUSH_INTERVAL;
         loop {
             tokio::time::sleep(backoff).await;
             let state = app.state::<TelemetryState>();
-            backoff = match flush_once(&client, &state, &version, &host).await {
+            backoff = match flush_once(&client, &state, &version).await {
                 Ok(_) => FLUSH_INTERVAL,
                 Err(()) => (backoff * 2).min(MAX_BACKOFF),
             };
@@ -237,9 +231,8 @@ async fn flush_once(
     client: &reqwest::Client,
     state: &TelemetryState,
     version: &str,
-    host: &str,
 ) -> Result<usize, ()> {
-    let (url, token, batch, dropped) = {
+    let (url, batch, dropped) = {
         let inner = state.lock();
         if !inner.enabled || inner.queue.is_empty() {
             return Ok(0);
@@ -247,22 +240,21 @@ async fn flush_once(
         let batch: Vec<Event> = inner.queue.iter().take(MAX_BATCH).cloned().collect();
         (
             format!("{}/v1/ingest", inner.endpoint),
-            inner.token.clone(),
             batch,
             inner.dropped,
         )
     };
     let last_seq = batch.last().map(|e| e.seq).unwrap_or(0);
+    // No machine name or other host identifier: any user may enable this, and Windows computer
+    // names often contain the owner's real name.
     let body = json!({
         "runId": state.run_id,
         "appVersion": version,
-        "host": host,
         "dropped": dropped,
         "events": batch,
     });
     let result = client
         .post(&url)
-        .bearer_auth(&token)
         .json(&body)
         .send()
         .await
@@ -327,53 +319,43 @@ mod tests {
         );
     }
 
-    fn state_pointing_at(endpoint: &str, token: &str) -> TelemetryState {
+    fn state_pointing_at(endpoint: &str) -> TelemetryState {
         let state = enabled_state();
-        {
-            let mut inner = state.lock();
-            inner.endpoint = endpoint.to_string();
-            inner.token = token.to_string();
-        }
+        state.lock().endpoint = endpoint.to_string();
         state
     }
 
     #[tokio::test]
     async fn failed_upload_keeps_the_batch_queued() {
         // Nothing listens on port 9 (discard) locally; the connection is refused.
-        let state = state_pointing_at("http://127.0.0.1:9", "token");
+        let state = state_pointing_at("http://127.0.0.1:9");
         state.record("packet", json!({ "raw": "K:1" }));
         let client = build_client().unwrap();
-        assert!(flush_once(&client, &state, "test", "host").await.is_err());
+        assert!(flush_once(&client, &state, "test").await.is_err());
         let status = state.status();
         assert_eq!((status.pending, status.sent), (1, 0));
         assert!(status.last_error.is_some());
     }
 
     /// Live round trip against a real collector. Run manually:
-    /// IRMS_TELEMETRY_LIVE_ENDPOINT=... IRMS_TELEMETRY_LIVE_TOKEN=... cargo test -- --ignored live
+    /// IRMS_TELEMETRY_LIVE_ENDPOINT=... cargo test -- --ignored live
     #[tokio::test]
     #[ignore]
     async fn live_upload_round_trip() {
         let endpoint = std::env::var("IRMS_TELEMETRY_LIVE_ENDPOINT").unwrap();
-        let token = std::env::var("IRMS_TELEMETRY_LIVE_TOKEN").unwrap();
-        let state = state_pointing_at(&endpoint, &token);
+        let state = state_pointing_at(&endpoint);
         state.record("app_log", json!({ "message": "live_upload_round_trip" }));
         state.record("packet", json!({ "raw": "K:12.5" }));
         let client = build_client().unwrap();
-        assert_eq!(
-            flush_once(&client, &state, "test", "cargo-test").await,
-            Ok(2)
-        );
+        assert_eq!(flush_once(&client, &state, "test").await, Ok(2));
         println!("run id: {}", state.run_id);
 
-        // A wrong token must be rejected and leave the event queued.
-        state.lock().token = "wrong-token".to_string();
+        // A rejected request (here: wrong path → 404) must leave the event queued.
+        state.lock().endpoint = format!("{endpoint}/no-such-route");
         state.record("packet", json!({ "raw": "K:13.0" }));
-        assert!(flush_once(&client, &state, "test", "cargo-test")
-            .await
-            .is_err());
+        assert!(flush_once(&client, &state, "test").await.is_err());
         assert_eq!(state.status().pending, 1);
-        assert!(state.status().last_error.unwrap().contains("401"));
+        assert!(state.status().last_error.unwrap().contains("404"));
     }
 
     #[test]

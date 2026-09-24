@@ -118,12 +118,11 @@ export interface Settings {
    */
   sidebarCollapsed: boolean
   /**
-   * 實機測試遙測上傳(src-tauri/src/telemetry.rs)。預設關閉;金鑰由使用者在設定頁
-   * 貼入——repo 是公開的,金鑰不能寫進原始碼或安裝檔。
+   * 即時遙測上傳(src-tauri/src/telemetry.rs)。預設關閉,由使用者自行在設定頁選擇
+   * 是否開啟;不需要金鑰,濫用防護在伺服器端(限速、容量上限、保留期限)。
    */
   telemetryEnabled: boolean
   telemetryEndpoint: string
-  telemetryToken: string
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -179,7 +178,6 @@ const DEFAULT_SETTINGS: Settings = {
   sidebarCollapsed: false,
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
-  telemetryToken: ''
 }
 
 /**
@@ -498,7 +496,7 @@ export const useStore = create<StoreState>()(
       // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
       // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       // v13:sidebarCollapsed——補上 Electron 09-09 已修但 Tauri 前端搬遷未回頭補的持久化缺口
-      // v14:telemetryEnabled/telemetryEndpoint/telemetryToken——實機測試遙測上傳(預設關閉)
+      // v14:telemetryEnabled/telemetryEndpoint——使用者自選的即時遙測上傳(預設關閉)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )

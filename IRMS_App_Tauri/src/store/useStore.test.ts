@@ -42,7 +42,6 @@ const BASE_SETTINGS: Settings = {
   sidebarCollapsed: false,
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
-  telemetryToken: ''
 }
 
 describe('migrateSettings', () => {
@@ -134,7 +133,6 @@ describe('migrateSettings', () => {
     const v13 = { settings: { protocol: 'knee', sidebarCollapsed: true } }
     const { settings } = migrateSettings(v13)
     expect(settings.telemetryEnabled).toBe(false)
-    expect(settings.telemetryToken).toBe('')
     expect(settings.telemetryEndpoint).toBe('https://hina-tw.ddns.net/irms-api')
     expect(settings.sidebarCollapsed).toBe(true)
   })

@@ -59,7 +59,6 @@ const SETTINGS: Settings = {
   sidebarCollapsed: false,
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
-  telemetryToken: ''
 }
 
 describe('computeCaptureStats', () => {

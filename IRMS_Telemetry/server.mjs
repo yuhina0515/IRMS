@@ -1,28 +1,38 @@
-// IRMS telemetry collector — receives batched telemetry from the Tauri app during real-device
-// testing and stores it in SQLite so test runs can be queried afterwards.
+// IRMS telemetry collector — receives batched telemetry that app users opt in to sending and
+// stores it in SQLite so runs can be queried afterwards.
 // Zero dependencies: node:http + node:sqlite (Node >= 24).
 //
-// Auth: two separate bearer tokens from the environment. INGEST_TOKEN is typed into the app's
-// Settings by testers; READ_TOKEN is only for querying. The repo is public, so neither may ever
-// be committed.
+// Auth model: ingest is open to any app install (the app and repo are public, so no ingest
+// secret could stay secret). Abuse is bounded server-side instead: per-IP rate limits, a total
+// database size cap and time-based retention. Reading requires READ_TOKEN from the environment,
+// which must never be committed.
 
 import http from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
 import { timingSafeEqual } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 const PORT = Number(process.env.PORT ?? 8120)
 const HOST = process.env.HOST ?? '0.0.0.0'
 const DATA_DIR = process.env.DATA_DIR ?? './data'
-const INGEST_TOKEN = process.env.INGEST_TOKEN ?? ''
 const READ_TOKEN = process.env.READ_TOKEN ?? ''
+// Only requests from this address (the Caddy host) may assert the client IP via X-Forwarded-For.
+const TRUSTED_PROXY = process.env.TRUSTED_PROXY ?? ''
 const MAX_BODY_BYTES = 4 * 1024 * 1024
 const MAX_EVENTS_PER_BATCH = 20000
 const MAX_QUERY_LIMIT = 50000
+// Per client IP per minute. A streaming install sends ~30 requests and ~1.5k events per minute
+// (25 Hz packets, 2 s batches); the limits leave headroom for catch-up after an outage.
+const RATE_WINDOW_MS = 60_000
+const RATE_MAX_REQUESTS = Number(process.env.RATE_MAX_REQUESTS ?? 120)
+const RATE_MAX_EVENTS = Number(process.env.RATE_MAX_EVENTS ?? 30_000)
+const MAX_DB_BYTES = Number(process.env.MAX_DB_GB ?? 20) * 1024 ** 3
+const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 90)
+const RUN_ID_RE = /^[A-Za-z0-9-]{8,64}$/
 
-if (INGEST_TOKEN.length < 16 || READ_TOKEN.length < 16) {
-  console.error('INGEST_TOKEN and READ_TOKEN must both be set (>= 16 chars)')
+if (READ_TOKEN.length < 16) {
+  console.error('READ_TOKEN must be set (>= 16 chars)')
   process.exit(1)
 }
 
@@ -101,7 +111,12 @@ const isStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= m
 
 function ingest(payload) {
   const { runId, appVersion, host, dropped, events } = payload ?? {}
-  if (!isStr(runId, 64) || !Array.isArray(events) || events.length > MAX_EVENTS_PER_BATCH) {
+  if (
+    typeof runId !== 'string' ||
+    !RUN_ID_RE.test(runId) ||
+    !Array.isArray(events) ||
+    events.length > MAX_EVENTS_PER_BATCH
+  ) {
     return { status: 400, body: { error: 'expected { runId, events[] }' } }
   }
   for (const e of events) {
@@ -164,6 +179,56 @@ function listEvents(runId, params) {
   return rows.map((r) => ({ ...r, data: r.data === null ? null : JSON.parse(r.data) }))
 }
 
+function clientIp(req) {
+  const remote = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '')
+  if (TRUSTED_PROXY && remote === TRUSTED_PROXY) {
+    const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
+    if (forwarded) return forwarded
+  }
+  return remote
+}
+
+// Fixed-window counters per IP; the map is swept every window so it cannot grow unbounded.
+const rateWindows = new Map()
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, w] of rateWindows) if (now - w.start >= RATE_WINDOW_MS) rateWindows.delete(ip)
+}, RATE_WINDOW_MS).unref()
+
+function rateWindow(ip) {
+  const now = Date.now()
+  let w = rateWindows.get(ip)
+  if (!w || now - w.start >= RATE_WINDOW_MS) {
+    w = { start: now, requests: 0, events: 0 }
+    rateWindows.set(ip, w)
+  }
+  return w
+}
+
+function dbBytes() {
+  let total = 0
+  for (const suffix of ['', '-wal']) {
+    try {
+      total += statSync(path.join(DATA_DIR, `telemetry.sqlite${suffix}`)).size
+    } catch {
+      // WAL file may not exist yet.
+    }
+  }
+  return total
+}
+
+function pruneExpired() {
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
+  const expired = db.prepare('SELECT id FROM runs WHERE last_seen < ?').all(cutoff)
+  for (const { id } of expired) {
+    db.prepare('DELETE FROM events WHERE run_id = ?').run(id)
+    db.prepare('DELETE FROM runs WHERE id = ?').run(id)
+  }
+  if (expired.length) console.log(`pruned ${expired.length} runs older than ${RETENTION_DAYS} days`)
+}
+pruneExpired()
+setInterval(pruneExpired, 3_600_000).unref()
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://local')
   const p = url.pathname.replace(/\/+$/, '') || '/'
@@ -172,13 +237,18 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true })
     }
     if (req.method === 'POST' && p === '/v1/ingest') {
-      if (!tokenMatches(req, INGEST_TOKEN)) return send(res, 401, { error: 'unauthorized' })
+      const window = rateWindow(clientIp(req))
+      window.requests += 1
+      if (window.requests > RATE_MAX_REQUESTS) return send(res, 429, { error: 'rate limited' })
+      if (dbBytes() > MAX_DB_BYTES) return send(res, 507, { error: 'storage full' })
       let payload
       try {
         payload = JSON.parse(await readBody(req))
       } catch (err) {
         return send(res, err.status ?? 400, { error: err.status ? err.message : 'invalid JSON' })
       }
+      window.events += Array.isArray(payload?.events) ? payload.events.length : 0
+      if (window.events > RATE_MAX_EVENTS) return send(res, 429, { error: 'rate limited' })
       const result = ingest(payload)
       return send(res, result.status, result.body)
     }

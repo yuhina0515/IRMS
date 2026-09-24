@@ -54,10 +54,30 @@ the app currently observes, so a silent link loss will appear as packets stoppin
 - **Not verified**: the Settings panel inside a running Tauri app, and a real-device session
   producing packets. Both happen on the first teammate test run.
 
+## Update (same day): opt-in for every user, no ingest token
+
+The user asked that **any app user** can choose to connect and stream live telemetry. A
+per-tester ingest token contradicts that (and could never be secret in a public binary), so:
+
+- Ingest token removed from collector, Rust client, Settings (v14 was unreleased, changed in
+  place) and the server `.env`. `READ_TOKEN` unchanged.
+- Server-side abuse bounds instead: per-IP 120 req / 30k events per minute (IP from
+  `X-Forwarded-For` only when the request comes from the Caddy host `TRUSTED_PROXY`), 20 GB
+  DB cap (507), 90-day retention pruned hourly, strict `runId` charset.
+- Privacy: the client no longer sends `COMPUTERNAME` (often contains the owner's real name).
+  Panel copy now states exactly what is and is not uploaded, the 90-day retention, and that
+  turning it off discards unsent data. Endpoint moved under a collapsed 進階 section.
+- Verified via the public URL: tokenless ingest 200; unauthenticated read 401; invalid runId
+  400; burst of 125 requests → 429 after the 120th; spoofed `X-Forwarded-For` through Caddy
+  still hits the caller's own bucket, while the trusted Caddy host's header is honoured.
+  `npm run ci` green (338 / 54 tests); live Rust round trip passes and a rejected request
+  (404) keeps the event queued. Test rows deleted afterwards.
+- Still not verified: the panel inside a running app and a real-device session.
+
 ## Handoff
 
-- Tester setup: Settings → Test Telemetry → paste ingest token → toggle on. Status line shows
-  sent/pending/dropped and the run ID.
+- User setup: Settings → Telemetry 即時遙測上傳 → toggle on. The status line shows
+  sent/pending/dropped and the run ID users can quote when reporting a problem.
 - Query: `GET /irms-api/v1/runs`, `GET /irms-api/v1/runs/<runId>/events?kind=packet,connection`
   with `Authorization: Bearer <READ_TOKEN>`.
-- Shipping to the teammate needs a new beta build (release is a separate, explicit step).
+- Reaching users requires a new beta build (release is a separate, explicit step).

@@ -1,7 +1,7 @@
 // services/telemetry.ts
-// --- 實機測試遙測上傳(前端側) ---
+// --- 使用者自選的即時遙測上傳(前端側) ---
 // 佇列、批次上傳、重試都在 Rust(src-tauri/src/telemetry.rs);這裡只負責:
-// 1. 把 settings 裡的開關/網址/金鑰同步給 Rust(啟動時一次,之後每次變更)
+// 1. 把 settings 裡的開關/網址同步給 Rust(啟動時一次,之後每次變更)
 // 2. 送出只有前端知道的事件:Session 開始/結束(含校準快照)、App 日誌
 // 任何失敗都吞掉——遙測壞了不能影響量測本身。
 
@@ -17,7 +17,7 @@ export interface TelemetryStatus {
   lastError: string | null
 }
 
-type TelemetryConfig = Pick<Settings, 'telemetryEnabled' | 'telemetryEndpoint' | 'telemetryToken'>
+type TelemetryConfig = Pick<Settings, 'telemetryEnabled' | 'telemetryEndpoint'>
 
 let enabled = false
 
@@ -30,8 +30,7 @@ export function logTelemetry(kind: string, data: unknown = null): void {
 export async function configureTelemetry(config: TelemetryConfig): Promise<TelemetryStatus> {
   const status = await invoke<TelemetryStatus>('telemetry_configure', {
     enabled: config.telemetryEnabled,
-    endpoint: config.telemetryEndpoint,
-    token: config.telemetryToken
+    endpoint: config.telemetryEndpoint
   })
   enabled = status.enabled
   return status
@@ -42,11 +41,7 @@ export function getTelemetryStatus(): Promise<TelemetryStatus> {
 }
 
 function sameConfig(a: TelemetryConfig, b: TelemetryConfig): boolean {
-  return (
-    a.telemetryEnabled === b.telemetryEnabled &&
-    a.telemetryEndpoint === b.telemetryEndpoint &&
-    a.telemetryToken === b.telemetryToken
-  )
+  return a.telemetryEnabled === b.telemetryEnabled && a.telemetryEndpoint === b.telemetryEndpoint
 }
 
 /** 啟動時呼叫一次:套用已存設定,並追蹤之後的變更。 */
