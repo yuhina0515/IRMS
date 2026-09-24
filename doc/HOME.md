@@ -23,6 +23,12 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-24 UI 推掉重建完成(分支上,驗收後才合併)**
+  ([[log_20260924_ui_rebuild_v2|Log]] · [[UI_REDESIGN|UI 規格 v2]]): 使用者裁定 D-2 驗收後合併、
+  D-4 語言檔分中英、UI 推掉重建。新增 `src/i18n`(zh-TW/en)、依設計語言 v2 重寫樣式表與全部畫面、
+  即時監測改為狀態驅動(阻斷面板/整片警報/專注模式),設定 persist v14。351 前端測試全綠,19 張截圖
+  無溢位。**未做 Windows 實機與真裝置驗證**;合併前先打 `ui-beta8-archive` tag。
+
 - **2026-09-24 設計權責改定 + 設計語言 v2 規格**
   ([[log_20260924_design_language_v2|Log]] · [[UI_DESIGN_LANGUAGE_V2|規格]]): 使用者裁定設計稿改由
   Claude Code 或 GPT 6 Astra 產出(§1.1 已改寫,Gemini 退出)。第一版規格:雙主題「日間/低光」色票
