@@ -116,7 +116,7 @@ pub fn verify_binary(data: &[u8], manifest: &FirmwareManifest) -> Result<(), Str
     Ok(())
 }
 
-fn client() -> Result<reqwest::Client, String> {
+pub(crate) fn client() -> Result<reqwest::Client, String> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
@@ -126,7 +126,7 @@ fn client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("HTTP client init failed: {e}"))
 }
 
-async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
+pub(crate) async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
     let resp = client
         .get(url)
         .send()

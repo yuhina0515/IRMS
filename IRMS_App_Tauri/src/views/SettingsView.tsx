@@ -7,6 +7,7 @@ import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { TelemetryPanel } from '../components/TelemetryPanel'
+import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
 import { SCENARIOS } from '../services/simulation/scenarios'
@@ -276,6 +277,9 @@ export function SettingsView(): JSX.Element {
       </div>
       <div style={{ marginTop: 24 }}>
         <TelemetryPanel />
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <ModulesPanel />
       </div>
     </section>
   )

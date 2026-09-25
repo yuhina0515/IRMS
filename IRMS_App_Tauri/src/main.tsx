@@ -9,6 +9,7 @@ import { irms } from './platform/irmsApi'
 import './services/sessionController'
 import { initTelemetry } from './services/telemetry'
 import { installFirmwareAutoUpdate } from './services/firmwareAutoUpdateInstall'
+import { installModules } from './services/modulesInstall'
 // SF Pro 是 Apple 授權字型,不能合法包進 Windows build;Inter 是視覺上最接近的
 // 開源替身(SIL OFL),自架避免使用者本機沒裝就整組 fallback 掉到 Segoe UI。
 // 只引入 wght 軸(不含斜體)——App 全程沒有 italic 文字,index.css 全量會多帶
@@ -36,6 +37,8 @@ async function bootstrap(): Promise<void> {
 
 initTelemetry()
 installFirmwareAutoUpdate()
+// 模組同步走網路,不阻擋首次繪製
+void installModules()
 void bootstrap()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

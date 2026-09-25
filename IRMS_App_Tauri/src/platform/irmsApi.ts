@@ -21,6 +21,7 @@ import type {
   CustomActionInput,
   FirmwareBinary,
   FirmwareRelease,
+  ModuleSyncResult,
   IrmsApi,
   Session,
   SensorReading,
@@ -170,6 +171,9 @@ export const irms: IrmsApi = {
       return { ...firmware, data: Uint8Array.from(firmware.data) }
     },
     isNewer: (device, latest) => invoke<boolean>('firmware_is_newer', { device, latest })
+  },
+  modules: {
+    sync: () => invoke<ModuleSyncResult>('modules_sync')
   },
   windowControls: {
     async minimize() {

@@ -204,6 +204,23 @@ export interface FirmwareBinary {
   data: Uint8Array
 }
 
+/** IRMS-Modules 中已驗證、可載入的模組(Rust modules.rs 回傳) */
+export interface InstalledModule {
+  id: string
+  version: string
+  name: string
+  description: string
+  /** 已驗證檔案的絕對路徑;renderer 以 convertFileSrc 轉成 asset: URL 後 import() */
+  path: string
+}
+
+export interface ModuleSyncResult {
+  modules: InstalledModule[]
+  /** 網路失敗、改用本機已驗證的清單 */
+  offline: boolean
+  warnings: string[]
+}
+
 /** IRMS-Firmware 最新發布版(已由 Rust 端驗過 Ed25519 簽章),刻意不含下載網址與雜湊 */
 export interface FirmwareRelease {
   version: string
@@ -257,6 +274,10 @@ export interface IrmsApi {
     /** 下載並驗證指定版本;版本在下載前變動會丟例外 */
     downloadLatest(version: string): Promise<FirmwareBinary>
     isNewer(device: string | null, latest: string): Promise<boolean>
+  }
+  modules: {
+    /** 同步 IRMS-Modules:驗證簽章與雜湊,回傳可載入的模組 */
+    sync(): Promise<ModuleSyncResult>
   }
   windowControls: {
     minimize(): Promise<void>

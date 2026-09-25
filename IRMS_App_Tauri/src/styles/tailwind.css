@@ -566,6 +566,21 @@
     @apply relative w-full;
     height: min(280px, 36vh);
   }
+  .modules-list {
+    @apply flex flex-col gap-2.5 mt-2;
+  }
+  .modules-item {
+    @apply px-3.5 py-3 rounded-control border border-border bg-surface-raised;
+  }
+  .modules-item-head {
+    @apply flex items-center justify-between gap-3 mb-1;
+  }
+  .modules-toggle {
+    @apply flex items-center gap-1.5 text-sm text-text-muted cursor-pointer;
+  }
+  .modules-tips {
+    @apply mt-2 pl-5 list-disc text-sm flex flex-col gap-1;
+  }
   .analysis-summary {
     @apply grid gap-2 mt-3.5;
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
