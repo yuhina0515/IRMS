@@ -5,10 +5,13 @@ mod defaults;
 mod downsample;
 mod dpi_guard;
 mod firmware;
+mod firmware_update;
 mod migrate_electron;
 mod migrations;
+mod modules;
 mod protocol;
 mod splash;
+mod telemetry;
 mod types;
 mod update;
 
@@ -44,7 +47,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BleState::default())
         .manage(SplashReadyState::default())
+        .manage(telemetry::TelemetryState::default())
         .setup(|app| {
+            telemetry::spawn_uploader(app.handle().clone());
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let db_path = data_dir.join("irms.sqlite");
@@ -87,6 +92,13 @@ pub fn run() {
             ble::ble_perform_ota_update,
             ble::ble_abort_ota,
             firmware::firmware_read_binary,
+            firmware_update::firmware_check_latest,
+            firmware_update::firmware_download_latest,
+            firmware_update::firmware_is_newer,
+            modules::modules_sync,
+            telemetry::telemetry_configure,
+            telemetry::telemetry_log,
+            telemetry::telemetry_status,
             commands::actions_list,
             commands::actions_create,
             commands::actions_update,

@@ -4,6 +4,7 @@ import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
+import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
 import { isProtocolSupported } from '@shared/types'
 import {
@@ -45,7 +46,10 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
   // elbow / shoulder 的判定管線尚未泛化(仍讀腿部感測器),擋在這裡而不是
   // 讓它產生一場資料與標籤對不上的「肩關節」紀錄
   const protocolOk = isProtocolSupported(protocol)
-  const canStart = isConnected && selectedActionId != null && !running && protocolOk
+  // 自動韌體更新傳輸中不可開始:裝置即將重開機,開了也會立刻斷線收尾
+  const fwStatus = useFirmwareAutoStore((s) => s.status)
+  const fwBusy = firmwareUpdateBusy(fwStatus)
+  const canStart = isConnected && selectedActionId != null && !running && protocolOk && !fwBusy
 
   const handleStart = async (): Promise<void> => {
     try {
@@ -156,9 +160,11 @@ export function SessionControlPanel({ ring }: Props): JSX.Element {
         <button className="btn btn-primary btn-block" disabled={!canStart} onClick={() => void handleStart()}>
           {!protocolOk
             ? '此協定尚未支援'
-            : isConnected
-              ? 'Start Session'
-              : 'Connect device first'}
+            : fwBusy
+              ? `韌體更新中${fwStatus.phase === 'updating' ? ` ${fwStatus.percent ?? 0}%` : '…'}`
+              : isConnected
+                ? 'Start Session'
+                : 'Connect device first'}
         </button>
       )}
       {!running && !protocolOk && (

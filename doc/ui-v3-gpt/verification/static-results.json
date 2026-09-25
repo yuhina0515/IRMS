@@ -1,0 +1,624 @@
+{
+  "checks": [
+    {
+      "name": "dashboard: valid inline JavaScript",
+      "pass": true
+    },
+    {
+      "name": "dashboard: no external assets",
+      "pass": true
+    },
+    {
+      "name": "dashboard: no network/storage APIs",
+      "pass": true
+    },
+    {
+      "name": "dashboard: unique IDs",
+      "pass": true
+    },
+    {
+      "name": "dashboard: local navigation resolves",
+      "pass": true
+    },
+    {
+      "name": "dashboard: dark theme",
+      "pass": true
+    },
+    {
+      "name": "dashboard: light theme",
+      "pass": true
+    },
+    {
+      "name": "dashboard: action preview opens",
+      "pass": true
+    },
+    {
+      "name": "dashboard: alarm",
+      "pass": true
+    },
+    {
+      "name": "dashboard: error",
+      "pass": true
+    },
+    {
+      "name": "dashboard: error suppresses live number",
+      "pass": true
+    },
+    {
+      "name": "dashboard: disconnected",
+      "pass": true
+    },
+    {
+      "name": "dashboard: uncalibrated",
+      "pass": true
+    },
+    {
+      "name": "dashboard: no false calibration badge",
+      "pass": true
+    },
+    {
+      "name": "dashboard: holding",
+      "pass": true
+    },
+    {
+      "name": "dashboard: pose selection",
+      "pass": true
+    },
+    {
+      "name": "settings: valid inline JavaScript",
+      "pass": true
+    },
+    {
+      "name": "settings: no external assets",
+      "pass": true
+    },
+    {
+      "name": "settings: no network/storage APIs",
+      "pass": true
+    },
+    {
+      "name": "settings: unique IDs",
+      "pass": true
+    },
+    {
+      "name": "settings: local navigation resolves",
+      "pass": true
+    },
+    {
+      "name": "settings: dark theme",
+      "pass": true
+    },
+    {
+      "name": "settings: light theme",
+      "pass": true
+    },
+    {
+      "name": "settings: action preview opens",
+      "pass": true
+    },
+    {
+      "name": "settings: device",
+      "pass": true
+    },
+    {
+      "name": "settings: calibration",
+      "pass": true
+    },
+    {
+      "name": "settings: display",
+      "pass": true
+    },
+    {
+      "name": "settings: updates",
+      "pass": true
+    },
+    {
+      "name": "settings: telemetry",
+      "pass": true
+    },
+    {
+      "name": "settings: demo",
+      "pass": true
+    },
+    {
+      "name": "settings: consent before enabling",
+      "pass": true
+    },
+    {
+      "name": "settings: enabled endpoint locked",
+      "pass": true
+    },
+    {
+      "name": "settings: disabled endpoint editable",
+      "pass": true
+    },
+    {
+      "name": "history-review: valid inline JavaScript",
+      "pass": true
+    },
+    {
+      "name": "history-review: no external assets",
+      "pass": true
+    },
+    {
+      "name": "history-review: no network/storage APIs",
+      "pass": true
+    },
+    {
+      "name": "history-review: unique IDs",
+      "pass": true
+    },
+    {
+      "name": "history-review: local navigation resolves",
+      "pass": true
+    },
+    {
+      "name": "history-review: dark theme",
+      "pass": true
+    },
+    {
+      "name": "history-review: light theme",
+      "pass": true
+    },
+    {
+      "name": "history-review: action preview opens",
+      "pass": true
+    },
+    {
+      "name": "review: over-limit rep selection",
+      "pass": true
+    },
+    {
+      "name": "review: incomplete rep",
+      "pass": true
+    },
+    {
+      "name": "review: comparison opens",
+      "pass": true
+    },
+    {
+      "name": "light: ink/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "light: ink/canvas contrast",
+      "pass": true
+    },
+    {
+      "name": "light: ink/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "light: muted/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "light: muted/canvas contrast",
+      "pass": true
+    },
+    {
+      "name": "light: muted/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "light: accent/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "light: accent/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "light: accent/tint contrast",
+      "pass": true
+    },
+    {
+      "name": "light: on-accent/accent contrast",
+      "pass": true
+    },
+    {
+      "name": "light: good/good-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "light: good/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "light: warn/warn-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "light: danger/danger-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "light: danger/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "light: on-danger/danger contrast",
+      "pass": true
+    },
+    {
+      "name": "light: edge/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "light: edge/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: ink/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: ink/canvas contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: ink/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: muted/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: muted/canvas contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: muted/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: accent/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: accent/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: accent/tint contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: on-accent/accent contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: good/good-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: good/soft contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: warn/warn-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: danger/danger-bg contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: danger/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: on-danger/danger contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: edge/paper contrast",
+      "pass": true
+    },
+    {
+      "name": "dark: edge/soft contrast",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "tokens": {
+    "light": {
+      "canvas": "#EEEAE2",
+      "paper": "#FFFCF6",
+      "soft": "#E8E2D8",
+      "ink": "#29252D",
+      "muted": "#625C65",
+      "line": "#CFC6BD",
+      "edge": "#827784",
+      "accent": "#684563",
+      "on-accent": "#FFFFFF",
+      "tint": "#EDE1EA",
+      "good": "#286047",
+      "good-bg": "#E0EBDF",
+      "warn": "#805017",
+      "warn-bg": "#F4E7CF",
+      "danger": "#B02D32",
+      "danger-bg": "#FAE5E0",
+      "on-danger": "#FFFFFF"
+    },
+    "dark": {
+      "canvas": "#201E23",
+      "paper": "#29262D",
+      "soft": "#36313A",
+      "ink": "#F4EEE6",
+      "muted": "#C3B8C5",
+      "line": "#514853",
+      "edge": "#A698AA",
+      "accent": "#D9B6D0",
+      "on-accent": "#29252D",
+      "tint": "#463443",
+      "good": "#ACD7B8",
+      "good-bg": "#2D4033",
+      "warn": "#F0C182",
+      "warn-bg": "#493922",
+      "danger": "#FFA7A0",
+      "danger-bg": "#502D30",
+      "on-danger": "#29252D"
+    }
+  },
+  "contrast": {
+    "light": [
+      {
+        "fg": "ink",
+        "bg": "paper",
+        "ratio": 14.68,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "ink",
+        "bg": "canvas",
+        "ratio": 12.53,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "ink",
+        "bg": "soft",
+        "ratio": 11.67,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "paper",
+        "ratio": 6.33,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "canvas",
+        "ratio": 5.41,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "soft",
+        "ratio": 5.03,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "paper",
+        "ratio": 7.83,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "soft",
+        "ratio": 6.22,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "tint",
+        "ratio": 6.32,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "on-accent",
+        "bg": "accent",
+        "ratio": 8.02,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "good",
+        "bg": "good-bg",
+        "ratio": 6,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "good",
+        "bg": "soft",
+        "ratio": 5.71,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "warn",
+        "bg": "warn-bg",
+        "ratio": 5.58,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "danger",
+        "bg": "danger-bg",
+        "ratio": 5.31,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "danger",
+        "bg": "paper",
+        "ratio": 6.28,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "on-danger",
+        "bg": "danger",
+        "ratio": 6.43,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "edge",
+        "bg": "paper",
+        "ratio": 4.17,
+        "required": 3,
+        "pass": true
+      },
+      {
+        "fg": "edge",
+        "bg": "soft",
+        "ratio": 3.31,
+        "required": 3,
+        "pass": true
+      }
+    ],
+    "dark": [
+      {
+        "fg": "ink",
+        "bg": "paper",
+        "ratio": 12.93,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "ink",
+        "bg": "canvas",
+        "ratio": 14.33,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "ink",
+        "bg": "soft",
+        "ratio": 10.99,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "paper",
+        "ratio": 7.79,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "canvas",
+        "ratio": 8.64,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "muted",
+        "bg": "soft",
+        "ratio": 6.63,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "paper",
+        "ratio": 8.2,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "soft",
+        "ratio": 6.97,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "accent",
+        "bg": "tint",
+        "ratio": 6.3,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "on-accent",
+        "bg": "accent",
+        "ratio": 8.27,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "good",
+        "bg": "good-bg",
+        "ratio": 6.96,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "good",
+        "bg": "soft",
+        "ratio": 7.94,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "warn",
+        "bg": "warn-bg",
+        "ratio": 6.69,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "danger",
+        "bg": "danger-bg",
+        "ratio": 6.42,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "danger",
+        "bg": "paper",
+        "ratio": 8.01,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "on-danger",
+        "bg": "danger",
+        "ratio": 8.08,
+        "required": 4.5,
+        "pass": true
+      },
+      {
+        "fg": "edge",
+        "bg": "paper",
+        "ratio": 5.46,
+        "required": 3,
+        "pass": true
+      },
+      {
+        "fg": "edge",
+        "bg": "soft",
+        "ratio": 4.64,
+        "required": 3,
+        "pass": true
+      }
+    ]
+  },
+  "layoutVerification": "NOT RUN: browser process launch denied (spawn EPERM); connected browser inventory empty; IAB unavailable. JSDOM does not measure layout."
+}

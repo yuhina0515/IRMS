@@ -2,30 +2,9 @@
 // 即時角度折線圖。為了 10Hz 高頻更新的效能,採用原生 Chart.js + store 訂閱做命令式更新,
 // 而非每筆封包都觸發 React 重繪。Session 開始時自動清空。
 import { useEffect, useRef } from 'react'
-import {
-  CategoryScale,
-  Chart,
-  Filler,
-  Legend,
-  LineController,
-  LineElement,
-  LinearScale,
-  PointElement,
-  Tooltip
-} from 'chart.js'
+import { Chart } from '../services/chartSetup'
 import { useStore } from '../store/useStore'
 import { chartTheme, onThemeChange } from '../services/theme'
-
-Chart.register(
-  LineController,
-  LineElement,
-  PointElement,
-  LinearScale,
-  CategoryScale,
-  Filler,
-  Tooltip,
-  Legend
-)
 
 export function LiveChart(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)

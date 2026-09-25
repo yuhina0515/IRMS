@@ -1,6 +1,6 @@
 [package]
 name = "irms_app_tauri"
-version = "1.2.0-beta.10"
+version = "1.2.0-beta.13"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -18,7 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# protocol-asset: runtime modules are imported from <app data>/modules via asset: (modules.rs).
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 # Replaces main/index.ts's hand-rolled requestSingleInstanceLock()/second-instance handler —
 # desktop-only (see the #[cfg(desktop)] guard in lib.rs), same reason the app already gates
@@ -47,6 +48,16 @@ futures = "0.3"
 rusqlite = { version = "0.32", features = ["bundled"] }
 chrono = "0.4"
 tauri-plugin-dialog = "2"
+# Telemetry upload (telemetry.rs). Same reqwest/rustls features tauri-plugin-updater already
+# pulls in, so this adds no new crates to the build.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+# Automatic firmware delivery (firmware_update.rs): Ed25519 manifest signatures, SHA-256 of the
+# image, semver comparison. All four crates are already in the lockfile via tauri/reqwest.
+ring = "0.17"
+sha2 = "0.10"
+semver = "1"
+base64 = "0.22"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

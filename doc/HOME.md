@@ -21,6 +21,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-24 live telemetry upload — released as v1.2.0-beta.11 from `feat/telemetry-upload`
+  (PR #9, not yet merged to main)**: any user may opt in
+  (default OFF) to stream raw BLE packets, connection/OTA/Session events and app logs to
+  `https://hina-tw.ddns.net/irms-api/` (collector in `IRMS_Telemetry/`, Docker on hina-server).
+  No ingest token; server rate-limits per IP, caps size, keeps 90 days. Live upload verified
+  from the Rust client; GUI panel not yet exercised in a running app. See
+  [[log_20260924_telemetry_upload|coding log]].
 - **2026-09-20 PR #7 merged, device coming back**: The 09-19/09-20 offline batch (Roll/CON-01
   baseline, DOC-01 rewrite, Dashboard/Settings journey tests, packets.txt stationary-segment
   check) went through PR #7 → merged to `main` via a standard merge commit (repo convention,

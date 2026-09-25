@@ -110,7 +110,10 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
     },
     // 使用者取消選檔是常態操作,不是例外——預設回傳 null 而非丟出錯誤
     firmware: {
-      pickBinary: async () => null
+      pickBinary: async () => null,
+      checkLatest: async () => ({ version: '0.0.0', size: 0, notes: '', appCompatible: true }),
+      downloadLatest: async (_version: string) => ({ path: '', size: 0, md5: '', data: new Uint8Array() }),
+      isNewer: async (_device: string | null, _latest: string) => false
     },
     updates: {
       getCurrentVersion: async () => '0.0.0-test',

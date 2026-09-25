@@ -12,6 +12,7 @@ import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from './bluetooth'
 import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
+import { logTelemetry } from './telemetry'
 import { TriggerEngine } from './triggerEngine'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
@@ -300,6 +301,17 @@ class SessionController {
       })
 
       this.startTimers()
+      logTelemetry('session_start', {
+        sessionId,
+        actionId: action?.id ?? null,
+        actionName: action?.name ?? null,
+        protocol: state.settings.protocol,
+        triggerType: this.currentConfig().triggerType,
+        safetyLimit: action?.safetyLimit ?? null,
+        params,
+        calibration: buildCalibrationSnapshot(state.settings),
+        source: useUiStore.getState().demoMode ? 'demo' : 'device'
+      })
       useStore.getState().log(`Started session #${sessionId} (${action?.name ?? 'custom'}).`)
     } catch (err) {
       useStore.getState().log(`Failed to start session: ${(err as Error).message}`)
@@ -319,12 +331,21 @@ class SessionController {
 
     await this.flush()
 
+    let endError: string | null = null
     try {
       await irms.sessions.end(session.id, session.reps)
       useStore.getState().log(`Ended session #${session.id}. Reps: ${session.reps}.`)
     } catch (err) {
-      useStore.getState().log(`Failed to end session: ${(err as Error).message}`)
+      endError = (err as Error).message
+      useStore.getState().log(`Failed to end session: ${endError}`)
     }
+    logTelemetry('session_end', {
+      sessionId: session.id,
+      reps: session.reps,
+      elapsedSec: session.elapsedSec,
+      unsavedReadings: this.buffer.length,
+      endError
+    })
 
     // 收尾:關閉硬體回饋;丟棄節流中的殘留進度,防止蓋回已歸零的 session
     this.sendLed('off')

@@ -16,7 +16,16 @@ vi.mock('chart.js', () => ({
   Chart: class {
     static register = (): void => {}
     destroy = (): void => {}
-  }
+  },
+  // services/chartSetup.ts registers these; values are irrelevant under the mock
+  CategoryScale: {},
+  Filler: {},
+  Legend: {},
+  LineController: {},
+  LineElement: {},
+  LinearScale: {},
+  PointElement: {},
+  Tooltip: {}
 }))
 
 function session(over: Partial<Session>): Session {

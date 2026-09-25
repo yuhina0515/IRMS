@@ -495,9 +495,16 @@
      separate stages. */
   .glass-dropdown-popup {
     position: fixed; /* top/left/width set inline by GlassDropdown.tsx — portaled to body */
-    @apply z-[200] max-h-[260px] overflow-y-auto p-1.5 flex flex-col gap-0.5 bg-surface-raised
+    /* Must sit above .overlay (z-1100): dropdowns inside modals (Create Action's Trigger Type)
+       otherwise open behind the backdrop and look like a dead click. */
+    @apply z-[1200] max-h-[260px] overflow-y-auto p-1.5 flex flex-col gap-0.5 bg-surface-raised
       border border-border rounded-control;
     animation: dropdown-grow 0.14s var(--motion-ease-enter) both;
+  }
+  /* The workspace theme later turns every .glass translucent (surface / 0.78). A dropdown list
+     floats over live form fields, so see-through here means option text overlapping inputs. */
+  .glass-dropdown-popup.glass {
+    background: rgb(var(--color-surface-raised));
   }
   .glass-dropdown-popup.closing {
     animation: dropdown-shrink 0.1s var(--motion-ease-exit) both;
@@ -552,6 +559,40 @@
      compact .dialog) ── */
   .modal {
     @apply w-[min(720px,94vw)] max-h-[88vh] overflow-y-auto p-6;
+  }
+  /* History analysis chart: Chart.js runs with maintainAspectRatio:false, so the canvas takes
+     its height from this box — without an explicit height it has nothing to fill. */
+  .history-chart-viewport {
+    @apply relative w-full;
+    height: min(280px, 36vh);
+  }
+  .modules-list {
+    @apply flex flex-col gap-2.5 mt-2;
+  }
+  .modules-item {
+    @apply px-3.5 py-3 rounded-control border border-border bg-surface-raised;
+  }
+  .modules-item-head {
+    @apply flex items-center justify-between gap-3 mb-1;
+  }
+  .modules-toggle {
+    @apply flex items-center gap-1.5 text-sm text-text-muted cursor-pointer;
+  }
+  .modules-tips {
+    @apply mt-2 pl-5 list-disc text-sm flex flex-col gap-1;
+  }
+  .analysis-summary {
+    @apply grid gap-2 mt-3.5;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+  .analysis-summary-item {
+    @apply flex flex-col gap-0.5 px-3 py-2 rounded-control border border-border bg-surface-raised;
+  }
+  .analysis-summary-label {
+    @apply text-text-muted text-xs font-semibold;
+  }
+  .analysis-summary-value {
+    @apply text-lg font-bold font-mono whitespace-nowrap;
   }
   .modal-header {
     @apply flex justify-between items-center mb-4;
@@ -1405,7 +1446,10 @@
   .action-register { border: 1px solid rgb(var(--color-border)); border-bottom: 0; }
   .register-row {
     display: grid;
-    grid-template-columns: minmax(170px, 1.25fr) 130px minmax(250px, 1.4fr) minmax(180px, 1fr) auto;
+    /* name | trigger badge | params | safety limit | description | actions — six children, so six
+       tracks; with five, the actions row wrapped onto a second line and the badge was squeezed
+       into a fixed 130px column that broke its label over three lines. */
+    grid-template-columns: minmax(150px, 1fr) max-content max-content max-content minmax(0, 1.2fr) auto;
     align-items: center;
     gap: 16px;
     min-height: 76px;
@@ -1418,7 +1462,9 @@
   .register-row:hover { background: rgb(var(--color-surface-raised) / 0.58); }
   .register-row h4 { font-size: 14px; }
   .register-row .meta { margin: 0; }
-  .register-row .row { margin: 0 !important; justify-content: flex-end; }
+  .register-row .row { margin: 0 !important; justify-content: flex-end; grid-column: -2 / -1; }
+  .register-row .badge { white-space: nowrap; }
+  .register-row .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
   /* History and settings use continuous sheets with separators instead of card stacks. */
   .data-surface { overflow: hidden; border: 1px solid rgb(var(--color-border)); }
@@ -1442,7 +1488,7 @@
     .rail-item { width: 54px; }
     .rail-item span { display: none; }
     .command-brand span { display: none; }
-    .register-row { grid-template-columns: 1fr 110px 1fr auto; }
+    .register-row { grid-template-columns: minmax(0, 1fr) max-content max-content auto; }
     .register-row .action-card-tier3 { display: none; }
     .dashboard-grid,
     .dashboard-grid.no-pose { grid-template-columns: minmax(360px, 1.25fr) minmax(270px, .75fr); }

@@ -39,7 +39,9 @@ const BASE_SETTINGS: Settings = {
   wearSide: null,
   themeMode: 'dark',
   allowBetaUpdates: true,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  telemetryEnabled: false,
+  telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
 }
 
 describe('migrateSettings', () => {
@@ -125,6 +127,14 @@ describe('migrateSettings', () => {
     expect(settings.sidebarCollapsed).toBe(false) // 新欄位補預設(展開)
     expect(settings.maxChartPoints).toBe(80) // 使用者既有值不被覆蓋
     expect(settings.allowBetaUpdates).toBe(false)
+  })
+
+  it('v13 的 persist 資料補上 v14 遙測欄位(預設關閉),且不動使用者既有值', () => {
+    const v13 = { settings: { protocol: 'knee', sidebarCollapsed: true } }
+    const { settings } = migrateSettings(v13)
+    expect(settings.telemetryEnabled).toBe(false)
+    expect(settings.telemetryEndpoint).toBe('https://hina-tw.ddns.net/irms-api')
+    expect(settings.sidebarCollapsed).toBe(true)
   })
 
   it('v3 以前的符號摺疊 offset 換算成 zeroRaw(2026-08-12 會議:修掉 invert 事後翻轉的雙倍偏差缺陷)', () => {
@@ -278,6 +288,47 @@ describe('applyCalibration', () => {
     const out = applyCalibration({ thigh: 30, shin: 1, thighRoll: 2, shinRoll: 3 }, s)
     expect(out.rawThigh).toBe(30)
     expect(out.rawShin).toBe(1)
+  })
+
+  // 2026-09-25 CAL-03 實機 A/B(遙測 run 51e7fcbe):衣物把兩顆 IMU 墊得不平行,站姿向量
+  // 夾角 35.4°。使用者坐姿屈膝約 90°,舊的「向量夾角 − 站姿夾角」只給約 30°,永遠
+  // 達不到 90° 目標;屈曲軸投影差給 82°,與 Leg3D 畫出的姿勢(同樣來自 thigh/shin)一致。
+  describe('兩肢段皆有屈曲軸校準時,膝角 = 投影後的 thigh/shin 差', () => {
+    const live: Settings = {
+      ...BASE_SETTINGS,
+      proximalHingeAxis: { x: 0.4929556216567172, y: -0.014111840084892928, z: 0.8699400042798686 },
+      proximalZeroAccel: { x: 0.030202318603544248, y: 0.9995434006718216, z: -0.000900069097456616 },
+      distalHingeAxis: { x: -0.02265982299772183, y: 0.5485407393588028, z: -0.8358167201518585 },
+      distalZeroAccel: { x: -0.1716706641262246, y: 0.8214786353478439, z: 0.543784915886332 },
+      distalInvert: true,
+      kneeZeroRaw: 35.370172447689555
+    }
+
+    it('站姿基準本身讀 0°', () => {
+      const out = applyCalibration(
+        { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0, thighAccel: live.proximalZeroAccel!, shinAccel: live.distalZeroAccel! },
+        live
+      )
+      expect(out.knee).toBeCloseTo(0, 5)
+    })
+
+    it('實測坐姿屈膝封包讀到約 82°,不是向量路徑的約 30°', () => {
+      // T:40.6,S:69.6,K:29.0,TR:-69.7,SR:-7.3,KR:62.4,V:-0.900/0.283/0.332/-0.050/0.936/0.348
+      const out = applyCalibration(
+        {
+          thigh: 40.6,
+          shin: 69.6,
+          thighRoll: -69.7,
+          shinRoll: -7.3,
+          thighAccel: { x: -0.9, y: 0.283, z: 0.332 },
+          shinAccel: { x: -0.05, y: 0.936, z: 0.348 }
+        },
+        live
+      )
+      expect(out.knee).toBeGreaterThan(78)
+      expect(out.knee).toBeLessThan(88)
+      expect(out.knee).toBeCloseTo(Math.abs(out.thigh - out.shin), 5)
+    })
   })
 })
 

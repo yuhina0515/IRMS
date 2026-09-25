@@ -20,6 +20,8 @@ import type {
   CustomAction,
   CustomActionInput,
   FirmwareBinary,
+  FirmwareRelease,
+  ModuleSyncResult,
   IrmsApi,
   Session,
   SensorReading,
@@ -162,7 +164,16 @@ export const irms: IrmsApi = {
 
       const firmware = await invoke<RustFirmwareBinary>('firmware_read_binary', { path })
       return { ...firmware, data: Uint8Array.from(firmware.data) }
-    }
+    },
+    checkLatest: () => invoke<FirmwareRelease>('firmware_check_latest'),
+    async downloadLatest(version) {
+      const firmware = await invoke<RustFirmwareBinary>('firmware_download_latest', { expectedVersion: version })
+      return { ...firmware, data: Uint8Array.from(firmware.data) }
+    },
+    isNewer: (device, latest) => invoke<boolean>('firmware_is_newer', { device, latest })
+  },
+  modules: {
+    sync: () => invoke<ModuleSyncResult>('modules_sync')
   },
   windowControls: {
     async minimize() {

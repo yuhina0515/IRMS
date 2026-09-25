@@ -117,6 +117,12 @@ export interface Settings {
    * settings 並持久化,但 Tauri 的前端搬遷發生在那次修復之前,從未回頭補上。
    */
   sidebarCollapsed: boolean
+  /**
+   * 即時遙測上傳(src-tauri/src/telemetry.rs)。預設關閉,由使用者自行在設定頁選擇
+   * 是否開啟;不需要金鑰,濫用防護在伺服器端(限速、容量上限、保留期限)。
+   */
+  telemetryEnabled: boolean
+  telemetryEndpoint: string
 }
 
 /** 目標判定參數(由選定動作帶入,使用者可即時調整) */
@@ -169,7 +175,9 @@ const DEFAULT_SETTINGS: Settings = {
   wearSide: null,
   themeMode: 'dark',
   allowBetaUpdates: true,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  telemetryEnabled: false,
+  telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
 }
 
 /**
@@ -301,6 +309,12 @@ interface StoreState {
 }
 
 const MAX_LOG_LINES = 200
+
+/**
+ * log() 的旁聽者(目前只有遙測上傳 services/telemetry.ts)。用註冊而非讓 store 直接
+ * import 遙測模組,避免 store ↔ service 的循環相依。
+ */
+export const logListeners = new Set<(message: string) => void>()
 
 /**
  * 依動作清單與當前協定,校正選取狀態:
@@ -458,6 +472,7 @@ export const useStore = create<StoreState>()(
         const line = `[${time}] ${message}`
         // eslint-disable-next-line no-console
         console.log(line)
+        logListeners.forEach((cb) => cb(message))
         const logs = [...get().logs, line]
         set({ logs: logs.length > MAX_LOG_LINES ? logs.slice(logs.length - MAX_LOG_LINES) : logs })
       }
@@ -473,7 +488,7 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 13, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 14, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
@@ -481,6 +496,7 @@ export const useStore = create<StoreState>()(
       // v11:欄位改名 thigh/shin → proximal/distal(ROADMAP D3 第一步,純改名不換算數值)
       // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       // v13:sidebarCollapsed——補上 Electron 09-09 已修但 Tauri 前端搬遷未回頭補的持久化缺口
+      // v14:telemetryEnabled/telemetryEndpoint——使用者自選的即時遙測上傳(預設關閉)
       migrate: (persisted) => migrateSettings(persisted)
     }
   )
@@ -679,8 +695,17 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   // 不改變兩向量間夾角),直接算、扣除站直安裝差即可,不需先做屈曲軸投影。
   // 膝彎在感測器接近 z=0 時可能主要落在 x/y 平面，若轉回 pitch 再相減會再次把它
   // 丟掉（2026-09-15 右腳實測：實際約 60°、舊路徑顯示 0°）。
+  // 兩肢段都已用屈曲軸座標系投影時，thigh/shin 已是同一矢狀面內、各自扣過站姿零位的
+  // 屈曲角，膝角就是兩者之差（與 Leg3D 畫出的姿勢同一來源）。不可再走下方的向量夾角：
+  // 那條路徑用純量扣除站姿夾角，只在兩顆 IMU 貼裝近乎平行時成立；衣物把感測器墊歪
+  // 後站姿夾角可達 35°，實測坐姿屈膝約 90° 時只顯示約 30°，永遠達不到目標角
+  // （2026-09-25 CAL-03 實機 A/B，遙測 run 51e7fcbe：投影差 82–85° vs 向量路徑 30°）。
+  const hingeFramed = Boolean(
+    raw.thighAccel && s.proximalZeroAccel && s.proximalHingeAxis &&
+      raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis
+  )
   let knee = jointAngleDeg(thigh, shin)
-  if (raw.thighAccel && raw.shinAccel) {
+  if (!hingeFramed && raw.thighAccel && raw.shinAccel) {
     knee = Math.abs(vectorAngleDeg(raw.thighAccel, raw.shinAccel) - (s.kneeZeroRaw ?? 0))
   }
 

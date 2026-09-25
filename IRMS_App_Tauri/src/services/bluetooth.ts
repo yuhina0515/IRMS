@@ -102,6 +102,11 @@ export class BluetoothService {
       // GATT 訂閱仍持續運作。新前端因此可能錯過只在連線當下送過一次的
       // `ble:connection { connected:true }`，形成「封包持續更新、UI 卻顯示斷線」。
       // 收到 Rust 轉送的真實封包本身就是鏈路存活的強證據，據此補回狀態。
+      //
+      // 例外：使用者已按下斷線。ble_disconnect 完成前仍可能有 in-flight 封包抵達；
+      // 若在此補回狀態會把 manualDisconnect 清掉，隨後的 disconnected 事件就被誤判成
+      // link lost 而自動重連（2026-09-25 實機遙測 run 51e7fcbe 06:20:47 實際發生）。
+      if (this.manualDisconnect) return
       if (!this.connected || !useStore.getState().isConnected) {
         this.connected = true
         this.manualDisconnect = false
