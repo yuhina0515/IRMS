@@ -18,6 +18,19 @@ pub struct FirmwareBinary {
     data: Vec<u8>,
 }
 
+impl FirmwareBinary {
+    /// For images that did not come from a local file (firmware_update.rs downloads). `path`
+    /// is only a display label there.
+    pub fn new(path: String, data: Vec<u8>, md5: String) -> Self {
+        Self {
+            path,
+            size: data.len() as u64,
+            md5,
+            data,
+        }
+    }
+}
+
 fn read_binary(path: &Path) -> Result<FirmwareBinary, String> {
     let canonical = path
         .canonicalize()

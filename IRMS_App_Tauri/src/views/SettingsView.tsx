@@ -13,6 +13,37 @@ import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
+import { useFirmwareAutoStore, type AutoUpdatePhase } from '../services/firmwareAutoUpdate'
+
+const AUTO_PHASE_TEXT: Record<AutoUpdatePhase, string> = {
+  idle: '連線裝置後自動檢查',
+  checking: '檢查最新韌體中…',
+  up_to_date: '已是最新版',
+  deferred: 'Session 進行中,結束後再檢查',
+  incompatible: '最新韌體需要較新的 App',
+  downloading: '下載並驗證韌體中…',
+  updating: '傳輸到裝置中',
+  done: '更新完成,裝置重新啟動中',
+  error: '自動更新失敗'
+}
+
+/** 閒置自動更新的狀態(services/firmwareAutoUpdate.ts);手動更新流程保留在下方不變 */
+function AutoFirmwareStatusLine(): JSX.Element {
+  const status = useFirmwareAutoStore((s) => s.status)
+  const versions =
+    status.latestVersion != null
+      ? ` · 裝置 ${status.deviceVersion ?? '未知(舊韌體)'} / 最新 ${status.latestVersion}`
+      : ''
+  const pct = status.phase === 'updating' ? ` ${status.percent ?? 0}%` : ''
+  return (
+    <p className={`field-hint${status.phase === 'error' ? ' text-warning' : ''}`} style={{ marginBottom: 12 }}>
+      自動更新(閒置時):{AUTO_PHASE_TEXT[status.phase]}
+      {pct}
+      {versions}
+      {status.phase === 'error' && status.message ? ` — ${status.message}` : ''}
+    </p>
+  )
+}
 
 function NumField({
   label,
@@ -437,6 +468,7 @@ function FirmwareOtaPanel(): JSX.Element {
         透過既有 BLE 連線把新韌體推送到 ESP32,取代原本每次都要拆開裝置、接 USB 到 COM7
         手動燒錄的流程。傳輸協定與安全性說明見專案文件 OPTIMIZATION.md 的 OTA 條目。
       </p>
+      <AutoFirmwareStatusLine />
 
       {disabledReason && <p className="field-hint" style={{ marginBottom: 12 }}>{disabledReason}</p>}
 

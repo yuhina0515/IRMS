@@ -5,6 +5,7 @@ mod defaults;
 mod downsample;
 mod dpi_guard;
 mod firmware;
+mod firmware_update;
 mod migrate_electron;
 mod migrations;
 mod protocol;
@@ -90,6 +91,9 @@ pub fn run() {
             ble::ble_perform_ota_update,
             ble::ble_abort_ota,
             firmware::firmware_read_binary,
+            firmware_update::firmware_check_latest,
+            firmware_update::firmware_download_latest,
+            firmware_update::firmware_is_newer,
             telemetry::telemetry_configure,
             telemetry::telemetry_log,
             telemetry::telemetry_status,

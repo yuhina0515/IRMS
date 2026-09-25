@@ -204,6 +204,15 @@ export interface FirmwareBinary {
   data: Uint8Array
 }
 
+/** IRMS-Firmware 最新發布版(已由 Rust 端驗過 Ed25519 簽章),刻意不含下載網址與雜湊 */
+export interface FirmwareRelease {
+  version: string
+  size: number
+  notes: string
+  /** 這個 App 版本低於韌體要求的 minAppVersion 時為 false */
+  appCompatible: boolean
+}
+
 /** App updater 生命週期狀態，由平台 adapter 推播給 renderer。 */
 export type UpdateStatus =
   | { state: 'checking' }
@@ -243,6 +252,11 @@ export interface IrmsApi {
   firmware: {
     /** 開檔對話框選 .bin;使用者取消回傳 null,而非用例外表示一個正常的操作結果 */
     pickBinary(): Promise<FirmwareBinary | null>
+    /** 取得 IRMS-Firmware 最新發布版(簽章驗證失敗會丟例外) */
+    checkLatest(): Promise<FirmwareRelease>
+    /** 下載並驗證指定版本;版本在下載前變動會丟例外 */
+    downloadLatest(version: string): Promise<FirmwareBinary>
+    isNewer(device: string | null, latest: string): Promise<boolean>
   }
   windowControls: {
     minimize(): Promise<void>
