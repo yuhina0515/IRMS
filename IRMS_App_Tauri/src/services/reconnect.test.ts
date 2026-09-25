@@ -110,6 +110,28 @@ describe('重連進度', () => {
     expect((bluetoothService as unknown as { connected: boolean }).connected).toBe(true)
   })
 
+  it('手動斷線後、Rust 回報斷線前抵達的殘留封包不會觸發自動重連', async () => {
+    // 2026-09-25 實機遙測:按下 Disconnect 後仍有 in-flight 封包,舊版把它當成
+    // 「熱更新漏接 connection 事件」補回連線並清掉 manualDisconnect,
+    // 隨後的 disconnected 事件被誤判為 link lost,6 秒後自動連回裝置。
+    await Promise.resolve()
+    emit('ble:connection', { connected: true, deviceName: 'IRMS-fake' })
+    const onLost = vi.fn()
+    bluetoothService.onConnectionLost = onLost
+
+    bluetoothService.disconnect()
+    emit('ble:packet', parseAnglePacket('T:10,S:5,K:5,TR:0,SR:0,KR:0'))
+    emit('ble:connection', { connected: false })
+    await vi.advanceTimersByTimeAsync(RECONNECT_DELAY_MS * 6)
+
+    expect(invokeMock).not.toHaveBeenCalledWith('ble_connect')
+    expect(useStore.getState().isConnected).toBe(false)
+    expect(useStore.getState().reconnect).toBeNull()
+    expect(onLost).toHaveBeenCalledTimes(1)
+
+    bluetoothService.onConnectionLost = null
+  })
+
   it('逐次遞增,而且是使用者看得到的結構化狀態', async () => {
     installFakeConnect(2) // 前兩次失敗,第三次成功
     const seen: (number | null)[] = []
