@@ -1,10 +1,11 @@
 // renderer/views/HistoryView.tsx
 import { useEffect, useRef, useState } from 'react'
-import { Chart } from 'chart.js'
+import { Chart } from '../services/chartSetup'
 import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
 import type { Session, StoredReading } from '@shared/types'
-import { computeMetricZone, metricInfo } from '../services/movementMetric'
+import { computeMetricZone, metricInfo, type MetricZone } from '../services/movementMetric'
+import { analyzeSession, type SessionAnalysis } from '../services/sessionAnalysis'
 import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
 import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
@@ -13,9 +14,38 @@ import { irms } from '../platform/irmsApi'
 /** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
 const CHART_MAX_POINTS = 1200
 
+
+/** 畫出/分析「這場實際被判定的那個指標」。舊資料沒有 triggerType 快照,退回膝角。 */
+function sessionMetricOf(session: Session, r: StoredReading): number | null {
+  return session.triggerType === 'segment_elevation'
+    ? r.proximalAngle
+    : session.triggerType === 'segment_extension'
+      ? r.proximalAngle == null
+        ? null
+        : -r.proximalAngle
+      : r.kneeAngle
+}
+
+function sessionZone(session: Session): MetricZone | null {
+  return session.targetAngle != null && session.tolerance != null
+    ? computeMetricZone({
+        targetAngle: session.targetAngle,
+        tolerance: session.tolerance,
+        holdTimeMs: session.holdTimeMs ?? 2000,
+        triggerType: session.triggerType ?? 'joint_angle',
+        // 必須用這場「當下實際生效」的安全上限。少了它會退回導出值
+        // (target+tolerance+10),於是回顧圖上畫出一條當時根本不存在的紅線——
+        // 督導據此判斷患者有沒有超限,線畫錯等於病歷記錯。
+        // 舊資料 safetyLimit 為 NULL,退回導出值才是對的(那時就是導出的)。
+        safetyLimit: session.safetyLimit ?? null
+      })
+    : null
+}
+
 function AnalysisModal({ session, onClose }: { session: Session; onClose: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [readings, setReadings] = useState<StoredReading[]>([])
+  const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null)
   const settings = useStore((s) => s.settings)
 
   // 這條曲線是由「當時那組校準轉換」算出來的。如果之後重跑過精靈,同一條曲線的
@@ -26,39 +56,30 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
 
   useEffect(() => {
     let chart: Chart<'line'> | null = null
+    // 資料是非同步取回的:cleanup 可能在圖表建立前就跑(React StrictMode 的重複掛載、或 deps
+    // 快速變動),此時舊的 async 流程仍會在同一個 canvas 上 new Chart,Chart.js 拋出
+    // "Canvas is already in use"。用旗標讓過期的流程直接放棄。
+    let cancelled = false
     void (async () => {
       // 主進程 LTTB 抽樣:25Hz × 10 分鐘約 15,000 列,全量過 IPC 再餵 Chart.js
       // 會讓這個 modal 明顯卡住。LTTB 會保留峰值——臨床上要看的正是峰值。
       const data = await irms.sessions.getData(session.id, CHART_MAX_POINTS)
       setReadings(data)
-      if (!canvasRef.current) return
+      // 摘要統計另取全量(見 sessionAnalysis.ts:抽樣資料不保留時間分佈)
+      void irms.sessions.getData(session.id).then((full) =>
+        !cancelled && setAnalysis(
+          analyzeSession(
+            full.map((r) => ({ t: Date.parse(r.timestamp), v: sessionMetricOf(session, r) })),
+            sessionZone(session)
+          )
+        )
+      )
+      if (cancelled || !canvasRef.current) return
       const t = chartTheme()
 
-      // 畫出「這場實際被判定的那個指標」。舊資料沒有 triggerType 快照,退回膝角。
       const info = metricInfo(session.triggerType ?? 'joint_angle')
-      const metricOf = (r: StoredReading): number | null =>
-        session.triggerType === 'segment_elevation'
-          ? r.proximalAngle
-          : session.triggerType === 'segment_extension'
-            ? r.proximalAngle == null
-              ? null
-              : -r.proximalAngle
-            : r.kneeAngle
-
-      const zone =
-        session.targetAngle != null && session.tolerance != null
-          ? computeMetricZone({
-              targetAngle: session.targetAngle,
-              tolerance: session.tolerance,
-              holdTimeMs: session.holdTimeMs ?? 2000,
-              triggerType: session.triggerType ?? 'joint_angle',
-              // 必須用這場「當下實際生效」的安全上限。少了它會退回導出值
-              // (target+tolerance+10),於是回顧圖上畫出一條當時根本不存在的紅線——
-              // 督導據此判斷患者有沒有超限,線畫錯等於病歷記錯。
-              // 舊資料 safetyLimit 為 NULL,退回導出值才是對的(那時就是導出的)。
-              safetyLimit: session.safetyLimit ?? null
-            })
-          : null
+      const metricOf = (r: StoredReading): number | null => sessionMetricOf(session, r)
+      const zone = sessionZone(session)
 
       /** 常數線資料集:讓督導一眼看出曲線有沒有進到目標帶、有沒有越過安全上限 */
       const constantLine = (label: string, value: number, color: string, dash: number[]) => ({
@@ -116,7 +137,10 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
         }
       })
     })()
-    return () => chart?.destroy()
+    return () => {
+      cancelled = true
+      chart?.destroy()
+    }
   }, [
     session.id,
     session.triggerType,
@@ -221,6 +245,9 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
             貼裝軸向判定沿用舊版校準邏輯換算而來,尚未經新方法以真實動作重新驗證。
           </p>
         ) : null}
+        {analysis && (
+          <AnalysisSummary analysis={analysis} unit={metricInfo(session.triggerType ?? 'joint_angle').label} />
+        )}
         <div className="row" style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <span className="text-text-dim">
             {readings.length} 點(圖表抽樣後) · {session.repsCompleted} reps
@@ -230,6 +257,34 @@ function AnalysisModal({ session, onClose }: { session: Session; onClose: () => 
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AnalysisSummary({ analysis, unit }: { analysis: SessionAnalysis; unit: string }): JSX.Element {
+  const deg = (v: number | null): string => (v == null ? '—' : `${v.toFixed(1)}°`)
+  const items: { label: string; value: string; danger?: boolean }[] = [
+    { label: `峰值 ${unit}`, value: deg(analysis.peak) },
+    { label: '平均', value: deg(analysis.mean) },
+    {
+      label: '目標區時間',
+      value: analysis.inZoneRatio == null ? '—' : `${Math.round(analysis.inZoneRatio * 100)}%`
+    },
+    {
+      label: '超限',
+      value: `${analysis.overLimitEvents}次 ${analysis.overLimitSec.toFixed(1)}s`,
+      danger: analysis.overLimitEvents > 0
+    },
+    { label: '有效量測', value: `${Math.round(analysis.activeSec)}s` }
+  ]
+  return (
+    <div className="analysis-summary" aria-label="訓練摘要">
+      {items.map((i) => (
+        <div key={i.label} className="analysis-summary-item">
+          <span className="analysis-summary-label">{i.label}</span>
+          <span className={`analysis-summary-value${i.danger ? ' text-danger' : ''}`}>{i.value}</span>
+        </div>
+      ))}
     </div>
   )
 }
