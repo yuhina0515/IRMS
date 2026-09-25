@@ -695,8 +695,17 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   // 不改變兩向量間夾角),直接算、扣除站直安裝差即可,不需先做屈曲軸投影。
   // 膝彎在感測器接近 z=0 時可能主要落在 x/y 平面，若轉回 pitch 再相減會再次把它
   // 丟掉（2026-09-15 右腳實測：實際約 60°、舊路徑顯示 0°）。
+  // 兩肢段都已用屈曲軸座標系投影時，thigh/shin 已是同一矢狀面內、各自扣過站姿零位的
+  // 屈曲角，膝角就是兩者之差（與 Leg3D 畫出的姿勢同一來源）。不可再走下方的向量夾角：
+  // 那條路徑用純量扣除站姿夾角，只在兩顆 IMU 貼裝近乎平行時成立；衣物把感測器墊歪
+  // 後站姿夾角可達 35°，實測坐姿屈膝約 90° 時只顯示約 30°，永遠達不到目標角
+  // （2026-09-25 CAL-03 實機 A/B，遙測 run 51e7fcbe：投影差 82–85° vs 向量路徑 30°）。
+  const hingeFramed = Boolean(
+    raw.thighAccel && s.proximalZeroAccel && s.proximalHingeAxis &&
+      raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis
+  )
   let knee = jointAngleDeg(thigh, shin)
-  if (raw.thighAccel && raw.shinAccel) {
+  if (!hingeFramed && raw.thighAccel && raw.shinAccel) {
     knee = Math.abs(vectorAngleDeg(raw.thighAccel, raw.shinAccel) - (s.kneeZeroRaw ?? 0))
   }
 
