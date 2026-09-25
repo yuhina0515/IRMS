@@ -294,3 +294,27 @@ mod release_key_tests {
         assert!(verify_binary(b"hello", &m).is_ok());
     }
 }
+
+#[cfg(test)]
+mod live_tests {
+    use super::*;
+
+    /// Network test against the real IRMS-Firmware release: `cargo test live_release -- --ignored`.
+    #[tokio::test]
+    #[ignore]
+    async fn live_release_manifest_and_binary_verify() {
+        let client = client().unwrap();
+        let manifest = fetch_verified_manifest(&client).await.unwrap();
+        let url = format!(
+            "{RELEASES}/download/v{}/{}",
+            manifest.version, manifest.file
+        );
+        let data = get_bytes(&client, &url).await.unwrap();
+        verify_binary(&data, &manifest).unwrap();
+        println!(
+            "verified IRMS-Firmware v{} ({} bytes)",
+            manifest.version,
+            data.len()
+        );
+    }
+}
