@@ -2,7 +2,8 @@
 // UI v3 動作處方 (PROPOSAL §4 Actions): paged list on the left, inspector on the right. The list
 // never scrolls the page — page size follows the measured list height; editing happens in the
 // inspector (its form body is the view's one scrolling region) instead of a modal.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { usePageSize } from '../hooks/usePageSize'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS, TRIGGER_TYPES, type CustomAction, type CustomActionInput } from '@shared/types'
@@ -45,21 +46,6 @@ function targetText(a: CustomActionInput): string {
   return a.triggerType === 'joint_angle' ? `${a.targetAngle}° ±${a.tolerance}°` : `≥ ${a.targetAngle}°`
 }
 
-/** Measures how many rows fit in the list body so the page never grows past the window. */
-function usePageSize(ref: React.RefObject<HTMLElement>): number {
-  const [size, setSize] = useState(4)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const measure = (): void => setSize(Math.max(1, Math.floor(el.clientHeight / ROW_HEIGHT)))
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [ref])
-  return size
-}
-
 type ListItem = { kind: 'heading'; key: string; label: string } | { kind: 'action'; action: CustomAction }
 
 export function ActionsView(): JSX.Element {
@@ -90,7 +76,7 @@ export function ActionsView(): JSX.Element {
   const [groupBy, setGroupBy] = useState<ActionGroupBy>('none')
   const [page, setPage] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
-  const pageRows = usePageSize(listRef)
+  const pageRows = usePageSize(listRef, ROW_HEIGHT)
 
   const inProtocol = actions.filter((a) => a.protocol === protocol)
   const groups = filterSortGroupActions(inProtocol, { query, sortBy, groupBy })
