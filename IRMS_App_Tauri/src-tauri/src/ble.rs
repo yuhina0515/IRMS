@@ -35,6 +35,7 @@ pub struct BleState {
     /// wait for a specific reply (READY / DONE / ERROR:...) without racing the background
     /// notification listener — mirrors bluetooth.ts's waitForOtaStatus().
     ota_status_tx: broadcast::Sender<String>,
+    ota_update_lock: Mutex<()>,
 }
 
 impl Default for BleState {
@@ -43,6 +44,7 @@ impl Default for BleState {
         Self {
             peripheral: Mutex::new(None),
             ota_status_tx,
+            ota_update_lock: Mutex::new(()),
         }
     }
 }
@@ -341,26 +343,34 @@ pub async fn ble_get_firmware_version(
     }
 }
 
-/// Waits for one OTA-status notification matching `predicate`, mirrors bluetooth.ts's
-/// waitForOtaStatus — subscribes to the shared broadcast channel fresh so it only sees
-/// notifications from this point forward, not anything queued before the call.
-async fn wait_for_ota_status(
+/// Subscribe before polling the BLE write: a notification can arrive before its ACK.
+async fn send_and_wait_for_ota_status(
     tx: &broadcast::Sender<String>,
+    write: impl std::future::Future<Output = Result<(), String>>,
     predicate: impl Fn(&str) -> bool,
     timeout: Duration,
 ) -> Result<String, String> {
     let mut rx = tx.subscribe();
     tokio::time::timeout(timeout, async {
+        write.await?;
         loop {
-            match rx.recv().await {
-                Ok(text) if predicate(&text) => return text,
-                Ok(_) => continue,
-                Err(_) => return String::new(),
+            let text = rx
+                .recv()
+                .await
+                .map_err(|err| format!("OTA status channel: {err}"))?;
+            if text.starts_with("OTA:ERROR:") {
+                return Err(describe_ota_error(&text));
+            }
+            if text == "OTA:ABORTED" {
+                return Err("OTA update aborted".to_string());
+            }
+            if predicate(&text) {
+                return Ok(text);
             }
         }
     })
     .await
-    .map_err(|_| "OTA status timeout".to_string())
+    .map_err(|_| "OTA status timeout".to_string())?
 }
 
 fn describe_ota_error(status_text: &str) -> String {
@@ -392,6 +402,10 @@ pub async fn ble_perform_ota_update(
     data: Vec<u8>,
     md5: String,
 ) -> Result<String, String> {
+    let _update_guard = state
+        .ota_update_lock
+        .try_lock()
+        .map_err(|_| "OTA update already in progress".to_string())?;
     let total = data.len();
     let emit_progress = |p: OtaProgress| {
         // Per-chunk Transferring updates are noise for diagnosis; phase changes are what matter.
@@ -432,86 +446,82 @@ pub async fn ble_perform_ota_update(
         total_bytes: total,
     });
 
-    let start_cmd = format!("OTA:START:{total}:{md5}");
-    {
-        let guard = state.peripheral.lock().await;
-        let peripheral = guard.as_ref().ok_or("裝置未連線")?;
-        peripheral
-            .write(&control_char, start_cmd.as_bytes(), WriteType::WithResponse)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    let ready = wait_for_ota_status(
-        &state.ota_status_tx,
-        |s| s == "OTA:READY" || s.starts_with("OTA:ERROR:"),
-        Duration::from_secs(10),
-    )
-    .await?;
-    if ready.starts_with("OTA:ERROR:") {
-        let message = describe_ota_error(&ready);
-        emit_progress(OtaProgress::Error {
-            bytes_sent: 0,
-            total_bytes: total,
-            message: message.clone(),
-        });
-        return Ok(message);
-    }
-
     let mut offset = 0;
-    while offset < total {
-        let end = (offset + OTA_CHUNK_SIZE).min(total);
-        let chunk = &data[offset..end];
-        {
-            let guard = state.peripheral.lock().await;
-            let peripheral = guard.as_ref().ok_or("裝置未連線")?;
-            peripheral
-                .write(&data_char, chunk, WriteType::WithoutResponse)
-                .await
-                .map_err(|e| e.to_string())?;
+    let result: Result<String, String> = async {
+        let start_cmd = format!("OTA:START:{total}:{md5}");
+        send_and_wait_for_ota_status(
+            &state.ota_status_tx,
+            async {
+                let guard = state.peripheral.lock().await;
+                let peripheral = guard.as_ref().ok_or("裝置未連線")?;
+                peripheral
+                    .write(&control_char, start_cmd.as_bytes(), WriteType::WithResponse)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+            |s| s == "OTA:READY",
+            Duration::from_secs(10),
+        )
+        .await?;
+
+        while offset < total {
+            let end = (offset + OTA_CHUNK_SIZE).min(total);
+            let chunk = &data[offset..end];
+            {
+                let guard = state.peripheral.lock().await;
+                let peripheral = guard.as_ref().ok_or("裝置未連線")?;
+                peripheral
+                    .write(&data_char, chunk, WriteType::WithoutResponse)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            tokio::time::sleep(Duration::from_millis(OTA_CHUNK_DELAY_MS)).await;
+            offset = end;
+            emit_progress(OtaProgress::Transferring {
+                bytes_sent: offset,
+                total_bytes: total,
+            });
         }
-        tokio::time::sleep(Duration::from_millis(OTA_CHUNK_DELAY_MS)).await;
-        offset = end;
-        emit_progress(OtaProgress::Transferring {
-            bytes_sent: offset,
+
+        emit_progress(OtaProgress::Finalizing {
+            bytes_sent: total,
             total_bytes: total,
         });
-    }
+        send_and_wait_for_ota_status(
+            &state.ota_status_tx,
+            async {
+                let guard = state.peripheral.lock().await;
+                let peripheral = guard.as_ref().ok_or("裝置未連線")?;
+                peripheral
+                    .write(&control_char, b"OTA:END", WriteType::WithResponse)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+            |s| s == "OTA:DONE",
+            Duration::from_secs(20),
+        )
+        .await?;
 
-    emit_progress(OtaProgress::Finalizing {
-        bytes_sent: total,
-        total_bytes: total,
-    });
-    {
-        let guard = state.peripheral.lock().await;
-        let peripheral = guard.as_ref().ok_or("裝置未連線")?;
-        peripheral
-            .write(&control_char, b"OTA:END", WriteType::WithResponse)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    let done = wait_for_ota_status(
-        &state.ota_status_tx,
-        |s| s == "OTA:DONE" || s.starts_with("OTA:ERROR:"),
-        Duration::from_secs(20),
-    )
-    .await?;
-    if done.starts_with("OTA:ERROR:") {
-        let message = describe_ota_error(&done);
-        emit_progress(OtaProgress::Error {
+        let message = "更新完成,裝置正在重新開機並自動重新連線".to_string();
+        emit_progress(OtaProgress::Done {
             bytes_sent: total,
             total_bytes: total,
             message: message.clone(),
         });
-        return Ok(message);
+        Ok(message)
     }
-
-    let message = "更新完成,裝置正在重新開機並自動重新連線".to_string();
-    emit_progress(OtaProgress::Done {
-        bytes_sent: total,
-        total_bytes: total,
-        message: message.clone(),
-    });
-    Ok(message)
+    .await;
+    if let Err(message) = &result {
+        // Release the device's OTA session even when START was accepted but its reply was lost.
+        // Bound cleanup so an unresponsive device cannot hold the UI indefinitely.
+        let _ = tokio::time::timeout(Duration::from_secs(3), ble_abort_ota(state.clone())).await;
+        emit_progress(OtaProgress::Error {
+            bytes_sent: offset,
+            total_bytes: total,
+            message: message.clone(),
+        });
+    }
+    result
 }
 
 #[tauri::command]
@@ -532,4 +542,96 @@ pub async fn ble_abort_ota(state: State<'_, BleState>) -> Result<(), String> {
             .await;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ota_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn captures_reply_before_write_ack() {
+        for reply in ["OTA:READY", "OTA:DONE"] {
+            let (tx, _) = broadcast::channel(32);
+            let result = send_and_wait_for_ota_status(
+                &tx,
+                async {
+                    tx.send(reply.to_string()).unwrap();
+                    tokio::task::yield_now().await;
+                    Ok(())
+                },
+                |s| s == reply,
+                Duration::from_millis(100),
+            )
+            .await;
+            assert_eq!(result.unwrap(), reply);
+        }
+    }
+
+    #[tokio::test]
+    async fn immediate_device_error_is_not_a_timeout_or_success() {
+        let (tx, _) = broadcast::channel(32);
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async {
+                tx.send("OTA:ERROR:ALREADY_RUNNING".into()).unwrap();
+                Ok(())
+            },
+            |s| s == "OTA:READY",
+            Duration::from_millis(100),
+        )
+        .await;
+        assert_eq!(
+            result.unwrap_err(),
+            describe_ota_error("OTA:ERROR:ALREADY_RUNNING")
+        );
+    }
+
+    #[tokio::test]
+    async fn ignores_stale_reply_and_times_out() {
+        let (tx, mut old_rx) = broadcast::channel(32);
+        tx.send("OTA:READY".into()).unwrap();
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async { Ok(()) },
+            |s| s == "OTA:READY",
+            Duration::from_millis(10),
+        )
+        .await;
+        assert_eq!(result.unwrap_err(), "OTA status timeout");
+        assert_eq!(old_rx.try_recv().unwrap(), "OTA:READY");
+    }
+
+    #[tokio::test]
+    async fn propagates_write_failure() {
+        let (tx, _) = broadcast::channel(32);
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async { Err("write failed".into()) },
+            |_| true,
+            Duration::from_millis(100),
+        )
+        .await;
+        assert_eq!(result.unwrap_err(), "write failed");
+    }
+
+    #[tokio::test]
+    async fn aborted_and_lagged_channels_cannot_report_success() {
+        for lag in [false, true] {
+            let (tx, _) = broadcast::channel(1);
+            let result = send_and_wait_for_ota_status(
+                &tx,
+                async {
+                    tx.send("OTA:ABORTED".into()).unwrap();
+                    if lag {
+                        tx.send("OTA:DONE".into()).unwrap();
+                    }
+                    Ok(())
+                },
+                |s| s == "OTA:DONE",
+                Duration::from_millis(100),
+            )
+            .await;
+            assert!(result.is_err());
+        }
+    }
 }
