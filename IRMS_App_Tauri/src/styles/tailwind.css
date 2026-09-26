@@ -1954,6 +1954,7 @@
   .v3-metric-none {
     color: rgb(var(--color-text-muted));
     font-weight: 300;
+    font-size: 0.55em;
   }
 }
 
