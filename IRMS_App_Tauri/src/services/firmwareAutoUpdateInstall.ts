@@ -5,13 +5,14 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { irms } from '../platform/irmsApi'
 import { bluetoothService } from './bluetooth'
-import { createFirmwareAutoUpdater, useFirmwareAutoStore } from './firmwareAutoUpdate'
+import { firmwareUpdaterFactory, removeFeatures } from './moduleFeatures'
+import { createFirmwareAutoUpdater, firmwareUpdateBusy, useFirmwareAutoStore, type AutoUpdateDeps } from './firmwareAutoUpdate'
 
 /** 連線剛建立時 GATT 探索、通知訂閱仍在收尾,稍等再讀版本特徵值 */
 const SETTLE_MS = 3000
 
 export function installFirmwareAutoUpdate(): () => void {
-  const updater = createFirmwareAutoUpdater({
+  const deps: AutoUpdateDeps = {
     state: () => {
       const s = useStore.getState()
       return {
@@ -26,7 +27,13 @@ export function installFirmwareAutoUpdate(): () => void {
     checkLatest: () => irms.firmware.checkLatest(useStore.getState().settings.allowBetaUpdates),
     isNewer: (device, latest) => irms.firmware.isNewer(device, latest),
     download: (version) => irms.firmware.downloadLatest(version, useStore.getState().settings.allowBetaUpdates),
-    flash: (firmware, onProgress) => bluetoothService.performOtaUpdate(firmware, onProgress),
+    flash: async (firmware, onProgress) => {
+      const state = deps.state()
+      if (!state.connected || state.simulated || state.sessionRunning || state.hardwareError) {
+        return { ok: false, message: '裝置狀態改變，更新已延後' }
+      }
+      return bluetoothService.performOtaUpdate(firmware, onProgress)
+    },
     report: (status) => {
       useFirmwareAutoStore.getState().set(status)
       const toast = useUiStore.getState().showToast
@@ -38,12 +45,36 @@ export function installFirmwareAutoUpdate(): () => void {
       }
     },
     log: (message) => useStore.getState().log(message)
-  })
+  }
+  let factory = createFirmwareAutoUpdater
+  let updater = factory(deps)
+  let running = false
+  const run = async (): Promise<void> => {
+    if (running || firmwareUpdateBusy(useFirmwareAutoStore.getState().status)) return
+    const state = deps.state()
+    if (!state.connected || state.simulated || state.sessionRunning || state.hardwareError) return
+    running = true
+    const next = firmwareUpdaterFactory() ?? createFirmwareAutoUpdater
+    try {
+      if (next !== factory) {
+        const replacement = next(deps)
+        if (!replacement || typeof replacement.run !== 'function') throw new Error('Invalid firmware updater module')
+        factory = next
+        updater = replacement
+      }
+      await updater.run()
+    } catch (err) {
+      // Only drop the module provider when it is the one that failed; a built-in failure
+      // must not disable a healthy module for the rest of the app run.
+      if (next !== createFirmwareAutoUpdater) removeFeatures('firmware-updater')
+      deps.report({ phase: 'error', message: String(err) })
+    } finally { running = false }
+  }
 
   let timer: ReturnType<typeof setTimeout> | undefined
   const schedule = (): void => {
     clearTimeout(timer)
-    timer = setTimeout(() => void updater.run(), SETTLE_MS)
+    timer = setTimeout(() => void run(), SETTLE_MS)
   }
   const unsubscribe = useStore.subscribe((s, prev) => {
     if (s.isConnected && !prev.isConnected) schedule()

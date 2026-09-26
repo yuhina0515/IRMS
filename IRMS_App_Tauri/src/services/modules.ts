@@ -2,13 +2,17 @@
 // 第一方執行期模組(IRMS-Modules repo,doc/AUTO_PUSH_PLAN.md)。下載、簽章與雜湊驗證全在
 // Rust(modules.rs);這裡只 import() 已驗證的檔案並呼叫 activate(ctx)。
 //
-// 模組能碰到的一切都經由 ModuleContext——刻意很窄。要給模組新能力,是發一版 App 擴充
+// 第一方簽章模組透過 ModuleContext 註冊功能(不是 JavaScript sandbox)。新增能力需 App 擴充
 // ctx,而不是讓模組自己 import 東西(模組 repo 的 build 會拒絕含 import 的模組)。
 import { create } from 'zustand'
+import { commitFeatures, removeFeatures, type FeatureProviders, type FirmwareUpdaterFactory, type SessionAnalyzer } from './moduleFeatures'
 import type { InstalledModule, ModuleSyncResult } from '@shared/types'
 
 export interface ModuleContext {
   appVersion: string
+  apiVersion: 2
+  registerFirmwareUpdater(factory: FirmwareUpdaterFactory): void
+  registerSessionAnalyzer(analyze: SessionAnalyzer): void
   registerTip(text: string): void
   log(message: string): void
 }
@@ -83,18 +87,33 @@ function isIrmsModule(x: unknown): x is IrmsModule {
 async function activate(m: InstalledModule, deps: ModuleLoaderDeps): Promise<LoadedModuleState> {
   const base = { id: m.id, name: m.name, version: m.version, description: m.description, enabled: true }
   const tips: string[] = []
+  const features: FeatureProviders = {}
+  let registering = true
   try {
     const mod = (await deps.importModule(m.path)).default
     if (!isIrmsModule(mod)) throw new Error('模組沒有匯出 activate()')
     await mod.activate({
       appVersion: deps.appVersion,
+      apiVersion: 2,
+      registerFirmwareUpdater: (factory) => {
+        if (!registering || m.id !== 'firmware-updater' || typeof factory !== 'function') throw new Error('Invalid firmware provider registration')
+        features.firmwareUpdater = factory
+      },
+      registerSessionAnalyzer: (analyze) => {
+        if (!registering || m.id !== 'session-analysis' || typeof analyze !== 'function') throw new Error('Invalid analysis provider registration')
+        features.sessionAnalyzer = analyze
+      },
       registerTip: (text) => {
         if (typeof text === 'string' && tips.length < MAX_TIPS) tips.push(text.slice(0, MAX_TIP_LENGTH))
       },
       log: (message) => deps.log(`[module:${m.id}] ${String(message).slice(0, 300)}`)
     })
+    registering = false
+    commitFeatures(m.id, features)
     return { ...base, status: 'active', tips }
   } catch (err) {
+    registering = false
+    removeFeatures(m.id)
     const error = err instanceof Error ? err.message : String(err)
     deps.log(`[module:${m.id}] failed to activate: ${error}`)
     return { ...base, status: 'error', tips: [], error }
@@ -106,6 +125,7 @@ export async function loadModules(deps: ModuleLoaderDeps): Promise<void> {
   store.set({ syncing: true, syncError: null })
   try {
     const result = await deps.sync()
+    for (const m of store.modules) removeFeatures(m.id)
     const disabled = readDisabled()
     const modules: LoadedModuleState[] = []
     for (const m of result.modules) {
@@ -130,6 +150,7 @@ export function setModuleEnabled(id: string, enabled: boolean): void {
   if (enabled) disabled.delete(id)
   else disabled.add(id)
   writeDisabled(disabled)
+  if (!enabled) removeFeatures(id)
   const store = useModulesStore.getState()
   store.set({
     modules: store.modules.map((m) =>

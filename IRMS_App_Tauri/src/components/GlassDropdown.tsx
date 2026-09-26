@@ -7,7 +7,7 @@
 // 不能像一般 dropdown 一樣單純 position:absolute 掛在觸發按鈕底下:任何祖先只要有
 // backdrop-filter(Liquid Glass 面板全部都有)就會產生新的 stacking context,把子孫的
 // z-index 侷限在該祖先內部,導致選單視覺上「長出來」卻被下一張卡片蓋住。
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 export interface GlassDropdownOption {
@@ -37,7 +37,7 @@ export function GlassDropdown({
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number; above: boolean } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -45,7 +45,22 @@ export function GlassDropdown({
   const updatePos = (): void => {
     const rect = rootRef.current?.getBoundingClientRect()
     if (!rect) return
-    setPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+    const viewport = window.visualViewport
+    const x = viewport?.offsetLeft ?? 0, y = viewport?.offsetTop ?? 0
+    const w = viewport?.width ?? window.innerWidth, h = viewport?.height ?? window.innerHeight
+    const margin = 8
+    const width = Math.min(rect.width, Math.max(0, w - margin * 2))
+    const below = Math.max(0, y + h - margin - rect.bottom - 6)
+    const aboveSpace = Math.max(0, rect.top - 6 - y - margin)
+    const wanted = Math.min(popupRef.current?.scrollHeight || 280, 280)
+    const above = below < wanted && aboveSpace > below
+    const maxHeight = Math.min(280, above ? aboveSpace : below)
+    const height = Math.min(wanted, maxHeight)
+    setPos({
+      top: Math.max(y + margin, Math.min(above ? rect.top - 6 - height : rect.bottom + 6, y + h - margin - height)),
+      left: Math.max(x + margin, Math.min(rect.left, x + w - margin - width)),
+      width, maxHeight, above
+    })
   }
 
   const requestOpen = (): void => {
@@ -66,6 +81,8 @@ export function GlassDropdown({
     }, CLOSE_ANIM_MS)
   }
 
+  useLayoutEffect(() => { if (mounted) updatePos() }, [mounted, options])
+
   useEffect(() => {
     if (!open) return
     const onDocPointerDown = (e: PointerEvent): void => {
@@ -84,11 +101,15 @@ export function GlassDropdown({
     document.addEventListener('keydown', onKeyDown)
     window.addEventListener('scroll', updatePos, true)
     window.addEventListener('resize', updatePos)
+    window.visualViewport?.addEventListener('resize', updatePos)
+    window.visualViewport?.addEventListener('scroll', updatePos)
     return () => {
       document.removeEventListener('pointerdown', onDocPointerDown)
       document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('scroll', updatePos, true)
       window.removeEventListener('resize', updatePos)
+      window.visualViewport?.removeEventListener('resize', updatePos)
+      window.visualViewport?.removeEventListener('scroll', updatePos)
     }
   }, [open])
 
@@ -120,7 +141,7 @@ export function GlassDropdown({
             ref={popupRef}
             className={`glass-dropdown-popup glass glass-warp${closing ? ' closing' : ''}`}
             role="listbox"
-            style={{ top: pos.top, left: pos.left, width: pos.width }}
+            style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, overflowY: 'auto', boxSizing: 'border-box', transformOrigin: pos.above ? 'bottom center' : 'top center' }}
           >
             {options.length === 0 ? (
               <div className="glass-dropdown-empty">{placeholder ?? '無可用選項'}</div>
