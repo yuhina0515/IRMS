@@ -22,9 +22,10 @@ export function installFirmwareAutoUpdate(): () => void {
       }
     },
     readDeviceVersion: () => bluetoothService.getDeviceFirmwareVersion(),
-    checkLatest: () => irms.firmware.checkLatest(),
+    // 韌體頻道跟隨 App 的「接收 Beta 版更新」:同一個開關決定兩者要不要收測試版
+    checkLatest: () => irms.firmware.checkLatest(useStore.getState().settings.allowBetaUpdates),
     isNewer: (device, latest) => irms.firmware.isNewer(device, latest),
-    download: (version) => irms.firmware.downloadLatest(version),
+    download: (version) => irms.firmware.downloadLatest(version, useStore.getState().settings.allowBetaUpdates),
     flash: (firmware, onProgress) => bluetoothService.performOtaUpdate(firmware, onProgress),
     report: (status) => {
       useFirmwareAutoStore.getState().set(status)
