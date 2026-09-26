@@ -312,9 +312,9 @@ export class BluetoothService {
    * 把一份韌體 .bin 透過 BLE OTA 推送到裝置。ble_perform_ota_update 一個 command
    * 內部做完 START → 分塊傳輸 → END 整條流程,期間持續發出 'ble:ota-progress' 事件;
    * 這裡邊聽事件邊轉發給呼叫端的 onProgress,並用「最後一次事件的 phase」判定
-   * 最終是否成功——command 本身的回傳值(Result<String,String>)只在 Rust 層級的
-   * 例外(如寫入失敗的底層錯誤)才會走 Err 分支,協定層級的失敗(NO_SPACE 等)
-   * 一律經由 phase:'error' 事件 + Ok(message) 回傳,不能只看 invoke 有沒有丟例外。
+   * 最終是否成功。所有失敗(寫入錯誤、逾時、裝置回報 OTA:ERROR:* / ABORTED、另一個
+   * 更新正在進行)都走 Err;Rust 在回傳前通常已發出帶實際傳輸量的 phase:'error' 事件,
+   * 這裡只在還沒收到該事件時才補發,避免把進度條覆寫回 0。
    */
   async performOtaUpdate(
     firmware: { data: Uint8Array; md5: string },
@@ -326,12 +326,13 @@ export class BluetoothService {
     // 用可變物件而非單純 let 變數存放最後一個 phase:TS 的控制流分析看不到
     // listen() 回呼(非同步、之後才觸發)裡的賦值,若用 let 會把型別窄化死在
     // 初始值 'starting' 上,導致下面的比較被判定為恆假。
-    const last: { phase: OtaProgress['phase'] } = { phase: 'starting' }
+    const last: { phase: OtaProgress['phase']; bytesSent: number } = { phase: 'starting', bytesSent: 0 }
     let unlisten: UnlistenFn | null = null
     try {
       unlisten = await listen<RustOtaProgressPayload>('ble:ota-progress', (event) => {
         const p = event.payload
         last.phase = p.phase
+        last.bytesSent = p.bytesSent
         onProgress({ phase: p.phase, bytesSent: p.bytesSent, totalBytes: p.totalBytes, message: p.message })
       })
 
@@ -343,7 +344,9 @@ export class BluetoothService {
     } catch (err) {
       const message = (err as Error).message ?? String(err)
       this.store.log(`OTA update failed: ${message}`)
-      onProgress({ phase: 'error', bytesSent: 0, totalBytes: firmware.data.length, message })
+      if (last.phase !== 'error') {
+        onProgress({ phase: 'error', bytesSent: last.bytesSent, totalBytes: firmware.data.length, message })
+      }
       return { ok: false, message }
     } finally {
       unlisten?.()
