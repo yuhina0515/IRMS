@@ -34,6 +34,11 @@ describe('computeGuidance', () => {
     expect(g).toEqual({ kind: 'lower', deltaDeg: 5 })
   })
 
+  it('idle + joint_angle 已在目標帶內 → hold,不得算出負的回降量', () => {
+    const g = computeGuidance(sample(88), computeMetricZone(JOINT), 'idle', 0, 3000)
+    expect(g.kind).toBe('hold')
+  })
+
   it('segment 類膝未打直 → straightenKnee 優先於 raise', () => {
     const s = sample(30, { knee: 22, kneeMax: 15, kneeStraightOk: false })
     const g = computeGuidance(s, computeMetricZone(ELEV), 'idle', 0, 3000)
