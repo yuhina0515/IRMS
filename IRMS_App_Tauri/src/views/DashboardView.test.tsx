@@ -74,8 +74,9 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const calibrate = (): void =>
+function calibrate(): void {
   useStore.setState((s) => ({ settings: { ...s.settings, lastCalibratedAt: '2026-09-25T06:00:00.000Z' } }))
+}
 
 describe('DashboardView 狀態橫幅(PROPOSAL §5 state contract)', () => {
   it('未連線時顯示「裝置未連線」', () => {
