@@ -94,23 +94,73 @@ function Toggle({
   )
 }
 
-export function SettingsView(): JSX.Element {
+type SettingsCategory = 'device' | 'calibration' | 'display' | 'software' | 'modules' | 'privacy' | 'demo'
+
+const CATEGORIES: { id: SettingsCategory; label: string; title: string; hint: string }[] = [
+  { id: 'device', label: '裝置與連線', title: '裝置與連線', hint: '連線狀態與判定協定' },
+  { id: 'calibration', label: '校準', title: '感測器校準', hint: '零位、屈曲軸與佩戴方向' },
+  { id: 'display', label: '顯示', title: '顯示', hint: '主題、姿態預設與圖表' },
+  { id: 'software', label: '軟體與韌體', title: '軟體與韌體更新', hint: 'App 更新頻道與裝置韌體' },
+  { id: 'modules', label: '模組', title: '功能模組', hint: '第一方模組與啟用狀態' },
+  { id: 'privacy', label: '資料與隱私', title: '資料與隱私', hint: '即時遙測上傳(預設關閉)' },
+  { id: 'demo', label: '示範模式', title: '示範模式', hint: '不需硬體的完整流程演練' }
+]
+
+function DevicePane(): JSX.Element {
+  const settings = useStore((s) => s.settings)
+  const setSettings = useStore((s) => s.setSettings)
+  const isConnected = useStore((s) => s.isConnected)
+  const deviceName = useStore((s) => s.deviceName)
+  const statusText = useStore((s) => s.statusText)
+  const hardwareError = useStore((s) => s.hardwareError)
+  const running = useStore((s) => s.session.running)
+  const demoMode = useUiStore((s) => s.demoMode)
+  return (
+    <>
+      <div className="v3-set-row">
+        <div>
+          <strong>裝置</strong>
+          <p>
+            {isConnected ? `已連線 · ${deviceName ?? 'IRMS Device'}` : statusText}
+            {hardwareError ? ` · 感測器異常 ${hardwareError}` : ''}
+          </p>
+        </div>
+        <button
+          className={`btn ${isConnected ? 'btn-secondary' : 'btn-primary'}`}
+          disabled={demoMode}
+          onClick={() => void bluetoothService.connect()}
+        >
+          {demoMode ? '示範模式中' : isConnected ? '中斷連線' : '連線裝置'}
+        </button>
+      </div>
+      <p className="field-hint">連線只代表收得到資料;角度是否可信取決於校準。</p>
+      <div className="field" style={{ maxWidth: 360, marginTop: 20 }}>
+        <label>判定協定</label>
+        <GlassDropdown
+          value={settings.protocol}
+          disabled={running}
+          onChange={(v) => setSettings({ protocol: v as Settings['protocol'] })}
+          options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
+        />
+        <p className="field-hint">判定目前只支援膝關節;其他協定會擋下開始療程。</p>
+      </div>
+    </>
+  )
+}
+
+function CalibrationPane(): JSX.Element {
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const rawAngles = useStore((s) => s.rawAngles)
   const isConnected = useStore((s) => s.isConnected)
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
-
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     setSettings({ [key]: value } as Partial<Settings>)
-
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
-  // 這裡把入口直接關掉,而不是讓使用者按下去之後在日誌裡才發現被忽略。
   const calibrationLocked = useStore((s) => s.session.running)
   // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
-  // 功能不擋——pitch 的歸零仍然有效且有用——但提示不能再宣稱「含 Roll」。
   const linkTruncated = useStore((s) => s.linkTruncated)
 
   const quickZero = (): void => {
@@ -120,168 +170,176 @@ export function SettingsView(): JSX.Element {
     }
     setSettings(buildQuickZeroPatch(rawAngles, settings))
     showToast(
-      linkTruncated
-        ? '已套用快速歸零校準(僅 Pitch:BLE 未送達 roll 資料)'
-        : '已套用快速歸零校準(含 Roll)',
+      linkTruncated ? '已套用快速歸零校準(僅 Pitch:BLE 未送達 roll 資料)' : '已套用快速歸零校準(含 Roll)',
       linkTruncated ? 'warning' : 'success'
     )
   }
+  const scope: [string, boolean][] = [
+    ['零位已捕捉', settings.proximalZeroAccel != null && settings.distalZeroAccel != null],
+    ['大腿軸已建立', settings.proximalHingeAxis != null],
+    ['小腿軸已建立', settings.distalHingeAxis != null],
+    ['側向方向已驗證', settings.proximalRollVerified && settings.distalRollVerified]
+  ]
 
   return (
-    <section className="view-surface settings-surface">
-      <header className="page-header">
-        <h2>Settings</h2>
-        <p>感測器校準與系統參數</p>
-      </header>
-
-      <div className="settings-workbench">
-        <div className="panel glass">
-          <h3 style={{ marginBottom: 14 }}>Sensor Calibration 校準</h3>
-          <p className="text-text-muted text-sm mb-3">
+    <>
+      <div className="v3-set-row">
+        <div>
+          <strong>校準精靈</strong>
+          <p>
             {settings.lastCalibratedAt
-              ? `上次精靈校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
-              : '尚未執行校準精靈——建議先跑一次,自動判斷佩戴方向並歸零'}
+              ? `上次校準:${new Date(settings.lastCalibratedAt).toLocaleString()}`
+              : '尚未校準——未校準時無法開始療程'}
           </p>
-          {/* 語意由「方向未驗證(暗示判定不可信)」改為「僅影響顯示」:
-              roll 不參與任何達標/超限判定,外展步驟校準的是 3D 模型與圖表的正負號。
-              外展是全精靈唯一需要單腳站立的步驟,對平衡受限的患者最困難——
-              不該用一個看起來像判定風險的警告去催促他們反覆嘗試。 */}
-          {settings.lastCalibratedAt != null &&
-            (!settings.proximalRollVerified || !settings.distalRollVerified) && (
-              <p className="text-text-muted text-[0.8rem] mb-3">
-                ℹ 內外翻(roll)顯示方向未經外展步驟驗證:
-                {!settings.proximalRollVerified && '大腿'}
-                {!settings.proximalRollVerified && !settings.distalRollVerified && '、'}
-                {!settings.distalRollVerified && '小腿'}
-                ——<strong>不影響達標與超限判定</strong>,僅可能讓 3D 姿態、內外翻數值與圖表的
-                正負方向相反。若不需要這些顯示,可以直接略過外展步驟。
-              </p>
-            )}
-          <button
-            className="btn btn-primary"
-            disabled={!isConnected || calibrationLocked}
-            onClick={() => setWizardOpen(true)}
-          >
-            啟動校準精靈
-          </button>
-          {/* 停用理由必須看得見。原本只放在 title 裡:tooltip 要滑鼠停留才出現、觸控
-              裝置根本叫不出來、螢幕閱讀器也不一定會念,於是按鈕看起來只是「按了沒反應」。
-              App 其他地方(Record Pose、未支援協定的開始鈕)都已改用可見說明,這裡跟上。 */}
-          {!isConnected && (
-            <p className="field-hint" style={{ marginTop: 8 }}>
-              校準需要即時感測器數值,請先於頂部連線裝置。
-            </p>
-          )}
-          {calibrationLocked && (
-            <p className="field-hint" style={{ marginTop: 8 }}>
-              Session 進行中無法變更校準——這一場的資料必須全程由同一組轉換產生,
-              紀錄裡才存得下一份說得通的校準快照。請先結束 Session。
-            </p>
-          )}
-
-          <details className="adv-fold">
-            <summary>進階手動校準(一般情況請使用精靈)</summary>
-          <p className="field-hint">
-            Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用下方
-            「快速歸零」按當下姿勢自動填入,手動輸入需先知道目前的原始讀值。
-          </p>
-          <div className="row">
-            <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
-            <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
-          </div>
-          <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-            <Toggle label="Invert Thigh 反相" checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
-            <Toggle label="Invert Shin 反相" checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
-          </div>
-          <div className="row">
-            <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
-            <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
-          </div>
-          <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-            <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
-            <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
-          </div>
-          <div className="row">
-            <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
-              快速歸零
-            </button>
-          </div>
-          <p className="text-text-muted text-[0.8rem] mt-2">
-            校準完全在 App 端套用;韌體僅回傳原始角度,無需同步。
-          </p>
-          </details>
         </div>
-
-        <div className="panel glass">
-          <h3 style={{ marginBottom: 14 }}>General 一般</h3>
-          <div className="field">
-            <label>Default Protocol 預設協定</label>
-            <GlassDropdown
-              value={settings.protocol}
-              onChange={(v) => set('protocol', v as Settings['protocol'])}
-              options={JOINT_PROTOCOLS.map((p) => ({ value: p.value, label: p.label }))}
-            />
-          </div>
-          <div className="row">
-            <NumField
-              label="Chart Max Points 圖表最大點數"
-              value={settings.maxChartPoints}
-              onChange={(v) => set('maxChartPoints', Math.max(10, Math.round(v)))}
-            />
-            <NumField
-              label="Flush Interval 寫入間隔 (秒)"
-              value={settings.flushIntervalSec}
-              onChange={(v) => set('flushIntervalSec', Math.max(1, Math.round(v)))}
-            />
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Toggle
-              label="即時圖表加畫內外翻(Varus/Valgus)曲線"
-              checked={settings.showKneeRoll}
-              onChange={(v) => set('showKneeRoll', v)}
-            />
-            <p className="field-hint" style={{ marginTop: 6 }}>
-              走右側獨立刻度(±20°),正 = 外翻 valgus、負 = 內翻 varus。
-              <strong>不參與達標與超限判定</strong>——判定只讀矢狀面角度,這條線純粹供判讀。
-            </p>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Toggle
-              label="Dashboard 顯示趨勢圖分頁"
-              checked={settings.showTrendChart}
-              onChange={(v) => set('showTrendChart', v)}
-            />
-            <Toggle
-              label="Dashboard 顯示 3D/2D 姿態"
-              checked={settings.show3D2DPose}
-              onChange={(v) => set('show3D2DPose', v)}
-            />
-            <p className="field-hint" style={{ marginTop: 6 }}>
-              兩者預設關閉,讓 Dashboard 在任何視窗尺寸下都不需要捲動;關閉不影響資料
-              收集,開啟後立刻看得到累積的歷史曲線/姿態。
-            </p>
-          </div>
-        </div>
+        <button className="btn btn-primary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
+          {settings.lastCalibratedAt ? '重新校準' : '開始校準'}
+        </button>
       </div>
+      <ul className="v3-scope">
+        {scope.map(([label, ok]) => (
+          <li key={label} className={ok ? 'ok' : ''}>
+            {ok ? '✓' : '○'} {label}
+          </li>
+        ))}
+      </ul>
+      <p className="field-hint">
+        感測器不需要貼得很正:精靈會從「抬大腿」與「勾小腿」兩個動作算出各自的屈曲軸。抬大腿至少 20°
+        (建議 40–60°),勾小腿時大腿保持不動。側向方向只影響 3D 與診斷數值,不影響達標與超限判定。
+      </p>
+      {!isConnected && <p className="field-hint">校準需要即時感測器數值,請先連線裝置。</p>}
+      {calibrationLocked && (
+        <p className="field-hint">療程進行中無法變更校準——一場的資料必須全程由同一組轉換產生。請先結束療程。</p>
+      )}
 
+      <details className="adv-fold">
+        <summary>進階手動校準(一般情況請使用精靈)</summary>
+        <p className="field-hint">
+          Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用「快速歸零」。
+        </p>
+        <div className="row">
+          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
+        </div>
+        <div className="row" style={{ gap: 24, marginBottom: 14 }}>
+          <Toggle label="Invert Thigh 反相" checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Shin 反相" checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
+        </div>
+        <div className="row">
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
+        </div>
+        <div className="row" style={{ gap: 24, marginBottom: 16 }}>
+          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
+        </div>
+        <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
+          快速歸零
+        </button>
+      </details>
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
+    </>
+  )
+}
 
-      <div style={{ marginTop: 24 }}>
-        <SoftwareUpdatePanel />
+function DisplayPane(): JSX.Element {
+  const settings = useStore((s) => s.settings)
+  const setSettings = useStore((s) => s.setSettings)
+  return (
+    <>
+      <div className="field" style={{ maxWidth: 360 }}>
+        <label>主題</label>
+        <GlassDropdown
+          value={settings.themeMode}
+          onChange={(v) => setSettings({ themeMode: v as Settings['themeMode'] })}
+          options={[
+            { value: 'system', label: '跟隨系統' },
+            { value: 'light', label: '日間' },
+            { value: 'dark', label: '夜間' }
+          ]}
+        />
       </div>
-      <div style={{ marginTop: 24 }}>
-        <FirmwareOtaPanel />
+      <div className="field" style={{ maxWidth: 360 }}>
+        <label>即時監測姿態預設</label>
+        <GlassDropdown
+          value={settings.poseView}
+          onChange={(v) => setSettings({ poseView: v as Settings['poseView'] })}
+          options={[
+            { value: '2d', label: '2D 側面(建議)' },
+            { value: '3d', label: '3D' }
+          ]}
+        />
+        <p className="field-hint">2D 只呈現判定平面的屈伸;3D 的側向角度尚未驗證,僅作方向示意。</p>
       </div>
-      <div style={{ marginTop: 24 }}>
-        <DemoModePanel />
+      <details className="adv-fold">
+        <summary>進階</summary>
+        <div className="row">
+          <NumField
+            label="即時圖表最大點數"
+            value={settings.maxChartPoints}
+            onChange={(v) => setSettings({ maxChartPoints: Math.max(10, Math.round(v)) })}
+          />
+          <NumField
+            label="資料寫入間隔 (秒)"
+            value={settings.flushIntervalSec}
+            onChange={(v) => setSettings({ flushIntervalSec: Math.max(1, Math.round(v)) })}
+          />
+        </div>
+      </details>
+    </>
+  )
+}
+
+export function SettingsView(): JSX.Element {
+  const [category, setCategory] = useState<SettingsCategory>('device')
+  const meta = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0]
+  const setView = useUiStore((s) => s.setView)
+
+  return (
+    <div className="v3-page">
+      <div className="v3-page-head">
+        <div>
+          <h1>系統設定</h1>
+          <p>裝置準備、資料選擇,都有各自的位置。</p>
+        </div>
       </div>
-      <div style={{ marginTop: 24 }}>
-        <TelemetryPanel />
-      </div>
-      <div style={{ marginTop: 24 }}>
-        <ModulesPanel />
-      </div>
-    </section>
+      <section className="v3-sheet v3-settings">
+        <nav className="v3-settings-index" aria-label="設定分類">
+          {CATEGORIES.map((c) => (
+            <button key={c.id} aria-current={c.id === category ? 'page' : undefined} onClick={() => setCategory(c.id)}>
+              {c.label}
+              <span aria-hidden>›</span>
+            </button>
+          ))}
+        </nav>
+        <div className="v3-settings-pane">
+          <header className="v3-settings-head">
+            <h2>{meta.title}</h2>
+            <p>{meta.hint}</p>
+          </header>
+          <div className="v3-settings-body v3-scroll">
+            {category === 'device' && <DevicePane />}
+            {category === 'calibration' && <CalibrationPane />}
+            {category === 'display' && <DisplayPane />}
+            {category === 'software' && (
+              <>
+                <SoftwareUpdatePanel />
+                <FirmwareOtaPanel />
+              </>
+            )}
+            {category === 'modules' && <ModulesPanel />}
+            {category === 'privacy' && <TelemetryPanel />}
+            {category === 'demo' && <DemoModePanel />}
+          </div>
+          <footer className="v3-settings-foot">
+            <span>設定會立即儲存於本機</span>
+            <button className="btn btn-secondary btn-sm" onClick={() => setView('dashboard')}>
+              返回監測
+            </button>
+          </footer>
+        </div>
+      </section>
+    </div>
   )
 }
 
