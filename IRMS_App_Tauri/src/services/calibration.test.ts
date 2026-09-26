@@ -55,6 +55,7 @@ const SETTINGS: Settings = {
   lastCalibratedAt: null,
   wearSide: null,
   themeMode: 'dark',
+  poseView: '2d',
   allowBetaUpdates: true,
   sidebarCollapsed: false,
   telemetryEnabled: false,

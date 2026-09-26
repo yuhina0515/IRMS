@@ -103,7 +103,9 @@ export interface Settings {
   wearSide: 'left' | 'right' | null
   /** 兩套固定主題之一(外部設計 handoff 定案,見 doc/gemini-handoff-20260902/)——
    *  不是舊版可切換風格設定檔那種任意命名的系統,只有這兩個值。 */
-  themeMode: 'dark' | 'light'
+  themeMode: 'system' | 'dark' | 'light'
+  /** v3:即時監測姿態預設視角(2026-09-25 使用者裁定預設 2D,3D 可切換) */
+  poseView: '2d' | '3d'
   /**
    * 是否接收 beta 版自動更新推播(對應 electron-updater 的 allowPrerelease)。
    * 預設 true——這是這個 App 至今唯一的釋出管道,關掉這裡不會讓「已裝的 beta」
@@ -173,7 +175,8 @@ const DEFAULT_SETTINGS: Settings = {
   show3D2DPose: false,
   lastCalibratedAt: null,
   wearSide: null,
-  themeMode: 'dark',
+  themeMode: 'system',
+  poseView: '2d',
   allowBetaUpdates: true,
   sidebarCollapsed: false,
   telemetryEnabled: false,
@@ -488,7 +491,7 @@ export const useStore = create<StoreState>()(
       // 而是因為 migrate **只在 persisted version < current 時才會被呼叫**。
       // 版本不變就不會跑,zustand 預設的淺層 merge 會拿舊的 settings 物件
       // 整個蓋掉初始值,新欄位變成 undefined。
-      version: 14, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
+      version: 15, // v4:offset 改參數化為 zeroRaw(2026-08-12 會議);v5:showKneeRoll;v6:wearSide;
       // v7:styleProfileId(已於 v8 移除,見下);v8:styleProfileId → themeMode(固定深淺兩套主題,
       // 取代任意命名的風格設定檔系統;舊資料裡殘留的 styleProfileId 欄位會被忽略,不影響行為)
       // v9:showTrendChart、show3D2DPose——Dashboard Cockpit 預設收起趨勢圖與 3D/2D 姿態顯示
@@ -497,7 +500,13 @@ export const useStore = create<StoreState>()(
       // v12:axisSwap:boolean → axisRotationDeg:number(2026-09-08 會議裁決),legacy 一律標記未驗證
       // v13:sidebarCollapsed——補上 Electron 09-09 已修但 Tauri 前端搬遷未回頭補的持久化缺口
       // v14:telemetryEnabled/telemetryEndpoint——使用者自選的即時遙測上傳(預設關閉)
-      migrate: (persisted) => migrateSettings(persisted)
+      // v15:UI v3——themeMode 加入 system(日間為設計預設,跟隨系統),poseView 預設 2D。
+      //      舊版的 dark 是當年的預設值而非使用者選擇,升級時一律重設為 system。
+      migrate: (persisted, version) => {
+        const migrated = migrateSettings(persisted)
+        if (version < 15) migrated.settings.themeMode = 'system'
+        return migrated
+      }
     }
   )
 )

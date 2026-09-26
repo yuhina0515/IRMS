@@ -24,8 +24,15 @@ function makeJoint(radius: number, material: THREE.MeshStandardMaterial): THREE.
   return new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), material)
 }
 
-export function Leg3D(): JSX.Element {
+/**
+ * @param showRoll UI v3: roll is mounting/axis-estimate evidence, not validated anatomy
+ *   (2026-09-25 real-device finding), so the default 3D view keeps the leg in the sagittal plane.
+ *   The diagnostic toggle passes true to show measured roll as installation feedback.
+ */
+export function Leg3D({ showRoll = false }: { showRoll?: boolean } = {}): JSX.Element {
   const mountRef = useRef<HTMLDivElement>(null)
+  const showRollRef = useRef(showRoll)
+  showRollRef.current = showRoll
 
   useEffect(() => {
     const mount = mountRef.current
@@ -106,9 +113,9 @@ export function Leg3D(): JSX.Element {
     const unsub = useStore.subscribe((s) => {
       if (s.angles && !s.hardwareError) {
         target.tp = s.angles.thigh
-        target.tr = s.angles.thighRoll
+        target.tr = showRollRef.current ? s.angles.thighRoll : 0
         target.sp = s.angles.shin
-        target.sr = s.angles.shinRoll
+        target.sr = showRollRef.current ? s.angles.shinRoll : 0
       }
       target.inZone = s.session.inZone
       target.error = s.hardwareError != null
