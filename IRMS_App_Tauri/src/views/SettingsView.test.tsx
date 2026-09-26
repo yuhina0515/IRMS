@@ -51,23 +51,30 @@ async function pickFirmware(): Promise<void> {
   await screen.findByText(/IRMS_Sensor\.ino\.bin/)
 }
 
+
+/** v3 Settings shows one category at a time; the OTA panel lives under 軟體與韌體. */
+async function openFirmware(): Promise<void> {
+  render(<SettingsView />)
+  await userEvent.click(screen.getByRole('button', { name: /軟體與韌體/ }))
+}
+
 describe('SettingsView 韌體 OTA 面板:連線態閘門', () => {
-  it('未連線時操作按鈕停用並顯示原因', () => {
-    render(<SettingsView />)
+  it('未連線時操作按鈕停用並顯示原因', async () => {
+    await openFirmware()
     expect(screen.getByText('需要先於頂部連線真實裝置')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '查詢裝置目前版本' })).toBeDisabled()
   })
 
-  it('Session 進行中時顯示鎖定原因', () => {
+  it('Session 進行中時顯示鎖定原因', async () => {
     useStore.setState({ isConnected: true, session: { ...useStore.getState().session, running: true } })
-    render(<SettingsView />)
+    await openFirmware()
     expect(screen.getByText(/Session 進行中無法更新韌體/)).toBeInTheDocument()
   })
 
-  it('已連線且無 Session 時按鈕可用', () => {
+  it('已連線且無 Session 時按鈕可用', async () => {
     useStore.setState({ isConnected: true })
-    render(<SettingsView />)
+    await openFirmware()
     expect(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' })).not.toBeDisabled()
   })
 })
@@ -78,7 +85,7 @@ describe('SettingsView 韌體 OTA 面板:選檔與開始更新', () => {
   })
 
   it('選檔後顯示檔名/大小/MD5,未選檔前「開始更新」停用', async () => {
-    render(<SettingsView />)
+    await openFirmware()
     expect(screen.getByRole('button', { name: '開始更新' })).toBeDisabled()
 
     await pickFirmware()
@@ -91,7 +98,7 @@ describe('SettingsView 韌體 OTA 面板:選檔與開始更新', () => {
     useUiStore.setState({ requestConfirm: async () => false })
     const spy = vi.spyOn(bluetoothService, 'performOtaUpdate')
 
-    render(<SettingsView />)
+    await openFirmware()
     await pickFirmware()
     await userEvent.click(screen.getByRole('button', { name: '開始更新' }))
 
@@ -114,7 +121,7 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
       return { ok: true, message: '更新成功' }
     })
 
-    render(<SettingsView />)
+    await openFirmware()
     await pickFirmware()
     await userEvent.click(screen.getByRole('button', { name: '開始更新' }))
 
@@ -141,7 +148,7 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
       return { ok: false, message: 'NO_SPACE' }
     })
 
-    render(<SettingsView />)
+    await openFirmware()
     await pickFirmware()
     await userEvent.click(screen.getByRole('button', { name: '開始更新' }))
 
@@ -158,7 +165,7 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
     })
     const abortSpy = vi.spyOn(bluetoothService, 'abortOtaUpdate').mockResolvedValue(undefined)
 
-    render(<SettingsView />)
+    await openFirmware()
     await pickFirmware()
     await userEvent.click(screen.getByRole('button', { name: '開始更新' }))
     await screen.findByRole('button', { name: '中止' })
@@ -168,5 +175,17 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
 
     expect(abortSpy).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(screen.queryByRole('button', { name: '中止' })).not.toBeInTheDocument())
+  })
+})
+
+describe('SettingsView 分類索引(v3)', () => {
+  it('一次只顯示一個分類,切換分類會替換右側內容而不是往下長', async () => {
+    render(<SettingsView />)
+    expect(screen.getByRole('heading', { level: 2, name: '裝置與連線' })).toBeInTheDocument()
+    expect(screen.queryByText(/Firmware Update/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /軟體與韌體/ }))
+    expect(screen.getByRole('heading', { level: 2, name: '軟體與韌體更新' })).toBeInTheDocument()
+    expect(screen.getByText(/Firmware Update/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: '裝置與連線' })).not.toBeInTheDocument()
   })
 })

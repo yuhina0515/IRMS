@@ -138,23 +138,47 @@ pub(crate) async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec
     Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
 }
 
-async fn fetch_verified_manifest(client: &reqwest::Client) -> Result<FirmwareManifest, String> {
-    let bytes = get_bytes(client, &format!("{RELEASES}/latest/download/manifest.json")).await?;
-    let sig = get_bytes(
-        client,
-        &format!("{RELEASES}/latest/download/manifest.json.sig"),
-    )
-    .await?;
-    verify_manifest(
+/// Where the channel's manifest lives. Stable = GitHub's "latest" release (prereleases are
+/// skipped by GitHub itself); beta = the fixed `beta-latest` pointer release that the
+/// IRMS-Firmware workflow refreshes on every tag. Same rule as the app's own update channel.
+fn manifest_base(beta: bool) -> String {
+    if beta {
+        format!("{RELEASES}/download/beta-latest")
+    } else {
+        format!("{RELEASES}/latest/download")
+    }
+}
+
+/// A stable-channel app never installs a pre-release, even if a mislabelled release
+/// became GitHub's "latest".
+fn channel_allows(version: &str, beta: bool) -> bool {
+    beta || semver::Version::parse(version).is_ok_and(|v| v.pre.is_empty())
+}
+
+async fn fetch_verified_manifest(
+    client: &reqwest::Client,
+    beta: bool,
+) -> Result<FirmwareManifest, String> {
+    let base = manifest_base(beta);
+    let bytes = get_bytes(client, &format!("{base}/manifest.json")).await?;
+    let sig = get_bytes(client, &format!("{base}/manifest.json.sig")).await?;
+    let manifest = verify_manifest(
         &bytes,
         &String::from_utf8_lossy(&sig),
         &decode_pubkey(FIRMWARE_PUBKEY_B64)?,
-    )
+    )?;
+    if !channel_allows(&manifest.version, beta) {
+        return Err("正式版頻道收到測試版韌體,拒絕更新".into());
+    }
+    Ok(manifest)
 }
 
 #[tauri::command]
-pub async fn firmware_check_latest(app: tauri::AppHandle) -> Result<FirmwareRelease, String> {
-    let manifest = fetch_verified_manifest(&client()?).await?;
+pub async fn firmware_check_latest(
+    app: tauri::AppHandle,
+    beta: bool,
+) -> Result<FirmwareRelease, String> {
+    let manifest = fetch_verified_manifest(&client()?, beta).await?;
     Ok(FirmwareRelease {
         app_compatible: app_compatible(
             &app.package_info().version.to_string(),
@@ -174,9 +198,12 @@ pub fn firmware_is_newer(device: Option<String>, latest: String) -> bool {
 /// Re-fetches and re-verifies the manifest (the renderer only names the version it decided
 /// on), then downloads and verifies the binary it describes.
 #[tauri::command]
-pub async fn firmware_download_latest(expected_version: String) -> Result<FirmwareBinary, String> {
+pub async fn firmware_download_latest(
+    expected_version: String,
+    beta: bool,
+) -> Result<FirmwareBinary, String> {
     let client = client()?;
-    let manifest = fetch_verified_manifest(&client).await?;
+    let manifest = fetch_verified_manifest(&client, beta).await?;
     if manifest.version != expected_version {
         return Err("最新韌體版本在下載前已變更,請重新檢查".into());
     }
@@ -246,6 +273,16 @@ mod tests {
     }
 
     #[test]
+    fn stable_channel_rejects_prereleases() {
+        assert!(channel_allows("1.0.1", false));
+        assert!(!channel_allows("1.0.1-beta.1", false));
+        assert!(channel_allows("1.0.1-beta.1", true));
+        // beta firmware on a device is still superseded by the matching stable release
+        assert!(is_newer(Some("1.0.1-beta.1"), "1.0.1"));
+        assert!(is_newer(Some("1.0.0"), "1.0.1-beta.1"));
+    }
+
+    #[test]
     fn embedded_public_key_decodes() {
         assert_eq!(decode_pubkey(FIRMWARE_PUBKEY_B64).unwrap().len(), 32);
     }
@@ -304,17 +341,19 @@ mod live_tests {
     #[ignore]
     async fn live_release_manifest_and_binary_verify() {
         let client = client().unwrap();
-        let manifest = fetch_verified_manifest(&client).await.unwrap();
-        let url = format!(
-            "{RELEASES}/download/v{}/{}",
-            manifest.version, manifest.file
-        );
-        let data = get_bytes(&client, &url).await.unwrap();
-        verify_binary(&data, &manifest).unwrap();
-        println!(
-            "verified IRMS-Firmware v{} ({} bytes)",
-            manifest.version,
-            data.len()
-        );
+        for beta in [false, true] {
+            let manifest = fetch_verified_manifest(&client, beta).await.unwrap();
+            let url = format!(
+                "{RELEASES}/download/v{}/{}",
+                manifest.version, manifest.file
+            );
+            let data = get_bytes(&client, &url).await.unwrap();
+            verify_binary(&data, &manifest).unwrap();
+            println!(
+                "channel beta={beta}: verified IRMS-Firmware v{} ({} bytes)",
+                manifest.version,
+                data.len()
+            );
+        }
     }
 }

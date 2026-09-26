@@ -1,95 +1,51 @@
 // renderer/views/DashboardView.tsx
-// 引導式 Dashboard:畫面圍繞「選定動作的主指標」——量表 + 教練提示 + 進度;下方是
-// 「Cockpit」即時資料區:左欄(圖表/詳細數值互切)+ 右欄(3D/2D 姿態互切)常駐並排。
-import { lazy, Suspense, useRef, useState } from 'react'
+// UI v3 live monitoring (doc/ui-v3-gpt/PROPOSAL.md §4–§6): one coaching band, one judged
+// metric beside a large pose stage, and a bottom dock. The six-value strip is gone — thigh/
+// shin/roll live in an explicitly opened diagnostics view with honest labels (2026-09-25
+// real-device finding: roll mostly reflects mounting, not anatomy).
+import { lazy, Suspense, useState } from 'react'
 import { isProtocolSupported } from '@shared/types'
 import { useStore } from '../store/useStore'
+import { useUiStore } from '../store/useUiStore'
 import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
 import { computeGuidance, guidanceText } from '../services/guidance'
-import { AngleVisualizer } from '../components/AngleVisualizer'
-import { MetricGauge } from '../components/MetricGauge'
-import { CoachHint } from '../components/CoachHint'
-import { ProgressRing } from '../components/ProgressRing'
-import { SessionControlPanel } from '../components/SessionControlPanel'
+import { PoseSide } from '../components/PoseSide'
+import { SessionDock } from '../components/SessionDock'
 import { CalibrationWizard } from '../components/CalibrationWizard'
-import { useLiquidKnob } from '../components/LiquidKnob'
-import { sessionController } from '../services/sessionController'
+import { TRIGGER_SHORT } from './actionLabels'
 
-// chart.js / three.js are both sizable and only needed once the user actually opens these tabs
-// (show3D2DPose/showTrendChart both default off) — dynamic import keeps them out of the initial bundle.
-const LiveChart = lazy(() => import('../components/LiveChart').then((m) => ({ default: m.LiveChart })))
 const Leg3D = lazy(() => import('../components/Leg3D').then((m) => ({ default: m.Leg3D })))
 
-type LeftTab = 'chart' | 'detail'
-type RightTab = '3d' | '2d'
+type StageView = '2d' | '3d' | 'detail'
 
-const LEFT_TABS: { id: LeftTab; label: string }[] = [
-  { id: 'chart', label: '趨勢圖' },
-  { id: 'detail', label: '詳細數值' }
-]
-const RIGHT_TABS: { id: RightTab; label: string }[] = [
-  { id: '3d', label: '3D 姿態' },
-  { id: '2d', label: '2D 姿態' }
-]
+type Coach = { tone: 'neutral' | 'good' | 'warn' | 'danger'; mark: string; title: string; sub?: string }
 
-/**
- * subLabel(中文說明,如「大腿」「夾角」)是漸進式密度的 Tier-2:卡片變窄時第一個丟掉
- * (見 tailwind.css `.stat` 的 container query)。label 本身與 value 是 Tier-1,
- * 任何寬度都不隱藏——value 是實際量到的數字,label 是唯一的英文識別字,兩者都是
- * 判讀所需的最低限度資訊。
- */
-function Stat({
-  label,
-  subLabel,
-  value,
-  cls
-}: {
-  label: string
-  subLabel?: string
-  value: string
-  cls?: string
-}): JSX.Element {
+function Diagnostics(): JSX.Element {
+  const angles = useStore((s) => s.angles)
+  const hardwareError = useStore((s) => s.hardwareError)
+  const fmt = (n: number | undefined): string => (hardwareError ? '—' : n == null ? '—' : `${n.toFixed(1)}°`)
+  const rows: [string, string, string][] = [
+    ['大腿角度', '相對站直零位', fmt(angles?.thigh)],
+    ['小腿角度', '相對站直零位', fmt(angles?.shin)],
+    ['膝關節夾角', '大腿與小腿角度差', fmt(angles?.knee)],
+    ['大腿感測器 Roll', '安裝／軸向排錯用', fmt(angles?.thighRoll)],
+    ['小腿感測器 Roll', '安裝／軸向排錯用', fmt(angles?.shinRoll)],
+    ['兩感測器 Roll 差', '未驗證,非內外翻量測', fmt(angles?.kneeRoll)]
+  ]
   return (
-    <div className="panel glass stat">
-      <div className="label">
-        {label}
-        {subLabel && <span className="label-sub"> {subLabel}</span>}
-      </div>
-      <div className={`value ${cls ?? ''}`}>{value}</div>
-    </div>
-  )
-}
-
-interface DetailStatsGridProps {
-  angles: ReturnType<typeof useStore.getState>['angles']
-  hardwareError: string | null
-}
-
-// 抽成獨立元件:同一組數值卡片有兩個各自獨立的出現位置——一般尺寸下作為左欄
-// 「詳細數值」分頁的內容,container 極窄時作為強制數字回退(numeric fallback)——
-// 抽出來避免兩處各寫一份一樣的 6 張 Stat 卡片,以後改欄位只需要改一個地方。
-function DetailStatsGrid({ angles, hardwareError }: DetailStatsGridProps): JSX.Element {
-  const fmt = (n: number | undefined): string =>
-    hardwareError ? 'ERR' : n === undefined ? '--' : `${n.toFixed(1)}°`
-  return (
-    <div className="grid cards w-full">
-      <Stat label="Thigh" subLabel="大腿" value={fmt(angles?.thigh)} cls="color-thigh" />
-      <Stat label="Shin" subLabel="小腿" value={fmt(angles?.shin)} cls="color-shin" />
-      <Stat label="Knee" subLabel="夾角" value={fmt(angles?.knee)} cls="color-accent" />
-      <Stat label="Thigh Roll" value={fmt(angles?.thighRoll)} />
-      <Stat label="Shin Roll" value={fmt(angles?.shinRoll)} />
-      <Stat
-        label="Varus/Valgus"
-        subLabel="內外翻"
-        value={
-          hardwareError
-            ? 'ERR'
-            : angles == null
-              ? '--'
-              : `${Math.abs(angles.kneeRoll).toFixed(1)}° ${angles.kneeRoll >= 0 ? '外翻' : '內翻'}`
-        }
-      />
-    </div>
+    <table className="v3-diag">
+      <tbody>
+        {rows.map(([name, note, value]) => (
+          <tr key={name}>
+            <th scope="row">
+              {name}
+              <span>{note}</span>
+            </th>
+            <td>{value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 
@@ -101,184 +57,187 @@ export function DashboardView(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
   const protocol = useStore((s) => s.settings.protocol)
+  const poseView = useStore((s) => s.settings.poseView)
+  const setSettings = useStore((s) => s.setSettings)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
-  // 兩者預設收起(見 useStore.ts 的欄位註解),Settings 可個別開啟
-  const showTrendChart = useStore((s) => s.settings.showTrendChart)
-  const show3D2DPose = useStore((s) => s.settings.show3D2DPose)
-
-  const [leftTab, setLeftTab] = useState<LeftTab>('chart')
-  const [rightTab, setRightTab] = useState<RightTab>('3d')
-  // 趨勢圖被關掉時,「chart」根本不在可見分頁清單裡——不額外用 useEffect 同步
-  // leftTab state,單純渲染時算出「實際要顯示哪一個」,設定切回開啟時自然復原。
-  const visibleLeftTabs = showTrendChart ? LEFT_TABS : LEFT_TABS.filter((t) => t.id !== 'chart')
-  const effectiveLeftTab: LeftTab = !showTrendChart && leftTab === 'chart' ? 'detail' : leftTab
+  const demoMode = useUiStore((s) => s.demoMode)
+  const setView = useUiStore((s) => s.setView)
+  const [detail, setDetail] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
-  const leftTabsRef = useRef<HTMLDivElement>(null)
-  const rightTabsRef = useRef<HTMLDivElement>(null)
-  const left = useLiquidKnob({
-    containerRef: leftTabsRef,
-    activeKey: leftTab,
-    orientation: 'horizontal',
-    onSelect: (key) => setLeftTab(key as LeftTab)
-  })
-  const right = useLiquidKnob({
-    containerRef: rightTabsRef,
-    activeKey: rightTab,
-    orientation: 'horizontal',
-    onSelect: (key) => setRightTab(key as RightTab)
-  })
+  const stage: StageView = detail ? 'detail' : poseView
 
   const triggerType = action?.triggerType ?? 'joint_angle'
   const info = metricInfo(triggerType)
-  // 必須帶上動作的 safetyLimit,否則量表畫的超限刻線會與引擎實際判定的門檻不一致
+  // 必須帶上動作的 safetyLimit,否則標尺上的超限線會與引擎實際判定的門檻不一致
   const zone = computeMetricZone({ ...params, triggerType, safetyLimit: action?.safetyLimit ?? null })
-  const sample = angles && !hardwareError ? computeMetricSample(angles, triggerType, params.tolerance) : null
-
+  const live = angles != null && hardwareError == null && isConnected
+  const sample = live ? computeMetricSample(angles, triggerType, params.tolerance) : null
   const protocolOk = isProtocolSupported(protocol)
-
+  const calibrated = lastCalibratedAt != null
   const guidance = computeGuidance(sample, zone, session.phase, session.holdProgress, params.holdTimeMs)
-  // 未支援的協定排在連線之前:接上裝置也不會讓它變成可用的量測,先叫使用者
-  // 去連線等於把人推向一條走不通的路。
-  const hintText = hardwareError
-    ? '硬體異常,等待感測器復原…'
-    : !protocolOk
-      ? '此協定尚未支援,請於設定切換回膝關節'
-      : !isConnected
-        ? '請先於頂部連線裝置'
-        : !action
-          ? '請先選擇復健動作'
-          : guidanceText(guidance, info)
-  const tone: 'normal' | 'success' | 'danger' =
-    hardwareError || session.alarmActive ? 'danger' : session.phase === 'holding' ? 'success' : 'normal'
+  const inZone = sample != null && sample.value >= zone.min && sample.value <= zone.max
+
+  // State contract (PROPOSAL §5): fault / over-limit → blocking conditions → coaching.
+  const coach: Coach = hardwareError
+    ? { tone: 'danger', mark: '×', title: `感測器異常 · ${hardwareError}`, sub: '已停止回饋輸出,等待感測器復原;可隨時結束療程' }
+    : session.alarmActive || guidance.kind === 'overLimit'
+      ? {
+          tone: 'danger',
+          mark: '!',
+          title: '超出上限,請停止加深',
+          sub: sample ? `目前 ${sample.value.toFixed(0)}° · 上限 ${zone.overLimit.toFixed(0)}°` : undefined
+        }
+      : !protocolOk
+        ? { tone: 'warn', mark: '!', title: '此協定尚未支援', sub: '判定目前只支援膝關節,請到設定切換回膝關節' }
+        : !isConnected
+          ? { tone: 'neutral', mark: '○', title: '裝置未連線', sub: '請從右上角連線裝置' }
+          : !calibrated && !demoMode
+            ? { tone: 'warn', mark: '!', title: '請先完成校準', sub: '未校準時角度方向與大小都可能不正確,完成校準後才能開始療程' }
+            : !action
+              ? { tone: 'neutral', mark: '○', title: '請選擇動作', sub: '在下方選擇動作處方' }
+              : !session.running
+                ? { tone: 'neutral', mark: '○', title: '準備開始', sub: '確認動作與參數後按「開始療程」' }
+                : session.phase === 'holding'
+                ? { tone: 'good', mark: '✓', title: '很好,保持這個位置', sub: `已進入目標區間,保持滿 ${(params.holdTimeMs / 1000).toFixed(1)} 秒` }
+                : session.phase === 'restPending'
+                  ? { tone: 'good', mark: '✓', title: '已完成,請回到起始位', sub: guidanceText(guidance, info) }
+                  : { tone: 'neutral', mark: '→', title: guidanceText(guidance, info) }
+
+  const holdRemain = Math.max(0, (params.holdTimeMs / 1000) * (1 - session.holdProgress / 100))
+  const rulerMax = Math.max(160, Math.ceil((zone.overLimit + 20) / 10) * 10)
+  const pct = (v: number): string => `${Math.min(100, Math.max(0, (v / rulerMax) * 100))}%`
+  const zoneText = Number.isFinite(zone.max)
+    ? `${zone.min.toFixed(0)}–${zone.max.toFixed(0)}°`
+    : `≥ ${zone.min.toFixed(0)}°`
 
   return (
-    <div className="dash-shell">
-      <header className="page-header">
-        <h2>Guided Monitoring</h2>
-        <p>圍繞當前動作的主指標即時引導復健</p>
-      </header>
-
-      {lastCalibratedAt == null && (
-        <div className="calib-chip" onClick={() => setWizardOpen(true)}>
-          ⚠ 感測器尚未校準——偵測與顯示方向可能不正確,點此啟動校準精靈
+    <div className="v3-page">
+      <div className="v3-page-head">
+        <div>
+          <h1>{action?.name ?? '即時監測'}</h1>
+          <p>
+            {info.label} · {TRIGGER_SHORT[triggerType]} · 目標 {zoneText} · 保持 {(params.holdTimeMs / 1000).toFixed(1)} 秒
+          </p>
         </div>
-      )}
-      {/* 內外翻方向未驗證的警示不放在這裡:roll 完全不進入任何判定路徑——
-          computeMetricSample 只讀 thigh/knee,三種 triggerType 全是 pitch 導向。
-          在判定不讀方向的畫面上宣稱「方向未驗證」是一個假的負面訊號。roll 影響的
-          僅有 3D 模型、詳細數值、History 疊圖與 CSV,相關提示已移至 Settings 的
-          3D 顯示區塊。 */}
-
-      {/* 由上而下的絕對空間分配:.dashboard-workspace 是唯一吃「剩餘空間」
-          (flex-1 min-h-0)的節點,底下用 container query 依「這個容器實際還剩多少
-          高度」切三種 layout preset,而不是猜視窗總尺寸——calib-chip 這類條件渲染的
-          橫幅多佔的高度,會自動從這個容器的剩餘空間扣掉,不需要另外為它調整任何常數。
-          單一 .dashboard-grid 用 grid-template-areas 佈五個語意格(gauge/ring/
-          chart/pose/numeric)——preset B(窄筆電高度)需要把量表、控制環、cockpit
-          排成同一橫排,分開的 grid 做不到這件事。 */}
-      <div className="dashboard-workspace">
-        <div
-          className={`dashboard-grid${show3D2DPose ? '' : ' no-pose'}`}
-        >
-          <div
-            className={`dash-cell-gauge panel glass glass-elevated${isConnected ? '' : ' panel-stale'}`}
-          >
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-              <div>
-                <div className="metric-action">{action?.name ?? '未選擇動作'}</div>
-                <div className="metric-sub">主指標:{info.label}</div>
-              </div>
-            </div>
-            <MetricGauge
-              sample={sample}
-              zone={zone}
-              info={info}
-              phase={session.phase}
-              alarm={session.alarmActive}
-              error={hardwareError != null}
-              stale={!isConnected}
-              unsupported={!protocolOk}
-            />
-            <CoachHint phase={session.phase} text={hintText} tone={tone} />
-          </div>
-
-          <div className="dash-cell-ring panel glass">
-            {session.alarmActive && (
-              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-                <p className="text-danger" style={{ fontWeight: 600, margin: 0 }}>
-                  ⚠ 超限警報
-                </p>
-                {/* 蜂鳴器綁在患者腿上,必須有軟體開關;靜音是暫時的,仍超限時會自動重新鳴響 */}
-                <button className="btn btn-danger" onClick={() => sessionController.silenceAlarm()}>
-                  🔕 靜音 30 秒
-                </button>
-              </div>
-            )}
-            <SessionControlPanel ring={<ProgressRing percent={session.holdProgress} reps={session.reps} />} />
-          </div>
-
-          <div className="dash-cell-chart cockpit-panel panel glass">
-            {visibleLeftTabs.length > 1 && (
-              <div className="tabs" ref={leftTabsRef}>
-                {left.knobElement}
-                {visibleLeftTabs.map((t) => (
-                  <button
-                    key={t.id}
-                    data-knob-key={t.id}
-                    className={`tab-btn${effectiveLeftTab === t.id ? ' active' : ''}`}
-                    onClick={() => setLeftTab(t.id)}
-                    {...left.getItemProps(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="cockpit-content">
-              {effectiveLeftTab === 'chart' && (
-                <Suspense fallback={null}>
-                  <LiveChart />
-                </Suspense>
-              )}
-              {effectiveLeftTab === 'detail' && <DetailStatsGrid angles={angles} hardwareError={hardwareError} />}
-            </div>
-          </div>
-
-          {show3D2DPose && (
-            <div className="dash-cell-pose cockpit-panel panel glass">
-              <div className="tabs" ref={rightTabsRef}>
-                {right.knobElement}
-                {RIGHT_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    data-knob-key={t.id}
-                    className={`tab-btn${rightTab === t.id ? ' active' : ''}`}
-                    onClick={() => setRightTab(t.id)}
-                    {...right.getItemProps(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <div className="cockpit-content">
-                {rightTab === '3d' && (
-                  <Suspense fallback={null}>
-                    <Leg3D />
-                  </Suspense>
-                )}
-                {rightTab === '2d' && <AngleVisualizer />}
-              </div>
-            </div>
+        <div className="v3-page-actions">
+          {calibrated ? (
+            <button className="v3-chip good" onClick={() => setWizardOpen(true)} title="重新校準">
+              ✓ 校準完成 ·{' '}
+              {new Date(lastCalibratedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+            </button>
+          ) : (
+            <button className="v3-chip warn" onClick={() => setWizardOpen(true)}>
+              ! 尚未校準 · 開始校準
+            </button>
           )}
-
-          {/* 只在最窄的 preset(container 高度 ≤620px)顯示,由 CSS 強制切換,跟使用者
-              在 Settings 選了什麼無關——這個高度下已經沒有空間畫 3D 模型或折線圖,
-              治療師需要的是明確角度數字,不是被壓在 150px 高的方塊裡的骨架動畫。 */}
-          <div className="dash-cell-numeric panel glass">
-            <DetailStatsGrid angles={angles} hardwareError={hardwareError} />
-          </div>
         </div>
       </div>
+
+      <section className={`v3-sheet v3-live tone-${coach.tone}`} aria-label="即時監測">
+        <div className="v3-coach" role={coach.tone === 'danger' ? 'alert' : 'status'}>
+          <span className="v3-coach-mark" aria-hidden>
+            {coach.mark}
+          </span>
+          <div className="v3-coach-text">
+            <strong>{coach.title}</strong>
+            {coach.sub && <span>{coach.sub}</span>}
+          </div>
+          {session.running && session.phase === 'holding' && (
+            <div className="v3-coach-side">
+              <strong>再保持 {holdRemain.toFixed(1)} 秒</strong>
+              <span>第 {session.reps + 1} 次</span>
+            </div>
+          )}
+          {!protocolOk && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setView('settings')}>
+              前往設定
+            </button>
+          )}
+        </div>
+
+        <div className="v3-stage">
+          <div className="v3-metric">
+            <span className="v3-metric-label">主指標 · {info.label}</span>
+            <span className="v3-metric-value" aria-live="off">
+              {sample ? (
+                <>
+                  {Math.round(sample.value)}
+                  <sup>°</sup>
+                </>
+              ) : (
+                <span className="v3-metric-none">—</span>
+              )}
+            </span>
+            <span className="v3-metric-zone">
+              <strong>{zoneText}</strong> 目標區間 · 超限門檻 {zone.overLimit.toFixed(0)}°
+            </span>
+            {sample && triggerType !== 'joint_angle' && (
+              <span className={`v3-chip ${sample.kneeStraightOk ? 'good' : 'warn'}`}>
+                {sample.kneeStraightOk ? '✓' : '!'} 膝蓋需保持近直(≤ {sample.kneeMax}°)
+              </span>
+            )}
+            <div className="v3-ruler" aria-hidden>
+              <span className="v3-ruler-track" />
+              <span
+                className="v3-ruler-zone"
+                style={{ left: pct(zone.min), width: `calc(${pct(Number.isFinite(zone.max) ? zone.max : rulerMax)} - ${pct(zone.min)})` }}
+              />
+              <span className="v3-ruler-limit" style={{ left: pct(zone.overLimit) }} />
+              {sample && <span className="v3-ruler-now" style={{ left: pct(sample.value) }} />}
+            </div>
+            <div className="v3-ruler-scale" aria-hidden>
+              <span>0°</span>
+              <span style={{ left: pct(zone.min) }}>{zone.min.toFixed(0)}</span>
+              <span style={{ left: pct(zone.overLimit) }}>{zone.overLimit.toFixed(0)} 超限</span>
+              <span>{rulerMax}°</span>
+            </div>
+          </div>
+
+          <div className="v3-pose">
+            <div className="v3-pose-head">
+              <strong>{stage === 'detail' ? '感測器數值' : '動作姿態'}</strong>
+              <div className="v3-segmented" role="group" aria-label="姿態顯示">
+                <button
+                  aria-pressed={stage === '2d'}
+                  onClick={() => {
+                    setDetail(false)
+                    setSettings({ poseView: '2d' })
+                  }}
+                >
+                  2D 側面
+                </button>
+                <button
+                  aria-pressed={stage === '3d'}
+                  onClick={() => {
+                    setDetail(false)
+                    setSettings({ poseView: '3d' })
+                  }}
+                >
+                  3D
+                </button>
+                <button aria-pressed={stage === 'detail'} onClick={() => setDetail(true)}>
+                  數值
+                </button>
+              </div>
+            </div>
+            <div className="v3-pose-body">
+              {stage === '2d' && <PoseSide triggerType={triggerType} targetMin={zone.min} inZone={inZone} />}
+              {stage === '3d' && (
+                <Suspense fallback={<span className="v3-pose-caption">載入 3D…</span>}>
+                  <Leg3D />
+                </Suspense>
+              )}
+              {stage === 'detail' && <Diagnostics />}
+            </div>
+            <p className="v3-pose-caption">
+              {calibrated ? '✓ 零位與屈曲軸已建立' : '! 尚未校準'} · 側向角度未驗證
+              {stage === '3d' ? ' · 姿態為方向示意' : stage === 'detail' ? ' · Roll 僅供安裝排錯' : ''}
+            </p>
+          </div>
+        </div>
+
+        <SessionDock onCalibrate={() => setWizardOpen(true)} />
+      </section>
 
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
     </div>

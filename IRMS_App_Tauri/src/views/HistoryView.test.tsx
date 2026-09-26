@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import type { Session } from '@shared/types'
+import userEvent from '@testing-library/user-event'
 import { installIrmsStub } from '../test/irmsApiStub'
 import { HistoryView } from './HistoryView'
 
@@ -70,8 +71,8 @@ describe('HistoryView 示範資料標記', () => {
     const demoRow = await screen.findByText('示範療程')
 
     // 徽章與動作名稱同一格:demo 有、device 沒有
-    expect(within(demoRow.closest('td')!).getByText('示範資料')).toBeInTheDocument()
-    expect(within(realRow.closest('td')!).queryByText('示範資料')).not.toBeInTheDocument()
+    expect(within(demoRow.closest('.v3-history-row') as HTMLElement).getByText('示範資料')).toBeInTheDocument()
+    expect(within(realRow.closest('.v3-history-row') as HTMLElement).queryByText('示範資料')).not.toBeInTheDocument()
   })
 
   it('全部都是真實紀錄時,畫面上不出現任何示範標記', async () => {
@@ -98,5 +99,18 @@ describe('HistoryView 示範資料標記', () => {
 
     const badge = await screen.findByText('示範資料')
     expect(badge).toHaveAttribute('title', expect.stringContaining('模擬資料'))
+  })
+})
+
+describe('HistoryView 回顧頁(v3)', () => {
+  it('按下回顧以整頁取代列表,返回列表後回到原清單', async () => {
+    installIrmsStub({ sessions: { list: async () => [session({ id: 7, actionName: '膝關節屈曲' })] } })
+    render(<HistoryView />)
+    await userEvent.click(await screen.findByRole('button', { name: '回顧' }))
+    expect(screen.getByRole('heading', { level: 1, name: '療程回顧' })).toBeInTheDocument()
+    // 處方以當時快照呈現,超限門檻是實際生效值(safetyLimit 120)
+    expect(screen.getByRole('complementary', { name: '療程細節' })).toHaveTextContent('120°')
+    await userEvent.click(screen.getByRole('button', { name: '← 返回列表' }))
+    expect(screen.getByRole('heading', { level: 1, name: '療程紀錄' })).toBeInTheDocument()
   })
 })

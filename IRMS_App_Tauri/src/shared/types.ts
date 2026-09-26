@@ -270,9 +270,10 @@ export interface IrmsApi {
     /** 開檔對話框選 .bin;使用者取消回傳 null,而非用例外表示一個正常的操作結果 */
     pickBinary(): Promise<FirmwareBinary | null>
     /** 取得 IRMS-Firmware 最新發布版(簽章驗證失敗會丟例外) */
-    checkLatest(): Promise<FirmwareRelease>
+    /** @param beta 與 App 更新頻道相同(settings.allowBetaUpdates):true 抓 beta-latest 指標 */
+    checkLatest(beta: boolean): Promise<FirmwareRelease>
     /** 下載並驗證指定版本;版本在下載前變動會丟例外 */
-    downloadLatest(version: string): Promise<FirmwareBinary>
+    downloadLatest(version: string, beta: boolean): Promise<FirmwareBinary>
     isNewer(device: string | null, latest: string): Promise<boolean>
   }
   modules: {

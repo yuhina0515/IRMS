@@ -74,109 +74,108 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('DashboardView 連線/選動作提示', () => {
-  it('未連線時顯示「請先於頂部連線裝置」', () => {
+function calibrate(): void {
+  useStore.setState((s) => ({ settings: { ...s.settings, lastCalibratedAt: '2026-09-25T06:00:00.000Z' } }))
+}
+
+describe('DashboardView 狀態橫幅(PROPOSAL §5 state contract)', () => {
+  it('未連線時顯示「裝置未連線」', () => {
     render(<DashboardView />)
-    expect(screen.getByText('請先於頂部連線裝置')).toBeInTheDocument()
+    expect(screen.getByText('裝置未連線')).toBeInTheDocument()
   })
 
-  it('已連線但未選動作時顯示「請先選擇復健動作」', () => {
+  it('已連線、已校準但未選動作時顯示「請選擇動作」', () => {
     useStore.setState({ isConnected: true })
+    calibrate()
     render(<DashboardView />)
-    expect(screen.getByText('請先選擇復健動作')).toBeInTheDocument()
+    expect(screen.getByText('請選擇動作')).toBeInTheDocument()
   })
 
-  it('連線且選好動作後兩則提示皆不顯示(改為教練提示文字)', () => {
+  it('連線、校準、選好動作後顯示「準備開始」', () => {
     connectWithAction()
+    calibrate()
     render(<DashboardView />)
-    expect(screen.queryByText('請先於頂部連線裝置')).not.toBeInTheDocument()
-    expect(screen.queryByText('請先選擇復健動作')).not.toBeInTheDocument()
+    expect(screen.getByText('準備開始')).toBeInTheDocument()
   })
 
-  it('未支援協定時顯示協定提示,即使已連線且已選動作', () => {
+  it('未支援協定優先於連線與動作狀態,並提供前往設定', () => {
     connectWithAction()
+    calibrate()
     useStore.setState((s) => ({ settings: { ...s.settings, protocol: 'elbow' } }))
     render(<DashboardView />)
-    expect(screen.getByText('此協定尚未支援,請於設定切換回膝關節')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('此協定尚未支援')
+    expect(screen.getByRole('button', { name: '前往設定' })).toBeInTheDocument()
+    // 開始按鈕同樣說明原因,而不是叫使用者去連線
+    expect(screen.getByRole('button', { name: '此協定尚未支援' })).toBeDisabled()
   })
 })
 
 describe('DashboardView 硬體錯誤', () => {
-  it('ERR 時顯示硬體異常提示,詳細數值全數改標 ERR', () => {
+  it('ERR 時顯示感測器異常,主指標為 — 而非數字,姿態標示不可用', () => {
     connectWithAction()
-    useStore.setState({ hardwareError: 'ERR:1' })
+    calibrate()
+    useStore.setState({
+      hardwareError: 'ERR:1',
+      angles: { thigh: 40, shin: -5, knee: 45, thighRoll: 0, shinRoll: 0, kneeRoll: 0, rawThigh: 40, rawShin: -5, rawThighRoll: 0, rawShinRoll: 0 }
+    })
     render(<DashboardView />)
-    expect(screen.getByText('硬體異常,等待感測器復原…')).toBeInTheDocument()
-    // DetailStatsGrid 於窄版 preset 常駐渲染一份,fmt() 對 hardwareError 一律回傳 'ERR'
-    expect(screen.getAllByText('ERR').length).toBeGreaterThan(0)
+    expect(screen.getByText('感測器異常 · ERR:1')).toBeInTheDocument()
+    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('45')).not.toBeInTheDocument()
+    expect(screen.getByText('感測器異常 · 姿態不可用')).toBeInTheDocument()
   })
 })
 
-describe('DashboardView 校準警示', () => {
-  it('尚未校準時顯示警示 chip,點擊開啟校準精靈', async () => {
+describe('DashboardView 校準', () => {
+  it('尚未校準時顯示警示並擋下開始療程,按鈕改為開始校準並開啟精靈', async () => {
     connectWithAction()
     render(<DashboardView />)
-    const chip = screen.getByText(/感測器尚未校準/)
-    expect(chip).toBeInTheDocument()
-    await userEvent.click(chip)
-    // 校準精靈開啟後會出現步驟 1 的專屬文案
-    expect(screen.getByRole('button', { name: '開始' })).toBeInTheDocument()
-  })
-
-  it('已校準過(lastCalibratedAt 非 null)時不顯示警示 chip', () => {
-    connectWithAction()
-    useStore.setState((s) => ({ settings: { ...s.settings, lastCalibratedAt: '2026-09-19T00:00:00.000Z' } }))
-    render(<DashboardView />)
-    expect(screen.queryByText(/感測器尚未校準/)).not.toBeInTheDocument()
+    expect(screen.getByText('請先完成校準')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '開始療程' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '開始校準' }))
+    // CalibrationWizard 的標題
+    expect(await screen.findByText(/校準/, { selector: 'h3' })).toBeInTheDocument()
   })
 })
 
 describe('DashboardView 超限警報', () => {
-  it('警報啟動時顯示橫幅,點擊靜音呼叫 sessionController.silenceAlarm', async () => {
+  it('警報啟動時顯示超限橫幅(role=alert),靜音呼叫 sessionController.silenceAlarm', async () => {
     connectWithAction()
+    calibrate()
+    const silence = vi.spyOn(sessionController, 'silenceAlarm').mockImplementation(() => {})
     useStore.setState((s) => ({ session: { ...s.session, running: true, alarmActive: true } }))
-    const spy = vi.spyOn(sessionController, 'silenceAlarm').mockImplementation(() => {})
-
     render(<DashboardView />)
-    expect(screen.getByText('⚠ 超限警報')).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: /靜音 30 秒/ }))
-    expect(spy).toHaveBeenCalledTimes(1)
-  })
-
-  it('未警報時不顯示橫幅', () => {
-    connectWithAction()
-    render(<DashboardView />)
-    expect(screen.queryByText('⚠ 超限警報')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('超出上限,請停止加深')
+    await userEvent.click(screen.getByRole('button', { name: '靜音 30 秒' }))
+    expect(silence).toHaveBeenCalledOnce()
   })
 })
 
-describe('DashboardView Session 生命週期(Start/End)', () => {
-  it('連線且已選動作時,按下 Start Session 呼叫 sessionController.startSession', async () => {
+describe('DashboardView 療程生命週期', () => {
+  it('連線、校準且已選動作時,按下開始療程呼叫 sessionController.startSession', async () => {
     connectWithAction()
-    const spy = vi.spyOn(sessionController, 'startSession').mockResolvedValue(undefined)
-
+    calibrate()
+    const start = vi.spyOn(sessionController, 'startSession').mockResolvedValue(undefined)
     render(<DashboardView />)
-    const startBtn = screen.getByRole('button', { name: 'Start Session' })
-    expect(startBtn).not.toBeDisabled()
-
-    await userEvent.click(startBtn)
-    expect(spy).toHaveBeenCalledTimes(1)
+    await userEvent.click(screen.getByRole('button', { name: '開始療程' }))
+    expect(start).toHaveBeenCalledOnce()
   })
 
-  it('未連線時 Start 按鈕停用,文案改為提示先連線', () => {
+  it('未連線時開始按鈕停用,文案提示先連線', () => {
+    useStore.setState({ customActions: [ACTION], selectedActionId: ACTION.id })
+    calibrate()
     render(<DashboardView />)
-    const btn = screen.getByRole('button', { name: 'Connect device first' })
-    expect(btn).toBeDisabled()
+    expect(screen.getByRole('button', { name: '請先連線裝置' })).toBeDisabled()
   })
 
-  it('Session 進行中按下 End Session 呼叫 sessionController.endSession', async () => {
+  it('療程進行中顯示次數與時間,按下結束療程呼叫 sessionController.endSession', async () => {
     connectWithAction()
-    useStore.setState((s) => ({ session: { ...s.session, running: true } }))
-    const spy = vi.spyOn(sessionController, 'endSession').mockResolvedValue(true)
-
+    calibrate()
+    const end = vi.spyOn(sessionController, 'endSession').mockResolvedValue(true)
+    useStore.setState((s) => ({ session: { ...s.session, running: true, reps: 6, elapsedSec: 138 } }))
     render(<DashboardView />)
-    await userEvent.click(screen.getByRole('button', { name: 'End Session' }))
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('02:18')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '結束療程' }))
+    expect(end).toHaveBeenCalledOnce()
   })
 })

@@ -4,7 +4,7 @@
 // DOM/SVG 元件請直接用 Tailwind class(如 text-accent),不要經過這層。
 
 const THEME_CHANGE_EVENT = 'irms:theme-changed'
-const LIGHT_THEME_CLASS = 'theme-light'
+const DARK_THEME_CLASS = 'theme-dark'
 
 /** 解析單一 CSS 變數的目前值(隨主題即時變化)。回傳的是 tailwind.css 裡儲存的原始格式
  *  ——空白分隔的 RGB triplet(如 "34 211 238"),不是完整的 CSS 顏色字串。 */
@@ -36,12 +36,22 @@ export function onThemeChange(callback: () => void): () => void {
   }
 }
 
-/** 套用 `settings.themeMode`:切換 `<html>` 的 theme-light class(tailwind.css 的
- *  `:root`/`.theme-light` 定義兩套 `--color-*` token),並通知 Chart.js/Three.js
- *  這類無法直接吃 CSS 變數的消費者重新解析。取代舊版 applyStyleProfile()。 */
-export function applyThemeMode(mode: 'dark' | 'light'): void {
-  document.documentElement.classList.toggle(LIGHT_THEME_CLASS, mode === 'light')
-  notifyThemeChanged()
+/**
+ * 套用 `settings.themeMode`(UI v3):`:root` 是日間(預設),`<html>` 加上 theme-dark 為夜間。
+ * `system` 跟隨作業系統並在系統切換時即時更新;回傳解除監聽函式供 effect 清理。
+ * 同時通知 Chart.js/Three.js 這類無法直接吃 CSS 變數的消費者重新解析。
+ */
+export function applyThemeMode(mode: 'system' | 'dark' | 'light'): () => void {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  const apply = (): void => {
+    const dark = mode === 'dark' || (mode === 'system' && mq.matches)
+    document.documentElement.classList.toggle(DARK_THEME_CLASS, dark)
+    notifyThemeChanged()
+  }
+  apply()
+  if (mode !== 'system') return () => {}
+  mq.addEventListener('change', apply)
+  return () => mq.removeEventListener('change', apply)
 }
 
 function notifyThemeChanged(): void {
