@@ -54,8 +54,8 @@ export function installFirmwareAutoUpdate(): () => void {
     const state = deps.state()
     if (!state.connected || state.simulated || state.sessionRunning || state.hardwareError) return
     running = true
+    const next = firmwareUpdaterFactory() ?? createFirmwareAutoUpdater
     try {
-      const next = firmwareUpdaterFactory() ?? createFirmwareAutoUpdater
       if (next !== factory) {
         const replacement = next(deps)
         if (!replacement || typeof replacement.run !== 'function') throw new Error('Invalid firmware updater module')
@@ -64,7 +64,9 @@ export function installFirmwareAutoUpdate(): () => void {
       }
       await updater.run()
     } catch (err) {
-      removeFeatures('firmware-updater')
+      // Only drop the module provider when it is the one that failed; a built-in failure
+      // must not disable a healthy module for the rest of the app run.
+      if (next !== createFirmwareAutoUpdater) removeFeatures('firmware-updater')
       deps.report({ phase: 'error', message: String(err) })
     } finally { running = false }
   }

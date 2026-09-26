@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { commitFeatures, removeFeatures } from './moduleFeatures'
+import { commitFeatures, firmwareUpdaterFactory, removeFeatures } from './moduleFeatures'
 import { useFirmwareAutoStore, type AutoUpdateDeps } from './firmwareAutoUpdate'
 
 const mock = vi.hoisted(() => ({
@@ -35,6 +35,19 @@ it('uses a registered updater and enforces eligibility again before module-reque
   const result=await deps.flash({ data:new Uint8Array([1]), md5:'test', size:1, path:'test' }, () => {})
   expect(result.ok).toBe(false)
   expect(mock.flash).not.toHaveBeenCalled()
+  dispose()
+})
+it.each([
+  ['an invalid factory result', () => null as unknown as { run(): Promise<void> }],
+  ['a failing run()', () => ({ run: async () => { throw new Error('module bug') } })]
+])('drops the module provider after %s', async (_label, factory) => {
+  commitFeatures('firmware-updater', { firmwareUpdater: factory })
+  const dispose=installFirmwareAutoUpdate()
+  mock.state.isConnected=true
+  mock.subscriber?.(mock.state, { isConnected:false, session:{running:false} })
+  await vi.advanceTimersByTimeAsync(3000)
+  expect(firmwareUpdaterFactory()).toBeUndefined()
+  expect(useFirmwareAutoStore.getState().status.phase).toBe('error')
   dispose()
 })
 it('does not start a module while a session is running', async () => {
