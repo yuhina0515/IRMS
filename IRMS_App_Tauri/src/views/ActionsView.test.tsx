@@ -89,3 +89,31 @@ describe('ActionsView 搜尋', () => {
     expect(screen.queryByText('膝關節屈曲')).not.toBeInTheDocument()
   })
 })
+
+describe('ActionsView 檢視面板(v3)', () => {
+  it('選取動作後在右側顯示目標、保持與實際生效的超限門檻', async () => {
+    installIrmsStub({ actions: { list: async () => ACTIONS } })
+    useStore.setState({ customActions: ACTIONS })
+    render(<ActionsView />)
+
+    await userEvent.click(await screen.findByRole('button', { name: /膝關節屈曲/ }))
+    const inspector = screen.getByRole('complementary', { name: '動作內容' })
+    expect(inspector).toHaveTextContent('90° ±10°')
+    expect(inspector).toHaveTextContent('2.0 秒')
+    // safetyLimit 未設定 → 導出值 target + tol + margin(與引擎一致,不是空白)
+    expect(inspector).toHaveTextContent('110°(導出)')
+  })
+
+  it('新增動作在右側編輯,儲存時送出鉗制後的參數', async () => {
+    const create = vi.fn(async (input: unknown) => ({ id: 9, ...(input as object) }) as CustomAction)
+    installIrmsStub({ actions: { list: async () => ACTIONS, create } })
+    useStore.setState({ customActions: ACTIONS })
+    render(<ActionsView />)
+
+    await userEvent.click(screen.getByRole('button', { name: '+ 新增動作' }))
+    await userEvent.type(screen.getByLabelText('動作名稱'), '坐姿伸膝')
+    await userEvent.click(screen.getByRole('button', { name: '儲存' }))
+    await waitFor(() => expect(create).toHaveBeenCalledOnce())
+    expect(create.mock.calls[0][0]).toMatchObject({ name: '坐姿伸膝', targetAngle: 90, tolerance: 10 })
+  })
+})
