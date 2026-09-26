@@ -1768,7 +1768,7 @@
     height: 100%;
   }
   .v3-pose-label {
-    font-size: 11px;
+    font-size: 16px;
     fill: rgb(var(--color-text-muted));
   }
   .v3-pose-angle {
