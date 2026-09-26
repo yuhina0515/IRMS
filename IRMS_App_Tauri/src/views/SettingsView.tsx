@@ -376,7 +376,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status?.state === 'checking'
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded'].includes(status.state)
 
   useEffect(() => {
     irms.updates.getCurrentVersion().then(setVersion)
@@ -400,7 +400,7 @@ function SoftwareUpdatePanel(): JSX.Element {
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">目前版本:{version}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
-          {checking ? '檢查中…' : '立即檢查更新'}
+          {status?.state === 'downloaded' ? '已下載，等待套用' : checking ? '更新處理中…' : '立即檢查更新'}
         </button>
       </div>
       {statusText && (

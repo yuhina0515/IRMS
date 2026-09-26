@@ -50,14 +50,26 @@ const AUTO_CHECK_ENABLED = !import.meta.env.DEV
 const AUTO_CHECK_DELAY_MS = 5000
 
 let currentUpdate: Update | null = null
+let checkInFlight: Promise<void> | null = null
+let lastStatus: UpdateStatus | null = null
+let readyToInstall = false
+let installing = false
 let allowBeta = false
 const statusListeners = new Set<(status: UpdateStatus) => void>()
 
 function emitStatus(status: UpdateStatus): void {
+  lastStatus = status
   statusListeners.forEach((cb) => cb(status))
 }
 
-async function performCheck(): Promise<void> {
+function performCheck(): Promise<void> {
+  if (checkInFlight) return checkInFlight
+  if (readyToInstall) return Promise.resolve()
+  checkInFlight = Promise.resolve().then(checkAndDownload).finally(() => { checkInFlight = null })
+  return checkInFlight
+}
+
+async function checkAndDownload(): Promise<void> {
   emitStatus({ state: 'checking' })
   try {
     const metadata = await invoke<UpdateMetadata | null>('update_check', { allowBeta })
@@ -89,8 +101,12 @@ async function performCheck(): Promise<void> {
         emitStatus({ state: 'downloading', percent })
       }
     })
+    readyToInstall = true
     emitStatus({ state: 'downloaded', version: currentUpdate.version })
   } catch (err) {
+    const failed = currentUpdate
+    currentUpdate = null
+    await failed?.close().catch(() => {})
     console.error('[updater] check/download failed:', err)
     emitStatus({ state: 'error', message: err instanceof Error ? err.message : String(err) })
   }
@@ -227,14 +243,16 @@ export const irms: IrmsApi = {
     async restartNow() {
       // Windows:install() 成功送出安裝程式後會直接結束 App(見 update.rs 開頭註解),
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
-      if (!currentUpdate) return
-      await currentUpdate.install()
+      if (!currentUpdate || !readyToInstall || installing) return
+      installing = true
+      try { await currentUpdate.install() } finally { installing = false }
     },
     async setAllowPrerelease(allow: boolean) {
       allowBeta = allow
     },
     onStatusChange(cb: (status: UpdateStatus) => void) {
       statusListeners.add(cb)
+      if (lastStatus) cb(lastStatus)
       return () => {
         statusListeners.delete(cb)
       }

@@ -5,6 +5,7 @@
 // 一律以全量讀數計算,不用圖表的 LTTB 抽樣資料:LTTB 保留峰值但不保留時間分佈,拿它算
 // 「在目標區的時間比例」會系統性偏向極值。
 import type { MetricZone } from './movementMetric'
+import { sessionAnalyzer } from './moduleFeatures'
 
 export interface MetricPoint {
   /** epoch ms */
@@ -32,6 +33,22 @@ export interface SessionAnalysis {
 export const MAX_SAMPLE_GAP_MS = 1000
 
 export function analyzeSession(points: MetricPoint[], zone: MetricZone | null): SessionAnalysis {
+  const provider = sessionAnalyzer()
+  if (provider) {
+    try {
+      const result = provider(points.map(p => ({ ...p })), zone ? { ...zone } : null)
+      const nonnegative = (value: number): boolean => Number.isFinite(value) && value >= 0
+      if (nonnegative(result.activeSec) && nonnegative(result.overLimitSec)
+        && Number.isInteger(result.overLimitEvents) && result.overLimitEvents >= 0
+        && (result.peak === null || Number.isFinite(result.peak))
+        && (result.mean === null || Number.isFinite(result.mean))
+        && (result.inZoneRatio === null || (nonnegative(result.inZoneRatio) && result.inZoneRatio <= 1))) return result
+    } catch { /* Keep History usable if the independently delivered module fails. */ }
+  }
+  return analyzeSessionBuiltin(points, zone)
+}
+
+export function analyzeSessionBuiltin(points: MetricPoint[], zone: MetricZone | null): SessionAnalysis {
   const valid = points.filter((p): p is { t: number; v: number } => p.v != null && Number.isFinite(p.v))
   let activeMs = 0
   let inZoneMs = 0

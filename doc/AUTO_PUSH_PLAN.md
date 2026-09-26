@@ -26,7 +26,9 @@ A tagged release in either repo reaches every connected app without anyone build
 - Never interrupt a running session; never start OTA while `hardwareError` or a manual
   OTA is in progress.
 - Module loader follows the 2026-09-11 ruling: first-party only; native capabilities
-  (BLE/DB/OTA/update) can never be modules.
+  (BLE/DB, signature verification and OTA transport) stays native. As requested on
+  2026-09-26, OTA orchestration and history analysis can be signed first-party runtime
+  modules through the versioned ModuleContext API; app updates still use the native updater.
 
 ## Steps
 

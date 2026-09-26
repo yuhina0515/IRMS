@@ -73,3 +73,34 @@ describe('module loader', () => {
     expect(readDisabled().size).toBe(0)
   })
 })
+import { commitFeatures, removeFeatures, firmwareUpdaterFactory } from './moduleFeatures'
+import { analyzeSession } from './sessionAnalysis'
+
+it('registers providers transactionally and restores built-in behavior when disabled', async () => {
+  const analyze = vi.fn(() => ({ activeSec: 2, peak: 42, mean: 21, inZoneRatio: null, overLimitEvents: 0, overLimitSec: 0 }))
+  await loadModules(deps({
+    sync: async () => ({ modules: [entry('session-analysis')], offline: false, warnings: [] }),
+    importModule: async () => ({ default: { activate(ctx: { registerSessionAnalyzer: (fn: typeof analyze) => void }) { ctx.registerSessionAnalyzer(analyze) } } })
+  }))
+  expect(analyzeSession([], null).peak).toBe(42)
+  setModuleEnabled('session-analysis', false)
+  expect(analyzeSession([], null).peak).toBeNull()
+})
+
+it('discards registrations from failed activation and rejects another module claiming OTA', async () => {
+  const factory = () => ({ run: async () => {} })
+  await loadModules(deps({
+    sync: async () => ({ modules: [entry('firmware-updater'), entry('other-module')], offline: false, warnings: [] }),
+    importModule: async () => ({ default: { activate(ctx: { registerFirmwareUpdater: (fn: typeof factory) => void }) { ctx.registerFirmwareUpdater(factory); throw new Error('broken') } } })
+  }))
+  expect(firmwareUpdaterFactory()).toBeUndefined()
+  expect(useModulesStore.getState().modules.every(m => m.status === 'error')).toBe(true)
+})
+
+it('falls back if an analysis module throws or returns invalid output', () => {
+  commitFeatures('session-analysis', { sessionAnalyzer: () => { throw new Error('broken') } })
+  expect(analyzeSession([], null).activeSec).toBe(0)
+  commitFeatures('session-analysis', { sessionAnalyzer: () => ({}) as never })
+  expect(analyzeSession([], null).activeSec).toBe(0)
+  removeFeatures('session-analysis')
+})
