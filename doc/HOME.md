@@ -21,6 +21,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-09-25 real-device session → beta.12/13, auto delivery, UI v3** ([[log_20260925_realdevice_fixes_autopush_ui_v3|Log]]):
+  telemetry-driven fixes (manual disconnect no longer auto-reconnects; knee now hinge-frame
+  thigh−shin — CAL-03 A/B done on real data), beta.13 released. Firmware moved to
+  `yuhina0515/IRMS-Firmware` with signed idle-time auto OTA; signed runtime modules from
+  `yuhina0515/IRMS-Modules`. Approved GPT v3 UI implemented on `claude/irms-ui-v3` (no page scroll
+  at 1024×600–1920×1080; session start requires calibration). Hardware items still open in #3.
+
 - **2026-09-24 live telemetry upload — released as v1.2.0-beta.11 from `feat/telemetry-upload`
   (PR #9, not yet merged to main)**: any user may opt in
   (default OFF) to stream raw BLE packets, connection/OTA/Session events and app logs to
