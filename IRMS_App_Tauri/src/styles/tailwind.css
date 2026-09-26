@@ -1777,7 +1777,7 @@
     fill: rgb(var(--color-text));
   }
   .v3-pose-unavailable {
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 600;
     fill: rgb(var(--color-text-muted));
   }
