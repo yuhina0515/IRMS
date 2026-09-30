@@ -5,7 +5,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 # 🏠 IRMS 專案導覽
 
-> 智慧復健監測系統 — ESP32 穿戴感測 + Electron 桌面監測端
+> 智慧復健監測系統 — ESP32 穿戴感測 + Tauri 桌面監測端(早期為 Electron)
 
 ## 📌 核心文件
 
@@ -968,6 +968,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `license` 欄位對齊為 `MIT`、README 補上「免責聲明」(非醫療器材、不構成醫療診斷或
   復健處方、使用風險自負)與「授權」兩節。確認 `.env` 本就被 `.gitignore` 排除,
   未曾被 `git ls-files` 追蹤,repo 沒有既有機密外洩問題。
+  (2026-10-01 更新:beta.19 之後已改為源碼可見授權且不授予專利授權,MIT 僅適用於 beta.19 及以前;見 [[log_20261001_repo_migration_patent]]。)
 - **2026-09-09 LICENSE 版權歸屬修正為 IRMS Team**
   ([[log_20260909_license_team_attribution_fix|完整日誌]]):使用者問起是否需要提醒標註
   來自這個團隊,查證 [[log_20260716_meeting_discord_server_structure|07-16 Discord 架構

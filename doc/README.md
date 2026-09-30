@@ -142,7 +142,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * **角度推播 (Angle TX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483e-36e1-4688-b7f5-ea07361b26a8`
     * **格式 (6 軸)**：I2C 正常時以 **25Hz** 頻率通知發送 `T:大腿Pitch,S:小腿Pitch,K:膝夾角,TR:大腿Roll,SR:小腿Roll,KR:膝Roll差` (例如 `T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0`);其中 `K`、`KR` 為衍生值,前端會由 Pitch/Roll 自行重算。若 I2C 離線則發送 `ERR:1`。
-    * **MTU**：韌體顯式設定 `setMTU(128)`,確保 6 軸封包(最大約 62 bytes)不被截斷。
+    * **MTU**：韌體顯式設定 `setMTU(128)`,確保 6 軸封包(6 軸最長約 54 bytes;含 `V:` 擴充欄位最長 114 bytes,需 MTU ≥ 117)不被截斷。
   * **指令接收 (Profile RX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483f-36e1-4688-b7f5-ea07361b26a8`
     * **指令格式 (`CMD:`)**:
@@ -153,14 +153,14 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
 
 ### 4.2 應用端 (Electron App) 整合細節
 * **藍牙自動配對與連接**：
-  * Electron 主進程 (`main.js`) 監聽 `select-bluetooth-device` 事件，自動過濾並選取名稱為 `IRMS_Device` 的藍牙設備，省去繁瑣的手動選擇視窗。
+  * (Electron v2 歷史作法,已退場)Electron 主進程監聽 `select-bluetooth-device` 事件自動配對。現役 Tauri 版由 Rust `src-tauri/src/ble.rs`(btleplug)掃描,以名稱前綴 `IRMS`(`DEVICE_NAME_PREFIX`)比對並自動連線。
   * 前端網頁 (`app.js`) 透過 Web Bluetooth 連接至該設備，並對 `Angle TX` 特徵值進行監聽。若連線意外中斷，會自動重設 UI 狀態，並在日誌記錄錯誤，待使用者再次點擊時進行重新連接。
 * **雙向參數控制面板**：
   * 在主界面設計了「設定面版 (Profile Settings)」，允許使用者調整目標角度、容錯與維持時間，並點擊「Sync to ESP32」將設定下發。
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-資料庫結構-sqlite-database-schema)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--8)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。
@@ -174,7 +174,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
 ## 5. 開發建置指引 (Development & Build Guide)
 
 ### 5.1 邊緣端 (ESP32) 燒錄與部署
-1. 使用 Arduino IDE 或 VS Code (PlatformIO) 開啟 `IRMS_Sensor/IRMS_Sensor.ino`。
+1. 韌體已移至 [IRMS-Firmware](https://github.com/yuhina0515/IRMS-Firmware) 儲存庫;使用 Arduino IDE 或 VS Code (PlatformIO) 開啟其中的 `IRMS_Sensor/IRMS_Sensor.ino`。
 2. 在開發板管理員中，確認已安裝並選擇 **ESP32 Arduino Core v3.0.x**。
 3. 選擇對應的開發板型號（如 ESP32 Dev Module），確認 I2C 接腳與周邊配置無誤。
 4. 編譯並燒錄韌體至 ESP32 晶片中。

@@ -16,9 +16,9 @@ coding log,不憑印象轉述。
 
 ## 🎯 一句話現況
 
-桌面端現役實作是 **`IRMS_App_Tauri`**(Tauri 2 + Rust + React/TypeScript,`v1.2.0-beta.18`),
+桌面端現役實作是 **`IRMS_App_Tauri`**(Tauri 2 + Rust + React/TypeScript,`v1.2.0-beta.19`),
 取代已退場的 Electron v2(`IRMS_App`,保留於 repo 供歷史參考,未正式除役但不再開發)。
-`npm run ci`(typecheck + 337 前端測試 + production build + rustfmt + 50 Rust 測試 + Clippy
+`npm run ci`(typecheck + 337+ 前端測試(2026-09-20 數字,之後持續增加) + production build + rustfmt + 50+ Rust 測試 + Clippy
 `-D warnings`)**全綠**(2026-09-20 本機驗證)。硬體迴路**前半段**(燒錄 → BLE 連線 → 校準)
 已在 Electron 世代的真裝置上驗證正常;**Tauri 版完整真機 E2E(連線 → 達標 → 超限 → 斷線復原)
 尚未驗證**,是 GitHub issue [#3](https://github.com/yuhina0515/IRMS/issues/3) 的現行範圍。
@@ -31,12 +31,12 @@ coding log,不憑印象轉述。
 
 | 項目 | 狀態 |
 |---|---|
-| 應用端版本 | **`IRMS_App_Tauri` v1.2.0-beta.18**(現役,已發布至 GitHub prerelease,`beta-latest` manifest 已更新,`tauri-plugin-updater` 自動更新生效)。Electron 版(`IRMS_App`,曾發布至 v1.0.5)保留於 repo,不再開發 |
+| 應用端版本 | **`IRMS_App_Tauri` v1.2.0-beta.19**(現役,已發布至 GitHub prerelease,`tauri-plugin-updater` 自動更新生效:beta 頻道讀 `beta-latest/latest.json`,stable 頻道讀 `releases/latest/download/latest.json`)。Electron 版(`IRMS_App`,曾發布至 v1.0.5)保留於 repo,不再開發 |
 | 自動化測試 | **337 前端測試(Vitest,雙 project:node 純邏輯 + dom 元件)+ 50 Rust 測試(cargo test)**;`npm run ci` = typecheck + test + build(前端)+ rustfmt + cargo test + Clippy `-D warnings`(Rust),2026-09-20 本機全綠;遠端 GitHub Actions(Windows runner,Node 24 + stable Rust)跑同一套 |
 | DB schema | SQLite(`rusqlite`,bundled),`PRAGMA user_version = 8`(遞增式 migration,每版單一交易、失敗回滾),Electron 舊安裝的一次性資料遷移已有專屬 `migrate_electron.rs` + 測試覆蓋 |
-| IPC / 契約 | 20 個 `#[tauri::command]`,2026-09-17 CON-01 稽核全數確認呼叫端一致、無孤兒指令;修正一個真實型別契約漏洞(`Session.targetAngle/tolerance/holdTimeMs` 應為 `number \| null`);每個 IPC 回傳結構皆有 TS/Rust wire-shape 鎖定測試。**已知文件落差**:`IRMS_App_Tauri/README.md` 聲稱 `platform/irmsApi.ts` 是「唯一的 IPC adapter」,實際上 `services/bluetooth.ts`(6 個 `ble_*` 指令)與 `splash.ts`(`splash_ready`)也直接呼叫 `invoke()`——本次一併修正該文件敘述(見下方檔案狀態表) |
+| IPC / 契約 | 34 個 `#[tauri::command]`(2026-10-01 重新計數;稽核當時為 20 個),2026-09-17 CON-01 稽核全數確認呼叫端一致、無孤兒指令;修正一個真實型別契約漏洞(`Session.targetAngle/tolerance/holdTimeMs` 應為 `number \| null`);每個 IPC 回傳結構皆有 TS/Rust wire-shape 鎖定測試。**已知文件落差**:`IRMS_App_Tauri/README.md` 聲稱 `platform/irmsApi.ts` 是「唯一的 IPC adapter」,實際上 `services/bluetooth.ts`(6 個 `ble_*` 指令)與 `splash.ts`(`splash_ready`)也直接呼叫 `invoke()`——本次一併修正該文件敘述(見下方檔案狀態表) |
 | 無硬體演練 | **沿用自 Electron 世代並延續到 Tauri**:單一 `ingest(text)` 注入接縫 + 純函式模擬器(封包編碼器逐位元對齊韌體 `snprintf`)+ 出貨版示範模式(`sessions.source` CHECK 約束,示範資料無法冒充臨床紀錄)。`sessionController` 的完整指令序列(LED/警報/GOAL 下發順序、去重、斷線重連、MTU 截斷)以此為基礎建立指令稽核測試(T1–T6,見下方已完成的驗證),**這證明的是 App 送出正確的字串與順序,不證明它們真的驅動 GPIO**——那一步只有真機能證明 |
-| 桌面端 backlog | [OPTIMIZATION](OPTIMIZATION.md) §三已知技術債的 Tauri 元件/旅程層測試缺口已於 2026-09-20 補齊(`DashboardView`/`SettingsView`,337 前端測試)。i18n、ESLint(~35 項)、Windows 程式碼簽章、多關節泛化皆被會議明確延後,不佔用本檔的「待完成」敘述 |
+| 桌面端 backlog | [OPTIMIZATION](OPTIMIZATION.md) §三已知技術債的 Tauri 元件/旅程層測試缺口已於 2026-09-20 補齊(`DashboardView`/`SettingsView`,337 前端測試)。ESLint(~35 項;i18n 已於 2026-10-01 上線繁中/English,見 `log_20261001_i18n_views_p1`)、Windows 程式碼簽章、多關節泛化皆被會議明確延後,不佔用本檔的「待完成」敘述 |
 | 架構 | App-Driven(判定 100% 在 App,決策 D1 延續);Tauri 原生層(`src-tauri/src`)負責 SQLite、BLE(`btleplug`)、韌體 OTA、App 自動更新與原生視窗生命週期;React/TS 層(`src/views`、`src/components`、`src/services`、`src/store`)負責 UI、判定引擎、校準邏輯與 session 協調 |
 | 韌體 | v3 模組化(`config.h` / `imu.h` / `.ino`),與 Electron/Tauri 兩版 App 共用同一份 BLE 協定,協定本身不受桌面端遷移影響。2026-08-28 最近一次於真裝置重新燒錄驗證。2026-09-16/17 修復了 App 端 Roll 計算的深屈膝退化 bug(見下方校準狀態),**韌體本身未變動** |
 | 校準狀態(CAL-02/CAL-03) | Roll 已於 2026-09-16/17 重新定義為「重力向量偏離屈曲平面的角度」,修好深屈膝 ±180° 退化、結構性收斂於 [-90°,90°],**尚未真機驗證**(見 [[log_20260917_cal02_design_decision]] 第五節的量化驗收門檻)。Knee(膝夾角)**有已知未修的結構性風險**:兩顆獨立貼裝 IMU 的原始向量座標系彼此獨立,直接比較在某些貼裝下會算出假的相對角;候選修法 `reconcileToReferenceFrame` 已合成驗證但**刻意未接上生產路徑**,需要真機 A/B 比較(CAL-03)才能決定是否啟用——這是目前唯一卡住的正式閘門,不是遺漏 |
@@ -161,7 +161,7 @@ coding log,不憑印象轉述。
 - **v3 / Tauri 遷移(2026-09-10 起)**:桌面端遷移為 `IRMS_App_Tauri`(Tauri 2 + Rust),
   原生層取代 Electron main process(SQLite/BLE/更新器/視窗生命週期),前端沿用 React/TS 與
   既有判定/校準邏輯。新增 BLE OTA(韌體推送)、App 自動更新(`tauri-plugin-updater`)、
-  Electron→Tauri 一次性資料遷移。持續發布 beta 系列(現行 `v1.2.0-beta.18`)。
+  Electron→Tauri 一次性資料遷移。持續發布 beta 系列(現行 `v1.2.0-beta.19`)。
   2026-09-15 起建立前端+Rust 統一 CI(`npm run ci`)、production CSP、遠端 Windows CI gate。
   2026-09-16/17 完成一批離線可做的正確性批次(Roll 修復、CON-01 IPC 契約稽核、CAL-02 正式
   決策文件)。
@@ -205,10 +205,11 @@ coding log,不憑印象轉述。
 - `services/`:`sessionController`(BLE+判定引擎+DB 協調層)、`triggerEngine`/`movementMetric`/
   `calibration`/`angleMath`/`smoothing`/`guidance`/`bluetooth`(含 reconnect 邏輯)/
   `simulation/`(無硬體演練)。
-- `components/` 與 `views/`:Dashboard / Actions / History / Settings 四視圖及共用元件。
+- `components/` 與 `views/`:Dashboard / Actions / History / Settings / Tools 五視圖及共用元件。
 
 ### 應用端(現役,`IRMS_App_Tauri/src-tauri/src`)
 
+- `commands.rs`、`firmware_update.rs`、`modules.rs`、`telemetry.rs`、`live_share.rs`、`downsample.rs`、`dpi_guard.rs`、`defaults.rs`:IPC 指令、簽章韌體 OTA、執行期模組、遙測、即時分享、降採樣等。
 - `db.rs`/`migrations.rs`:SQLite 讀寫與 8 版 schema migration。
 - `ble.rs`:BLE 連線管理(`btleplug`)。
 - `firmware.rs`/`update.rs`:韌體 OTA 選檔/驗證與 App 自動更新中繼資料。

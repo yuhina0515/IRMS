@@ -2,7 +2,7 @@
 
 > **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [優化待辦 OPTIMIZATION](OPTIMIZATION.md) · [變更日誌 coding log](coding%20log/)
 
-本文件定義了 AI 助手在參與此專案（包括 ESP32 韌體與 Electron 監測應用程式）開發時必須遵守的編碼原則與運行邏輯。這些規則旨在確保系統的穩定性、代碼的可讀性，並極大化 AI 的協同開發效率。
+本文件定義了 AI 助手在參與此專案（包括 ESP32 韌體與 Tauri 監測應用程式）開發時必須遵守的編碼原則與運行邏輯。這些規則旨在確保系統的穩定性、代碼的可讀性，並極大化 AI 的協同開發效率。
 
 ---
 
@@ -92,12 +92,14 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ---
 
-## 3. 應用監測端 (Electron App) 開發規則 (Electron App Rules)
+## 3. 應用監測端 (Tauri App) 開發規則 (Tauri App Rules)
+
+> 現役應用端為 `IRMS_App_Tauri`(Tauri 2 + Rust + React/TS)。舊 Electron 版已退場,以下規則中凡涉及瀏覽器 API 的部分僅適用於前端 WebView。
 
 * **資料庫高頻寫入防護 (SQLite Buffer/Transaction)**：
   * 由於邊緣端角度推送頻率高（25Hz），為避免 SQLite 因高頻磁碟 I/O 連鎖鎖定，應用端在寫入 `sensor_data` 時必須使用**事務（Transactions）**進行批量寫入，或建立寫入緩衝區。
 * **藍牙連線生命週期管理 (BLE Lifecycle & UI Protection)**：
-  * 應用端必須監聽 `select-bluetooth-device` 與設備斷線事件。
+  * BLE 由 Rust 後端(`src-tauri/src/ble.rs`,btleplug)掃描與連線;前端必須處理後端回報的連線狀態與設備斷線事件。
   * 當藍牙連線意外中斷或收到 `ERR:1` 異常時，前端必須凍結角度顯示，暫停資料庫寫入，並彈出**紅色警示遮罩 (Error Overlay)**。待復原後自動解除，防止系統在無有效資料時崩潰或寫入空值。
 * **Chart.js 圖表渲染效能優化 (Chart.js Optimization)**：
   * 即時折線圖必須限制最大顯示點數（如 `maxPoints = 100`），每次有新點進入時，必須呼叫 `chart.data.datasets[i].data.shift()` 移出舊點，避免圖表數據堆積導致瀏覽器渲染引擎崩潰。
@@ -135,8 +137,9 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 > The current firmware requires MTU >= 117 for its 114-byte maximum packet; the older
 > six-angle description below is the legacy baseline, not the complete WIP contract.
 
-> 此節為協定契約速查;權威來源為 [`IRMS_App/src/shared/protocol.ts`](../IRMS_App/src/shared/protocol.ts) 與韌體
-> [`IRMS_Sensor/IRMS_Sensor.ino`](../IRMS_Sensor/IRMS_Sensor.ino),兩端任一變更必須同步。
+> 此節為協定契約速查;權威來源為 [`IRMS_App_Tauri/src/shared/protocol.ts`](../IRMS_App_Tauri/src/shared/protocol.ts)、
+> [`src-tauri/src/protocol.rs`](../IRMS_App_Tauri/src-tauri/src/protocol.rs) 與 IRMS-Firmware 儲存庫的
+> `IRMS_Sensor/IRMS_Sensor.ino`,各端任一變更必須同步。
 
 * **藍牙廣播名稱**：`IRMS_Device`(前端以 `includes("IRMS")` 比對自動配對)
 * **BLE Service UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b`
@@ -149,12 +152,12 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **Profile RX 特徵值 (參數與指令接收,App → ESP32,Write)**：
   * **UUID**：`beb5483f-36e1-4688-b7f5-ea07361b26a8`
   * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
-  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:SYNC,大腿offset,小腿offset`
+  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`(目前協定不含 `CMD:SYNC`)
 
-### 4.3 SQLite Schema(目前 `user_version = 7`)
+### 4.3 SQLite Schema(目前 `user_version = 8`)
 
-> 權威來源為 [`IRMS_App/src/main/migrations.ts`](../IRMS_App/src/main/migrations.ts) 的 `MIGRATIONS` 陣列;
-> DB 檔存於 Electron `userData` 目錄(不進版控)。
+> 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
+> DB 檔存於 Tauri 的 app data 目錄(不進版控)。
 
 * **變更 schema 的唯一方式:新增一個 migration**。`db.ts` 不再有 `createSchema()`——
   schema 演進走 `PRAGMA user_version` 遞增式 runner(ROADMAP 決策 D4,2026-08-01 實作)。
@@ -198,7 +201,7 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
 
 > 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
-> `CMD:`。權威來源為 [`triggerEngine.ts`](../IRMS_App/src/renderer/src/services/triggerEngine.ts)
+> `CMD:`。權威來源為 `IRMS_App_Tauri/src/services/` 下的 triggerEngine
 > 與 movementMetric 正規化層。
 
 * **判定變數不一定是膝角**:三種 `triggerType`(`joint_angle` / `segment_elevation` /

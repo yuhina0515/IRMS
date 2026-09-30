@@ -6,6 +6,8 @@ description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-27 
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
 
+> **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。
+
 > **相關文件**:[[HOME|導覽首頁]] · [[OPTIMIZATION|優化待辦(細項)]] · [[log_20260703_architecture_audit_fixes|審查修復日誌]]
 > 本文件負責「決策與階段順序」;逐項細目仍以 [[OPTIMIZATION]] 為活清單。
 
@@ -46,7 +48,7 @@ elbow/shoulder 沿用 thigh/shin 命名與軸向。泛化時**先改共享型別
 
 ### D4|DB Schema 版本化
 
-引入 `PRAGMA user_version` 遞增式 migration(目前 CREATE IF NOT EXISTS 無法演進 schema)。
+引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 8 版)。
 Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一個消費者。
 
 ### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01)
@@ -147,12 +149,12 @@ Electron 還是 Tauri 都不影響這個決定。這個遷移的真正理由是�
 - [x] 🖥 外觀風格設定檔系統:已於 2026-08-31 完成——雙主題重構為 `styles/profiles/`
       底下的兩個自足設定檔,Settings 可選固定風格覆蓋系統深淺色(見
       [[log_20260831_style_profile_system|日誌]])
-- [ ] 🖥 i18n(繁中/EN),目前介面中英混用(依專案規則 #2 明確延後;
+- [x] 🖥 i18n(繁中/EN;2026-10-01 已上線 P1,Rust/模組字串待 P2/P3),目前介面中英混用(依專案規則 #2 明確延後;
       2026-08-27 使用者再次裁定不納入)
 
 ### Phase 5|泛化與發布
 - [ ] 🖥 多關節泛化(依 D3 順序:型別 → migration → UI → 判定)
-- [ ] 🖥 electron-builder:圖示、metadata、簽章;electron-updater
+- [x] (已由 Tauri bundler + `tauri-plugin-updater` 取代 electron-builder / electron-updater)
 - [ ] 📡(選配)韌體 Standalone 離線模式(依 D1 後果條款)
 
 ---

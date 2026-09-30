@@ -52,6 +52,8 @@ independent effort, gated on desktop UI Phase 4 being done — it already is); a
 multi-relation-joint generalization, or any other item already deferred in `[[ROADMAP]]`/
 `[[OPTIMIZATION]]` — this plan doesn't reopen those.
 
+> **Status note (2026-10-01): the cutover has happened. `IRMS_App_Tauri` (v1.2.0-beta.19) is the shipped app and `IRMS_App` (Electron) is retired history. The text below is the original plan, kept as written.**
+
 **`IRMS_App` (Electron) stays the shipped, production app until the cutover criteria below are
 met.** It is not frozen — bug fixes and small features may still land there — but no further
 large Electron-side investment (new architecture, big UI work) should start once this plan is

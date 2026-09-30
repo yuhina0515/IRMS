@@ -1,8 +1,9 @@
-# IRMS_App 功能清單與優化待辦 (v2)
+# IRMS App 功能清單與優化待辦
 
 > **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
 
-> 更新日期:2026-08-12 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
+> 原撰於 2026-08-12(Electron v2 世代);現役應用端為 Tauri 版 `IRMS_App_Tauri`(Tauri 2 + Rust + React/TS)。
+> 下文標註 electron-* 的條目為已退場的 Electron 版歷史紀錄。
 > 本文件為「活清單」,完成項目請打勾並標註日期。
 > 被會議否決的項目**保留在清單上並註明否決理由**,不直接刪除——否則同一個提案會在
 > 幾個月後被重新提出、重新辯論一次。
@@ -67,7 +68,7 @@
 ### 8. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
 - [x] better-sqlite3(WAL、外鍵、交易批次寫入)
-- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 5 版;見 [ROADMAP](ROADMAP.md) D4)
+- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 8 版(Tauri 版 `migrations.rs`);見 [ROADMAP](ROADMAP.md) D4)
 - [x] 孤兒 session 啟動收尾 + `abandoned` 標記(2026-08-01)
 - [x] React ErrorBoundary 包裹各視圖(2026-08-01)
 - [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
@@ -246,7 +247,7 @@
       提過的「App 功能全模組化」(09-06/07 code-splitting 只解決首次載入速度,不是這個)的
       延伸:讓功能模組可以**不整包發版就更新**,並讓使用者自行挑選要啟用的模組。
       已確認的方向:
-      - **目標平台是 Tauri 版**(`IRMS_App_Tauri`),不做在準備退役的 Electron 版上。
+      - **目標平台是 Tauri 版**(`IRMS_App_Tauri`),不做在已退場的 Electron 版上。
       - 要做**真正的執行期動態模組**(遠端抓 bundle 動態掛載),不是編譯期就決定好的
         feature flag 開關。
       - **模組分兩層**:基本模組安裝時自動部署、不可被使用者停用或卸載;其餘模組使用者
@@ -374,7 +375,7 @@
 - [x] **對齊前端工具鏈世代**(2026-09-15):Vite 8.3 + React plugin 6.1 + Vitest 5.0，
       淘汰警告消失，`npm audit` 從 1 moderate + 1 high 降為 0。
 - [x] `react-chartjs-2` 已列入依賴但實際使用原生 Chart.js,可移除依賴。(2026-06-27 已移除)
-- [ ] 舊版 `irms.sqlite`(v1 schema)未自動遷移至 v2;若需保留歷史資料需寫一次性匯入腳本。
+- [x] 舊版 Electron 資料已由 `migrate_electron.rs` 一次性遷移至 Tauri;更早的 v1(Express)`irms.sqlite` 仍無自動遷移。
 - [x] 文件中 `AI_CODING_RULES.md` 的檔案路徑仍指向舊位置 `c:/Users/Yuhina/Documents/IRMS`。(2026-06-30 已改為倉庫內相對連結;並一併同步全文件至 v2 架構、修正 3 軸/舊 schema 描述、補齊文件交互指引。)
 
 
