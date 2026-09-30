@@ -1,0 +1,338 @@
+// shared/types.ts
+// --- 領域模型與資料庫型別 (前後端共用單一真實來源) ---
+
+/** 關節復健協定 */
+export type JointProtocol = 'knee' | 'elbow' | 'shoulder'
+
+/** `label` is a legacy zh-Hant reference only; the UI shows the i18n `clinical.protocol` text. */
+export const JOINT_PROTOCOLS: { value: JointProtocol; label: string }[] = [
+  { value: 'knee', label: 'Knee Flexion (膝彎曲)' },
+  { value: 'elbow', label: 'Elbow Flexion (肘彎曲) — 尚未支援' },
+  { value: 'shoulder', label: 'Shoulder Abduction (肩外展) — 尚未支援' }
+]
+
+/**
+ * 目前判定管線真正支援的協定。
+ *
+ * elbow / shoulder 在資料模型與 UI 上都存在,選了也能建立動作、能按開始,
+ * 產生一場看起來完全正常的 Session——但 `computeMetricSample` 永遠讀
+ * `angles.proximalAngle` / `angles.kneeAngle`(腿部感測器),量表標籤也寫死「大腿仰角」。
+ * 結果是把腿的資料錄成一場「肩關節」紀錄,而督導無從察覺。
+ *
+ * 泛化的正確順序見 ROADMAP 決策 D3(先改共享型別 proximal/distal → DB migration
+ * → UI 標籤 → 判定邏輯)。在那之前,寧可明確擋下,也不要產生假的臨床紀錄。
+ *
+ * 2026-09-11:第一步(共享型別)已完成——`SensorReading`/`StoredReading`/
+ * `CalibrationSnapshot` 的 thigh/shin 欄位已改名 proximal/distal(見同日 coding log)。
+ * DB 欄位(SQLite 仍是 `thighAngle`/`shinAngle` 等)、Tailwind 設計 token
+ * (`--color-thigh`/`--color-shin`)、UI 顯示文字(「大腿」/「小腿」)、以及下面這段
+ * 判定邏輯本身都**刻意維持原樣**,依 D3 順序留給各自的步驟。
+ */
+export const SUPPORTED_PROTOCOLS: readonly JointProtocol[] = ['knee']
+
+export function isProtocolSupported(p: JointProtocol | null | undefined): boolean {
+  return p != null && SUPPORTED_PROTOCOLS.includes(p)
+}
+
+/**
+ * 動作判定規則:
+ * - joint_angle:關節夾角達標(|knee - target| <= tol)
+ * - segment_elevation:直膝抬腿(knee 接近 0 且 thigh >= target)
+ * - segment_extension:直膝後擺(knee 接近 0 且 thigh <= -target)
+ */
+export type TriggerType = 'joint_angle' | 'segment_elevation' | 'segment_extension'
+
+/** `label` is a legacy zh-Hant reference only; the UI shows the i18n `clinical.triggerLong` text. */
+export const TRIGGER_TYPES: { value: TriggerType; label: string }[] = [
+  { value: 'joint_angle', label: 'Joint Flexion (關節角度達標)' },
+  { value: 'segment_elevation', label: 'Segment Elevation (直膝抬腿)' },
+  { value: 'segment_extension', label: 'Segment Extension (直膝後擺)' }
+]
+
+/** 自訂復健動作(custom_actions 資料表) */
+export interface CustomAction {
+  id: number
+  name: string
+  description: string | null
+  protocol: JointProtocol
+  targetAngle: number
+  tolerance: number
+  holdTimeMs: number
+  triggerType: TriggerType
+  /**
+   * 舊版的每動作「安全上限」。2026-09-27 起由個人的舒適角度/極限範圍
+   * (AngleRangeRecord)取代,App 不再讀取或顯示;欄位留在資料庫,不做破壞性刪除。
+   */
+  safetyLimit: number | null
+}
+
+/** 個人角度範圍量測紀錄(migration 8);最新一筆即目前生效的舒適角度/極限範圍 */
+export interface AngleRangeRecord {
+  id: number
+  measuredAt: string
+  metric: 'kneeAngle'
+  /** 舒適角度:在此之內不痛或僅輕微疼痛 */
+  comfortAngle: number
+  /** 極限範圍:很痛但仍能到達的角度;選填 */
+  limitAngle: number | null
+  note: string | null
+}
+
+export interface AngleRangeInput {
+  comfortAngle: number
+  limitAngle: number | null
+  note: string | null
+}
+
+/** 建立/更新動作的輸入(無 id) */
+export type CustomActionInput = Omit<CustomAction, 'id'>
+
+/**
+ * 這場 Session 的資料來源。
+ *
+ * `demo` = 示範模式下由模擬器產生的資料,不是真實量測。它會寫進與真實紀錄
+ * **同一個**資料表(demo 需要真的 sessionId 才跑得完整條鏈),所以區分只能靠這個欄位——
+ * 每一個讀取面(History 列表、分析 modal、CSV 表頭、CSV 檔名)都必須標示出來。
+ */
+export type SessionSource = 'device' | 'demo'
+
+/** 復健歷程(sessions 資料表) */
+export interface Session {
+  id: number
+  startTime: string
+  endTime: string | null
+  /**
+   * SQLite 欄位無 NOT NULL 約束(見 migrations.rs 的 schema),舊資料/遷移列可能是 null。
+   * 型別過去誤標為 number,但 HistoryView.tsx 早已在讀取時防禦性地檢查 != null——
+   * 這裡改成如實反映 Rust `Session.target_angle: Option<f64>` 的契約(2026-09-17 CON-01)。
+   */
+  targetAngle: number | null
+  tolerance: number | null
+  holdTimeMs: number | null
+  /** 此 Session 使用的動作 id(對應 custom_actions.id);null 表示臨時動作 */
+  actionId: number | null
+  /** 動作名稱快照(即使動作日後被刪除,歷史仍可顯示) */
+  actionName: string | null
+  protocol: JointProtocol | null
+  repsCompleted: number
+  /** 舊版安全上限快照(2026-09-27 起不再使用) */
+  safetyLimit: number | null
+  /** 當場生效的舒適角度/極限範圍快照(膝角);未量測或舊資料為 null */
+  comfortAngle: number | null
+  limitAngle: number | null
+  /** 當場的判定型別快照;歷史分析據此畫出「實際被判定的那個指標」。舊列為 null */
+  triggerType: TriggerType | null
+  /**
+   * 當場校準轉換的 JSON 快照(migration 6 之前建立的列為 null)。
+   * 以字串存放:主進程只負責存取,不解讀內容;解析與比對留在 renderer 端。
+   */
+  calibration: string | null
+  /**
+   * 1 = 這場 Session 沒有正常結束(關窗/強殺/當機),由啟動時的孤兒收尾補上結束時間。
+   * repsCompleted 只在正常結束時寫入,所以 abandoned 的列其 reps 不可信——
+   * UI 必須標示出來,而不是把 0 當成事實呈現。
+   */
+  abandoned: 0 | 1
+  /** 資料來源;migration 7 之前的列一律為 'device'(那時示範模式還不存在) */
+  source: SessionSource
+}
+
+/**
+ * 一場 Session 開始當下實際生效的校準轉換快照(migration 6 起以單一 JSON 欄位存於 sessions)。
+ *
+ * 沒有它,`sensor_data` 只留下校準後的數值,而產生那些數值的仿射轉換活在 localStorage:
+ * 使用者錄了 20 場,第 21 場才發現 distalInvert 反了、重跑精靈,前 20 場就永久無法解讀——
+ * 沒有任何紀錄說明它們是由哪一組轉換算出來的。
+ *
+ * 刻意存成單一 JSON 欄位而非逐欄位攤平:校準欄位本身仍在演進
+ * (v1.0.1 的 offset → v4 的 zeroRaw 就是一次),攤平會讓每次改欄位都得再開一個 migration,
+ * 而這個欄位的用途是「當時是什麼」的存證,不是查詢維度。
+ */
+export interface CalibrationSnapshot {
+  /** 貼裝旋轉角(°);2026-09-08 會議裁決,取代舊版布林 axisSwap */
+  proximalAxisRotationDeg: number
+  distalAxisRotationDeg: number
+  /** rotationDeg 是否曾由真實動作重新解出;false = 從舊版布林遷移而來(legacy/unverified) */
+  proximalAxisRotationVerified: boolean
+  distalAxisRotationVerified: boolean
+  proximalInvert: boolean
+  proximalZeroRaw: number
+  distalInvert: boolean
+  distalZeroRaw: number
+  proximalRollInvert: boolean
+  proximalRollZeroRaw: number
+  distalRollInvert: boolean
+  distalRollZeroRaw: number
+  /** 向量協定的站直 3D 關節零位；舊 Session 快照可能沒有此欄。 */
+  kneeZeroRaw?: number
+  proximalZeroAccel?: { x: number; y: number; z: number } | null
+  distalZeroAccel?: { x: number; y: number; z: number } | null
+  /** 屈曲軸(sensor frame 單位向量);2026-09-15 決策,取代單自由度貼裝旋轉角 */
+  proximalHingeAxis?: { x: number; y: number; z: number } | null
+  distalHingeAxis?: { x: number; y: number; z: number } | null
+  /** roll 方向是否曾由精靈第 5 步實測驗證;false = 內外翻符號可能相反,判讀時必須知道 */
+  proximalRollVerified: boolean
+  distalRollVerified: boolean
+  /** 最近一次跑完精靈的時間;null = 從未跑過(全預設值或純手動輸入) */
+  lastCalibratedAt: string | null
+}
+
+/** 開始 Session 的輸入 */
+export interface SessionStartInput {
+  targetAngle: number
+  tolerance: number
+  holdTimeMs: number
+  actionId: number | null
+  actionName: string | null
+  protocol: JointProtocol | null
+  triggerType: TriggerType | null
+  safetyLimit: number | null
+  comfortAngle: number | null
+  limitAngle: number | null
+  /** 當場校準快照 */
+  calibration: CalibrationSnapshot
+  /**
+   * 刻意設為**必填**:TypeScript 於是拒絕編譯任何「沒有決定這場算不算真實量測」
+   * 的路徑。少了這個約束,新增一條開 session 的程式路徑時很容易忘記標記,
+   * 而忘記的後果是一場模擬資料靜靜地以真實紀錄的身分存在。
+   */
+  source: SessionSource
+}
+
+/** 單筆高頻角度讀數(sensor_data 資料表) */
+export interface SensorReading {
+  kneeAngle: number
+  proximalAngle: number
+  distalAngle: number
+  kneeRoll: number
+  proximalRoll: number
+  distalRoll: number
+  /** ISO 8601 時間戳 */
+  timestamp: string
+}
+
+/** 含主鍵的已儲存讀數(查詢回傳用) */
+export interface StoredReading extends SensorReading {
+  id: number
+  sessionId: number
+}
+
+/**
+ * 使用者透過檔案選取器挑的韌體 .bin，由可信任的宿主層讀檔 + 算 MD5 後回傳。
+ * Electron 版使用 Node `crypto`，Tauri 版使用 Rust；renderer 不取得通用檔案系統權限，
+ * 也不為這一個用途引入瀏覽器端雜湊函式庫。
+ */
+export interface FirmwareBinary {
+  path: string
+  size: number
+  md5: string
+  data: Uint8Array
+}
+
+/** IRMS-Modules 中已驗證、可載入的模組(Rust modules.rs 回傳) */
+export interface InstalledModule {
+  id: string
+  version: string
+  name: string
+  description: string
+  /** 已驗證檔案的絕對路徑;renderer 以 convertFileSrc 轉成 asset: URL 後 import() */
+  path: string
+}
+
+export interface ModuleSyncResult {
+  modules: InstalledModule[]
+  /** 網路失敗、改用本機已驗證的清單 */
+  offline: boolean
+  warnings: string[]
+}
+
+/** IRMS-Firmware 最新發布版(已由 Rust 端驗過 Ed25519 簽章),刻意不含下載網址與雜湊 */
+export interface FirmwareRelease {
+  version: string
+  size: number
+  notes: string
+  /** 這個 App 版本低於韌體要求的 minAppVersion 時為 false */
+  appCompatible: boolean
+}
+
+/** App updater 生命週期狀態，由平台 adapter 推播給 renderer。 */
+export type UpdateStatus =
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'not-available' }
+  | { state: 'downloading'; percent: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string }
+
+/**
+ * Renderer 使用的型別安全平台 API。Electron 由 preload/contextBridge 實作，Tauri 由
+ * platform/irmsApi.ts 的 command/event adapter 實作；呼叫端不直接接觸宿主 API。
+ */
+export interface IrmsApi {
+  sessions: {
+    start(input: SessionStartInput): Promise<{ sessionId: number }>
+    end(sessionId: number, repsCompleted: number): Promise<{ success: true }>
+    /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
+    progress(sessionId: number, reps: number): Promise<{ success: true }>
+    list(): Promise<Session[]>
+    /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
+    getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
+    delete(sessionId: number): Promise<{ success: true }>
+    /** 刪除所有示範模式紀錄;回傳實際刪掉的列數 */
+    purgeDemo(): Promise<{ deleted: number }>
+    /** 開啟系統「另存新檔」對話框並寫入文字檔;使用者取消回傳 false */
+    exportText(defaultName: string, contents: string): Promise<boolean>
+  }
+  angleRanges: {
+    list(): Promise<AngleRangeRecord[]>
+    add(input: AngleRangeInput): Promise<AngleRangeRecord>
+    remove(id: number): Promise<void>
+  }
+  data: {
+    appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>
+  }
+  actions: {
+    list(): Promise<CustomAction[]>
+    create(input: CustomActionInput): Promise<CustomAction>
+    update(id: number, input: CustomActionInput): Promise<CustomAction>
+    delete(id: number): Promise<{ success: true }>
+    restoreDefaults(): Promise<CustomAction[]>
+  }
+  firmware: {
+    /** 開檔對話框選 .bin;使用者取消回傳 null,而非用例外表示一個正常的操作結果 */
+    pickBinary(): Promise<FirmwareBinary | null>
+    /** 取得 IRMS-Firmware 最新發布版(簽章驗證失敗會丟例外) */
+    /** @param beta 與 App 更新頻道相同(settings.allowBetaUpdates):true 抓 beta-latest 指標 */
+    checkLatest(beta: boolean): Promise<FirmwareRelease>
+    /** 下載並驗證指定版本;版本在下載前變動會丟例外 */
+    downloadLatest(version: string, beta: boolean): Promise<FirmwareBinary>
+    isNewer(device: string | null, latest: string): Promise<boolean>
+  }
+  modules: {
+    /** 同步 IRMS-Modules:驗證簽章與雜湊,回傳可載入的模組 */
+    sync(): Promise<ModuleSyncResult>
+  }
+  windowControls: {
+    minimize(): Promise<void>
+    toggleMaximize(): Promise<void>
+    close(): Promise<void>
+    isMaximized(): Promise<boolean>
+    /** RDP session 退回原生視窗框(見 main/index.ts IS_RDP_SESSION 註解),此時
+     *  renderer 不該畫自己的拖曳列/視窗控制鈕——OS 已經給了一份,兩份會疊在一起。 */
+    hasCustomTitlebar(): Promise<boolean>
+    /** 訂閱最大化/還原狀態改變,回傳取消訂閱函式 */
+    onMaximizedChange(cb: (maximized: boolean) => void): () => void
+  }
+  updates: {
+    /** 目前已安裝的 App 版本(`app.getVersion()`,即 package.json 的 version) */
+    getCurrentVersion(): Promise<string>
+    /** 手動觸發一次檢查(例如 Settings 的「檢查更新」按鈕);開發模式下為 no-op */
+    checkNow(): Promise<void>
+    /** 已下載完成時呼叫——結束目前 App 並安裝新版,安裝完成後自動重開 */
+    restartNow(): Promise<void>
+    /** 是否接收 beta 版推播(對應 autoUpdater.allowPrerelease);啟動時與每次切換都會呼叫 */
+    setAllowPrerelease(allow: boolean): Promise<void>
+    /** 訂閱更新生命週期狀態,回傳取消訂閱函式 */
+    onStatusChange(cb: (status: UpdateStatus) => void): () => void
+  }
+}

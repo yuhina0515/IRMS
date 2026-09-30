@@ -1,0 +1,218 @@
+/* 臨床工作台：集中管理視覺與尺寸契約，不改變量測或療程邏輯。 */
+:root {
+  --color-canvas: 233 237 236;
+  --color-surface: 250 251 248;
+  --color-surface-raised: 226 232 230;
+  --color-border: 193 204 201;
+  --color-edge: 112 128 126;
+  --color-text: 30 44 46;
+  --color-text-dim: 77 96 97;
+  --color-text-muted: 77 96 97;
+  --color-accent: 31 87 105;
+  --color-accent-strong: 31 87 105;
+  --color-tint: 222 235 238;
+  --chart-grid: 193 204 201;
+  --chart-tick: 77 96 97;
+  --chart-text: 30 44 46;
+  --font-title: 'Inter Variable', 'Microsoft JhengHei', sans-serif;
+  --work-gap: clamp(10px, 1.4vw, 24px);
+  --work-inset: clamp(12px, 2vw, 36px);
+}
+.theme-dark {
+  --color-canvas: 22 30 32;
+  --color-surface: 29 40 42;
+  --color-surface-raised: 40 54 56;
+  --color-border: 69 88 90;
+  --color-edge: 136 157 159;
+  --color-text: 231 239 236;
+  --color-text-dim: 174 193 191;
+  --color-text-muted: 174 193 191;
+  --color-accent: 151 204 222;
+  --color-accent-strong: 151 204 222;
+  --color-on-accent: 22 30 32;
+  --color-tint: 39 64 72;
+  --chart-grid: 69 88 90;
+  --chart-tick: 174 193 191;
+  --chart-text: 231 239 236;
+}
+
+/* 外殼固定於可見視窗；捲動僅屬於下列具名工作區。 */
+html, body, #root { height: 100%; overflow: hidden; }
+.v3-shell {
+  height: 100dvh;
+  overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.v3-shell.has-banner { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.v3-topnav { min-height: 60px; gap: var(--work-gap); padding: 0 var(--work-inset); }
+.v3-brand { font-size: 21px; letter-spacing: .08em; }
+.v3-brand img { width: 24px; height: 24px; }
+.v3-tab { min-height: 48px; padding: 0 12px; }
+.v3-tab[aria-current='page']::after { height: 3px; border-radius: 0; }
+.v3-footer { min-height: 26px; padding: 4px var(--work-inset); gap: 12px; white-space: normal; font-size: 11px; }
+.v3-page {
+  container: workbench / inline-size;
+  overflow: hidden;
+  padding: var(--work-gap) var(--work-inset);
+  gap: var(--work-gap);
+}
+.v3-page-head { gap: 12px; flex-wrap: wrap; align-items: center; max-height: 28dvh; overflow: auto; }
+.v3-page-head > div { min-width: 0; }
+.v3-page-head h1 { font-size: clamp(22px, 2.2vw, 34px); line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+.v3-page-head p { margin-top: 4px; max-width: 74ch; }
+.v3-page-actions { flex-wrap: wrap; }
+.v3-sheet { border-radius: 2px; border-top: 3px solid rgb(var(--color-edge)); }
+.v3-chip, .v3-scope li, .badge-demo, .badge-warn { border-radius: 3px; }
+.v3-segmented, .v3-segmented button, .v3-settings-index button,
+button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
+.v3-metric-value, .v3-dock-value, .v3-facts dd, .v3-review-summary strong {
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.v3-live, .v3-live.tone-danger { grid-template-rows: auto minmax(0, 1fr) auto; }
+.v3-coach { padding: 12px var(--work-inset); gap: 12px; flex-wrap: wrap; max-height: 25dvh; overflow: auto; }
+.v3-coach-text { flex: 1 1 200px; }
+.v3-coach-text strong, .tone-danger .v3-coach-text strong { font-size: clamp(20px, 2vw, 30px); line-height: 1.3; }
+.v3-coach-text strong, .v3-coach-text span { white-space: normal; overflow: visible; }
+.v3-coach-mark { font-size: 24px; width: 24px; }
+.v3-stage { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--work-gap); padding: var(--work-gap) var(--work-inset); overflow: auto; }
+.v3-metric { min-height: 240px; }
+.v3-metric-value { font-size: clamp(64px, 9cqi, 152px); letter-spacing: -.06em; }
+.v3-metric .v3-chip { white-space: normal; }
+.v3-pose { border-radius: 0; border-left: 1px solid rgb(var(--color-border)); background: none; min-height: 240px; padding: 8px 0 8px var(--work-gap); }
+.v3-pose-head { flex-wrap: wrap; }
+.v3-pose-body { overflow: auto; }
+.v3-pose-body .v3-diag { align-self: flex-start; }
+.v3-pose-caption { white-space: normal; }
+.v3-ruler, .v3-ruler-scale { display: block; }
+.v3-dock, .v3-dock.running { gap: 12px; padding: 12px var(--work-inset); flex-wrap: wrap; max-height: 38dvh; overflow: auto; }
+.v3-dock-field { width: auto; flex: 1 1 76px; }
+.v3-dock-field.v3-dock-action { width: auto; flex: 2 1 180px; }
+.v3-dock-actions { flex-wrap: wrap; }
+.v3-hold-bar { max-width: 100%; }
+.v3-actions-list { grid-template-rows: auto minmax(0, 1fr) auto; }
+.v3-actions-toolbar { flex-wrap: wrap; padding: 12px; }
+.v3-actions-toolbar input { flex-basis: 100%; }
+.v3-actions-rows, .v3-history-body { overflow: auto; overscroll-behavior: contain; }
+.v3-action-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* The trigger chip is UI text (longer in English); the user-chosen name is what gets truncated. */
+.v3-action-name > .v3-chip { flex-shrink: 0; }
+.v3-action-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.v3-inspector-head, .v3-inspector-body, .v3-inspector-foot { padding: 12px; }
+.v3-inspector-foot { flex-wrap: wrap; }
+.v3-settings { grid-template-columns: clamp(150px, 18cqi, 240px) minmax(0, 1fr); }
+.v3-settings-index { overflow: auto; padding: 12px; }
+.v3-settings-head, .v3-settings-body, .v3-settings-foot { padding: 12px var(--work-gap); }
+.v3-settings-pane { grid-template-rows: auto minmax(0, 1fr) auto; }
+.v3-settings-foot { flex-wrap: wrap; gap: 8px; }
+.v3-set-row { gap: 12px; flex-wrap: wrap; }
+.v3-pager { height: auto; min-height: 48px; padding: 4px 12px; flex-wrap: wrap; gap: 4px; }
+.v3-history { grid-template-rows: minmax(0, 1fr) auto; }
+.work-history-table { display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; min-height: 0; }
+/* Wide table fits any workbench >= 720px without a hidden horizontal scroller. */
+.v3-history-head, .v3-history-row { grid-template-columns: 170px minmax(0, 1fr) 150px 64px 164px; padding: 0 12px; gap: 10px; }
+.v3-history-head { min-height: 40px; background: rgb(var(--color-surface-raised)); }
+.v3-history-body { overflow-y: auto; --page-row-height: 56; }
+.v3-inspector-back { display: none; }
+.v3-review { grid-template-rows: auto minmax(0, 1fr); }
+.v3-review-summary { grid-template-columns: repeat(7, minmax(110px, 1fr)); overflow: auto; }
+.v3-review-summary > div { padding: 12px; min-width: 110px; }
+.v3-review-summary strong { font-size: clamp(16px, 1.6cqi, 26px); }
+.v3-review-body { grid-template-columns: minmax(0, 1fr) minmax(240px, 28%); overflow: auto; }
+.v3-review-chart { min-height: 240px; }
+.work-tools { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.work-tools > .v3-segmented { overflow-x: auto; border-radius: 0; }
+.work-tools > .module-panel { min-height: 0; min-width: 0; overflow: auto; padding: var(--work-gap); }
+.dialog, .modal { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow: auto; border-radius: 4px; }
+
+/* 依工作區寬度換軌；內部區域可捲動，頁面與導覽仍留在原位。 */
+@container workbench (max-width: 720px) {
+  .v3-stage { grid-template-columns: minmax(0, 1fr); align-content: start; }
+  .v3-metric { min-height: 220px; }
+  .v3-pose { min-height: 280px; border-left: 0; border-top: 1px solid rgb(var(--color-border)); padding: 12px 0 0; }
+  /* Master/detail: the list owns the sheet until an action is opened, then the inspector does. */
+  .v3-actions { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .v3-actions-list { border-right: 0; }
+  .v3-actions:not(.has-detail) > .v3-inspector, .v3-actions.has-detail > .v3-actions-list { display: none; }
+  .v3-actions-toolbar { padding: 8px 12px; gap: 8px; }
+  .v3-actions-toolbar > div { flex: 1 1 0; width: auto !important; min-width: 0; }
+  .v3-action-cells { white-space: nowrap; }
+  .v3-inspector-head { flex-wrap: wrap; }
+  .v3-inspector-back { display: inline-flex; flex-basis: 100%; justify-content: flex-start; margin-bottom: 4px; }
+  .v3-inspector-head h2 { flex: 1 1 0; min-width: 0; }
+  .v3-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v3-facts dd { white-space: nowrap; }
+  .v3-history-head { display: none; }
+  .work-history-table { grid-template-rows: minmax(0, 1fr); }
+  /* Stacked card rows: start time + action on top, metrics and row actions beneath. */
+  .v3-history-body { --page-row-height: 124; }
+  .v3-history-row {
+    height: 124px;
+    /* Duration shares the top line with the start time so the bottom line only has to fit reps
+       (count + badge) beside the row actions, which keep their content width. */
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'time time dur' 'action action action' 'reps ops ops';
+    grid-template-rows: auto auto 1fr;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 2px;
+    padding: 10px 12px;
+  }
+  .v3-history-time { grid-area: time; font-size: 12px; color: rgb(var(--color-text-muted)); }
+  .v3-history-action { grid-area: action; font-size: 15px; }
+  .v3-history-reps { grid-area: reps; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
+  .v3-history-dur { grid-area: dur; }
+  .v3-history-dur::before { content: attr(data-label) ' '; font-size: 12px; color: rgb(var(--color-text-muted)); }
+  .v3-history-ops { grid-area: ops; justify-self: end; }
+  .v3-settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  /* Horizontal category strip: thin scrollbar + trailing fade signal more tabs; the end padding
+     lets the last tab scroll clear of the fade. */
+  .v3-settings-index {
+    flex-direction: row; padding: 4px 56px 4px 4px; border-right: 0; border-bottom: 1px solid rgb(var(--color-border));
+    overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scrollbar-width: thin;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent);
+  }
+  .v3-settings-index button { flex-shrink: 0; gap: 12px; scroll-snap-align: start; }
+  .v3-review-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 280px auto; }
+  .v3-review-aside { overflow: visible; border-left: 0; border-top: 1px solid rgb(var(--color-border)); }
+  .v3-review-summary { grid-template-columns: repeat(7, 120px); }
+  .v3-dock-field.v3-dock-action { flex-basis: 100%; }
+  .v3-dock-actions { margin-left: 0; flex: 1 1 100%; }
+  .v3-dock-actions button { flex: 1; }
+  .v3-dock.running .v3-dock-stat { flex: 1 1 80px; }
+}
+@media (max-width: 760px) {
+  .v3-topnav { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; padding-top: 6px; }
+  .v3-topnav-right { grid-column: 2; grid-row: 1; gap: 8px; }
+  .v3-conn { white-space: normal; font-size: 12px; }
+  .v3-conn-dot { flex-shrink: 0; }
+  .v3-tabs { grid-column: 1 / -1; grid-row: 2; overflow-x: auto; gap: 0; }
+  .v3-tab { flex: 1 0 auto; padding: 0 10px; font-size: 14px; }
+  .v3-brand { font-size: 17px; gap: 5px; }
+  .v3-brand img { width: 20px; height: 20px; }
+  .v3-footer { font-size: 10px; }
+  input, select { font-size: 16px; }
+  .v3-page-actions { width: 100%; }
+  .v3-page-actions > div { max-width: 100%; }
+  .v3-page-head p { font-size: 12px; }
+  .v3-dock-value { font-size: 22px; }
+  .v3-inspector-body .row { flex-wrap: wrap; }
+  .v3-inspector-body .field { min-width: 80px; }
+}
+/* 44px touch targets: narrow windows and any touch-first (coarse pointer) device, e.g. tablets. */
+@media (max-width: 760px), (pointer: coarse) {
+  button, button.btn, .v3-pager button, input:not([type='checkbox']):not([type='radio']), select, .glass-dropdown-trigger, .glass-dropdown-item {
+    min-height: 44px !important;
+  }
+  button, .glass-dropdown-trigger { min-width: 44px; }
+  input[type='checkbox'], input[type='radio'] { width: 44px; height: 44px; flex-shrink: 0; }
+}
+@media (max-height: 680px) and (min-width: 761px) {
+  .v3-page { padding-top: 8px; padding-bottom: 8px; gap: 8px; }
+  .v3-coach { padding-top: 8px; padding-bottom: 8px; }
+  .v3-metric, .v3-pose { min-height: 200px; }
+  .v3-metric-value { font-size: 72px; }
+  .v3-ruler { margin-top: 6px; }
+}

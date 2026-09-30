@@ -1,0 +1,15 @@
+services:
+  irms-telemetry:
+    build: .
+    container_name: irms-telemetry
+    restart: unless-stopped
+    # READ_TOKEN lives only in the server-side .env (never committed). Ingest is open.
+    env_file: .env
+    environment:
+      # Caddy runs on hina-server itself (host network) since 2026-09-27, so it reaches this
+      # container through the compose network gateway; only that hop may assert X-Forwarded-For.
+      TRUSTED_PROXY: "172.23.0.1"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8120:8120"

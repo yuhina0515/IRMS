@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IRMS</title>
+    <link rel="stylesheet" href="/src/splash.css" />
+  </head>
+  <body>
+    <div id="mark-wrap">
+      <!-- viewBox is set at runtime by splash.ts once the real screen size is known (see
+           setupFullScreenAssembly()) — the window covers the whole primary display instead of
+           a small centered box, so the finger/mainstem lines have real off-screen space to travel
+           in from. #mark-group's transform (also set at runtime) re-centers this same small-mark
+           geometry at screen-center. -->
+      <svg id="mark" width="100%" height="100%" aria-hidden="true">
+        <g id="mark-group">
+          <!-- Populated by splash.ts's setupFullScreenAssembly() with a curve from the screen edge
+               to the corresponding real stroke's start point. Placed before the real strokes so
+               they paint underneath (irrelevant once the travel line fades out, but keeps the
+               source order matching draw order). -->
+          <g id="travel-lines">
+            <path id="travel-finger-1" class="line-travel" pathLength="1" style="animation-delay: 0ms, 550ms; animation-duration: 550ms, 150ms" />
+            <path id="travel-finger-2" class="line-travel" pathLength="1" style="animation-delay: 30ms, 580ms; animation-duration: 550ms, 150ms" />
+            <path id="travel-finger-3" class="line-travel" pathLength="1" style="animation-delay: 60ms, 610ms; animation-duration: 550ms, 150ms" />
+            <path id="travel-mainstem" class="line-travel" pathLength="1" style="animation-delay: 150ms, 650ms; animation-duration: 500ms, 130ms" />
+          </g>
+          <g id="fingers">
+            <path id="finger-1" class="line finger" pathLength="1" style="animation-delay: 500ms" d="M70,25 L99,113" />
+            <path id="finger-2" class="line finger" pathLength="1" style="animation-delay: 530ms" d="M42,55 L96,116" />
+            <path id="finger-3" class="line finger" pathLength="1" style="animation-delay: 560ms" d="M18,92 L91,120" />
+          </g>
+          <path
+            id="mainstem"
+            class="line mainstem"
+            pathLength="1"
+            style="animation-delay: 610ms"
+            d="M12,102 C32,150 68,175 100,175 C116,175 126,166 116,150 L146,110"
+          />
+          <path class="line arc-outer" pathLength="1" style="animation-delay: 400ms" d="M150,40 A85,85 0 0 1 155,172" />
+          <path class="line arc-inner" pathLength="1" style="animation-delay: 480ms" d="M146,110 A45,45 0 0 1 140,158" />
+
+          <circle class="dot dot-palm" style="animation-delay: 640ms" cx="100" cy="118" r="10" />
+          <circle class="dot dot-small" style="animation-delay: 700ms" cx="146" cy="110" r="6.5" />
+          <circle class="dot dot-big" style="animation-delay: 760ms" cx="150" cy="40" r="13" />
+          <circle class="dot dot-big" style="animation-delay: 780ms" cx="155" cy="172" r="14" />
+        </g>
+
+        <!-- Deliberately a SIBLING of #mark-group, not nested inside it: #orbit's CSS
+             transform-origin (transform-box:view-box, see splash.css) resolves against the root
+             SVG's own coordinate system, which only lines up with this element's local (95,105)
+             geometry when #orbit carries its own translate directly — nesting it under
+             #mark-group's translate instead compounds the two transforms and sends the rotation
+             swinging off in a corner of the screen. setupFullScreenAssembly() sets the SAME
+             translate on this element as on #mark-group. -->
+        <g id="orbit">
+          <g class="orbit-ring orbit-ring-inner">
+            <path class="orbit-arc" d="M68,32 A78,78 0 0 1 172,119" />
+          </g>
+          <g class="orbit-ring orbit-ring-outer">
+            <path class="orbit-arc" d="M156,178 A95,95 0 0 1 34,178" />
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div id="frame"></div>
+    <script type="module" src="/src/splash.ts"></script>
+  </body>
+</html>

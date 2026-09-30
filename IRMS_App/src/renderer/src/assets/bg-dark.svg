@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+  <!-- IRMS Liquid Glass wallpaper (dark) — deep aurora: indigo base + violet/blue/teal glows + grain -->
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0f1f"/>
+      <stop offset="1" stop-color="#111730"/>
+    </linearGradient>
+    <radialGradient id="violet" cx="0.78" cy="0.1" r="0.8">
+      <stop offset="0" stop-color="#4a42c0" stop-opacity="0.6"/>
+      <stop offset="0.55" stop-color="#4a42c0" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4a42c0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="0.1" cy="0.95" r="0.9">
+      <stop offset="0" stop-color="#1d54c8" stop-opacity="0.5"/>
+      <stop offset="0.55" stop-color="#1d54c8" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#1d54c8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="teal" cx="0.6" cy="0.6" r="0.5">
+      <stop offset="0" stop-color="#12706a" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#12706a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="magenta" cx="0.32" cy="0.22" r="0.4">
+      <stop offset="0" stop-color="#7a3aa8" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7a3aa8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1440" height="900" fill="url(#base)"/>
+  <rect width="1440" height="900" fill="url(#violet)"/>
+  <rect width="1440" height="900" fill="url(#blue)"/>
+  <rect width="1440" height="900" fill="url(#teal)"/>
+  <rect width="1440" height="900" fill="url(#magenta)"/>
+</svg>

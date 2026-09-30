@@ -1,0 +1,131 @@
+// --- 主指標 (movement metric) 層 ---
+// 把三種 triggerType 的角度語意正規化為單一慣例:「value 越大越接近目標」。
+// 統一符號慣例(由校準精靈保證):Pitch 0° = 站直,正值 = 向前抬。
+// 偵測(TriggerEngine)、量表(MetricGauge)、教練提示(guidance)都以此層為單一真實來源。
+import type { LiveAngles } from '@shared/protocol'
+import type { TriggerType } from '@shared/types'
+import { getLocale, t, type Locale } from '../i18n'
+
+/** 動作判定設定(由選定動作 + 即時參數組成) */
+export interface TriggerConfig {
+  targetAngle: number
+  tolerance: number
+  holdTimeMs: number
+  triggerType: TriggerType
+  /** 使用者本人的舒適角度/極限範圍(膝角);與動作無關,見 AngleLimits */
+  limits?: AngleLimits
+}
+
+/**
+ * 使用者本人量測的膝關節角度範圍(2026-09-27 取代「超限門檻」)。
+ * - comfort 舒適角度:在此之內不痛或僅輕微疼痛。超過只在畫面提示。
+ * - limit 極限範圍:很痛但仍能到達的極限。選填;超過時畫面警示。
+ * 兩者都是個人資料(angle_range_records 最新一筆),不屬於任何動作,也**沒有預設值**:
+ * 每個人都不一樣,未量測就是 null,判定不做任何角度警示。
+ * 一律與膝夾角比較(不是 segment 類的主指標),因為量到的就是膝關節角度。
+ */
+export interface AngleLimits {
+  comfort: number | null
+  limit: number | null
+}
+
+export const NO_LIMITS: AngleLimits = { comfort: null, limit: null }
+
+/** 休息姿勢的放寬容錯(度),正規化空間中三種型別同構:value <= rest 即回位 */
+export const REST_TOLERANCE = 30
+/**
+ * 休息門檻與達標下限之間必須保留的最小間距(度)。
+ *
+ * 狀態機隱含一個不變式:`rest < zone.min`。若違反,目標區會落在休息區內,
+ * 於是 holding → restPending → idle → holding 在原地閉合成迴圈:一條完全靜止
+ * 的腿每 holdTimeMs 就被計一次 rep 並發一次達標音,而那些捏造的次數會寫進
+ * sessions.repsCompleted。
+ *
+ * 出貨預設 Backward Extension(target 20、segment_extension)就違反了它:
+ * min = 20 ≤ 舊的固定 rest = 30。任何 min ≤ 30 的動作都會中,包含使用者自建的
+ * 溫和早期復健動作。改由 min 導出 rest 之後,不變式成為結構性保證。
+ */
+export const REST_MARGIN = 5
+
+/**
+ * 由達標下限導出休息門檻,保證恆有 `rest ≤ min - REST_MARGIN < min`。
+ * 一般情況下維持原本的 30°;只有在低目標角度的動作上才收緊。
+ */
+export function restThreshold(min: number): number {
+  return Math.min(REST_TOLERANCE, min - REST_MARGIN)
+}
+/** 出區遲滯(度):進區用嚴格門檻,保持中判定區間向外放寬此值,防止邊界抖動 */
+export const HYSTERESIS_DEG = 4
+/** 出區寬限(ms):保持中短暫跳出(雜訊尖峰)不立即清進度,逾時才算真的離區 */
+export const EXIT_GRACE_MS = 250
+/** segment 類動作判定膝近乎打直所允許的最大彎曲(度) */
+export const SEGMENT_KNEE_MAX = 15
+
+/** 每筆即時角度正規化後的主指標樣本 */
+export interface MetricSample {
+  /** 正規化主指標:越大越接近目標 */
+  value: number
+  /** segment 類前置條件「膝近直」是否滿足;joint_angle 恆為 true */
+  kneeStraightOk: boolean
+  /** 膝夾角(供膝直徽章顯示) */
+  knee: number
+  /** 膝直門檻 max(SEGMENT_KNEE_MAX, tol);joint_angle 為 null */
+  kneeMax: number | null
+}
+
+/** 主指標的判定區間(正規化空間) */
+export interface MetricZone {
+  /** 達標下限:joint_angle 為 target-tol;segment 為 target */
+  min: number
+  /** 達標上限:joint_angle 為 target+tol;segment 為 Infinity(超標仍計 rep) */
+  max: number
+  /** 休息回位門檻:value <= rest 即視為回位 */
+  rest: number
+}
+
+/** 主指標的顯示中繼資料 */
+export interface MetricInfo {
+  key: 'kneeAngle' | 'thighElevation' | 'thighExtension'
+  label: string
+  unit: '°'
+}
+
+/** label 依介面語系產生;語系可省略,預設讀 store 目前設定(每次呼叫重新取,語系切換即生效) */
+export function metricInfo(triggerType: TriggerType, locale: Locale = getLocale()): MetricInfo {
+  const key: MetricInfo['key'] =
+    triggerType === 'segment_elevation'
+      ? 'thighElevation'
+      : triggerType === 'segment_extension'
+        ? 'thighExtension'
+        : 'kneeAngle'
+  return { key, label: t(locale).clinical.metric[key], unit: '°' }
+}
+
+export function computeMetricSample(
+  angles: LiveAngles,
+  triggerType: TriggerType,
+  tolerance: number
+): MetricSample {
+  const kneeMax = triggerType === 'joint_angle' ? null : Math.max(SEGMENT_KNEE_MAX, tolerance)
+  const value =
+    triggerType === 'segment_elevation'
+      ? angles.thigh
+      : triggerType === 'segment_extension'
+        ? -angles.thigh // 後伸量取正:thigh 往後(負)越多,value 越大
+        : angles.knee
+  return {
+    value,
+    knee: angles.knee,
+    kneeMax,
+    kneeStraightOk: kneeMax == null ? true : angles.knee <= kneeMax
+  }
+}
+
+export function computeMetricZone(config: TriggerConfig): MetricZone {
+  const { targetAngle, tolerance, triggerType } = config
+  if (triggerType === 'joint_angle') {
+    const min = targetAngle - tolerance
+    return { min, max: targetAngle + tolerance, rest: restThreshold(min) }
+  }
+  return { min: targetAngle, max: Infinity, rest: restThreshold(targetAngle) }
+}

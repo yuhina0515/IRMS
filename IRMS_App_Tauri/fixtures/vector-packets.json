@@ -1,0 +1,13 @@
+[
+  { "name": "legacy", "packet": "T:1,S:2,K:1", "truncated": false, "vectors": null },
+  { "name": "complete", "packet": "T:1,S:2,K:1,V:0/1/0/0/0/1", "truncated": false, "vectors": [0,1,0,0,0,1] },
+  { "name": "partial", "packet": "T:1,S:2,K:1,V:0/1/0/0/0", "truncated": true, "vectors": null },
+  { "name": "empty field", "packet": "T:1,S:2,K:1,V:0/1//0/0/1", "truncated": true, "vectors": null },
+  { "name": "whitespace field", "packet": "T:1,S:2,K:1,V:0/1/ /0/0/1", "truncated": true, "vectors": null },
+  { "name": "extra invalid field", "packet": "T:1,S:2,K:1,V:0/1/bad/0/0/0/1", "truncated": true, "vectors": null },
+  { "name": "extra empty field", "packet": "T:1,S:2,K:1,V:0/1//0/0/0/1", "truncated": true, "vectors": null },
+  { "name": "extra finite field", "packet": "T:1,S:2,K:1,V:0/1/0/0/0/1/2", "truncated": true, "vectors": null },
+  { "name": "nonfinite", "packet": "T:1,S:2,K:1,V:NaN/1/0/0/0/1", "truncated": true, "vectors": null },
+  { "name": "infinity", "packet": "T:1,S:2,K:1,V:Infinity/1/0/0/0/1", "truncated": true, "vectors": null },
+  { "name": "padded numeric field", "packet": "T:1,S:2,K:1,V: 0 /1/0/0/0/1", "truncated": false, "vectors": [0,1,0,0,0,1] }
+]

@@ -1,0 +1,1191 @@
+/* renderer/styles/tailwind.css — replaces global.css as the app's stylesheet entry point.
+   The old hand-rolled Liquid Glass design system (global.css + styles/profiles/) is archived on
+   the `legacy-ui-liquid-glass` branch / `ui-v1-liquid-glass-archive` tag, not deleted.
+
+   Phase 4 strategy: redefine the SAME class vocabulary most view/component files already use
+   (.panel, .btn, .field, .dialog, .toast, .tabs...) as Tailwind component classes built on the
+   new dark/bento tokens (tailwind.config.js), instead of touching every call site. This gets the
+   whole app to the new look immediately; only the classes that need to change SHAPE, not just
+   skin (nav → SegmentedControl, per-view grid layout), get bespoke JSX work. See
+   doc/UI_REDESIGN.md for the layout blueprint and ROADMAP.md D5 for why no Apple/glass language. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens — two fixed themes from the external design handoff
+   (doc/gemini-handoff-20260902/), not a returning "pick any color" style-profile system.
+   RGB triplets (space-separated, no `#`) because tailwind.config.js's color functions use
+   Tailwind's `rgb(var(--x) / <alpha-value>)` pattern so opacity modifiers like `border-accent/40`
+   keep working. `:root` defaults to the dark "Data-Console" values so there's no flash of
+   unstyled content before JS applies a theme class; `.theme-light` overrides for "Precision Lab".
+   Toggled by services/theme.ts adding/removing `theme-light` on <html> — see useStore's
+   `settings.themeMode`. */
+:root {
+  --color-canvas: 2 6 23; /* #020617 */
+  --color-surface: 15 23 42; /* #0f172a */
+  --color-surface-raised: 30 41 59; /* #1e293b */
+  --color-border: 51 65 85; /* #334155 — slate-700, solid (not translucent) per handoff */
+  --color-text: 248 250 252; /* #f8fafc */
+  --color-text-dim: 203 213 225; /* #cbd5e1 */
+  --color-text-muted: 148 163 184; /* #94a3b8 */
+  --color-accent: 34 211 238; /* #22d3ee */
+  --color-accent-strong: 6 182 212; /* #06b6d4 */
+  --color-success: 52 211 153; /* #34d399 */
+  --color-warning: 251 191 36; /* #fbbf24 */
+  --color-danger: 248 113 113; /* #f87171 */
+  /* Chart-series colors (LiveChart/HistoryView, not yet rebuilt to the new direction —
+     defined here so those still-mounted components don't render with missing/broken colors
+     in the meantime). Thigh/shin reuse the warning/success hues for consistency rather than
+     inventing new ones; roll gets its own hue (violet) since it's a distinct plane, matching
+     the archived system's convention of keeping it visually separate from thigh/shin/knee. */
+  --chart-grid: 51 65 85; /* = --color-border */
+  --chart-tick: 148 163 184; /* = --color-text-muted */
+  --chart-text: 248 250 252; /* = --color-text */
+  --color-thigh: 251 191 36; /* = --color-warning */
+  --color-shin: 52 211 153; /* = --color-success */
+  --color-roll: 167 139 250; /* violet-400 */
+
+  /* Motion tokens: same three curves regardless of theme — a mechanical/clinical-instrument
+     motion vocabulary, not per-theme, so defined once here rather than duplicated into .theme-light. */
+  --motion-ease-mechanical: cubic-bezier(0.16, 1, 0.3, 1); /* displacement/snap/solid deformation, no overshoot */
+  --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1); /* dropdowns/dialogs/toasts entering */
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1); /* closing/dismissing/blurring out */
+
+  /* Sidebar tokens: dark values are exact hex from the design spec
+     (#13151A/#232730/#8A919E/#FFFFFF/#00F5FF) — a distinct, slightly more neutral/darker
+     background than --color-surface, deliberately not reusing it, so the nav rail reads as a
+     fixed instrument bezel rather than just another card. */
+  --sidebar-bg: 19 21 26; /* #13151A */
+  --sidebar-border: 35 39 48; /* #232730 */
+  --sidebar-text: 138 145 158; /* #8A919E */
+  --sidebar-text-hover: 255 255 255; /* #FFFFFF */
+  --sidebar-accent: 0 245 255; /* #00F5FF */
+}
+.theme-light {
+  /* Light theme's accent shifted from cyan to sky — cyan-darkened-for-contrast loses the vibrant,
+     energetic lab feel in a light theme — plus red-700 for danger. Every contrast ratio here was
+     independently verified, not taken as given: the accent-as-button-background value sky-500
+     #0ea5e9 actually measures 2.77:1 with white text — fails the accessibility bar — substituted
+     sky-600 instead (4.10:1). sky-700-as-text measures 5.93:1, passes. A candidate success color
+     (green-700 #15803d, 5.02:1) measured worse than this file's existing emerald-700 (5.48:1)
+     despite looking like the "better contrast" pick — kept emerald-700. Canvas moved to slate-50
+     (was pure white) — cosmetic, passes contrast either way. Dark theme intentionally left
+     untouched — it already passed. This does mean the two themes' accent now use different hue
+     families (dark=cyan, light=sky), a real divergence, not an oversight. */
+  --color-canvas: 248 250 252; /* #f8fafc — slate-50 (was pure white) */
+  --color-surface: 241 245 249; /* #f1f5f9 — slate-100 */
+  --color-surface-raised: 226 232 240; /* #e2e8f0 — slate-200 */
+  --color-border: 226 232 240; /* #e2e8f0 */
+  --color-text: 2 6 23; /* #020617 */
+  --color-text-dim: 71 85 105; /* #475569 — slate-600 */
+  --color-text-muted: 100 116 139; /* #64748b — slate-500, 4.34-4.76:1 depending on bg */
+  --color-accent: 2 132 199; /* #0284c7 — sky-600 (bg/button role, 4.10:1 w/ white text;
+    Gemini's proposed sky-500 measured 2.77:1 and failed, this is the corrected value) */
+  --color-accent-strong: 3 105 161; /* #0369a1 — sky-700 (text/link role, 5.93:1 on canvas) */
+  --color-success: 4 120 87; /* #047857 — emerald-700, kept (5.48:1, beats Gemini's green-700 suggestion at 5.02:1) */
+  --color-warning: 180 83 9; /* #b45309 — amber-700, unchanged (not addressed in round 2) */
+  --color-danger: 185 28 28; /* #b91c1c — red-700 (was red-600 #dc2626; 6.47:1, clear improvement) */
+  --chart-grid: 226 232 240; /* = --color-border */
+  --chart-tick: 100 116 139; /* = --color-text-muted */
+  --chart-text: 2 6 23; /* = --color-text */
+  --color-thigh: 180 83 9; /* = --color-warning */
+  --color-shin: 4 120 87; /* = --color-success */
+  --color-roll: 124 58 237; /* violet-600 */
+
+  /* Sidebar tokens, light-theme half: the dark-theme spec didn't cover light values, so these
+     mirror the same *relationships* the dark spec establishes, using tokens this app already
+     picked for light mode rather than the literal cyan (chosen there against a near-black dark
+     background specifically; light theme already deliberately uses sky as its accent hue, so
+     this continues that split instead of reintroducing cyan). --sidebar-bg goes one step lighter
+     than --color-surface (mirroring dark's --sidebar-bg sitting one step darker than its
+     --color-surface) so the rail still reads as a distinct bezel, not just another card. */
+  --sidebar-bg: 248 250 252; /* = --color-canvas, one step lighter than --color-surface */
+  --sidebar-border: 226 232 240; /* = --color-border */
+  --sidebar-text: 100 116 139; /* = --color-text-muted */
+  --sidebar-text-hover: 2 6 23; /* = --color-text */
+  --sidebar-accent: 3 105 161; /* = --color-accent-strong (sky-700), not the dark spec's literal cyan */
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-text;
+  }
+}
+
+@layer components {
+  /* ── shell (sidebar-only primary nav — a previously-coexisting top SegmentedControl was
+     removed: two nav surfaces driving the same state was redundant and visually confusing.
+     See Sidebar.tsx.)
+     Sidebar is a flush edge-to-edge rail, not a padded/gapped "floating card" like other panels —
+     the padding/gap that used to wrap the whole `.app` (sidebar included) now belongs to
+     `.app-column` alone, since the rail is meant to read as a fixed instrument bezel against the
+     window edge, not another bento card. ── */
+  /* TopHeader spans the full window width above this row, not just the right column — this is
+     what lets .sidebar start below the titlebar instead of flush against the window's top-left
+     corner. h-screen lives on .app-shell; .app is flex-1/min-h-0 so it fills whatever height the
+     titlebar doesn't take. */
+  .app-shell {
+    @apply flex flex-col h-screen;
+  }
+  .app {
+    @apply flex flex-1 min-h-0 relative;
+  }
+  /* margin-left permanently reserves the collapsed rail's width (56px), regardless of whether
+     .sidebar is currently collapsed or expanded — .sidebar is position:absolute (see below) and
+     no longer a flex sibling, so this margin is the ONLY thing controlling how much of .app's
+     width the main content gets. Expanding the sidebar to 220px never touches this margin: the
+     extra 164px overlays on top of the content instead of shoving it sideways — toggling the rail
+     used to resize the whole dashboard grid mid-transition, which made the container-query grid
+     presets flicker between layouts as the width crossed their breakpoints. */
+  .app-column {
+    @apply flex flex-col flex-1 gap-3 px-3 py-4 min-w-0;
+    margin-left: 56px;
+  }
+  .main {
+    @apply flex-1 overflow-y-auto pr-1;
+  }
+  /* Fixed 220px, no responsive shrink — width/colors/spacing here are the literal pixel spec
+     (see --sidebar-* tokens above for the light-theme adaptation note), not @apply utility
+     approximations, so it reproduces the design spec's exact numbers rather than an approximation.
+     Absolute over .app instead of a flex sibling — expanding it no longer resizes .app-column
+     (see margin-left above), it just overlays on top. z-30 stays under the dropdown/toast/dialog
+     layers (z-200+) but above ordinary page content. overflow:hidden is what makes the item
+     labels "disappear" as the rail narrows — no separate fade/opacity animation needed, the width
+     transition alone clips them away. */
+  .sidebar {
+    @apply absolute inset-y-0 left-0 z-30 shrink-0 flex flex-col overflow-hidden;
+    width: 220px;
+    padding: 24px 0;
+    background-color: rgb(var(--sidebar-bg));
+    border-right: 1px solid rgb(var(--sidebar-border));
+    transition: width 0.25s var(--motion-ease-mechanical);
+  }
+  /* 56px = group padding(12) + item padding-left(12) + icon(20) + item padding-right(12) — the
+     exact width where the icon is fully visible with its normal right-side breathing room and the
+     label (which starts right after, at 56px) is entirely clipped, not just mostly. Matches
+     .app-column's margin-left exactly, so the collapsed rail's edge lines up flush with content. */
+  .sidebar.collapsed {
+    width: 56px;
+  }
+  .sidebar-toggle {
+    @apply flex items-center border-none bg-transparent cursor-pointer w-full;
+    padding: 0 24px 32px;
+    color: rgb(var(--sidebar-text-hover));
+    transition: color 0.2s ease;
+  }
+  .sidebar-toggle:hover {
+    color: rgb(var(--sidebar-accent));
+  }
+  /* One-shot 360deg spin on every press — NOT a persistent rotated state (first version stayed
+     at 90deg while collapsed: a 3-horizontal-line hamburger rotated 90deg just becomes 3 vertical
+     bars, which read as ugly). Start/end angle are identical; this is purely a press-feedback
+     flourish, replayed on every click regardless of whether the sidebar ends up collapsed or
+     expanded. The `.spin` class + `key` remount in Sidebar.tsx is what makes it replay every
+     time — a CSS animation doesn't restart just because a class is present again unless the
+     element is actually removed and re-added to the DOM. */
+  .sidebar-toggle-icon {
+    @apply flex shrink-0;
+  }
+  .sidebar-toggle-icon.spin {
+    animation: sidebar-toggle-spin 0.35s var(--motion-ease-mechanical);
+  }
+  .sidebar-nav-group {
+    @apply flex flex-col;
+    gap: 4px;
+    padding: 0 12px;
+  }
+  .sidebar-item {
+    @apply flex items-center w-full text-left border-none bg-transparent cursor-pointer relative;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    color: rgb(var(--sidebar-text));
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap; /* prevents the label wrapping onto a second line mid-collapse-transition
+      before .sidebar's overflow:hidden clips it — the item's own box is never actually resized */
+    transition: color 0.2s ease, background-color 0.2s ease;
+  }
+  /* Without this, the collapse transition hits the classic flex-shrink trap: once the item's own
+     box (100% of the now-64px rail) is narrower than icon+gap+label combined, a plain flex child
+     with no flex-shrink:0 shrinks — and since the label's white-space:nowrap pins IT at its full
+     content width (a flex item's automatic min-width is its content size when wrapping is
+     disabled), 100% of the available shrinkage lands on the icon instead, collapsing it to 0
+     width. Net effect without this rule: the icon vanishes and the label's leftover text edge
+     peeks out past the clip boundary instead — exactly backwards from "icon-only rail". */
+  .sidebar-item svg {
+    flex-shrink: 0;
+  }
+  .sidebar-item:hover:not(.active) {
+    color: rgb(var(--sidebar-text-hover));
+    background-color: rgb(var(--sidebar-text-hover) / 0.04);
+  }
+  /* Discards the old full-block accent-fill active state (read as "cheap" against the Dashboard's
+     bento-grid data) for a 3px left accent border + a faint 10%→0% linear wash — enough to mark
+     the active item without competing for visual weight against real measurements. */
+  .sidebar-item.active {
+    color: rgb(var(--sidebar-accent));
+    background: linear-gradient(90deg, rgb(var(--sidebar-accent) / 0.1) 0%, rgb(var(--sidebar-accent) / 0) 100%);
+  }
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -12px; /* reaches past the button's own edge to sit flush against the rail's edge —
+      matches the .sidebar-nav-group padding (12px) exactly, per the literal spec */
+    top: 15%;
+    height: 70%;
+    width: 3px;
+    background-color: rgb(var(--sidebar-accent));
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ── layout helpers ── */
+  .row {
+    @apply flex items-center gap-2.5;
+  }
+  /* raw CSS, not @apply — .grid colliding with Tailwind's own `grid` utility name would
+     otherwise create a circular @apply dependency */
+  .grid {
+    display: grid;
+    gap: 1.5rem; /* 24px, was 16px, matches the card padding bump above */
+  }
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .page-header {
+    @apply mb-4;
+  }
+  .page-header h2 {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  .page-header p {
+    @apply text-text-muted text-sm;
+  }
+
+  /* ── surfaces (was "glass", now a flat dark data-console card) ── */
+  .panel,
+  .glass {
+    /* p-6 (24px), not p-4 — cards read as cramped once real content replaced placeholder text;
+       24px matches the design spec's prescribed card padding. */
+    @apply bg-surface border border-border rounded-card p-6;
+  }
+  .glass-elevated {
+    @apply bg-surface-raised shadow-floating;
+  }
+  /* .glass-warp was the SVG liquid-distortion filter hook — no equivalent in this direction,
+     kept as a harmless no-op selector so call sites using it don't need to be touched. */
+
+  .top-header {
+    @apply bg-surface border-b border-border flex items-center justify-between px-3 py-2;
+  }
+  /* 自訂標題列(frame:false,見 main/index.ts)。整條 bar 預設可拖曳視窗,
+     實際可點擊的子元素(按鈕、視窗控制鈕)逐一標回 no-drag——這個順序(整體 drag、
+     互動元素 no-drag)比反過來(整體 no-drag、手動框出可拖曳的空白區)更不容易漏掉
+     新增按鈕時忘記處理,新按鈕預設就是「先不能拖」而非「先能拖到擋住點擊」。
+     RDP session(hasCustomTitlebar=false)不會加上 .draggable class,維持原生框行為。 */
+  .top-header.draggable {
+    -webkit-app-region: drag;
+  }
+  .top-header.draggable button,
+  .top-header.draggable .window-controls {
+    -webkit-app-region: no-drag;
+  }
+  .window-controls {
+    @apply flex items-stretch self-stretch -my-2 ml-2;
+  }
+  /* Idle icon color is the semantic text-dim (one step dimmer than text-muted), and the close
+     button's hover uses the app's own danger token instead of a hardcoded Windows red — so it
+     actually shifts with the light/dark theme like every other danger-colored element instead of
+     staying a fixed #e81123 regardless of theme. */
+  .window-btn {
+    @apply flex items-center justify-center text-text-dim transition-colors;
+    width: 46px;
+  }
+  .window-btn:hover {
+    @apply bg-surface-raised text-text;
+  }
+  .window-btn-close:hover {
+    @apply bg-danger text-canvas;
+  }
+  .top-header .logo {
+    @apply flex items-center gap-2;
+  }
+  .logo-mark {
+    height: 20px;
+    width: auto;
+    display: block;
+  }
+  .top-header .logo h1 {
+    @apply text-sm font-bold;
+  }
+  .top-header .logo span {
+    /* accent-strong, not accent — accent is the button/bg-only role, text usage needs the
+       darker/text-safe step */
+    @apply text-accent-strong;
+  }
+  .top-header .conn {
+    @apply flex items-center gap-2 text-xs text-text-muted;
+  }
+  .reconnect-track {
+    @apply inline-block w-[46px] h-[3px] ml-2 align-middle rounded-control overflow-hidden bg-text-muted/30;
+  }
+  .reconnect-fill {
+    @apply block h-full rounded-control bg-warning transition-[width] duration-200;
+  }
+  /* header button stays compact regardless of the app-wide .btn size —
+     a dense top bar shouldn't carry the same button scale as page content */
+  .top-header button.btn {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  /* The LED must never hard-cut between red/amber/green — 180ms color transition on every
+     state swap, mechanical (not bouncy). */
+  .dot {
+    @apply w-2.5 h-2.5 rounded-full bg-danger;
+    transition: background-color 0.18s var(--motion-ease-mechanical);
+  }
+  .dot.on {
+    @apply bg-success;
+  }
+  .dot.retrying {
+    @apply bg-warning;
+  }
+  /* "Lighting" from the design handoff: active/ON elements glow instead of reading as a flat
+     shape — dark theme only, a glow on a white canvas just looks like a blur artifact rather
+     than an instrument light. The connect moment additionally gets a one-shot 180ms brightness
+     pulse instead of the glow just silently appearing — it settles back to the plain
+     shadow-glow-success in the keyframe's own end state, so nothing needs to swap classes after
+     the animation finishes. */
+  html:not(.theme-light) .dot.on {
+    @apply shadow-glow-success;
+    animation: dot-connect-pulse 0.18s var(--motion-ease-mechanical);
+  }
+
+  /* ── buttons — rectangular (rounded-control), not pill: this direction dropped the
+     Apple-capsule language on purpose (ROADMAP D5 / the Bento+data-console brief) ── */
+  button.btn {
+    @apply border-none rounded-control px-4 py-2.5 font-semibold cursor-pointer text-canvas
+      transition-[transform,opacity,filter] duration-150;
+  }
+  button.btn:hover {
+    @apply brightness-110;
+  }
+  button.btn:active {
+    @apply scale-[0.98] brightness-90;
+  }
+  button.btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-accent;
+  }
+  .btn-danger {
+    @apply bg-danger;
+  }
+  button.btn-danger-ghost {
+    @apply bg-transparent text-danger border border-danger/50;
+  }
+  button.btn-danger-ghost:hover {
+    @apply bg-danger/10;
+  }
+  /* button.btn-secondary (not .btn-secondary alone) to match button.btn's specificity —
+     .btn-secondary is a neutral-bg variant so it needs its OWN text color, but a bare class
+     selector loses the cascade fight against button.btn's `text-canvas` (element+class beats
+     class alone) regardless of source order. Same trap the archived codebase's comments
+     document for .btn-danger-ghost; missed applying it here in the first Phase 4 pass —
+     caught via screenshot when the theme-toggle icon rendered white-on-white in light mode. */
+  button.btn-secondary {
+    @apply bg-surface-raised text-text border border-border;
+  }
+  .btn-success {
+    @apply bg-success;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-[0.82rem];
+  }
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* ── forms ── */
+  /* min-w-0: found via the Dashboard's narrow preset-B/C ring column — a .field sitting in a
+     flex .row is a flex item, so it inherits the same implicit min-width:auto trap as every
+     other flex-shrink case in this file (see .cockpit-panel etc.) unless capped. Harmless
+     everywhere else: this only changes behavior when the row is genuinely too narrow for its
+     fields' natural width, which previously always meant an unnoticed overflow rather than an
+     intentional fixed size. */
+  .field {
+    @apply flex flex-col gap-1.5 mb-3.5 min-w-0;
+  }
+  .field label {
+    @apply text-[0.82rem] text-text-muted font-medium;
+  }
+  .field-hint {
+    @apply text-[0.82rem] text-text-muted;
+  }
+  input,
+  select {
+    @apply bg-surface-raised border border-border rounded-control px-3 py-2.5 text-text outline-none
+      transition-[border-color,box-shadow] duration-150;
+  }
+  /* Numeric fields go mono per the design handoff ("all numeric readings and sensor codes") —
+     applies to editable number inputs too, not just passive readouts (Dashboard doesn't have
+     any built yet; this covers what exists today, e.g. Settings' calibration/chart-tuning
+     fields). */
+  input[type='number'] {
+    @apply font-mono;
+  }
+  input::placeholder {
+    @apply text-text-muted opacity-100;
+  }
+  input:focus,
+  select:focus {
+    @apply border-accent;
+    box-shadow: 0 0 0 3px rgb(var(--color-accent) / 0.22);
+  }
+
+  /* ── misc form bits ── */
+  .switch {
+    @apply flex items-center gap-2;
+  }
+  details.adv-fold {
+    @apply border-t border-border mt-4 pt-3;
+  }
+  details.adv-fold summary {
+    @apply cursor-pointer text-text-muted text-sm mb-3;
+  }
+
+  /* ── GlassDropdown (custom <select> replacement, still in active use —
+     not part of the retired Appearance/style-profile system) ── */
+  .glass-dropdown {
+    @apply relative;
+  }
+  .glass-dropdown-trigger {
+    @apply w-full flex items-center justify-between gap-2.5 bg-surface-raised border border-border
+      rounded-control px-3 py-2.5 text-text cursor-pointer transition-[border-color,box-shadow] duration-150;
+  }
+  .glass-dropdown-trigger:hover {
+    @apply border-accent/40;
+  }
+  .glass-dropdown-trigger:focus-visible {
+    @apply outline-none border-accent shadow-[0_0_0_3px_rgba(34,211,238,0.22)];
+  }
+  .glass-dropdown.disabled .glass-dropdown-trigger {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  .glass-dropdown-trigger .placeholder {
+    @apply text-text-muted;
+  }
+  .glass-dropdown-trigger .chevron {
+    @apply shrink-0 text-text-muted transition-transform duration-200;
+  }
+  .glass-dropdown-trigger .chevron.open {
+    @apply rotate-180;
+  }
+  /* Was a scale(0.35→1) "grow from a point" — replaced with a single-layer micro-shift
+     (translateY + opacity only) to stop animating container-scale and content-fade as two
+     separate stages. */
+  .glass-dropdown-popup {
+    position: fixed; /* top/left/width set inline by GlassDropdown.tsx — portaled to body */
+    @apply z-[200] max-h-[260px] overflow-y-auto p-1.5 flex flex-col gap-0.5 bg-surface-raised
+      border border-border rounded-control;
+    animation: dropdown-grow 0.14s var(--motion-ease-enter) both;
+  }
+  .glass-dropdown-popup.closing {
+    animation: dropdown-shrink 0.1s var(--motion-ease-exit) both;
+    pointer-events: none;
+  }
+  .glass-dropdown-item {
+    @apply block w-full text-left px-2.5 py-2 border-none bg-transparent text-text text-[0.92rem]
+      rounded-control cursor-pointer transition-colors duration-150;
+  }
+  .glass-dropdown-item:hover {
+    @apply bg-surface;
+  }
+  .glass-dropdown-item.selected {
+    @apply bg-accent/15 text-accent-strong font-semibold;
+  }
+  .glass-dropdown-empty {
+    @apply p-2.5 text-text-muted text-sm text-center;
+  }
+
+  /* ── overlay / dialog (ConfirmDialog etc.) ──
+     Backdrop is a pure 150ms fade both ways; the dialog body itself gets a 2%-amplitude scale
+     (0.98→1) rather than a more "dramatic" 0.95→1 — the target is to avoid feeling theatrical for
+     a clinical tool, not to remove the entrance affordance entirely. Only ConfirmDialog drives
+     the `.closing` class (mirrored state to let the exit play out before unmount); the other
+     `.overlay` call sites (CalibrationWizard/HistoryView/ActionsView modals) still get the
+     entrance fade for free and simply skip the exit stage on close. */
+  .overlay {
+    @apply fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[1100];
+    animation: overlay-in 0.15s var(--motion-ease-enter) both;
+  }
+  .overlay.closing {
+    animation: overlay-out 0.15s var(--motion-ease-exit) both;
+  }
+  .dialog {
+    @apply w-[min(440px,92vw)] p-6;
+    animation: dialog-in 0.15s var(--motion-ease-enter) both;
+  }
+  .dialog.closing {
+    animation: dialog-out 0.15s var(--motion-ease-exit) both;
+  }
+  .dialog h3 {
+    @apply mb-2.5;
+  }
+  .dialog p {
+    @apply text-text-muted mb-4;
+  }
+  .dialog .actions {
+    @apply flex justify-end gap-2.5;
+  }
+
+  /* ── modal (bigger form dialogs — ActionsView's create/edit, distinct from ConfirmDialog's
+     compact .dialog) ── */
+  .modal {
+    @apply w-[min(720px,94vw)] max-h-[88vh] overflow-y-auto p-6;
+  }
+  .modal-header {
+    @apply flex justify-between items-center mb-4;
+  }
+  .close-x {
+    @apply bg-transparent border-none text-text-muted text-2xl cursor-pointer leading-none;
+  }
+  .modal .actions {
+    @apply flex justify-end gap-2.5;
+  }
+
+  /* ── empty state ── */
+  .empty {
+    @apply flex flex-col items-center gap-3 p-10 text-text-muted text-center;
+  }
+
+  /* ── badge (trigger-type pill on action cards) ── */
+  .badge {
+    @apply inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/15 text-accent-strong;
+  }
+
+  /* ── ActionsView: bento card grid of exercise templates ──
+     Hover border-accent + transition to signal "this is executable", clear title/meta
+     typography hierarchy. */
+  .action-group-heading {
+    @apply mt-1 mb-2.5 text-[0.82rem] font-semibold tracking-wide text-text-muted uppercase;
+  }
+  .action-search {
+    @apply flex-1 min-w-[180px];
+  }
+  .action-card {
+    @apply flex flex-col gap-2 p-5 border border-transparent transition-colors duration-200;
+  }
+  .action-card:hover {
+    @apply border-accent;
+  }
+  .action-card h4 {
+    @apply text-lg font-semibold text-text;
+  }
+  .action-card .meta {
+    @apply text-sm text-text-muted mt-0.5;
+  }
+
+  /* ── Record Pose row (ActionsView modal) ── */
+  .record-pose {
+    @apply flex items-center justify-between gap-3 flex-wrap my-1 mb-3.5 px-3.5 py-2.5 rounded-card
+      bg-surface-raised border border-border;
+  }
+  .record-pose-live {
+    @apply text-[0.88rem] text-text-muted;
+  }
+  .record-pose-live strong {
+    @apply text-text ml-1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── HistoryView: chronological session log — deliberately a real <table>, not a bento
+     grid (see doc/UI_REDESIGN.md) or a div-based row list: "list, not bento" with row hover +
+     clear metadata hierarchy is what's wanted, and a semantic table already gives that (plus
+     real accessibility/column-alignment a div reimplementation would have to rebuild by hand),
+     so the fix here is styling the table, not replacing its markup. */
+  table {
+    @apply w-full border-collapse;
+  }
+  th,
+  td {
+    @apply text-left px-3 py-3 border-b border-border text-sm;
+  }
+  th {
+    @apply text-text-muted font-semibold text-xs tracking-wide uppercase;
+  }
+  tbody tr {
+    @apply transition-colors duration-150;
+  }
+  tbody tr:hover {
+    @apply bg-surface-raised/50;
+  }
+  tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .badge-demo {
+    @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-bold tracking-wide
+      bg-accent/15 text-accent-strong;
+  }
+  .badge-warn {
+    @apply inline-block ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/15 text-warning;
+  }
+
+  /* ── DashboardView ── */
+  /* Fills `.main`'s full height and never lets the page itself scroll. `min-h-0` at every
+     level of this chain is load-bearing: without it a flex child's default `min-height:auto`
+     refuses to shrink below its content size. */
+  .dash-shell {
+    @apply flex flex-col h-full min-h-0;
+  }
+  /* Structural fix, not another hand-tuned constant: hand-tuning min()/clamp() px-vh constants
+     per element kept breaking every time a new window-size × content-visibility combination
+     showed up (most recently: a 17.6px overflow from a conditional banner nobody had budgeted
+     height for). `.dashboard-workspace` is the ONE node that absorbs whatever height is
+     left after everything else in `.dash-shell` (header, calib-chip banner, ...) has taken
+     its share — `flex: 1 1 0; min-height: 0` is what makes that "remaining space" concept
+     real instead of "shrink from content size." `container-type: size` turns it into a query
+     container so `.dashboard-grid` below can respond to *its own actual pixel height*, not a
+     guess about the viewport — the calib-chip banner appearing or not changes this container's
+     height automatically, no separate constant to maintain. */
+  .dashboard-workspace {
+    @apply flex-1 min-h-0 min-w-0;
+    container-type: size;
+    container-name: dashboard;
+  }
+  /* Single grid for the whole workspace (gauge/ring/chart/pose/numeric-fallback), replacing
+     the old two-separate-grids split (summary row + cockpit below). One grid is required, not
+     a nice-to-have: the compact preset below needs to lay gauge/ring/cockpit out side-by-side
+     in one row, which two independently-stacked grids can't express. `grid-template-areas`
+     (named cells) rather than raw column/row indices — three very different presets are far
+     easier to read and modify as an ASCII layout each than as a set of `grid-column`/
+     `grid-row` numbers per cell. */
+  .dashboard-grid {
+    @apply grid gap-6 h-full;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: 'gauge ring' 'chart pose';
+  }
+  /* show3D2DPose off (Settings toggle, independent of container size) — the pose cell isn't
+     rendered at all, so let chart take the full second row instead of leaving it empty. */
+  .dashboard-grid.no-pose {
+    grid-template-areas: 'gauge ring' 'chart chart';
+  }
+  /* min-h-0/min-w-0 on every cell: minmax(0, Nfr) on the grid TRACKS only stops the tracks
+     themselves from stretching past their fair share — each grid ITEM still has its own
+     separate implicit min-width/min-height:auto (=content's own minimum) unless the item's
+     own box is also capped. Both traps look identical from the outside (grid quietly wider/
+     taller than its container, no single child individually flagged as overflowing). */
+  .dash-cell-gauge {
+    @apply min-w-0 min-h-0;
+    grid-area: gauge;
+    /* This is the panel the operator's eyes actually stay on, not the small header .dot — its
+       border does the 200ms color-temp shift to danger on disconnect, pure color change, no
+       positional animation whatsoever. */
+    transition: border-color 0.2s var(--motion-ease-mechanical);
+  }
+  .dash-cell-gauge.panel-stale {
+    border-color: rgb(var(--color-danger));
+  }
+  /* overflow-y-auto: found by measuring, not guessing — at the compact preset's narrow ring
+     column, ring+dropdown+3 number fields genuinely need more height than the row
+     has (392px container, ~558px of real content). `container-type:size` on the ancestor
+     `.dashboard-workspace` forces this cell's overflow to compute as `clip` even though nothing
+     here says so explicitly (CSS Containment spec: size containment forbids `visible` overflow,
+     silently substituting `clip`) — so without an explicit scroll mechanism, the Hold(ms) field
+     and part of this card simply vanish with no way to reach them, not just visually clipped in
+     an acceptable way. A small internal scrollbar here is a worse but honest fallback. */
+  .dash-cell-ring {
+    @apply min-w-0 min-h-0 overflow-y-auto;
+    grid-area: ring;
+  }
+  .dash-cell-chart {
+    @apply min-w-0 min-h-0;
+    grid-area: chart;
+  }
+  .dash-cell-pose {
+    @apply min-w-0 min-h-0;
+    grid-area: pose;
+  }
+  /* Forced numeric-only fallback for the tightest preset (see the 620px container query
+     below) — hidden by default in the other two presets. Not gated behind show3D2DPose/
+     showTrendChart: at this container height there's no room for a chart or 3D model
+     regardless of what the user asked Settings to show. */
+  .dash-cell-numeric {
+    @apply flex-col min-h-0 min-w-0 p-4;
+    grid-area: numeric;
+    display: none;
+  }
+  /* Its own overflow-y:auto as a pragmatic last resort, not a design goal — 6 stat cards at
+     the app's absolute floor size (1024×600) is a genuinely tight fit. Scoping any scrolling
+     to this small area (rather than the whole page) if content still doesn't fit after
+     shrinking keeps the core "Dashboard never page-scrolls" guarantee intact even in a
+     content-fits-badly edge case Gemini's spec didn't give an exact number for. */
+  .dash-cell-numeric .cards {
+    @apply min-h-0 overflow-y-auto;
+  }
+
+  .cockpit-panel {
+    @apply flex flex-col h-full min-h-0 min-w-0;
+  }
+  /* Wraps each panel's actual tab content (chart/stat-grid, 3D/2D) — takes the remaining
+     height below the tab switcher and centers content that has its own aspect ratio (leg3d,
+     2D SVG) rather than stretching it.
+     overflow-y-auto, not overflow-hidden — chart/3D content already self-fits via their own
+     vh-capped max-width/height rules so this never actually shows a scrollbar for them, but the
+     stat-card grid (DetailStatsGrid) has no such self-shrinking mechanism; at the compact
+     preset's narrow columns 6 cards can need more height than the row has, and hidden silently
+     drops the extra cards with no way to reach them (found by measuring — the same
+     container-type:size-forces-clip interaction as .dash-cell-ring above).
+     justify-content:flex-start, not center — `justify-content:center` on a scrollable flex
+     container computes the centered position first and only then clips/scrolls,
+     so an overflowing child's default scroll position (0) lands in the middle of its content,
+     cutting off its *start* rather than its end. Found by screenshot: the first row of stat
+     cards was visibly cropped at the top even though a scrollbar was present. flex-start makes
+     the natural (0) scroll position actually show the beginning of the content — chart/3D
+     content that fits without scrolling is unaffected either way. */
+  .cockpit-content {
+    @apply flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto;
+  }
+  .metric-action {
+    @apply text-lg font-bold;
+  }
+  .metric-sub {
+    @apply text-text-muted text-sm;
+  }
+  /* max-width mixes an absolute cap (don't blow up on huge monitors) with a vh-relative one
+     (shrink on short windows) — same pattern already used by .leg3d-viewport/.visualizer below;
+     this one was previously a flat 420px, which let the summary row alone push the page taller
+     than short windows regardless of everything below it. */
+  .metric-gauge svg {
+    @apply w-full block mx-auto;
+    max-width: min(420px, 30vh);
+  }
+  .metric-gauge.muted {
+    opacity: 0.45;
+    filter: grayscale(0.8);
+  }
+  .metric-gauge-notice {
+    @apply text-center mt-1 text-[0.78rem] font-semibold text-warning;
+  }
+  .knee-badge {
+    @apply mx-auto mt-1.5 w-fit px-3 py-1 rounded-full text-sm font-medium bg-danger/15 text-danger;
+  }
+  .knee-badge.ok {
+    @apply bg-success/15 text-success;
+  }
+  .coach-hint {
+    @apply flex items-center gap-3 mt-3.5 px-4 py-3 rounded-card bg-surface-raised;
+  }
+  .coach-hint .coach-text {
+    @apply text-xl font-semibold;
+  }
+  .coach-hint.success .coach-text {
+    @apply text-success;
+  }
+  .coach-hint.danger .coach-text {
+    @apply text-danger;
+  }
+  .phase-badge {
+    @apply shrink-0 px-3.5 py-1.5 rounded-full text-sm font-bold bg-accent/15 text-accent-strong;
+  }
+  .phase-badge.holding {
+    @apply bg-success/15 text-success;
+  }
+  .phase-badge.restPending {
+    @apply bg-warning/15 text-warning;
+  }
+  .calib-chip {
+    @apply flex items-center gap-2.5 px-4 py-2.5 mb-4 rounded-card border border-warning/40
+      bg-warning/10 cursor-pointer transition-colors duration-150;
+  }
+  .calib-chip:hover {
+    @apply bg-warning/20;
+  }
+  /* vh-aware like .metric-gauge svg — was a flat 180x180, one of the biggest single
+     contributors to the summary row not fitting short windows. */
+  /* Sized to sit beside the Designated Action dropdown row rather than as its own hero
+     element — smaller than the original 180px hero size, with the percent text scaled down to
+     match via clamp() instead of a flat rem value that would overflow a compact circle. */
+  .ring-wrap {
+    @apply relative shrink-0;
+    width: min(104px, 13vh);
+    height: min(104px, 13vh);
+  }
+  .ring-wrap .pct {
+    @apply absolute inset-0 flex flex-col items-center justify-center font-bold;
+    font-size: clamp(0.85rem, 1.4vh, 1.3rem);
+  }
+  /* Real bug found via screenshot: no width cap meant this SVG (viewBox 200x200) scaled to
+     the full panel width — at typical panel widths that's 1000px+, so the square viewBox
+     rendered far larger than the viewport and only a sliver was ever visible. Cap it like
+     .leg3d-viewport's equivalent constraint. */
+  .visualizer {
+    @apply flex justify-center;
+  }
+  .visualizer svg {
+    width: 100%;
+    max-width: min(42vh, 380px);
+    max-height: 100%;
+    height: auto;
+  }
+  /* max-height: 100% — .leg3d-viewport sits in a height-constrained flex box (.cockpit-content,
+     itself sized by .cockpit's flex-1 min-h-0) instead of an unconstrained column. Without it,
+     aspect-ratio only ever derives height from the vh-based max-width above and can still exceed
+     the box on short windows; combined with max-height the browser fits both constraints and
+     shrinks whichever axis is binding. */
+  .leg3d-viewport {
+    width: 100%;
+    max-width: calc(min(42vh, 380px) * 4 / 3);
+    max-height: 100%;
+    aspect-ratio: 4 / 3;
+    @apply rounded-card overflow-hidden border border-border;
+  }
+  .stat .label {
+    @apply text-text-muted text-xs uppercase tracking-wide font-semibold;
+  }
+  .stat .value {
+    @apply text-3xl font-bold mt-1 font-mono;
+  }
+  .color-thigh {
+    @apply text-thigh;
+  }
+  .color-shin {
+    @apply text-shin;
+  }
+  .color-accent {
+    @apply text-accent-strong;
+  }
+
+  /* ── toast ── */
+  .toast-host {
+    @apply fixed top-4 right-4 flex flex-col gap-2.5 z-[1000];
+  }
+  .toast {
+    @apply flex items-center gap-2.5 min-w-[240px] px-3.5 py-3 rounded-control bg-surface-raised
+      border border-border border-l-4 border-l-accent shadow-floating;
+    animation: toast-in 0.16s var(--motion-ease-enter) both;
+  }
+  /* Exit is pure opacity, no transform at all — a monitoring panel should never sweep laterally
+     as it clears, even the vertical entrance offset is dropped on the way out so nothing
+     competes for attention with live sensor data. */
+  .toast.exiting {
+    animation: toast-out 0.12s var(--motion-ease-exit) both;
+    pointer-events: none;
+  }
+  .toast.success {
+    @apply border-l-success;
+  }
+  .toast.error {
+    @apply border-l-danger;
+  }
+  .toast.warning {
+    @apply border-l-warning;
+  }
+
+  /* ── update banner ── 持續顯示直到使用者重啟或這次執行期結束(不像 toast 會自動消失)
+     ——這是一個需要使用者決定「現在」還是「等一下」的動作,不是純資訊通知。 */
+  .update-banner {
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3.5
+      px-4 py-3 rounded-control bg-surface-raised border border-border border-l-4 border-l-success
+      shadow-floating text-sm;
+  }
+
+  /* ── internal tab switcher (kept for Dashboard's secondary-visualization card,
+     see doc/UI_REDESIGN.md — same interaction pattern, re-skinned) ── */
+  .tabs {
+    @apply relative inline-flex gap-0.5 mb-3.5 p-1 rounded-control bg-surface-raised;
+  }
+  .tab-btn {
+    @apply relative z-[1] border-none bg-transparent text-text-muted text-[0.88rem] font-medium
+      px-4 py-1.5 rounded-control cursor-pointer transition-colors duration-150;
+  }
+  .tab-btn:hover {
+    @apply text-text;
+  }
+  .tab-btn.active {
+    @apply text-canvas;
+  }
+
+
+  /* ── sliding indicator (useLiquidKnob — positioning/drag-physics hook reused as-is;
+     only the shape's skin changes here: rectangular accent block, not a soft glass pill,
+     and the gooey SVG distortion filter is dropped, not carried into this direction) ── */
+  /* Old timing (0.4s/0.3s) read as over-damped "jelly" for a precision instrument's sliding
+     indicator — track/shape now share --motion-ease-mechanical at 0.22s, and the shape
+     transition drops its elastic overshoot (cubic-bezier(0.34,1.56,0.64,1) has a >1 control
+     point, i.e. bounce) entirely. */
+  .liquid-knob-track {
+    @apply absolute z-0 pointer-events-none;
+    transition: transform 0.22s var(--motion-ease-mechanical), width 0.22s var(--motion-ease-mechanical),
+      height 0.22s var(--motion-ease-mechanical);
+  }
+  .liquid-knob-track.dragging {
+    transition: none;
+  }
+  .liquid-knob-track.horizontal {
+    @apply top-0 bottom-0 left-0;
+  }
+  .liquid-knob-track.vertical {
+    @apply left-0 right-0 top-0;
+  }
+  .liquid-knob-shape {
+    @apply w-full h-full rounded-control bg-accent;
+    transition: transform 0.22s var(--motion-ease-mechanical);
+  }
+  /* "Lighting" from the design handoff — dark theme only (see .dot.on above for why) */
+  html:not(.theme-light) .liquid-knob-shape {
+    @apply shadow-glow-accent;
+  }
+  .liquid-knob-track.dragging .liquid-knob-shape {
+    transition: none;
+  }
+  .liquid-knob-track.horizontal .liquid-knob-shape.morph {
+    animation: knob-stretch-x 0.22s var(--motion-ease-mechanical);
+  }
+  .liquid-knob-track.vertical .liquid-knob-shape.morph {
+    animation: knob-stretch-y 0.22s var(--motion-ease-mechanical);
+  }
+}
+
+@keyframes dropdown-grow {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dropdown-shrink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes sidebar-toggle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dot-connect-pulse {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.9));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+  }
+}
+
+/* Single-stage squash-and-lock, replacing the old multi-stage jelly wobble. Peak amplitude
+   matches STRETCH_MAX in LiquidKnob.tsx (1.15 = 15% axial stretch); the opposite-axis
+   scaleY/scaleX compression at the peak is what reads as a solid material being momentarily
+   deformed rather than a soft blob bouncing. */
+@keyframes knob-stretch-x {
+  0% {
+    transform: scaleX(1) scaleY(1);
+  }
+  45% {
+    transform: scaleX(1.15) scaleY(0.92);
+  }
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+}
+@keyframes knob-stretch-y {
+  0% {
+    transform: scaleY(1) scaleX(1);
+  }
+  45% {
+    transform: scaleY(1.15) scaleX(0.92);
+  }
+  100% {
+    transform: scaleY(1) scaleX(1);
+  }
+}
+/* ── prefers-reduced-motion ──
+   Vestibular sensitivity / post-concussion / dizziness are plausible in a rehab-monitoring
+   context, for both the operator and the person wearing the sensor — this is treated as a
+   compliance requirement, not an optional nicety. Two-tier strategy:
+   1. Blanket collapse: every animation/transition in the app is squashed to ~0 duration by
+      default. This alone silently handles every transition/animation added above (LiquidKnob
+      morph+drag-stretch, dropdown/toast/dialog/overlay enter-exit, the connect-pulse glow, the
+      gauge panel's disconnect border shift) without needing to enumerate them individually.
+   2. Deliberate exceptions, layered back on top: state changes that carry information (did the
+      dropdown open, did the toast appear, is a destructive-action dialog now showing) still get
+      an 80ms pure-opacity fade so the change stays visually confirmable — motion is what's
+      removed, not all feedback. The sliding tab indicator (`.liquid-knob-track`) is load-bearing
+      (it's how "which tab is active" reads at a glance) so its position must still update, just
+      with zero animated transition instead of a sliding motion. */
+@keyframes fade-in-reduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-out-reduced {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .liquid-knob-track {
+    transition: transform 0ms, width 0ms, height 0ms !important;
+  }
+  .liquid-knob-shape.morph {
+    animation: none !important;
+  }
+  /* CSS animations can't have a single property (e.g. transform) stripped back out via a plain
+     `!important` override — the active keyframe always wins for that property. So instead of
+     trying to neuter transform/scale on the existing enter/exit keyframes, these swap to a
+     dedicated opacity-only keyframe pair at 80ms: motion removed, the fade itself kept so the
+     state change (dropdown opened, toast appeared, a destructive-action dialog is now showing)
+     stays visually confirmable instead of just popping in/out with no transition at all. */
+  .glass-dropdown-popup,
+  .overlay,
+  .dialog,
+  .toast {
+    animation: fade-in-reduced 80ms linear both !important;
+  }
+  .glass-dropdown-popup.closing,
+  .overlay.closing,
+  .dialog.closing,
+  .toast.exiting {
+    animation: fade-out-reduced 80ms linear both !important;
+  }
+}
+
+/* ── Dashboard container-query presets ──
+   Deliberately UNLAYERED (not inside @layer components), and moved here from where they were
+   originally written right after .dashboard-grid: Tailwind 3.4's @layer processing corrupts an
+   @container at-rule's prelude when it's nested inside @layer components — the compiled output
+   loses the `dashboard (max-height: ...)` condition entirely, leaving a bare `@container {}`
+   that (empirically, via a real Playwright measurement, not just reading the spec) behaves as
+   "always matches," so the narrowest preset silently won at every container size. Verified by
+   inspecting the actual built CSS in out/renderer/assets/*.css, not by guessing from the source.
+   Unlayered CSS always outranks layered CSS regardless of source order or specificity (that's
+   what "unlayered" means per the CSS cascade spec), so placing these here is not a hack that
+   depends on ending up last in the file — it would work the same placed anywhere outside a
+   @layer block.
+
+   Thresholds recalibrated against measured `.dashboard-workspace` heights, not the 700px/620px
+   Gemini's spec estimated from the *window* sizes without seeing this app's actual chrome
+   overhead (title bar + header + the conditional calib-chip banner eat far more than expected —
+   even the widest tested window, 1600×900, only leaves 677.7px of workspace height):
+     1600×900 "wide"          -> 677.7px  (wants the full/default bento layout)
+     1280×820 "default" launch -> 597.7px (wants the full/default bento layout too)
+     1093×614 "tight laptop"  -> 392.0px  (wants the compact horizontal preset)
+     1024×600 "floor"         -> 377.7px  (wants the numeric-only minimal preset)
+   The last two are only ~14px apart in real workspace height, which makes the exact boundary
+   between them inherently fragile (a font-rendering or DPI difference could tip a given real
+   window from one preset to the other) — that fragility comes from how close Gemini's two anchor
+   window sizes are once the app's fixed chrome is subtracted, not from a mistake in these
+   thresholds. It doesn't threaten the actual guarantee (never page-scrolls): every preset here is
+   independently overflow-safe, so landing on either side of that 14px band still means a usable,
+   fully-contained layout, just with chart+pose vs. numeric-only content. */
+@container dashboard (max-height: 450px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'gauge ring chart' 'gauge ring pose';
+  }
+  .dashboard-grid.no-pose {
+    grid-template-areas: 'gauge ring chart' 'gauge ring chart';
+  }
+}
+
+@container dashboard (max-height: 385px) {
+  .dashboard-grid,
+  .dashboard-grid.no-pose {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    /* Both rows minmax(0, Nfr), NOT `auto` for the numeric row — `auto` sizes to the numeric
+       grid's own content, which is exactly the "child pushes the container" anti-pattern this
+       whole rewrite exists to eliminate (found by measuring, not guessing: an earlier `auto`
+       here let a 6-card stat grid stretch this row to 800px in a 375px-tall container). The
+       numeric cell gets a fixed share of the container's real height and must fit inside it. */
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'gauge ring' 'gauge numeric';
+  }
+  .dash-cell-chart,
+  .dash-cell-pose {
+    display: none;
+  }
+  .dash-cell-numeric {
+    display: flex;
+    min-height: 0;
+  }
+}

@@ -1,0 +1,385 @@
+# IRMS_App 功能清單與優化待辦 (v2)
+
+> **相關文件**:[專案總覽](../README.md) · [系統規格 README](README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
+
+> 更新日期:2026-08-12 · 對應 v2 架構 (Electron + React + TS + IPC + better-sqlite3)
+> 本文件為「活清單」,完成項目請打勾並標註日期。
+> 被會議否決的項目**保留在清單上並註明否決理由**,不直接刪除——否則同一個提案會在
+> 幾個月後被重新提出、重新辯論一次。
+
+---
+
+## 一、現有功能盤點 (Feature Inventory)
+
+### 1. 連線與 BLE 通訊
+- [x] Web Bluetooth 自動配對(過濾名稱含 `IRMS` 的裝置,主進程 `select-bluetooth-device`)
+- [x] GATT 連線、訂閱 Angle TX 通知 (25Hz)
+- [x] 手動 Connect / Disconnect 切換
+- [x] 斷線自動重連(最多 5 次,間隔 3 秒)
+- [x] 下發控制指令:`LED_ON/OFF`、`GOAL`、`ALARM_ON/OFF`、`SYNC,offset`
+- [x] 封包解析:`T/S/K(/TR/SR/KR)`、`ERR:` 錯誤碼、malformed 丟棄
+
+### 2. 即時監測 (Dashboard)
+- [x] 即時角度卡片:大腿 / 小腿 / 膝夾角 / 內外翻 (Varus/Valgus)
+- [x] 即時折線圖 (Chart.js,knee/thigh/shin,maxPoints 可設)
+- [x] SVG 骨架視覺化 + 目標容錯弧(達標時變綠)
+- [x] 達標進度環(百分比 + reps)
+- [x] 硬體錯誤紅色遮罩(ERR 時凍結畫面、暫停寫入)
+
+### 3. 復健 Session
+- [x] 開始 / 結束 Session(寫入 DB)
+- [x] 達標狀態機:進入區間 → 維持計時 → 達標 → 回休息位
+- [x] **超限安全警報**:獨立的 `safetyLimit` 欄位(2026-08-01 與容錯解耦,migration 5;
+      NULL 時才沿用舊的 `target+tol+10°` 導出值)、與 session 綁定、UI 可靜音、重連後重新武裝
+- [x] reps 計數 + Session 計時器
+- [x] 高頻資料批次緩衝寫入(可設 flush 間隔,失敗回補上限 2000 筆)
+- [x] 達標 / 進出區間時同步硬體 LED / 蜂鳴器(含指令去重)
+
+### 4. 自訂動作 (Actions)
+- [x] 動作 CRUD(建立 / 編輯 / 刪除)
+- [x] 依協定過濾(knee / elbow / shoulder)
+- [x] 三種判定規則:joint_angle / segment_elevation / segment_extension
+- [x] 還原預設範本(清空後重建,避免重複)
+
+### 5. 歷史紀錄 (History)
+- [x] Session 列表(時間、動作名稱快照、reps)
+- [x] 單次分析圖表(knee + Varus/Valgus 曲線)
+- [x] CSV 匯出(6 軸角度,Blob 下載)
+- [x] 刪除紀錄(FK CASCADE 連動清除 sensor_data)
+
+### 6. 設定與校準 (Settings)
+- [x] **校準精靈**:六步引導(UI 標示 1/6–6/6,末步為套用前預覽)自動判斷佩戴方向
+      (invert / axisSwap)與歸零(offset),含幅度/靜止驗證;免手擷取 + 可退上一步
+      (2026-07-05 建立,2026-08-01 改免手,2026-08-03 修第 5 步誤觸發)
+- [x] 手動校準(進階摺疊):offset + 反相 × {大腿, 小腿} × {Pitch, Roll}
+- [x] 快速歸零(沿用現有 axisSwap/invert,只重算四個 offset;
+      `buildQuickZeroPatch` 純函式,2026-08-07 修好漏套 axisSwap 的缺陷)
+- [x] ~~同步校準 offset 至 ESP32~~(依 D1 移除:校準全在 App 端,2026-07-03)
+- [x] 一般設定:預設協定、圖表最大點數、寫入間隔
+- [x] 設定持久化 (Zustand persist → localStorage,version 1 + migrate)
+
+### 7. 引導式監測(2026-07-05 重構)
+- [x] 主指標正規化層(movementMetric):三種 triggerType 收斂單一判定路徑
+- [x] 弧形量表(目標帶/超限/回位刻線/膝直徽章)+ 教練提示(再抬 X°/保持/回位)
+- [x] 引擎 phase 外露(準備/保持/回位徽章)
+- [x] 3D 即時姿態視圖(Three.js,2026-07-04);趨勢圖/3D/2D/詳細數值 tab 化
+
+### 8. 基礎建設
+- [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
+- [x] better-sqlite3(WAL、外鍵、交易批次寫入)
+- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 5 版;見 [ROADMAP](ROADMAP.md) D4)
+- [x] 孤兒 session 啟動收尾 + `abandoned` 標記(2026-08-01)
+- [x] React ErrorBoundary 包裹各視圖(2026-08-01)
+- [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
+- [x] `escapeStack` 巢狀 modal Esc 分派層(2026-08-03)
+- [x] Vitest 測試基建:**雙 project(node / dom)**,目前 **246 tests / 21 files**;
+      `npm run ci` = typecheck + test + build(2026-08-27 由單一 node project 改制)
+- [x] **無硬體演練基建**(2026-08-27):單一 `ingest(text)` 注入接縫(2026-08-03 會議裁定)、
+      純函式模擬來源(封包編碼器逐位元對齊韌體 snprintf,含往返閘門測試)、六個具名情境、
+      模擬鏈路 `beginSimulated`/`endSimulated`。**校準精靈自此可在桌前跑完**
+      (此前被 `isConnected` 閘門鎖住,2026-08-03 會議記為「永遠看不到」)
+- [x] **示範模式(出貨版)**(2026-08-27):migration 7 的 `sessions.source` 帶 CHECK、
+      型別層必填、進行中不可切換、四個讀取面標記、一鍵清除示範紀錄
+
+### 已修缺陷(2026-08-27,由新測試抓到)
+- [x] **達標 LED 從第一下卡亮到 Session 結束**:`onRepCompleted` 未熄燈,引擎轉入
+      `restPending` 後再次進區的 `LED_ON` 被去重吃掉。第 2..N 下患者無任何區間回饋,
+      且 store 的 `inZone:false` 與 GPIO 實際狀態分歧
+- [x] **`linkTruncated` 永久卡在 true**:`attemptReconnect` 繞過 `connect()` 直呼
+      `connectGATT()`,重設從未執行。重設已移進 `connectGATT()`
+
+---
+
+## 二、優化待辦 (Optimization Backlog)
+
+### 🔴 P0 — 正確性與安全(優先)
+- [→] 📡 **實機端對端驗證**——**已部分完成**。2026-08-07 燒錄韌體 v3、BLE 連線、
+      跑完校準精靈,快速歸零修正經實測確認正常。**仍未驗證**:達標音 → 超限長鳴 →
+      斷線收尾這條回饋鏈(issue [#3](https://github.com/yuhina0515/IRMS/issues/3))
+      與 ±180° 桌面旋轉記錄(issue [#2](https://github.com/yuhina0515/IRMS/issues/2) 的後半)。
+      依專案慣例,需要實機的工作一律走 issue,不佔用桌面 backlog。
+      ⚠ **裝置取得零星,下次拿到之前必須先備妥錄製能力**,否則時間窗會被浪費在
+      「錄了但事後無法解讀」的 session 上(issue [#4](https://github.com/yuhina0515/IRMS/issues/4))。
+- [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
+- [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
+- [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
+- [ ] ~~**復健評分模型**~~:**2026-08-03 會議否決**——平穩度需要角速度,但 BLE 協定只傳
+      融合後的角度、沒有陀螺通道,且封包量化底線 0.1°;用差分角度反推的「平穩度」量到的
+      主要是量化雜訊,會產出一個看起來客觀的假分數寫進病歷。要做必須先改協定。
+- [x] 🔴 **判定路徑的元件測試**:2026-08-27 建立 vitest 雙 project(node/dom)。舊設定的
+      `include: ['src/**/*.test.ts']` **不匹配 `.tsx`**,元件測試會被靜默忽略而非失敗——
+      正是 2026-08-07 快速歸零缺陷死掉的那個缺口。現以副檔名分流,該陷阱不可能再出現。
+      已落地 `MetricGauge`(鎖住 2026-08-03 目視驗收的兩個迴歸)與 `HistoryView` 示範標記。
+- [x] 🔴 **回饋/警報鏈的指令稽核測試**(2026-08-27):`sessionController` 此前 368 行零覆蓋。
+      以 `vi.spyOn(bluetoothService, 'send')` 取得有序指令稽核,涵蓋超限→靜音→自動重新武裝、
+      未開始 Session 不得鳴響、`ERR:` 強制關閉並繞過去重、達標序列、斷線重連、MTU 截斷。
+      當場抓到兩個既有缺陷(見下方「已修缺陷」)。**注意:這證明的是 App 送出正確的字串
+      與順序,不證明它們真的驅動 GPIO——issue #3 仍完全開啟。**
+
+### 🟡 P1 — 效能
+- [x] LiveChart 高頻更新:25Hz 封包流以 `UI_SYNC_MS = 80` 尾緣節流同步 UI(≈12.5fps,
+      重繪減半),判定與 DB 寫入仍全速。(2026-07-11)
+- [x] History 分析:大型 Session 於主進程 LTTB 抽樣至 1200 點(保留峰值),不再一次載入全量。(2026-08-01)
+- [x] ~~以 `requestAnimationFrame` 聚合多筆封包再繪圖~~:**2026-08-03 會議裁定此項應刪除**
+      ——需求已由上面的 `UI_SYNC_MS` 節流滿足,rAF 是同一件事的另一種寫法,留在 backlog
+      只會誤導成尚未處理。
+
+### 🟢 P2 — 使用者體驗
+- [x] ~~淺色主題(目前僅深色)~~:**已於 2026-07-12 完成**——雙主題跟隨系統(Apple Liquid Glass token 架構)。
+      ⚠ **2026-09-01 UI 全面重建取代**:整套 Apple Liquid Glass 系統(含此項)已拆除,見下。
+- [x] ~~外觀風格設定檔系統~~:**已於 2026-08-31 完成**,把上述雙主題重構為 `styles/profiles/`
+      底下的兩個自足 `StyleProfile`(見 [[log_20260831_style_profile_system|日誌]]),
+      Settings 新增 Appearance 面板可選固定風格覆蓋系統深淺色。**⚠ 2026-09-01 移除**:
+      使用者裁定推掉整個手刻 Liquid Glass UI 重來(非會議否決,是被整批取代),
+      Appearance 面板與 `applyStyleProfile.ts`/`styles/profiles/` 隨之退場,新 UI
+      改採 Tailwind CSS variable 雙主題(`applyThemeMode`,見 [[log_20260901_ui_teardown_start|
+      拆除日誌]] 與 09-02 Gemini mockup 實作日誌)。保留本項紀錄避免「加設定檔切換」
+      的提案未來被當成全新點子重新提出——它已經做過又被整批換掉,不是沒人想到。
+- [x] 圖表可切換顯示 Roll(內外翻)曲線。(2026-08-27)走**獨立右側 y 軸**——帶符號且量級
+      只有矢狀面的十分之一,共用刻度會被壓成貼底直線,看起來像「沒有變化」。
+      新增 `Settings` 欄位一併把 persist version 4→5(`migrate` 只在版本落後時才會跑,
+      不 bump 則 zustand 淺層 merge 會讓新欄位變 undefined)。
+- [x] 動作卡片排序 / 搜尋 / 依 triggerType 分組。(2026-08-27)查詢邏輯抽成純函式
+      `services/actionQuery.ts`;UI 端把「此協定尚無動作」與「搜尋不到」拆成兩種出口。
+- [x] 重連進度更明確的視覺提示。(2026-08-27)**同時修掉一個從未被發現的缺陷**:
+      原本的「Reconnecting (n/5)」寫進 `statusText`,但下一行 `connectGATT()` 的
+      `'Connecting...'` 會在同一次嘗試內蓋掉它——那個計數器自 2026-06-27 起從來沒被看見過。
+      改用結構化的 `useStore.reconnect` 欄位 + 確定性進度軌道。
+- [ ] i18n(繁中 / English 切換),目前介面中英混用。
+      (依專案規則 #2 明確延後;2026-08-27 使用者再次裁定不納入)
+- [x] 鍵盤快捷鍵(連線、開始/結束 Session)。(2026-08-27)Ctrl+K / Ctrl+Enter,
+      **走與按鈕完全相同的守衛**,不可用時不掛 listener,不得繞過未支援協定封鎖或示範模式互斥。
+
+### 🔵 P3 — 程式品質與測試
+- [x] **單元測試**:2026-07-03 導入 Vitest(22 tests),此後隨每批修正擴充,
+      目前 **144 tests / 14 files**;`npm run ci` = typecheck + test + build。
+- [ ] ESLint + Prettier 設定。(2026-08-01 會議明確延後:已知約 35 項待修,
+      優先度低於判定正確性;`npm run ci` 現含 typecheck+test+build,不含 lint)
+- [x] React ErrorBoundary 包裹各視圖,避免單一錯誤白屏。(2026-08-01)
+- [x] DB migration 機制:`PRAGMA user_version` 遞增式 runner,每版單一交易、失敗回滾;
+      含 v1.0.1 既有安裝的升級路徑測試。(2026-08-01)
+
+### ⚪ P4 — 打包與部署
+- [x] electron-builder:應用程式圖示 (`build/icon.ico`) 與產品中繼資料
+      (`appId`/`productName`);已發布 v1.0.0 / v1.0.1 的 NSIS 安裝檔。(2026-07-14)
+- [ ] Windows 程式碼簽章(目前所有產出皆未簽章,安裝時會跳 SmartScreen 警告)。
+- [x] **自動更新 (electron-updater)**(2026-09-05 完成並驗證成功,
+      見 [[log_20260905_auto_update_electron_updater]]):靜默背景檢查/下載、無安裝
+      精靈、下載完成後畫面下方提示重啟套用(忽略也會在下次正常關閉 App 時自動套用)。
+      過程中連續修掉兩個真實架構問題(不是程式碼邏輯錯誤):`IRMS` repo 原本 private
+      導致 Releases API 404(使用者選擇改為 **public**,動手前已掃過整個 git 歷史
+      確認無金鑰/憑證/患者資料外洩疑慮);repo 轉 public 後仍抓不到,追查是先前手動
+      `gh release create` 上傳的 beta 資產缺少 `electron-builder --publish` 才會
+      自動產生的 `latest.yml`——刪掉重發,改用正確的發布指令解決。**往後所有發版
+      (含 beta)都必須用 `electron-builder --publish`**,手動上傳資產的方式不會產生
+      `latest.yml`,自動更新永遠抓不到。
+- [ ] 跨平台 target(目前僅 Windows NSIS)。
+- [ ] **裝置韌體 OTA 更新**(構想,使用者以照片提議、確切提出時間不確定,推測 08 月下旬,
+      2026-09-03 記錄以候查;2026-09-04 使用者對三個開放問題給出方向性回覆,**方向已定,
+      細節設計與動工尚未開始**):讓 IRMS App 能把新韌體推送到 ESP32,取代現行每次都要
+      USB 接 COM7 跑 `arduino-cli upload` 的手動流程(見
+      [[log_20260828_firmware_flash_rotation_capture]])。與上面「自動更新
+      (electron-updater)」是兩件事——那項是 Electron App 自己的更新機制,這項是
+      App 更新**穿戴式感測器**的韌體。三個開放問題現況:
+      - **傳輸方式:已選定 BLE OTA**。免額外連線設定;傳輸慢、易受連線品質影響這個
+        取捨使用者評估後接受。
+      - ~~Partition table 需改成雙 app partition⋯~~ **2026-09-04 查證後修正**:
+        `IRMS_Sensor` 現行編譯用的 `esp32:esp32:esp32` FQBN 預設
+        `PartitionScheme=default`(Arduino ESP32 core「4MB with spiffs」),此 scheme
+        本來就內建 `ota_0`/`ota_1`/`otadata`——裝置**已經是雙 app partition 佈局**,
+        不需要重新設計 partition table,也不需要為了改 partition scheme 而多一次
+        USB 過渡燒錄。真正的限制是**空間**:單一 app slot 為 1,310,720 bytes,現行
+        韌體 `.bin` 為 1,122,799 bytes(85%),OTA 相關程式碼與傳輸緩衝區只剩約
+        188KB(14%)可用,選型/實作時需把這個headroom 當硬限制,而非「partition
+        改造」本身。
+      - **更新失敗復原機制**(裝置戴在患者身上,若更新中斷變磚風險層級跟 App 端
+        auto-update 不同)——使用者判斷非疑慮,暫不需額外設計;仍排入後續整測
+        (實際切斷電源驗證 ESP32 內建 OTA rollback 機制,而非僅憑判斷跳過)。
+      三個問題方向皆已拍板,但仍是構想層級的回覆,尚未展開具體技術規劃(如 BLE OTA
+      傳輸協定設計、flash headroom 內的程式碼瘦身),動工前仍需要那一輪設計工作。
+
+      **2026-09-04 Phase A(設計研究)完成,結論如下:**
+      - **otadata 免初始化**:查證 ESP-IDF bootloader 文件,partition table 沒有
+        `factory` slot 時,bootloader 在 `otadata` 空白/未初始化時會直接 fallback
+        boot 第一個可用的 OTA slot(`ota_0`)——這是內建行為,不需額外程式或燒錄步驟
+        觸發。現行裝置(單一 app 版本、從未呼叫過 OTA API)開機能正常運作,本身就是
+        這個 fallback 在生效的證明。
+      - **BLE OTA 傳輸方案,兩個候選(不含第三方庫的 footprint 都還沒扣):**
+        1. **手刻(建議預設)**:在現有 `IRMS_SERVICE_UUID` 底下新增控制/資料兩個
+           characteristic,直接呼叫 Arduino ESP32 core 內建的 `Update.h`
+           (`esp_ota_ops` 包裝)寫入非現行 slot。零額外函式庫、零授權疑慮、
+           可與現有 `BLEServer` 共用同一顆 server,但分包/CRC/重傳協定需要自己設計。
+        2. **[gb88/BLEOTA](https://github.com/gb88/BLEOTA)**:79 星、2026-04 仍在維護,
+           明確支援 classic ESP32 的 Bluedroid stack(與現行韌體相同),內建 4KB
+           分包 + CRC-16 + 失敗自動重傳,不獨佔 `BLEServer`(可與既有服務並存)。
+           **⚠ 授權為 AGPL-3.0**(強著佐權,衍生作品需以相同授權釋出)——是否接受
+           這個授權條件是使用者需要自己決定的商業/散布考量,不是技術問題,尚未拍板。
+           實際 flash/RAM footprint 官方文件未載明,若考慮採用需先實測是否塞得進
+           剩餘 188KB headroom。
+        暫以方案 1(手刻)作為 B1 的預設工作假設往下推進,原因:zero 授權風險、
+        zero 額外 flash 佔用,且此專案目前傾向自行掌握全部程式碼。若使用者之後
+        傾向改用 gb88/BLEOTA 換取更快開發速度,B1 開始前都還能改。
+      - 另找到 [Raghav117/bluetooth_ota_firmware_update](https://github.com/Raghav117/bluetooth_ota_firmware_update)
+        與 [AvinasheeTech/ESP32-IDF-BLE-OTA](https://github.com/bheesma-10/ESP32-BLE-OTA)
+        兩個候選,後者是 ESP-IDF 而非 Arduino API,尚未深入評估,列在此供日後參考。
+
+      **2026-09-04 Phase B(韌體)+ Phase C(App)實作完成**(`/goal` 不中斷模式一路
+      做到底,完整日誌見 [[log_20260904_ble_ota_implementation]]):韌體端新增獨立
+      OTA GATT service(手刻方案,`Update.h` + MD5 驗證,斷線/中止一律 `Update.abort()`
+      確保不會變磚);App 端新增 `BluetoothService.performOtaUpdate()` 與 Settings 的
+      「Firmware Update」面板。`arduino-cli compile` 乾淨(86.3% flash,較 OTA 前只多
+      約 8.2KB)、`npm run ci`(typecheck+284 tests+build)全綠。**誠實的完成度邊界**:
+      - [x] **Tauri C2 選檔接縫**(2026-09-15):原生 dialog → Rust `.bin`/4 MB 驗證 →
+            讀檔/MD5 → TS `Uint8Array` adapter 已閉合，並有 5 項邊界測試；尚待人工點選煙霧測試。
+      以下三步需要實體 USB/BLE 硬體存取,AI 無法遠端執行:
+      - [ ] B4:燒錄一台測試裝置(`arduino-cli upload -p COM7 --fqbn esp32:esp32:esp32
+            IRMS_Sensor`,partition scheme 不變不需額外參數)。
+      - [ ] D1:實機端對端測試(App 觸發更新 → 裝置重開機 → 感測器功能正常)。
+      - [ ] D2:傳輸中途斷電/斷連驗證裝置不會變磚(韌體設計上應該安全,但只有實測
+            過才能真的畫勾)。
+      另外,C1(UI 位置放進既有 Settings 頁)因 `/goal` 不中斷要求跳過了本專案「UI/IA
+      決策交給 Gemini 覆核」的既有慣例,標記待下次覆核 pass 補上。
+- [ ] **App 端執行期動態模組系統(2026-09-11 裁決會議後:拆成兩條軌道,見
+      [[log_20260911_meeting_dynamic_module_system|會議記錄]])**:起點是「移除校正/手動校正功能,改用 OTA 讓開發時定義好的值推給裝置」,經釐清
+      後發現方向錯了——校正邏輯(`axisSwap`/`invert`/`offset`)全在 App 端純函式,跟裝置
+      韌體/OTA 完全無關(見 [ROADMAP](ROADMAP.md) D1 後果條款)。真正的構想是使用者早先
+      提過的「App 功能全模組化」(09-06/07 code-splitting 只解決首次載入速度,不是這個)的
+      延伸:讓功能模組可以**不整包發版就更新**,並讓使用者自行挑選要啟用的模組。
+      已確認的方向:
+      - **目標平台是 Tauri 版**(`IRMS_App_Tauri`),不做在準備退役的 Electron 版上。
+      - 要做**真正的執行期動態模組**(遠端抓 bundle 動態掛載),不是編譯期就決定好的
+        feature flag 開關。
+      - **模組分兩層**:基本模組安裝時自動部署、不可被使用者停用或卸載;其餘模組使用者
+        可自由安裝/卸載/停用。「其餘模組」來源**2026-09-11 裁決會議拍板:只做第一方**
+        (自己開發、放進官方發布管道),不開放第三方 plugin marketplace——不再是暫定假設。
+      - **技術限制,決定哪些模組能真動態**:Tauri 的 `#[tauri::command]` 是編譯期在 Rust
+        端註冊的,不是執行期可插拔的。純前端邏輯模組(校正、guidance 文案等不碰 native
+        的 `services/`)理論上可以做成真動態;碰 BLE/DB/OTA 等 native 能力的模組做不到,
+        永遠得跟著整包版本一起發布。
+      - **依賴閘門:[[TAURI_MIGRATION_PLAN]] Phase 4(auto-update)——App 端整合(09-10)+
+        發版 pipeline(09-11)皆已建立並實際跑過一次端對端驗證**(見
+        [[log_20260911_tauri_updater_e2e_verification]]):`tauri-plugin-updater` +
+        `latest.json` manifest 機制已選定並實作(`src-tauri/src/update.rs`),伺服器端行為
+        (含 GitHub CDN 傳播延遲)已被實測過。閘門本身視為已到位,但**2026-09-11 裁決會議
+        判定「到位」不等於「值得把校正模組疊上去」**,見下方裁決結果。
+      - **動態載入程式碼的完整性驗證(2026-09-10 定案採用)**:這支 App 碰患者復健資料,
+        抓遠端模組 bundle 執行前不能無條件信任下載回來的內容——**採用 SHA-256 checksum +
+        簽章驗證(比對釋出時內建的公鑰)**,金鑰管理/驗證失敗行為等細節留到真的動工設計時
+        再展開。
+      - **2026-09-11 裁決會議結果:拆成兩條互不依賴的軌道**(不是「全做」也不是「全等」,
+        完整交叉詰問過程見 [[log_20260911_meeting_dynamic_module_system|會議記錄]]):
+        1. **校正精靈重新設計 → 現在就做,走傳統非模組化路線**,不等模組系統。採用
+           [[log_20260908_meeting_single_imu_axis_orientation|09-08 會議]]已診斷的
+           raw-vector rotation + `atan2` 方案。**這推翻了 09-10 「校正是第一個模組」的
+           決定**——三方交叉詰問後一致收斂:校正不該是動態模組系統的第一個生產模組
+           (疊加校正數學/模組載入器/未經硬體驗證的 BLE stack 三重未知數,且 Phase 4 的
+           整包 auto-update 已經讓校正邏輯能隨時整包更新,不需要模組系統才能快速迭代)。
+           **2026-09-12 桌前部分已完成**([[log_20260912_axis_rotation_calibration_redesign|
+           日誌]]):`axisSwap:boolean` → `axisRotationDeg:number`、`recalibrateAxis` 獨立
+           函式、合成資料掃過 φ×α 驗證(不重蹈提案 A 的退化)、資料模型 migration(legacy
+           資料標記 unverified)皆已落地,282 tests 全綠。**仍待**:真機驗證(需要裝置)、
+           獨立於精靈之外的單肢段重校準入口(UI 位置留給 Gemini,未擅自設計)。
+        2. **模組系統本身 → 只做一次限定範圍、不碰硬體的技術可行性 spike**:一個不碰
+           BLE/DB/OTA、跟校正邏輯無關的最小「hello world」模組(fetch 遠端純前端 JS →
+           checksum+簽章驗證 → 執行期掛載),只回答「Tauri 的 CSP/asset protocol 是否
+           允許這個動作」這一個具體技術問題。manifest 格式、正式模組交付機制、Settings UI
+           呈現全部暫緩。**spike 完成後不論可行與否,都必須明確記下「繼續/停用」的判斷與
+           下一步時間點**——這個專案有「以後再做」等於「永遠不做」的前科(見會議記錄的
+           留意異議),不能讓 spike 自己也變成一個懸置條目。
+      尚未展開的開放問題:模組 manifest/版本比對格式、Settings UI 要怎麼呈現「模組」給
+      使用者選——這些等 spike 有結論、且真的出現第二個模組需求時再展開。
+
+      **2026-09-11 草稿:現有功能對應到模組分層的初步盤點**(使用者要求列出全部功能並嘗試
+      分割,回答的是「哪些功能理論上屬於哪一層」這個問題本身,**不是啟動 spike 以外的任何
+      實作**,manifest/邊界仍是上一段講的「尚未展開」狀態,這份盤點只是先把地圖畫出來):
+
+      | 分層 | 範圍 | 理由 |
+      |---|---|---|
+      | 🔒 **不可能做成動態模組** | BLE 連線/OTA(`ble.rs` 全部 IPC command)、DB 讀寫(`db.rs`/`migrations.rs` 全部 IPC command)、App 自動更新(`update.rs`)、視窗外殼/開機動畫/單例鎖(`splash.rs`/`lib.rs`)、Electron→Tauri 一次性資料遷移(`migrate_electron.rs`) | Tauri 的 `#[tauri::command]` 編譯期在 Rust 端註冊,執行期無法動態新增——這條線是技術限制,不是設計選擇 |
+      | 🏗 **基本模組(即使技術上可動態,也不該讓使用者關掉)** | `store/useStore.ts`/`useUiStore.ts`(全域狀態骨幹)、`shared/types.ts`/`shared/protocol.ts`(契約型別)、`platform/irmsApi.ts`(IPC 橋接)、`sessionController.ts`(串起 BLE+判定引擎+DB 的協調層)、`triggerEngine.ts`+`movementMetric.ts`(判定引擎本體)、`bluetooth.ts`(含 reconnect 邏輯) | 其餘每個功能都直接依賴這幾層;讓使用者關掉等於讓 App 不能用,不是模組化的收益,是自找麻煩 |
+      | 🧩 **候選可選模組(純前端邏輯,理論上可掛可卸)** | 校準精靈(`calibration.ts`+`CalibrationWizard.tsx`,**已裁決不當第一個模組**)、教練提示文案(`guidance.ts`)、示範模式模擬器(`simulation/`)、動作搜尋排序分組(`actionQuery.ts`)、3D 姿態視圖(`Leg3D.tsx`,three.js)、即時折線圖(`LiveChart.tsx`,chart.js)、2D 骨架視覺化(`AngleVisualizer.tsx`)、主題系統(`theme.ts`)、History 分析 modal(`HistoryView.tsx` 的視覺化部分,CRUD 本身走 DB command 不可拆) | 這些是「拿掉也不會讓核心監測/安全鏈斷掉」的加值功能,符合模組化真正想要的「使用者自選啟用、可獨立更新」語意 |
+      | ⚪ **UI 殼層(可選,但目前跟 Views 綁太緊,拆分成本高於效益)** | `ActionsView.tsx`/`SettingsView.tsx`/`DashboardView.tsx`(頁面本身)、`Sidebar.tsx`/`TopHeader.tsx`/`ToastHost.tsx`/`ConfirmDialog.tsx`/`ErrorBoundary.tsx`/`ErrorOverlay.tsx`/`GlassDropdown.tsx`/`LiquidKnob.tsx`/`ProgressRing.tsx`/`MetricGauge.tsx`/`CoachHint.tsx`/`SessionControlPanel.tsx`/`NavIcons.tsx`/`UpdateBanner.tsx` | 這些元件互相耦合(共用 layout/樣式 token),现況拆哪一個都會牽動好幾個;不是不能做,是投報率目前看不出來,列在這裡供之後參考,不是待辦 |
+
+      **這份表格會過期**:一旦 spike 真的做完、manifest 格式定案,實際的模組邊界應該以那時
+      重新裁決的結果為準,不是這份初步盤點——這裡只回答「今天看起來像什麼」。
+
+- [x] **~~校正體驗改為「環境式/自動偵測」而非精靈式~~(2026-09-10 已否決,不採用)**:
+      原構想是把 08-29 會議裁決的「幾何預期值當比對信號」機制往前推一步,背景比對一致就
+      不跳精靈畫面。使用者否決此方向,原話訴求是「像手機一樣不需要校正,開發時就直接調整
+      好」——但這條路徑本身已在 09-09 討論中被判定不可行(校正量的是**這次穿戴**感測器
+      實際貼裝角度與病患腿型的站直基準,每次穿戴都不同,沒有「開發時調一次永久對」的值可
+      寫死;若要真正免校正,唯一可行路徑是**機構方式**〔固定卡榫/導引槽強制貼裝角度〕,
+      屬於硬體變動,不是 App 端議題)。討論收斂到「校正架構本身認不出哪個環節錯」才是使用者
+      真正在意的痛點,**已轉為上方「App 端執行期動態模組系統」條目下的校正模組重練決定**,
+      這條獨立條目就此關閉,不再追蹤。
+
+### 🧩 多關節協定泛化 (Phase 5)
+
+> 現況:elbow / shoulder 已在 2026-08-01 **明確擋下**(判定仍讀腿部感測器,擋下後
+> 不再讓它們產生假紀錄)。泛化順序依 [ROADMAP](ROADMAP.md) 決策 D3:型別 → migration
+> → UI → 判定。
+
+- [x] **型別第一步(2026-09-11)**:`CalibrationSnapshot`/`SensorReading`/`StoredReading`/
+      `Settings` 校準欄位已從 thigh/shin 改名為 proximal/distal(見
+      [[log_20260911_phase5_type_layer_proximal_distal|日誌]]),Rust 端以 `serde(rename)`
+      同步 wire 格式、SQL 欄位不動,persist migration 已補上(v10→v11)。
+      **`shared/protocol.ts` 的 `RawAngles`/`LiveAngles`(判定引擎與即時視覺化實際讀的
+      `angles.thigh`)尚未改名**——這是下一輪型別層工作,範圍更大(觸及 triggerEngine/
+      movementMetric/Leg3D 等)、風險更高,刻意留到下次。
+- [ ] elbow / shoulder 目前共用以「膝/大腿/小腿」命名的判定邏輯。需:
+  - [ ] 泛化命名(近端/遠端肢段,而非 thigh/shin)——續完 `RawAngles`/`LiveAngles` 這一層。
+  - [ ] 依關節對應正確的 IMU 軸向與判定方向。
+  - [ ] 各協定的預設範本與目標角度臨床校準。
+
+---
+
+---
+
+## 二之二、專案規則(會議累積,動任何項目前先過這一關)
+
+1. **指出它改變哪一個決定,以及那是誰的決定——引擎的,還是人的。**(2026-08-03 修訂)
+   指不出來就是裝飾性的,排到清單最後面。舊版寫作「指出它餵給哪條判定路徑」,但那條
+   規則按字面會把「History 畫錯的安全線」判為裝飾性——它不餵給引擎,卻改變督導的判讀。
+2. **修缺陷,不擴大議程。**(2026-08-03 立、2026-08-07 沿用)發現缺陷就修該缺陷,
+   不順勢啟動架構級重寫。i18n、Electron 升級、多關節泛化、ESLint 35 項都是照此延後。
+3. **需要實機/硬體的工作一律開 GitHub issue**,不寫進本文件或 ROADMAP,
+   避免硬體滑期時整份 backlog 看起來是空的。
+
+---
+
+## 三、已知技術債(重寫時保留待辦)
+
+- [x] **2026-09-16 vector-extension parser boundary fixes:** shared TS/Rust fixtures
+  cover missing/empty/extra/non-finite vector fields. Fixed TS empty-to-zero coercion and
+  Rust filtering invalid fields into a false valid vector pair. Broader IPC parity and
+  end-to-end journeys remain open; this does not complete the entire contract backlog.
+- [x] **Tauri 前端與 Rust 驗證整合為單一 CI 入口**(2026-09-15):`npm run ci` 現涵蓋
+      typecheck、283 Vitest、production build、rustfmt、57 Rust tests 與 Clippy
+      warnings-as-errors；同批移除既有 Clippy 警告並把 DB mutex poison 從 panic 改為 IPC error。
+- [x] **建立遠端 PR CI gate**(2026-09-15):新增 Windows GitHub Actions workflow，以 Node 24、
+      stable Rust、`npm ci` + `npm run ci` 驗證前端與 Rust。
+- [x] **補齊 Tauri 邊界與旅程測試**(2026-09-20):`DashboardView.test.tsx`(12 tests——
+      連線/選動作提示、協定不支援、硬體 ERR、校準警示、超限警報靜音、Start/End Session)與
+      `SettingsView.test.tsx`(8 tests——韌體 OTA 面板的連線態閘門、選檔、starting→
+      transferring→finalizing→done 進度旅程、失敗旅程、中止)補齊 OPTIMIZATION 點名的
+      「連線→Session→ERR/斷線→收尾」與「OTA 進度/失敗旅程」缺口。過程中發現
+      `irmsApiStub.ts` 從未實作 `firmware`/`updates` 命名空間(檔頭原本明講「真的用到時再
+      補」),一併照既有 stub 模式補上。TS/Rust IPC 契約 parity 已由 CON-01(09-17)的
+      wire-shape 鎖定測試涵蓋,不在本項範圍內重複。`DashboardView`/`SettingsView` 之外的
+      元件(`Sidebar`/`TopHeader`/`ConfirmDialog` 等純 UI 殼層)仍無測試,判定為投報率低,
+      未列入本次範圍。337 前端測試(自 317 起)+ 50 Rust,`npm run ci` 全綠。
+- [x] **Tauri renderer 安全基線**(2026-09-15):建立最小 production/dev CSP；production
+      只允許 self + Tauri IPC 與必要的 asset/data/blob，dev 僅額外開固定 HMR websocket；
+      `tauri build --no-bundle` 成功。
+- [x] **對齊前端工具鏈世代**(2026-09-15):Vite 8.3 + React plugin 6.1 + Vitest 5.0，
+      淘汰警告消失，`npm audit` 從 1 moderate + 1 high 降為 0。
+- [x] `react-chartjs-2` 已列入依賴但實際使用原生 Chart.js,可移除依賴。(2026-06-27 已移除)
+- [ ] 舊版 `irms.sqlite`(v1 schema)未自動遷移至 v2;若需保留歷史資料需寫一次性匯入腳本。
+- [x] 文件中 `AI_CODING_RULES.md` 的檔案路徑仍指向舊位置 `c:/Users/Yuhina/Documents/IRMS`。(2026-06-30 已改為倉庫內相對連結;並一併同步全文件至 v2 架構、修正 3 軸/舊 schema 描述、補齊文件交互指引。)
+
+
+## Runtime module contract (2026-09-27)
+
+Module listings manage modules only; operation UI belongs to module-owned pages hosted on the 工具 (Tools) tab.
+See [MODULE_CONTRACT.md](MODULE_CONTRACT.md) for page registration, immediate reactivation,
+cancellation/disposal, compatibility and release integration requirements.

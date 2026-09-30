@@ -1,0 +1,2 @@
+# Signed byte-for-byte: line-ending conversion would invalidate the Ed25519 signature.
+IRMS_App_Tauri/src-tauri/fixtures/firmware_manifest_sample.json* -text
