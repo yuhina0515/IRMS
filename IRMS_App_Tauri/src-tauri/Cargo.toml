@@ -1,6 +1,6 @@
 [package]
 name = "irms_app_tauri"
-version = "1.2.0-beta.20"
+version = "1.2.0-beta.21"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -59,6 +59,11 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# btleplug's Android backend needs a one-time JNI init (see lib.rs JNI_OnLoad); versions match btleplug's own.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.19"
+jni-utils = "0.1"
 
 # Desktop-only plugins: no updater/single-instance on Android/iOS (mobile updates ship via the store/APK).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

@@ -22,6 +22,20 @@ use splash::SplashReadyState;
 use std::sync::Mutex;
 use tauri::Manager;
 
+/// btleplug (droidplug) keeps global JNI class references; they must be resolved while the app's
+/// class loader is current, i.e. here, before any Rust thread touches Bluetooth.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn JNI_OnLoad(
+    vm: jni::JavaVM,
+    _reserved: *const std::ffi::c_void,
+) -> jni::sys::jint {
+    let env = vm.get_env().expect("JNI_OnLoad: no JNIEnv");
+    jni_utils::init(&env).expect("jni-utils init failed");
+    btleplug::platform::init(&env).expect("btleplug init failed");
+    jni::JNIVersion::V6.into()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
