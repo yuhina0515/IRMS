@@ -16,13 +16,14 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[PROJECT_STATUS\|開發進度]] | 各階段完成狀況與已知待驗證項目 |
 | [[OPTIMIZATION\|優化待辦]] | 待改進項目清單 |
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
-| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Electron 三進程互動圖 |
-| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D4) 與 Phase 0–5 開發路線圖 |
+| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Tauri 原生層/前端互動圖 |
+| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-01 校準 B(beta)+ 韌體 `G:` 原始串流** ([[log_20261001_calibration_b_beta_and_raw_stream|Log]]): 重力平面 + 陀螺儀樞軸 + 六面地面階段的新校準流程(設定頁「校準 B (beta)」),韌體 1.0.1-beta.2 新增 opt-in `G:` 封包(`CMD:RAW_ON`)。僅合成資料與單元測試驗證,**實機待 Harold 測試並以遙測回傳**。
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.
-- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. PR #21, not pushed.
+- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. Shipped in beta.19.
 
 - **2026-09-30 adaptive workbench UI** ([[log_20260930_adaptive_workbench|Log]]): clinical palette and responsive inner-scroll regions; 410 frontend tests passed. Full CI invocation, visual acceptance and Git delivery have environment restrictions; see log.
 
@@ -40,7 +41,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-09-26 v3 review + PR stack** ([[log_20260926_v3_review_guidance_fix_pr_stack|Log]]):
   v2 rebuild (#10) closed in favour of GPT v3 (#12); ported the guidance negative "lower by" fix
   into v3 (`fcb9018`). Codex's modules/updater/dropdown work opened as draft #14 on top of the OTA
-  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 still lacks i18n and Windows DPI checks.
+  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 lacked i18n and Windows DPI checks at that time (i18n shipped in beta.19).
 - **2026-09-25 real-device session → beta.12/13, auto delivery, UI v3** ([[log_20260925_realdevice_fixes_autopush_ui_v3|Log]]):
   telemetry-driven fixes (manual disconnect no longer auto-reconnects; knee now hinge-frame
   thigh−shin — CAL-03 A/B done on real data), beta.13 released. Firmware moved to
@@ -819,10 +820,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   隔離 profile 快速煙霧測試通過(auto-update 正確判定「已是最新版」)。**OTA 硬體
   驗證(B4/D1/D2)仍待 Harold**,release notes 已註明,本次沒有任何 OTA 相關程式碼
   變動。
-- **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
+- **📡 硬體工作已移至 GitHub issues**:#2(舊儲存庫 issue,已封存)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
-  [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
-  [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration 已於 2026-08-22 完成關閉。
+  #3(舊儲存庫 issue,已封存) 實機 E2E——阻塞已解除,待進行。
+  #4(舊儲存庫 issue,已封存) 校準快照 migration 已於 2026-08-22 完成關閉。
   **慣例:需要實機的工作一律開 issue,不寫進 ROADMAP**
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **已於 2026-08-07 燒錄**,
   BLE 實機連線與校準精靈都在真裝置上跑過(2026-08-12 更正);**2026-08-28 重新燒錄現行版本

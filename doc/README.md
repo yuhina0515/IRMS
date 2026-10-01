@@ -12,7 +12,7 @@
 
 > **2026-09-16 現役實作更正:**桌面監測端現役實作是 `IRMS_App_Tauri`(Tauri 2 + Rust +
 > React/TypeScript),取代下面第 3、4、5 節仍在描述的 Electron v2 架構。Electron
-> (`IRMS_App`)目前仍留在 repo 內、尚未正式除役(遷移退場條件見
+> (`IRMS_App`)已於 2026-09 切換為 Tauri 後停用(原始碼目錄暫留在 repo 內作歷史參照;切換紀錄見
 > [TAURI_MIGRATION_PLAN.md](TAURI_MIGRATION_PLAN.md)),故下方 Electron 相關章節保留為
 > **歷史/v2 世代文件**,不代表現況。現役架構與開發指引請見
 > [`IRMS_App_Tauri/README.md`](../IRMS_App_Tauri/README.md)。硬體(ESP32 韌體、腳位、
@@ -42,6 +42,8 @@
 * **電源管理**：支援 3.7V 鋰電池供電。
 
 ### 2.1 六軸方向定義(校準後統一慣例,2026-07-05 制定)
+
+> **2026-10-01**:除流程 A 校準精靈外,設定頁新增「校準 B (beta)」——以重力平面、陀螺儀樞軸與六面地面階段推算安裝方向,輸出相同的 Settings 欄位;實機驗證待辦。
 
 App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;所有偵測、量表、3D/2D 顯示均以此為準:
 
@@ -142,11 +144,12 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * **角度推播 (Angle TX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483e-36e1-4688-b7f5-ea07361b26a8`
     * **格式 (6 軸)**：I2C 正常時以 **25Hz** 頻率通知發送 `T:大腿Pitch,S:小腿Pitch,K:膝夾角,TR:大腿Roll,SR:小腿Roll,KR:膝Roll差` (例如 `T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0`);其中 `K`、`KR` 為衍生值,前端會由 Pitch/Roll 自行重算。若 I2C 離線則發送 `ERR:1`。
+    * **原始串流 (`G:`,韌體 1.0.1-beta.2 起,opt-in)**:App 送出 `CMD:RAW_ON` 後,韌體額外推播 `G:tgx/tgy/tgz/sgx/sgy/sgz/tax/tay/taz/sax/say/saz`——前 6 欄為大腿/小腿陀螺儀(deg/s,已扣偏差,含 gz),後 6 欄為原始加速度(g,±4g、8192 LSB/g)。`CMD:RAW_OFF`、斷線與 OTA 傳輸中皆停止;最長約 85 bytes。舊版 App 從不開啟,不受影響。
     * **MTU**：韌體顯式設定 `setMTU(128)`,確保 6 軸封包(6 軸最長約 54 bytes;含 `V:` 擴充欄位最長 114 bytes,需 MTU ≥ 117)不被截斷。
   * **指令接收 (Profile RX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483f-36e1-4688-b7f5-ea07361b26a8`
     * **指令格式 (`CMD:`)**:
-      `CMD:LED_ON/OFF`(達標回饋燈)、`CMD:GOAL`(達標雙短響)、`CMD:ALARM_ON/OFF`(超限長鳴)。
+      `CMD:LED_ON/OFF`(達標回饋燈)、`CMD:GOAL`(達標雙短響)、`CMD:ALARM_ON/OFF`(超限長鳴)、`CMD:RAW_ON/OFF`(開關下述 `G:` 原始串流,預設關閉)。
       韌體以 `trim()` 剝除尾端空白後**精確比對**;指令字串不可附加換行。
     * **依 D1 不再解析**:Profile 參數(`目標,容錯,維持ms`)與 `CMD:SYNC` 校準同步——判定與校準
       皆在 App 端完成,韌體收到後直接忽略(無 NVS 持久化)。

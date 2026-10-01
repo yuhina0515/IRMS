@@ -37,6 +37,8 @@
 
 ## 1.1 視覺/UI/藝術設計權責 (Design Authority)
 
+> **2026-10-01 註記**:本節為 2026-09-11 的歷史規則。現行分工:UI 提案由 Claude/GPT 起草、使用者最終裁定(v3「Rehabilitation Workbook」於 2026-09-25 採用)。Gemini 不再是唯一設計權責方。
+
 **（2026-09-11 起生效）AI 協同開發角色完全脫離美術與 UI 設計判斷**——排版節奏、色彩組合、
 視覺層次、動效語言等一切「好不好看」的判斷,全權交給 Gemini(3.1 Pro / 3.8 Flash)決定,
 不由 AI 協同開發角色自行提出或評斷。
@@ -152,14 +154,20 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **Profile RX 特徵值 (參數與指令接收,App → ESP32,Write)**：
   * **UUID**：`beb5483f-36e1-4688-b7f5-ea07361b26a8`
   * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
-  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`(目前協定不含 `CMD:SYNC`)
+  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:RAW_ON/OFF`(opt-in 原始串流,見 doc/README §4.2;目前協定不含 `CMD:SYNC`)
+
+### 4.2.1 國際化(i18n)規則
+
+* 所有使用者可見字串一律走 `src/i18n`:元件用 `useT()`/`rich()`,服務層用 `getT()`;**不得在元件內寫死中文或英文字串**。
+* 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
+* 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
 ### 4.3 SQLite Schema(目前 `user_version = 8`)
 
 > 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
 > DB 檔存於 Tauri 的 app data 目錄(不進版控)。
 
-* **變更 schema 的唯一方式:新增一個 migration**。`db.ts` 不再有 `createSchema()`——
+* **變更 schema 的唯一方式:新增一個 migration**(並遞增 `PRAGMA user_version`,本節標題的版本號需同步更新)。`db.ts` 不再有 `createSchema()`——
   schema 演進走 `PRAGMA user_version` 遞增式 runner(ROADMAP 決策 D4,2026-08-01 實作)。
   * **嚴禁**直接修改既有 migration 的 SQL:使用者手上的安裝已經跑過它了,改動只會影響
     全新安裝,造成新舊安裝 schema 分歧,而開發者永遠看不到(他的 dev DB 想刪就刪)。

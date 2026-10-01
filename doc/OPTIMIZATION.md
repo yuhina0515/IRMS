@@ -96,11 +96,11 @@
 ### 🔴 P0 — 正確性與安全(優先)
 - [→] 📡 **實機端對端驗證**——**已部分完成**。2026-08-07 燒錄韌體 v3、BLE 連線、
       跑完校準精靈,快速歸零修正經實測確認正常。**仍未驗證**:達標音 → 超限長鳴 →
-      斷線收尾這條回饋鏈(issue [#3](https://github.com/yuhina0515/IRMS/issues/3))
-      與 ±180° 桌面旋轉記錄(issue [#2](https://github.com/yuhina0515/IRMS/issues/2) 的後半)。
+      斷線收尾這條回饋鏈(issue #3(舊儲存庫 issue,已封存))
+      與 ±180° 桌面旋轉記錄(issue #2(舊儲存庫 issue,已封存) 的後半)。
       依專案慣例,需要實機的工作一律走 issue,不佔用桌面 backlog。
       ⚠ **裝置取得零星,下次拿到之前必須先備妥錄製能力**,否則時間窗會被浪費在
-      「錄了但事後無法解讀」的 session 上(issue [#4](https://github.com/yuhina0515/IRMS/issues/4))。
+      「錄了但事後無法解讀」的 session 上(issue #4(舊儲存庫 issue,已封存))。
 - [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
 - [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
 - [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
@@ -146,8 +146,8 @@
       原本的「Reconnecting (n/5)」寫進 `statusText`,但下一行 `connectGATT()` 的
       `'Connecting...'` 會在同一次嘗試內蓋掉它——那個計數器自 2026-06-27 起從來沒被看見過。
       改用結構化的 `useStore.reconnect` 欄位 + 確定性進度軌道。
-- [ ] i18n(繁中 / English 切換),目前介面中英混用。
-      (依專案規則 #2 明確延後;2026-08-27 使用者再次裁定不納入)
+- [x] i18n(繁中 / English 切換)。**2026-10-01 已於 beta.19 上線**(`src/i18n`,Settings 語言選單);
+      先前依專案規則 #2 延後、2026-08-27 曾裁定不納入,其後使用者改變決定。`clinical.*` 英文待臨床人員審閱。
 - [x] 鍵盤快捷鍵(連線、開始/結束 Session)。(2026-08-27)Ctrl+K / Ctrl+Enter,
       **走與按鈕完全相同的守衛**,不可用時不掛 listener,不得繞過未支援協定封鎖或示範模式互斥。
 
@@ -342,7 +342,7 @@
    指不出來就是裝飾性的,排到清單最後面。舊版寫作「指出它餵給哪條判定路徑」,但那條
    規則按字面會把「History 畫錯的安全線」判為裝飾性——它不餵給引擎,卻改變督導的判讀。
 2. **修缺陷,不擴大議程。**(2026-08-03 立、2026-08-07 沿用)發現缺陷就修該缺陷,
-   不順勢啟動架構級重寫。i18n、Electron 升級、多關節泛化、ESLint 35 項都是照此延後。
+   不順勢啟動架構級重寫。Electron 升級、多關節泛化、ESLint 35 項都是照此延後(i18n 曾在此列,2026-10-01 已上線)。
 3. **需要實機/硬體的工作一律開 GitHub issue**,不寫進本文件或 ROADMAP,
    避免硬體滑期時整份 backlog 看起來是空的。
 
@@ -384,3 +384,13 @@
 Module listings manage modules only; operation UI belongs to module-owned pages hosted on the 工具 (Tools) tab.
 See [MODULE_CONTRACT.md](MODULE_CONTRACT.md) for page registration, immediate reactivation,
 cancellation/disposal, compatibility and release integration requirements.
+
+---
+
+## 校準 B 與 `G:` 原始串流(2026-10-01,beta)
+
+- [x] 校準 B 引擎(`services/calibrationB.ts`):重力平面 + Horn 解旋轉、陀螺儀樞軸融合(與平面法向量偏差 >15° 時捨棄並警示)、六面地面階段(每軸偏差與增益)。
+- [x] 精靈(`components/CalibrationWizardB.tsx`,設定頁「校準 B (beta)」);舊韌體(無 `G:`)自動退回僅重力。
+- [x] 韌體 1.0.1-beta.2:opt-in `G:` 封包(`CMD:RAW_ON` / `CMD:RAW_OFF`,斷線與 OTA 傳輸中暫停)。
+- [ ] **實機驗證(Harold)**:`G:` 串流、1.0.1-beta.2 的 OTA、約 50 notify/s 的 BLE 負載、真實穿戴者的校準 B 結果;皆以遙測回傳。目前只有合成資料與單元測試。
+- [ ] `clinical.*` 英文措辭與校準 B 的英文文案待臨床人員審閱。

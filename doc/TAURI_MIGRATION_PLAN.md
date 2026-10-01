@@ -4,6 +4,8 @@
 > `doc/coding log/` is for). See [[HOME]] for the latest status line and [[ROADMAP]] for how this
 > relates to the desktop app's other architecture decisions (D1–D5).
 
+> **Cutover complete (2026-09)**: Tauri is the shipping desktop app; the Electron source (`IRMS_App`) is retained only as history. D5 (React Native) was superseded by Tauri mobile.
+
 ## Status at a glance
 
 **Decided (2026-09-07): proceed with Tauri v2 as the primary direction for IRMS_App.** This

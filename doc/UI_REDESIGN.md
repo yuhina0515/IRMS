@@ -1,5 +1,7 @@
 # IRMS Desktop Workstation UI — beta8
 
+> **Superseded (2026-09-25)**: the approved UI is the v3 "Rehabilitation Workbook" ([[UI_V3_IMPLEMENTATION_PLAN]], `doc/ui-v3-gpt/`). Read this file as historical beta8 reference only.
+
 > 這是目前唯一有效的 UI/IA 規格。2026-09-02 的 sidebar＋bento card 方向已退出產品主線；
 > 歷史決策保留在 `doc/coding log/`，不再混入 living reference。
 
