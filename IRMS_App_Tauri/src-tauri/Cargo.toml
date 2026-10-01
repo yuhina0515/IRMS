@@ -64,6 +64,9 @@ strip = true
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.19"
 jni-utils = "0.1"
+# reqwest's default verifier (rustls-platform-verifier) needs a Kotlin-side init Tauri does not provide,
+# so Android verifies against the bundled Mozilla roots instead (see telemetry::with_platform_roots).
+webpki-root-certs = "1"
 
 # Desktop-only plugins: no updater/single-instance on Android/iOS (mobile updates ship via the store/APK).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

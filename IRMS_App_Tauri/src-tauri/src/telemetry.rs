@@ -193,13 +193,26 @@ pub fn telemetry_status(state: tauri::State<'_, TelemetryState>) -> TelemetrySta
     state.status()
 }
 
+/// Android: trust the bundled Mozilla roots; elsewhere: keep reqwest's platform verifier.
+pub(crate) fn with_platform_roots(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    #[cfg(target_os = "android")]
+    {
+        let roots = webpki_root_certs::TLS_SERVER_ROOT_CERTS
+            .iter()
+            .filter_map(|c| reqwest::Certificate::from_der(c.as_ref()).ok());
+        builder.tls_certs_only(roots)
+    }
+    #[cfg(not(target_os = "android"))]
+    builder
+}
+
 fn build_client() -> Option<reqwest::Client> {
     // reqwest is built with rustls-no-provider (shared with tauri-plugin-updater); install the
     // ring provider the same way the updater does if nothing has installed one yet.
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
-    reqwest::Client::builder()
+    with_platform_roots(reqwest::Client::builder())
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| eprintln!("[telemetry] HTTP client init failed: {e}"))
