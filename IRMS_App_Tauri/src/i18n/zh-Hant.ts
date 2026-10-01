@@ -507,6 +507,57 @@ export const zhHant = {
     apply: '確認套用'
   },
 
+  calibrationB: {
+    title: '校準 B',
+    beta: 'beta',
+    intro: '依平常方式佩戴感測器,**隔著衣物也可以**。先保持四個靜止姿勢,再做兩個簡單的腿部動作。精靈會用重力(有陀螺儀時一併使用)推算每個感測器的安裝方向。',
+    sideHint: '請選擇佩戴感測器的那一側腿。',
+    rawChecking: '正在偵測原始運動資料串流…',
+    rawOn: '已偵測到原始運動串流:將使用地面階段與陀螺儀。',
+    rawOff: '未偵測到原始運動串流(感測器韌體較舊),將僅以重力繼續校準。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    capture: '開始擷取(3 秒倒數)',
+    recording: '錄製中…',
+    noData: '感測資料不足,請檢查連線後重試。',
+    noRaw: '未收到原始運動資料,請檢查感測器韌體後重試。',
+    floorTitle: '地面階段',
+    faceDesc: (p: { face: string }) => `將**感測器組**放在平面上,**${p.face}** 面朝上,並保持不動。`,
+    skipFloor: '略過地面階段',
+    faces: { '+x': '+X', '-x': '-X', '+y': '+Y', '-y': '-Y', '+z': '+Z', '-z': '-Z' },
+    poses: {
+      standing: { title: '姿勢:站立', desc: '**自然站直放鬆**,雙腿伸直,保持不動。' },
+      seated: { title: '姿勢:坐姿', desc: '坐下使**大腿水平**、小腿自然垂直向下,保持不動。' },
+      supine: { title: '姿勢:仰躺', desc: '**平躺仰臥**,雙腿伸直,保持不動。' },
+      prone: { title: '姿勢:俯臥', desc: '**平躺俯臥**,雙腿伸直,保持不動。' },
+      sideLying: { title: '姿勢:側躺', desc: '朝**感測器所在的那一側**側躺,雙腿伸直,保持不動。' }
+    },
+    sweepTitle: (p: { limb: string }) => `動作:${p.limb}`,
+    sweeps: {
+      thigh: '站立,**大腿向前抬起**再放下,緩慢重複數次,共約 6 秒。',
+      shin: '站立,**腳跟向後踢**(彎曲膝蓋)再放下,緩慢重複數次,共約 6 秒。'
+    },
+    gyroMissing: '沒有陀螺儀資料,此動作僅使用重力。',
+    resultTitle: '校準結果',
+    resultLine: (p: { limb: string; confidence: string; rms: string; gyro: string }) =>
+      `${p.limb}:信心 ${p.confidence}、殘差 ${p.rms}°、${p.gyro}。`,
+    confidence: { high: '高', medium: '中', low: '低' },
+    gyroUsed: '已使用陀螺儀',
+    gyroNotUsed: '僅用重力',
+    rejected: (p: { poses: string }) => `已忽略的姿勢:${p.poses}。`,
+    failed: (p: { limb: string; reason: string }) => `無法校準${p.limb}:${p.reason}`,
+    unverified: '這是 **beta** 版。套用後請確認抬腿時畫面角度會變大。',
+    errors: {
+      invalidInput: '資料無效',
+      signAmbiguous: '動作方向不明確',
+      underdetermined: '姿勢種類不足',
+      inconsistent: '各姿勢之間互相矛盾',
+      sweepTooSmall: '動作幅度太小',
+      sweepNotPlanar: '動作不是乾淨的前後擺動',
+      gyroDisagrees: '陀螺儀與重力不一致,已忽略陀螺儀',
+      gyroWeak: '陀螺儀訊號太弱,已忽略陀螺儀'
+    }
+  },
+
   settings: {
     title: '系統設定',
     subtitle: '裝置準備、資料選擇,都有各自的位置。',

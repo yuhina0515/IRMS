@@ -52,6 +52,12 @@ export const SWEEP_PLANARITY_MAX_DEG = 10
 export const OUTLIER_RESIDUAL_DEG = 15
 export const FAIL_RMS_DEG = 15
 export const HINGE_WEIGHT = 2
+export const GYRO_WEIGHT = 1.5
+export const PLANE_WEIGHT = 1
+export const GYRO_MIN_RATE_DPS = 20
+export const GYRO_MIN_SAMPLES = 8
+export const GYRO_MIN_DOMINANCE = 0.75
+export const GYRO_PLANE_DISAGREE_DEG = 15
 const MIN_PAIR_SEPARATION_DEG = 30
 const MAX_REJECTIONS = 2
 
@@ -66,9 +72,11 @@ export interface SweepCapture {
   samples: V3[]
   /** Which way the segment front tips when the sweep peaks (+1 = front rises). Defaults per limb. */
   zSign?: 1 | -1
+  /** Bias-corrected gyro (deg/s, sensor axes) recorded during the sweep; only with the firmware `G:` stream. */
+  gyro?: V3[]
 }
 
-export type SolveError = 'invalidInput' | 'signAmbiguous' | 'underdetermined' | 'inconsistent' | 'sweepTooSmall' | 'sweepNotPlanar'
+export type SolveError = 'invalidInput' | 'signAmbiguous' | 'underdetermined' | 'inconsistent' | 'sweepTooSmall' | 'sweepNotPlanar' | 'gyroDisagrees' | 'gyroWeak'
 
 export interface LimbSolution {
   rotation: Mat3
@@ -82,6 +90,8 @@ export interface LimbSolution {
   confidence: 'high' | 'medium' | 'low'
   constraintCount: number
   hingeFromSweep: boolean
+  /** True when the gyro principal axis contributed to the hinge estimate. */
+  hingeUsedGyro: boolean
   sweepPlanarityDeg: number | null
   sweepSpanDeg: number | null
   warnings: SolveError[]
@@ -267,6 +277,21 @@ export function solveLimbMounting(limb: Limb, poses: PoseCapture[], sweeps: Swee
         else hinge = fit.normal
       }
     }
+    let usedGyro = false
+    const gyroSamples = limbSweeps.flatMap((s) => s.gyro ?? [])
+    if (gyroSamples.length > 0) {
+      const g = estimateHingeFromGyro(gyroSamples)
+      if (!g || g.dominance < GYRO_MIN_DOMINANCE) {
+        warnings.push('gyroWeak')
+      } else {
+        const fused = fuseHingeAxes(g.axis, hinge)
+        if (fused.disagreeDeg !== null && fused.disagreeDeg > GYRO_PLANE_DISAGREE_DEG) warnings.push('gyroDisagrees')
+        else {
+          hinge = fused.axis
+          usedGyro = true
+        }
+      }
+    }
     const exactSegments = active.map((c) => c.segment)
     if (!observable(hinge ? [...exactSegments, hingeTarget(side)] : exactSegments)) {
       return { ok: false, error: 'underdetermined' }
@@ -317,6 +342,7 @@ export function solveLimbMounting(limb: Limb, poses: PoseCapture[], sweeps: Swee
         confidence,
         constraintCount,
         hingeFromSweep: hinge !== null,
+        hingeUsedGyro: usedGyro,
         sweepPlanarityDeg: planarityDeg,
         sweepSpanDeg: spanDeg,
         warnings
@@ -348,6 +374,49 @@ function chooseCandidate(
   )
   if (score[0] === score[1]) return { rotation: candidates[a <= b ? 0 : 1], ambiguous: true }
   return { rotation: candidates[score[0] > score[1] ? 0 : 1], ambiguous: false }
+}
+
+// ---------- gyro principal axis (needs the firmware G: stream) ----------
+
+export interface GyroAxisEstimate {
+  /** Unit rotation axis in sensor coordinates, sign arbitrary. */
+  axis: V3
+  /** Share of motion energy along the axis (1 = pure hinge rotation). */
+  dominance: number
+  samplesUsed: number
+}
+
+/** Principal axis of the angular-velocity cloud: during a pure flexion sweep every rate lies on the hinge axis. */
+export function estimateHingeFromGyro(samples: V3[]): GyroAxisEstimate | null {
+  const used = samples.filter((w) => isFiniteV(w) && Math.hypot(w.x, w.y, w.z) >= GYRO_MIN_RATE_DPS)
+  if (used.length < GYRO_MIN_SAMPLES) return null
+  const m: Mat3 = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+  for (const w of used) {
+    const a = [w.x, w.y, w.z]
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m[i][j] += a[i] * a[j]
+  }
+  const { values, vectors } = jacobiEigen(m)
+  let k = 0
+  for (let i = 1; i < 3; i++) if (values[i] > values[k]) k = i
+  const trace = values[0] + values[1] + values[2]
+  if (!(trace > 0)) return null
+  return {
+    axis: unit({ x: vectors[k][0], y: vectors[k][1], z: vectors[k][2] }),
+    dominance: values[k] / trace,
+    samplesUsed: used.length
+  }
+}
+
+/** Weighted blend of gyro axis and plane normal after sign alignment; also reports their disagreement. */
+export function fuseHingeAxes(gyro: V3, plane: V3 | null): { axis: V3; disagreeDeg: number | null } {
+  if (!plane) return { axis: gyro, disagreeDeg: null }
+  const g = dot(gyro, plane) < 0 ? { x: -gyro.x, y: -gyro.y, z: -gyro.z } : gyro
+  const axis = unit({
+    x: GYRO_WEIGHT * g.x + PLANE_WEIGHT * plane.x,
+    y: GYRO_WEIGHT * g.y + PLANE_WEIGHT * plane.y,
+    z: GYRO_WEIGHT * g.z + PLANE_WEIGHT * plane.z
+  })
+  return { axis, disagreeDeg: vectorAngleDeg(g, plane) }
 }
 
 // ---------- floor stage: accelerometer bias from resting faces ----------
@@ -408,6 +477,62 @@ export function estimateAccelBias(vectors: V3[]): BiasEstimate {
     inconsistencyDeg: Math.max(spread(obs.x), spread(obs.y), spread(obs.z)) * DEG,
     ignored
   }
+}
+
+export interface BiasScaleEstimate {
+  bias: V3
+  /** Per-axis gain (1 = nominal); only set where both +k and -k faces were captured. */
+  scale: V3
+  /** Axes with both faces observed, i.e. scale and bias are both solved. */
+  scaleObserved: ('x' | 'y' | 'z')[]
+  /** Axes with only one face: the bias is then not separable from gravity, left at 0. */
+  unobserved: ('x' | 'y' | 'z')[]
+  ignored: number
+}
+
+/**
+ * Raw accelerometer readings in g (firmware G: stream) resting on the six faces. Along axis k the two
+ * opposing faces read r(+) = s + b and r(-) = -s + b, so b = (r(+) + r(-)) / 2 and s = (r(+) - r(-)) / 2.
+ */
+export function estimateAccelBiasScale(rawG: V3[]): BiasScaleEstimate {
+  const axes = ['x', 'y', 'z'] as const
+  const sums: Record<string, { n: number; v: number }> = {}
+  let ignored = 0
+  for (const r of rawG) {
+    const face = isFiniteV(r) ? classifyFace(r) : null
+    if (!face) {
+      ignored++
+      continue
+    }
+    const slot = sums[face] ?? (sums[face] = { n: 0, v: 0 })
+    slot.n++
+    slot.v += r[face[1] as 'x' | 'y' | 'z']
+  }
+  const bias: V3 = { x: 0, y: 0, z: 0 }
+  const scale: V3 = { x: 1, y: 1, z: 1 }
+  const scaleObserved: ('x' | 'y' | 'z')[] = []
+  const unobserved: ('x' | 'y' | 'z')[] = []
+  for (const k of axes) {
+    const pos = sums['+' + k]
+    const neg = sums['-' + k]
+    if (pos && neg) {
+      const rp = pos.v / pos.n
+      const rn = neg.v / neg.n
+      bias[k] = (rp + rn) / 2
+      scale[k] = (rp - rn) / 2
+      scaleObserved.push(k)
+    } else unobserved.push(k)
+  }
+  return { bias, scale, scaleObserved, unobserved, ignored }
+}
+
+/** Corrected unit vector from a raw g reading. Unobserved axes keep scale 1 / bias 0. */
+export function applyAccelBiasScale(rawG: V3, e: Pick<BiasScaleEstimate, 'bias' | 'scale'>): V3 {
+  return unit({
+    x: (rawG.x - e.bias.x) / e.scale.x,
+    y: (rawG.y - e.bias.y) / e.scale.y,
+    z: (rawG.z - e.bias.z) / e.scale.z
+  })
 }
 
 export function applyAccelBias(v: V3, bias: V3): V3 {

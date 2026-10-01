@@ -486,6 +486,57 @@ export const en = {
     apply: 'Apply'
   },
 
+  calibrationB: {
+    title: 'Calibration B',
+    beta: 'beta',
+    intro: 'Wear the sensors as you normally would, **over clothing is fine**. Hold four resting poses, then two simple leg movements. The wizard uses gravity (and the gyroscope when available) to work out how each sensor sits.',
+    sideHint: 'Choose the leg the sensors are worn on.',
+    rawChecking: 'Checking for the raw motion stream…',
+    rawOn: 'Raw motion stream detected: floor stage and gyroscope will be used.',
+    rawOff: 'No raw motion stream (older sensor firmware). Calibration continues with gravity only.',
+    progress: (p: { n: string; total: string }) => `Step ${p.n} / ${p.total}`,
+    capture: 'Capture (3 s countdown)',
+    recording: 'Recording…',
+    noData: 'Not enough sensor data. Check the connection and try again.',
+    noRaw: 'No raw motion data received. Check the sensor firmware and try again.',
+    floorTitle: 'Floor stage',
+    faceDesc: (p: { face: string }) => `Lay the **sensor pair** on a flat surface with the **${p.face}** side up and hold still.`,
+    skipFloor: 'Skip floor stage',
+    faces: { '+x': '+X', '-x': '-X', '+y': '+Y', '-y': '-Y', '+z': '+Z', '-z': '-Z' },
+    poses: {
+      standing: { title: 'Pose: standing', desc: 'Stand **upright and relaxed**, legs straight, and hold still.' },
+      seated: { title: 'Pose: seated', desc: 'Sit with **thighs level** and lower legs hanging straight down. Hold still.' },
+      supine: { title: 'Pose: lying on the back', desc: 'Lie **flat on your back**, legs straight. Hold still.' },
+      prone: { title: 'Pose: lying on the front', desc: 'Lie **flat on your front**, legs straight. Hold still.' },
+      sideLying: { title: 'Pose: lying on the side', desc: 'Lie on the **side the sensors are on**, legs straight. Hold still.' }
+    },
+    sweepTitle: (p: { limb: string }) => `Movement: ${p.limb}`,
+    sweeps: {
+      thigh: 'Standing, **raise the thigh forward** and lower it again, slowly, a few times over 6 s.',
+      shin: 'Standing, **kick the heel backward** (bend the knee) and lower it again, slowly, a few times over 6 s.'
+    },
+    gyroMissing: 'Gyroscope data is not available, so only gravity is used for this movement.',
+    resultTitle: 'Result',
+    resultLine: (p: { limb: string; confidence: string; rms: string; gyro: string }) =>
+      `${p.limb}: confidence ${p.confidence}, residual ${p.rms}°, ${p.gyro}.`,
+    confidence: { high: 'high', medium: 'medium', low: 'low' },
+    gyroUsed: 'gyroscope used',
+    gyroNotUsed: 'gravity only',
+    rejected: (p: { poses: string }) => `Ignored poses: ${p.poses}.`,
+    failed: (p: { limb: string; reason: string }) => `Could not calibrate the ${p.limb}: ${p.reason}`,
+    unverified: 'This is a **beta**. Check that the displayed angle rises when you raise the leg after applying.',
+    errors: {
+      invalidInput: 'invalid data',
+      signAmbiguous: 'the movement direction is ambiguous',
+      underdetermined: 'not enough different poses',
+      inconsistent: 'the poses disagree with each other',
+      sweepTooSmall: 'the movement was too small',
+      sweepNotPlanar: 'the movement was not a clean forward-back swing',
+      gyroDisagrees: 'gyroscope disagrees with gravity, gyroscope ignored',
+      gyroWeak: 'gyroscope signal too weak, gyroscope ignored'
+    }
+  },
+
   settings: {
     title: 'Settings',
     subtitle: 'Device setup and data choices each have their own place.',

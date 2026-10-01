@@ -181,6 +181,12 @@ fn spawn_notification_listener(
                 // Raw wire text, not the parsed form: offline replay/re-parsing (calibration,
                 // protocol changes) needs exactly what the device sent.
                 telemetry::record(&app, "packet", json!({ "raw": text.trim() }));
+                // Opt-in raw motion packet (firmware CMD:RAW_ON): forwarded as text and parsed in
+                // the frontend; it must never reach the angle parser, which would call it malformed.
+                if text.trim_start().starts_with("G:") {
+                    let _ = app.emit("ble:raw", text.trim());
+                    continue;
+                }
                 let parsed: ParsedPacket = protocol::parse_angle_packet(&text);
                 let _ = app.emit("ble:packet", &parsed);
             } else if notification.uuid == ota_status_uuid {

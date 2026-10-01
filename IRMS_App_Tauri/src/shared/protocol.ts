@@ -250,3 +250,23 @@ export function parseAnglePacket(value: string): ParsedPacket {
     truncated
   }
 }
+
+/** 韌體 `CMD:RAW_ON` 之後才會送的原始運動封包(`G:`):陀螺儀 deg/s(含 gz)與未正規化加速度 g。 */
+export interface RawMotion {
+  thighGyro: AccelVector
+  shinGyro: AccelVector
+  thighAcc: AccelVector
+  shinAcc: AccelVector
+}
+
+/** 解析 `G:` 封包;欄位數不是 12、含非數值或被截斷時回傳 null(寧可丟棄也不用半包資料校準)。 */
+export function parseRawPacket(value: string): RawMotion | null {
+  const text = value.trim()
+  if (!text.startsWith('G:')) return null
+  const fields = text.slice(2).split('/').map((f) => f.trim())
+  if (fields.length !== 12 || fields.some((f) => f.length === 0)) return null
+  const n = fields.map(Number)
+  if (!n.every(Number.isFinite)) return null
+  const v = (i: number): AccelVector => ({ x: n[i], y: n[i + 1], z: n[i + 2] })
+  return { thighGyro: v(0), shinGyro: v(3), thighAcc: v(6), shinAcc: v(9) }
+}

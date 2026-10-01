@@ -5,6 +5,9 @@ import {
   buildCalibrationPatchB,
   classifyFace,
   estimateAccelBias,
+  estimateAccelBiasScale,
+  applyAccelBiasScale,
+  estimateHingeFromGyro,
   expectedFor,
   type Side,
   solveLimbMounting,
@@ -225,5 +228,65 @@ describe('review regressions', () => {
     const out = buildCalibrationPatchB(poses, sweeps, undefined, 'right')
     expect(out.ok).toBe(true)
     if (out.ok) expect(out.patch.proximalRollInvert).toBe(true)
+  })
+})
+
+describe('gyro hinge and raw-g floor stage', () => {
+  it('finds the hinge from gyro rates of a flexion sweep', () => {
+    const r = rng(5)
+    const R = randomRotation(r)
+    const hingeSensor = { x: R[0][0], y: R[0][1], z: R[0][2] }
+    const samples = Array.from({ length: 60 }, (_, i) => {
+      const rate = (i % 2 ? 1 : -1) * (40 + 30 * r())
+      return { x: hingeSensor.x * rate + gauss(r), y: hingeSensor.y * rate + gauss(r), z: hingeSensor.z * rate + gauss(r) }
+    })
+    const est = estimateHingeFromGyro(samples)!
+    expect(est.dominance).toBeGreaterThan(0.95)
+    const ang = vectorAngleDeg(est.axis, hingeSensor)
+    expect(Math.min(ang, 180 - ang)).toBeLessThan(3)
+    expect(estimateHingeFromGyro(samples.slice(0, 3))).toBeNull()
+  })
+
+  it('uses an agreeing gyro and flags a disagreeing one', () => {
+    const { R, poses, sweeps } = synth(31, 0.5, 2)
+    const hinge = (limb: Limb) => ({ x: R[limb][0][0], y: R[limb][0][1], z: R[limb][0][2] })
+    const r = rng(8)
+    const gyro = (axis: V3) =>
+      Array.from({ length: 40 }, (_, i) => {
+        const rate = (i % 2 ? 1 : -1) * 50
+        return { x: axis.x * rate + gauss(r), y: axis.y * rate + gauss(r), z: axis.z * rate + gauss(r) }
+      })
+    const good = sweeps.map((s) => ({ ...s, gyro: gyro(hinge(s.limb)) }))
+    const res = solveLimbMounting('thigh', poses, good)
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.solution.hingeUsedGyro).toBe(true)
+    expect(vectorAngleDeg(res.solution.hingeAxis, hinge('thigh'))).toBeLessThan(5)
+
+    const bad = sweeps.map((s) => ({ ...s, gyro: gyro(norm({ x: 0.2, y: 1, z: 0.1 })) }))
+    const res2 = solveLimbMounting('thigh', poses, bad)
+    expect(res2.ok).toBe(true)
+    if (res2.ok) {
+      expect(res2.solution.hingeUsedGyro).toBe(false)
+      expect(res2.solution.warnings).toContain('gyroDisagrees')
+    }
+  })
+
+  it('solves bias and scale from six raw-g faces', () => {
+    const b = { x: 0.03, y: -0.02, z: 0.04 }
+    const s = { x: 1.02, y: 0.97, z: 1.01 }
+    const faces: V3[] = [
+      { x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 },
+      { x: 0, y: -1, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }
+    ]
+    const raw = faces.map((e) => ({ x: e.x * s.x + b.x, y: e.y * s.y + b.y, z: e.z * s.z + b.z }))
+    const est = estimateAccelBiasScale(raw)
+    expect(est.unobserved).toEqual([])
+    for (const k of ['x', 'y', 'z'] as const) {
+      expect(Math.abs(est.bias[k] - b[k])).toBeLessThan(1e-9)
+      expect(Math.abs(est.scale[k] - s[k])).toBeLessThan(1e-9)
+    }
+    raw.forEach((v, i) => expect(vectorAngleDeg(applyAccelBiasScale(v, est), faces[i])).toBeLessThan(0.01))
+    expect(estimateAccelBiasScale(raw.slice(0, 3)).unobserved).toContain('z')
   })
 })

@@ -6,6 +6,7 @@ import { JOINT_PROTOCOLS } from '@shared/types'
 import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
+import { CalibrationWizardB } from '../components/CalibrationWizardB'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
@@ -161,6 +162,7 @@ function CalibrationPane(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardBOpen, setWizardBOpen] = useState(false)
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     setSettings({ [key]: value } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
@@ -205,6 +207,14 @@ function CalibrationPane(): JSX.Element {
           {settings.lastCalibratedAt ? mc.recalibrate : mc.start}
         </button>
       </div>
+      <button
+        className="btn btn-secondary"
+        data-testid="calib-b-open"
+        disabled={!isConnected || calibrationLocked}
+        onClick={() => setWizardBOpen(true)}
+      >
+        {m.calibrationB.title} ({m.calibrationB.beta})
+      </button>
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>
@@ -240,6 +250,7 @@ function CalibrationPane(): JSX.Element {
         </button>
       </details>
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
+      {wizardBOpen && <CalibrationWizardB onClose={() => setWizardBOpen(false)} />}
     </>
   )
 }
