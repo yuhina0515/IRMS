@@ -19,3 +19,6 @@ Emulator (API 34 x86_64, debug): Connect now logs `Requesting Bluetooth device..
 
 ## Not verified
 Real sensor scan/connect/notify (emulator has no Bluetooth hardware), runtime permission prompt on a real phone, layout on other tabs, arm64 release build with these changes (not built or published yet).
+
+## Release
+Published v1.2.0-beta.22 (arm64 APK versionCode 1002022, signed, v2 verified; desktop installer + latest.json; beta-latest updated). Real-phone retest pending.
