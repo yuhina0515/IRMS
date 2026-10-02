@@ -99,9 +99,19 @@ fn uuid(s: &str) -> Uuid {
     Uuid::from_str(s).unwrap_or_else(|e| panic!("invalid protocol UUID constant {s:?}: {e}"))
 }
 
+fn error_chain(e: &dyn std::error::Error) -> String {
+    let mut out = format!("{e} [{e:?}]");
+    let mut src = e.source();
+    while let Some(s) = src {
+        out.push_str(&format!(": {s}"));
+        src = s.source();
+    }
+    out
+}
+
 async fn find_adapter() -> Result<Adapter, String> {
-    let manager = Manager::new().await.map_err(|e| e.to_string())?;
-    let adapters = manager.adapters().await.map_err(|e| e.to_string())?;
+    let manager = Manager::new().await.map_err(|e| error_chain(&e))?;
+    let adapters = manager.adapters().await.map_err(|e| error_chain(&e))?;
     adapters
         .into_iter()
         .next()
@@ -117,11 +127,11 @@ async fn scan_for_device(adapter: &Adapter) -> Result<Peripheral, String> {
     adapter
         .start_scan(ScanFilter::default())
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
     let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
     let found = loop {
-        let peripherals = adapter.peripherals().await.map_err(|e| e.to_string())?;
+        let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
         let mut hit = None;
         for p in peripherals {
             if let Ok(Some(props)) = p.properties().await {
@@ -236,11 +246,11 @@ async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
     let adapter = find_adapter().await?;
     let peripheral = scan_for_device(&adapter).await?;
 
-    peripheral.connect().await.map_err(|e| e.to_string())?;
+    peripheral.connect().await.map_err(|e| error_chain(&e))?;
     peripheral
         .discover_services()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
     let angle_char = peripheral
         .characteristics()
@@ -250,7 +260,7 @@ async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
     peripheral
         .subscribe(&angle_char)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
     let name = peripheral
         .properties()

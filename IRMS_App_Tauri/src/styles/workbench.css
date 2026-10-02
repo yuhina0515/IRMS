@@ -50,7 +50,7 @@ html, body, #root { height: 100%; overflow: hidden; }
 .v3-brand img { width: 24px; height: 24px; }
 .v3-tab { min-height: 48px; padding: 0 12px; }
 .v3-tab[aria-current='page']::after { height: 3px; border-radius: 0; }
-.v3-footer { min-height: 26px; padding: 4px var(--work-inset); gap: 12px; white-space: normal; font-size: 11px; }
+.v3-footer { min-height: 26px; padding: 4px var(--work-inset) max(4px, env(safe-area-inset-bottom)); gap: 12px; white-space: normal; font-size: 11px; }
 .v3-page {
   container: workbench / inline-size;
   overflow: hidden;
@@ -216,3 +216,6 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
   .v3-metric-value { font-size: 72px; }
   .v3-ruler { margin-top: 6px; }
 }
+/* index.html zooms Android phones to 0.82; dvh is not zoom-adjusted, so stretch the shell back to full height. */
+html.android-phone .v3-shell { height: calc(100dvh / 0.82); }
+html.android-phone .v3-footer { padding-bottom: 22px; }
