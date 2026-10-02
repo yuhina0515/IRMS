@@ -17,6 +17,8 @@
   --font-title: 'Inter Variable', 'Microsoft JhengHei', sans-serif;
   --work-gap: clamp(10px, 1.4vw, 24px);
   --work-inset: clamp(12px, 2vw, 36px);
+  --viewport-height: 100dvh;
+  --touch-target: 40px;
 }
 .theme-dark {
   --color-canvas: 22 30 32;
@@ -39,12 +41,12 @@
 /* 外殼固定於可見視窗；捲動僅屬於下列具名工作區。 */
 html, body, #root { height: 100%; overflow: hidden; }
 .v3-shell {
-  height: 100dvh;
+  height: var(--viewport-height);
   overflow: hidden;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
-.v3-shell.has-banner { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.v3-shell.has-banner { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .v3-topnav { min-height: 60px; gap: var(--work-gap); padding: 0 var(--work-inset); }
 .v3-brand { font-size: 21px; letter-spacing: .08em; }
 .v3-brand img { width: 24px; height: 24px; }
@@ -57,7 +59,7 @@ html, body, #root { height: 100%; overflow: hidden; }
   padding: var(--work-gap) var(--work-inset);
   gap: var(--work-gap);
 }
-.v3-page-head { gap: 12px; flex-wrap: wrap; align-items: center; max-height: 28dvh; overflow: auto; }
+.v3-page-head { gap: 12px; flex-wrap: wrap; align-items: center; max-height: calc(var(--viewport-height) * .24); overflow: auto; }
 .v3-page-head > div { min-width: 0; }
 .v3-page-head h1 { font-size: clamp(22px, 2.2vw, 34px); line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
 .v3-page-head p { margin-top: 4px; max-width: 74ch; }
@@ -71,7 +73,7 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
   font-variant-numeric: tabular-nums;
 }
 .v3-live, .v3-live.tone-danger { grid-template-rows: auto minmax(0, 1fr) auto; }
-.v3-coach { padding: 12px var(--work-inset); gap: 12px; flex-wrap: wrap; max-height: 25dvh; overflow: auto; }
+.v3-coach { padding: 12px var(--work-inset); gap: 12px; flex-wrap: wrap; max-height: calc(var(--viewport-height) * .2); overflow: auto; }
 .v3-coach-text { flex: 1 1 200px; }
 .v3-coach-text strong, .tone-danger .v3-coach-text strong { font-size: clamp(20px, 2vw, 30px); line-height: 1.3; }
 .v3-coach-text strong, .v3-coach-text span { white-space: normal; overflow: visible; }
@@ -86,7 +88,7 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
 .v3-pose-body .v3-diag { align-self: flex-start; }
 .v3-pose-caption { white-space: normal; }
 .v3-ruler, .v3-ruler-scale { display: block; }
-.v3-dock, .v3-dock.running { gap: 12px; padding: 12px var(--work-inset); flex-wrap: wrap; max-height: 38dvh; overflow: auto; }
+.v3-dock, .v3-dock.running { gap: 12px; padding: 12px var(--work-inset); flex-wrap: wrap; max-height: calc(var(--viewport-height) * .34); overflow: auto; }
 .v3-dock-field { width: auto; flex: 1 1 76px; }
 .v3-dock-field.v3-dock-action { width: auto; flex: 2 1 180px; }
 .v3-dock-actions { flex-wrap: wrap; }
@@ -124,25 +126,90 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
 .work-tools { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .work-tools > .v3-segmented { overflow-x: auto; border-radius: 0; }
 .work-tools > .module-panel { min-height: 0; min-width: 0; overflow: auto; padding: var(--work-gap); }
-.dialog, .modal { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow: auto; border-radius: 4px; }
+.overlay { padding: 12px; }
+.dialog, .modal { max-width: 100%; max-height: calc(var(--viewport-height) - 48px); overflow: auto; overscroll-behavior: contain; border-radius: 4px; overflow-wrap: anywhere; }
+.modal-header { gap: 12px; }
+.modal-header .close-x { flex-shrink: 0; }
+.modal .actions, .dialog .actions, .wizard-toolbar, .wizard-step .row { flex-wrap: wrap; }
+.wizard-toolbar, .wizard-auto { display: flex; align-items: center; gap: 10px; }
+.wizard-toolbar { justify-content: space-between; margin-bottom: 12px; }
+.wizard-step { display: grid; gap: 12px; }
+.wizard-step h4 { font-size: 18px; font-weight: 600; }
+.wizard-step > .btn { justify-self: start; }
+.wizard-step .desc { line-height: 1.6; }
+.wizard-count { font-size: 48px; font-variant-numeric: tabular-nums; text-align: center; }
+.wizard-err { color: rgb(var(--color-danger)); }
+.wizard-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.wizard-steps-nav { display: flex; gap: 6px; margin-bottom: 12px; }
+.dot-step { flex: 1; height: 3px; background: rgb(var(--color-border)); }
+.dot-step.done { background: rgb(var(--color-accent)); }
+
+/* The optional update takes its own auto-sized row, leaving the dock and footer accessible. */
+.v3-update-slot { min-width: 0; max-height: calc(var(--viewport-height) * .2); overflow: auto; }
+.v3-update-slot .update-banner {
+  position: static; transform: none; box-shadow: none; border-radius: 0;
+  padding: 8px var(--work-inset); gap: 8px 16px; flex-wrap: wrap;
+}
+.update-banner > span { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.update-banner > button { flex-shrink: 0; }
+.v3-page :is(.field, .row > *, .modules-item-head > div) { min-width: 0; }
+.v3-settings-body .row, .modules-item-head { flex-wrap: wrap; }
+.v3-settings-body, .module-panel { overflow-wrap: anywhere; }
+.glass-dropdown-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.glass-dropdown-item { flex-shrink: 0; overflow-wrap: anywhere; }
+.work-tools > .v3-segmented { min-width: 0; }
+.work-tools > .v3-segmented button { flex-shrink: 0; white-space: nowrap; }
+.v3-review-summary span { white-space: normal; }
+.v3-inspector-head { flex-wrap: wrap; }
+.v3-facts { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.v3-topnav-right > button { flex-shrink: 0; }
+.v3-footer > span { min-width: 0; overflow-wrap: anywhere; }
+.v3-footer > span:last-child { text-align: right; }
+.toast-host { max-width: calc(100% - 32px); }
+.toast { min-width: 0; overflow-wrap: anywhere; }
+.error-overlay {
+  position: fixed; inset: 0; z-index: 1500; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: rgb(var(--color-danger-bg)); color: rgb(var(--color-text)); text-align: center;
+}
+.error-overlay > .icon { margin-top: auto; font-size: 40px; }
+.error-overlay h2 { font-size: clamp(22px, 3vw, 32px); color: rgb(var(--color-danger)); }
+.error-overlay p { max-width: 60ch; overflow-wrap: anywhere; }
+.error-overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.error-overlay-actions .btn:not(.btn-primary) { background: rgb(var(--color-text)); color: rgb(var(--color-surface)); }
+.error-overlay-hint { margin-bottom: auto; }
+
+/* Give desktop forms a usable column at 1024px; reclaim the search row on wider workspaces. */
+@container workbench (min-width: 721px) {
+  .v3-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .v3-stage { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .v3-inspector-body .row { flex-wrap: wrap; }
+  .v3-inspector-body .row > .field { flex-basis: 100px !important; }
+}
+@container workbench (min-width: 1200px) {
+  .v3-actions { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .v3-actions-toolbar input { flex-basis: 160px; }
+}
 
 /* 依工作區寬度換軌；內部區域可捲動，頁面與導覽仍留在原位。 */
 @container workbench (max-width: 720px) {
   .v3-stage { grid-template-columns: minmax(0, 1fr); align-content: start; }
-  .v3-metric { min-height: 220px; }
-  .v3-pose { min-height: 280px; border-left: 0; border-top: 1px solid rgb(var(--color-border)); padding: 12px 0 0; }
+  .v3-metric { min-height: 180px; gap: 6px; }
+  .v3-metric-value { font-size: clamp(56px, 15cqi, 88px); }
+  .v3-pose { min-height: 240px; border-left: 0; border-top: 1px solid rgb(var(--color-border)); padding: 8px 0 0; }
   /* Master/detail: the list owns the sheet until an action is opened, then the inspector does. */
   .v3-actions { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
   .v3-actions-list { border-right: 0; }
   .v3-actions:not(.has-detail) > .v3-inspector, .v3-actions.has-detail > .v3-actions-list { display: none; }
   .v3-actions-toolbar { padding: 8px 12px; gap: 8px; }
   .v3-actions-toolbar > div { flex: 1 1 0; width: auto !important; min-width: 0; }
-  .v3-action-cells { white-space: nowrap; }
+  .v3-action-cells { white-space: normal; gap: 4px 8px; }
   .v3-inspector-head { flex-wrap: wrap; }
   .v3-inspector-back { display: inline-flex; flex-basis: 100%; justify-content: flex-start; margin-bottom: 4px; }
   .v3-inspector-head h2 { flex: 1 1 0; min-width: 0; }
   .v3-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .v3-facts dd { white-space: nowrap; }
+  .v3-facts dd { overflow-wrap: anywhere; }
   .v3-history-head { display: none; }
   .work-history-table { grid-template-rows: minmax(0, 1fr); }
   /* Stacked card rows: start time + action on top, metrics and row actions beneath. */
@@ -177,13 +244,45 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
   .v3-settings-index button { flex-shrink: 0; gap: 12px; scroll-snap-align: start; }
   .v3-review-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 280px auto; }
   .v3-review-aside { overflow: visible; border-left: 0; border-top: 1px solid rgb(var(--color-border)); }
-  .v3-review-summary { grid-template-columns: repeat(7, 120px); }
+  .v3-review-summary { grid-template-columns: repeat(7, 130px); }
   .v3-dock-field.v3-dock-action { flex-basis: 100%; }
   .v3-dock-actions { margin-left: 0; flex: 1 1 100%; }
   .v3-dock-actions button { flex: 1; }
   .v3-dock.running .v3-dock-stat { flex: 1 1 80px; }
 }
 @media (max-width: 760px) {
+  :root { --work-gap: 8px; --work-inset: 10px; }
+  .v3-page-head { gap: 6px; }
+  .v3-page-head h1 { font-size: 22px; }
+  .v3-page-head p { margin-top: 2px; }
+  .v3-page-actions { gap: 6px; }
+  .v3-page-actions > div { flex: 1 1 140px; }
+  .v3-page-actions > button { flex: 1 1 auto; }
+  button.btn { padding: 7px 10px; font-size: 14px; }
+  .v3-chip { padding: 3px 7px; font-size: 12px; }
+  .v3-coach { padding: 8px 10px; gap: 8px; }
+  .v3-coach-text { flex-basis: 160px; }
+  .v3-coach-text strong, .tone-danger .v3-coach-text strong { font-size: 19px; }
+  .v3-coach-mark { flex-shrink: 0; }
+  .v3-dock, .v3-dock.running { padding: 8px 10px; gap: 6px 8px; }
+  .v3-dock:not(.running) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .v3-dock-action, .v3-dock:not(.running) .v3-dock-actions { grid-column: 1 / -1; }
+  .v3-dock-field label { font-size: 12px; }
+  .v3-ruler { margin-top: 8px; }
+  .v3-settings-head h2 { font-size: 19px; line-height: 1.3; }
+  .v3-settings-head, .v3-settings-body, .v3-settings-foot { padding: 8px 10px; }
+  .v3-settings-index button { padding: 6px 10px; font-size: 14px; }
+  .v3-set-row { padding: 8px 0; gap: 8px; }
+  .v3-action-row { padding: 0 10px; gap: 4px; }
+  .v3-action-name { font-size: 14px; gap: 6px; }
+  .v3-action-cells { font-size: 13px; }
+  .v3-inspector-back { flex-basis: auto; margin-bottom: 0; }
+  .v3-inspector-foot { gap: 6px; padding: 8px; }
+  .v3-inspector-foot > button { flex: 1 1 auto; }
+  .dialog, .modal { padding: 14px; width: 100%; }
+  .v3-pager { padding: 4px 8px; font-size: 12px; }
+  .v3-history-ops { gap: 4px !important; }
+  .v3-history-ops .btn { padding-inline: 8px; }
   .v3-topnav { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; padding-top: 6px; }
   .v3-topnav-right { grid-column: 2; grid-row: 1; gap: 8px; }
   .v3-conn { white-space: normal; font-size: 12px; }
@@ -201,13 +300,14 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
   .v3-inspector-body .row { flex-wrap: wrap; }
   .v3-inspector-body .field { min-width: 80px; }
 }
-/* 44px touch targets: narrow windows and any touch-first (coarse pointer) device, e.g. tablets. */
+/* Physical touch targets stay >= 40px, including the Android root zoom. */
 @media (max-width: 760px), (pointer: coarse) {
-  button, button.btn, .v3-pager button, input:not([type='checkbox']):not([type='radio']), select, .glass-dropdown-trigger, .glass-dropdown-item {
-    min-height: 44px !important;
+  button, button.btn, .v3-pager button, input:not([type='checkbox']):not([type='radio']), select, .glass-dropdown-trigger, .glass-dropdown-item, summary, .switch, .modules-toggle, .wizard-auto {
+    min-height: var(--touch-target) !important;
   }
-  button, .glass-dropdown-trigger { min-width: 44px; }
-  input[type='checkbox'], input[type='radio'] { width: 44px; height: 44px; flex-shrink: 0; }
+  button, .glass-dropdown-trigger { min-width: var(--touch-target); }
+  input[type='checkbox'], input[type='radio'] { width: var(--touch-target); height: var(--touch-target); flex-shrink: 0; }
+  summary { align-content: center; }
 }
 @media (max-height: 680px) and (min-width: 761px) {
   .v3-page { padding-top: 8px; padding-bottom: 8px; gap: 8px; }
@@ -217,5 +317,5 @@ button.btn, input, select, .glass-dropdown-trigger { border-radius: 4px; }
   .v3-ruler { margin-top: 6px; }
 }
 /* index.html zooms Android phones to 0.82; dvh is not zoom-adjusted, so stretch the shell back to full height. */
-html.android-phone .v3-shell { height: calc(100dvh / 0.82); }
+html.android-phone { --viewport-height: calc(100dvh / 0.82); --touch-target: 49px; }
 html.android-phone .v3-footer { padding-bottom: 22px; }
