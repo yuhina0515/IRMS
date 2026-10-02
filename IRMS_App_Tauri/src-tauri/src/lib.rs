@@ -131,6 +131,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             splash::splash_ready,
             update::update_check,
+            update::android_update_check,
             ble::ble_connect,
             ble::ble_disconnect,
             ble::ble_send_command,

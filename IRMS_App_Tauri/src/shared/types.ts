@@ -262,6 +262,7 @@ export type UpdateStatus =
   | { state: 'not-available' }
   | { state: 'downloading'; percent: number }
   | { state: 'downloaded'; version: string }
+  | { state: 'apk-available'; version: string }
   | { state: 'error'; message: string }
 
 /**
@@ -330,6 +331,8 @@ export interface IrmsApi {
     checkNow(): Promise<void>
     /** 已下載完成時呼叫——結束目前 App 並安裝新版,安裝完成後自動重開 */
     restartNow(): Promise<void>
+    /** Android 無法自行安裝:開啟新版 APK 的下載頁,由系統下載後手動安裝 */
+    openApkDownload(): Promise<void>
     /** 是否接收 beta 版推播(對應 autoUpdater.allowPrerelease);啟動時與每次切換都會呼叫 */
     setAllowPrerelease(allow: boolean): Promise<void>
     /** 訂閱更新生命週期狀態,回傳取消訂閱函式 */

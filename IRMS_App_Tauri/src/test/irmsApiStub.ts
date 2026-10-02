@@ -120,6 +120,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       getCurrentVersion: async () => '0.0.0-test',
       checkNow: async () => {},
       restartNow: async () => {},
+      openApkDownload: async () => {},
       setAllowPrerelease: async (_allow: boolean) => {},
       // 預設不主動推播任何狀態;需要斷言特定狀態序列的測試自行覆寫並手動呼叫回呼
       onStatusChange: (_cb: (status: unknown) => void) => () => {}

@@ -264,7 +264,9 @@ export const zhHant = {
     ready: (p: { version: string }) => `新版本 ${p.version} 已下載完成,重新啟動即可套用`,
     sessionNote: '(Session 進行中,建議結束後再重啟)',
     restartBlocked: 'Session 進行中無法重啟——結束後這個按鈕會恢復可用',
-    restartNow: '立即重新啟動'
+    restartNow: '立即重新啟動',
+    apkReady: (p: { version: string }) => `新版本 ${p.version} 可下載,請下載 APK 後直接覆蓋安裝`,
+    apkDownload: '下載'
   },
 
   pose: {
@@ -632,6 +634,7 @@ export const zhHant = {
       available: (p: { version: string }) => `發現新版本 ${p.version},準備下載…`,
       downloading: (p: { pct: number }) => `下載中…${p.pct}%`,
       downloaded: (p: { version: string }) => `新版本 ${p.version} 已下載完成,見下方橫幅重新啟動套用`,
+      apkAvailable: (p: { version: string }) => `發現新版本 ${p.version},見下方橫幅下載 APK`,
       notAvailable: '已是最新版本',
       error: (p: { message: string }) => `檢查失敗:${p.message}`
     },

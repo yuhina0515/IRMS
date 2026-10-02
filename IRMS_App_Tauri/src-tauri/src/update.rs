@@ -15,10 +15,8 @@
 // `latest.json` asset under a fixed `beta-latest` tag on every beta release. That publishing step
 // is NOT set up as part of this change (see the Phase 4 coding log) — this command is only the
 // App-side half of the channel toggle.
-#[cfg(desktop)]
 const STABLE_ENDPOINT: &str =
     "https://github.com/yuhina0515/IRMS/releases/latest/download/latest.json";
-#[cfg(desktop)]
 const BETA_ENDPOINT: &str =
     "https://github.com/yuhina0515/IRMS/releases/download/beta-latest/latest.json";
 
@@ -111,8 +109,70 @@ pub async fn update_check<R: Runtime>(
     _webview: Webview<R>,
     _allow_beta: bool,
 ) -> Result<Option<UpdateMetadata>, String> {
-    // Mobile builds update through the store/APK; report "no update" so the shared JS path is a no-op.
+    // Mobile builds cannot self-install; android_update_check below handles the manual APK path.
     Ok(None)
+}
+
+/// A newer APK exists; the app cannot install it itself, so the user opens the download.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApkUpdate {
+    version: String,
+    url: String,
+}
+
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn android_update_check(_allow_beta: bool) -> Result<Option<ApkUpdate>, String> {
+    Ok(None)
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn android_update_check(allow_beta: bool) -> Result<Option<ApkUpdate>, String> {
+    #[derive(serde::Deserialize)]
+    struct Manifest {
+        version: String,
+    }
+    let endpoint = if allow_beta {
+        BETA_ENDPOINT
+    } else {
+        STABLE_ENDPOINT
+    };
+    let client = crate::telemetry::with_platform_roots(reqwest::Client::builder())
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let manifest: Manifest = client
+        .get(endpoint)
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    let latest = semver::Version::parse(&manifest.version).map_err(|e| e.to_string())?;
+    let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).map_err(|e| e.to_string())?;
+    if latest <= current {
+        return Ok(None);
+    }
+    // The URL is derived from the version here, never taken from the renderer. Android itself
+    // refuses an APK signed with a different key, so a wrong file cannot replace the app.
+    let url = format!(
+        "https://github.com/yuhina0515/IRMS/releases/download/v{0}/IRMS_{0}_android_arm64.apk",
+        manifest.version
+    );
+    let exists = client
+        .head(&url)
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
+    Ok(exists.then_some(ApkUpdate {
+        version: manifest.version,
+        url,
+    }))
 }
 
 #[cfg(test)]

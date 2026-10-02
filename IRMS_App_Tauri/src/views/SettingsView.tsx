@@ -385,6 +385,8 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
       return u.downloading({ pct: status.percent })
     case 'downloaded':
       return u.downloaded({ version: status.version })
+    case 'apk-available':
+      return u.apkAvailable({ version: status.version })
     case 'not-available':
       return u.notAvailable
     case 'error':
@@ -406,7 +408,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded'].includes(status.state)
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available'].includes(status.state)
   const m = useT()
   const ms = m.settings.software
 

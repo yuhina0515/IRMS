@@ -237,7 +237,9 @@ export const en = {
     ready: (p: { version: string }) => `Version ${p.version} is downloaded. Restart to apply it`,
     sessionNote: ' (session in progress; restart after it ends)',
     restartBlocked: 'You cannot restart during a session. This button becomes available once the session ends',
-    restartNow: 'Restart now'
+    restartNow: 'Restart now',
+    apkReady: (p: { version: string }) => `Version ${p.version} is available. Download the APK and install it over this app`,
+    apkDownload: 'Download'
   },
 
   pose: {
@@ -613,6 +615,7 @@ export const en = {
       available: (p: { version: string }) => `Found version ${p.version}; preparing to download…`,
       downloading: (p: { pct: number }) => `Downloading… ${p.pct}%`,
       downloaded: (p: { version: string }) => `Version ${p.version} downloaded. Use the banner below to restart and apply it`,
+      apkAvailable: (p: { version: string }) => `Version ${p.version} is available. Use the banner below to download the APK`,
       notAvailable: 'You have the latest version',
       error: (p: { message: string }) => `Check failed: ${p.message}`
     },
