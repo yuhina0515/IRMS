@@ -320,6 +320,7 @@ function DisplayPane(): JSX.Element {
 
 export function SettingsView(): JSX.Element {
   const [category, setCategory] = useState<SettingsCategory>('device')
+  const [navOpen, setNavOpen] = useState(false)
   const setView = useUiStore((s) => s.setView)
   const m = useT()
   const meta = m.settings.categories[category]
@@ -333,9 +334,10 @@ export function SettingsView(): JSX.Element {
         </div>
       </div>
       <section className="v3-sheet v3-settings">
-        <nav className="v3-settings-index" aria-label={m.settings.indexAria}>
+        {navOpen && <div className="v3-settings-scrim" onClick={() => setNavOpen(false)} />}
+        <nav className={`v3-settings-index${navOpen ? ' is-open' : ''}`} aria-label={m.settings.indexAria}>
           {CATEGORIES.map((id) => (
-            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => setCategory(id)}>
+            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => { setCategory(id); setNavOpen(false) }}>
               {m.settings.categories[id].label}
               <span aria-hidden>›</span>
             </button>
@@ -343,8 +345,19 @@ export function SettingsView(): JSX.Element {
         </nav>
         <div className="v3-settings-pane">
           <header className="v3-settings-head">
-            <h2>{meta.title}</h2>
-            <p>{meta.hint}</p>
+            <button
+              type="button"
+              className="v3-settings-menu"
+              aria-label={m.settings.indexAria}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              ☰
+            </button>
+            <div>
+              <h2>{meta.title}</h2>
+              <p>{meta.hint}</p>
+            </div>
           </header>
           <div className="v3-settings-body v3-scroll">
             {category === 'device' && <DevicePane />}

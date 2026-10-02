@@ -55,14 +55,7 @@ export function ModulesPanel(): JSX.Element {
                 <input
                   type="checkbox"
                   checked={m.enabled}
-                  onChange={(e) => {
-                    const enabled = e.target.checked
-                    void setModuleEnabled(m.id, enabled).then(() => {
-                      if (enabled && useModulesStore.getState().modules.find(item => item.id === m.id)?.status === 'active' && modulePage(m.id)) {
-                        openModuleTool(m.id)
-                      }
-                    })
-                  }}
+                  onChange={(e) => void setModuleEnabled(m.id, e.target.checked)}
                   aria-label={tx.modules.enableAria({ name: m.name })}
                 />
                 {m.enabled ? tx.modules.enabled : tx.modules.disabled}

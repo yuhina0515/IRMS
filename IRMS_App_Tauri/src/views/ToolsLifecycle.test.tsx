@@ -1,4 +1,4 @@
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { ToolsView } from './ToolsView'
@@ -43,7 +43,10 @@ it('management only opens the Tools page; navigation cleans the view and re-enab
   useUiStore.setState({ view: 'settings', toolModuleId: null })
   render(<ModulesPanel />)
   fireEvent.click(screen.getByRole('checkbox', { name: getT().modules.enableAria({ name: 'Share' }) }))
-  await waitFor(() => expect(useUiStore.getState()).toMatchObject({ view: 'tools', toolModuleId: 'live-share' }))
+  const openButton = await screen.findByRole('button', { name: getT().modules.openModule({ name: 'Share' }) })
+  expect(useUiStore.getState()).toMatchObject({ view: 'settings', toolModuleId: null })
+  fireEvent.click(openButton)
+  expect(useUiStore.getState()).toMatchObject({ view: 'tools', toolModuleId: 'live-share' })
   // The still-mounted Tools view picks up the freshly activated instance's page.
   expect(await screen.findByText('Share operation screen')).toBeInTheDocument()
   expect(mount).toHaveBeenCalledTimes(3)
