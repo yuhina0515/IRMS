@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IRMS 專業知識庫</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;line-height:1.6}label{display:inline-block;margin:.4rem}input{min-width:18rem;max-width:90%}article{border-top:1px solid;padding:1rem 0}summary,button{cursor:pointer}small{display:block}textarea{width:100%;min-height:7rem}nav a{margin-right:1rem}fieldset{margin:1rem 0}h2{font-size:1.15rem}a:focus-visible,input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid;outline-offset:3px}
+</style>
+<main>
+<h1>IRMS 專業知識庫</h1>
+<p>__SOURCE_COUNT__ 筆來源 · 截至 __SNAPSHOT__ · 繁體中文導讀。研究結果的適用裝置與族群必須逐篇核對；這份資料庫不等同 IRMS 的臨床或量測驗證。</p>
+<nav><a href="README.md">使用說明</a><a href="guides/01-measurement-model.md">量測模型</a><a href="CLAIMS.md">引用主張表</a><a href="VALIDATION_PLAN.md">驗證計畫</a><a href="references.bib" download>下載 BibTeX</a></nav>
+<fieldset><legend>搜尋文獻與技術來源</legend>
+<label>關鍵字 <input id="query" type="search" placeholder="膝角、校準、Bland、BLE、作者或 DOI"></label>
+<label>主題 <select id="topic"><option value="">所有主題</option></select></label>
+<label>來源 <select id="kind"><option value="">所有來源</option><option value="publication">研究／期刊</option><option value="technical-document">技術文件</option><option value="technical-report">技術報告</option><option value="guidance">官方指引</option><option value="dataset">資料集入口</option></select></label>
+<label>閱讀深度 <select id="depth"><option value="">所有深度</option><option value="abstract">摘要</option><option value="full-text-sections">全文指定章節</option><option value="primary-page-excerpt">官方頁面片段</option><option value="metadata-only">僅書目／目錄</option></select></label>
+<label><input id="core" type="checkbox" style="min-width:0">優先閱讀</label>
+</fieldset>
+<p id="status" role="status" aria-live="polite"></p>
+<div id="results"></div>
+<p><button id="prev" type="button">上一頁</button> <button id="next" type="button">下一頁</button></p>
+<label>選定來源的引用文字 <textarea id="citation" readonly></textarea></label>
+<noscript>搜尋需要 JavaScript；所有文獻仍可從 INDEX.md 與 sources/ 閱讀。</noscript>
+</main>
+<script id="catalog" type="application/json">__CATALOG__</script>
+<script id="topics" type="application/json">__TOPICS__</script>
+<script>
+// 以文字節點呈現來源，避免把引用資料解讀為 HTML 或指令。
+const catalog=JSON.parse(document.getElementById('catalog').textContent);
+const topics=JSON.parse(document.getElementById('topics').textContent);
+const label=Object.fromEntries(topics.map(t=>[t.id,t.name]));
+const el=id=>document.getElementById(id);
+for(const t of topics){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;el('topic').append(o)}
+let page=0,filtered=[],pageSize=25;
+const append=(parent,tag,text)=>{const n=document.createElement(tag);n.textContent=text;parent.append(n);return n};
+const link=(parent,text,url)=>{const a=append(parent,'a',text);a.href=url;if(url.startsWith('https://')){a.target='_blank';a.rel='noopener noreferrer'}return a};
+function render(){
+ const terms=el('query').value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+ filtered=catalog.sources.filter(s=>{
+  const text=[s.id,s.title,s.authors.join(' '),s.doi,s.year,s.summary_zh,s.irms_application,s.limitations_zh,...s.topics.map(t=>label[t])].join(' ').toLocaleLowerCase();
+  return terms.every(t=>text.includes(t))&&(!el('topic').value||s.topics.includes(el('topic').value))&&(!el('kind').value||s.source_type===el('kind').value)&&(!el('depth').value||s.review_level===el('depth').value)&&(!el('core').checked||s.priority==='core');
+ });
+ page=Math.min(page,Math.max(0,Math.ceil(filtered.length/pageSize)-1));
+ el('results').replaceChildren();
+ for(const s of filtered.slice(page*pageSize,(page+1)*pageSize)){
+  const article=append(el('results'),'article','');link(append(article,'h2',''),s.title,s.url);
+  append(article,'small',`${s.id} · ${s.year??'持續維護文件'} · ${s.authors.slice(0,3).join(', ')} · ${s.topics.map(t=>label[t]).join('／')}`);
+  append(article,'p',s.summary_zh);
+  const details=append(article,'details','');append(details,'summary',`用途、限制與查核（${s.review_level}）`);
+  append(details,'p','IRMS 用途：'+s.irms_application);append(details,'p','限制：'+s.limitations_zh);
+  append(details,'p',`查核：${s.verification.status}；${s.evidence_locator}`);link(details,'本地來源卡',`sources/${s.id}.md`);
+  const button=append(article,'button','顯示引用');button.type='button';button.addEventListener('click',()=>{el('citation').value=[s.authors.join(', '),s.year??'n.d.',s.title.replace(/\.$/,''),s.journal,s.doi?'https://doi.org/'+s.doi:s.url,'Accessed '+catalog.snapshot_date+'.'].filter(Boolean).join('. ');el('citation').focus();el('citation').select()});
+ }
+ el('status').textContent=`符合 ${filtered.length} 筆；第 ${filtered.length?page+1:0}／${Math.ceil(filtered.length/pageSize)} 頁。${filtered.length?'':'請減少關鍵字或篩選條件。'}`;
+ el('prev').disabled=page===0;el('next').disabled=(page+1)*pageSize>=filtered.length;
+}
+for(const id of ['query','topic','kind','depth','core'])el(id).addEventListener('input',()=>{page=0;render()});
+el('prev').addEventListener('click',()=>{page--;render()});el('next').addEventListener('click',()=>{page++;render()});
+render();
+</script>
+</html>
