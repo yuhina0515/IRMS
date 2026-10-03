@@ -452,6 +452,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
     expect(calibrationDrift(snapshot, recalibrated)).toEqual([])
   })
 
+  it('vector fields compare by value after a JSON round trip, and still detect a change', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 1, y: 0, z: 0 },
+      proximalZeroAccel: { x: 0, y: 0.6, z: 0.8 }
+    }
+    const stored = parseCalibrationSnapshot(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(stored, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 1, y: 0.1, z: 0 } }
+    expect(calibrationDrift(stored, moved)).toEqual(['proximalHingeAxis'])
+  })
+
   it('每一個會改變算式的欄位單獨改動都偵測得到', () => {
     const snapshot = buildCalibrationSnapshot(SETTINGS)
     for (const key of CALIBRATION_TRANSFORM_KEYS) {

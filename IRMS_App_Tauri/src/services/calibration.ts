@@ -505,5 +505,14 @@ export function calibrationDrift(
   settings: Settings
 ): (keyof CalibrationSnapshot)[] {
   if (snapshot == null) return []
-  return CALIBRATION_TRANSFORM_KEYS.filter((key) => snapshot[key] !== settings[key])
+  return CALIBRATION_TRANSFORM_KEYS.filter((key) => !sameCalibrationValue(snapshot[key], settings[key]))
+}
+
+// Vector fields come back from JSON as new objects, so identity comparison would always report drift.
+function sameCalibrationValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a == null || b == null || typeof a !== 'object' || typeof b !== 'object') return false
+  const va = a as Record<string, unknown>
+  const vb = b as Record<string, unknown>
+  return va.x === vb.x && va.y === vb.y && va.z === vb.z
 }
