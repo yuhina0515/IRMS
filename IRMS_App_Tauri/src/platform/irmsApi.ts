@@ -20,6 +20,8 @@ import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
+  MobilityRecordInput,
+  MobilityRecordRow,
   CustomAction,
   CustomActionInput,
   FirmwareBinary,
@@ -169,6 +171,11 @@ export const irms: IrmsApi = {
     list: () => invoke<AngleRangeRecord[]>('angle_ranges_list'),
     add: (input: AngleRangeInput) => invoke<AngleRangeRecord>('angle_ranges_add', { input }),
     remove: (id: number) => invoke<void>('angle_ranges_delete', { id })
+  },
+  mobility: {
+    list: () => invoke<MobilityRecordRow[]>('mobility_list'),
+    add: (input: MobilityRecordInput) => invoke<MobilityRecordRow>('mobility_add', { input }),
+    remove: (id: number) => invoke<void>('mobility_delete', { id })
   },
   data: {
     async appendBatch(sessionId: number, readings: SensorReading[]) {

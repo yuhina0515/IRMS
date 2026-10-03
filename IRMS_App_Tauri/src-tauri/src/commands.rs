@@ -132,6 +132,29 @@ pub fn angle_ranges_add(
 }
 
 #[tauri::command]
+pub fn mobility_list(
+    state: tauri::State<DbState>,
+) -> Result<Vec<crate::types::MobilityRecordRow>, String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::list(&conn).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn mobility_add(
+    state: tauri::State<DbState>,
+    input: crate::types::MobilityRecordInput,
+) -> Result<crate::types::MobilityRecordRow, String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::add(&conn, &input).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn mobility_delete(state: tauri::State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::delete(&conn, id).map_err(to_err)
+}
+
+#[tauri::command]
 pub fn angle_ranges_delete(state: tauri::State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_db(&state)?;
     angle_ranges_repo::delete(&conn, id).map_err(to_err)

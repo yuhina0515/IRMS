@@ -209,6 +209,43 @@ pub mod angle_ranges_repo {
     }
 }
 
+pub mod mobility_repo {
+    use super::*;
+    use crate::types::{MobilityRecordInput, MobilityRecordRow};
+
+    fn row_to_record(row: &rusqlite::Row) -> rusqlite::Result<MobilityRecordRow> {
+        Ok(MobilityRecordRow {
+            id: row.get("id")?,
+            measured_at: row.get("measuredAt")?,
+            movement_set: row.get("movementSet")?,
+            total_deg: row.get("totalDeg")?,
+            detail: row.get("detail")?,
+        })
+    }
+
+    /// Newest first.
+    pub fn list(conn: &Connection) -> rusqlite::Result<Vec<MobilityRecordRow>> {
+        let mut stmt =
+            conn.prepare("SELECT * FROM mobility_records ORDER BY measuredAt DESC, id DESC")?;
+        let rows = stmt.query_map([], row_to_record)?;
+        rows.collect()
+    }
+
+    pub fn add(conn: &Connection, input: &MobilityRecordInput) -> rusqlite::Result<MobilityRecordRow> {
+        conn.execute(
+            "INSERT INTO mobility_records (movementSet, totalDeg, detail) VALUES (?1, ?2, ?3)",
+            params![input.movement_set, input.total_deg, input.detail],
+        )?;
+        let id = conn.last_insert_rowid();
+        conn.query_row("SELECT * FROM mobility_records WHERE id = ?1", [id], row_to_record)
+    }
+
+    pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+        conn.execute("DELETE FROM mobility_records WHERE id = ?1", [id])?;
+        Ok(())
+    }
+}
+
 pub mod sessions_repo {
     use super::*;
 
@@ -542,6 +579,36 @@ mod tests {
 
         let sampled = sessions_repo::get_data(&conn, session_id, Some(100)).unwrap();
         assert_eq!(sampled.len(), 100);
+    }
+
+    #[test]
+    fn mobility_roundtrip_and_constraints() {
+        let db = fresh_db();
+        let a = mobility_repo::add(
+            &db,
+            &crate::types::MobilityRecordInput {
+                movement_set: "kneeFlexion".into(),
+                total_deg: 130.5,
+                detail: "{\"peaks\":{\"kneeFlexion\":130.5}}".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(a.total_deg, 130.5);
+        assert!(a.detail.contains("kneeFlexion"));
+        assert_eq!(mobility_repo::list(&db).unwrap().len(), 1);
+        for bad in [("", 10.0), ("kneeFlexion", -1.0), ("kneeFlexion", 5000.0)] {
+            assert!(mobility_repo::add(
+                &db,
+                &crate::types::MobilityRecordInput {
+                    movement_set: bad.0.into(),
+                    total_deg: bad.1,
+                    detail: "{}".into(),
+                },
+            )
+            .is_err());
+        }
+        mobility_repo::delete(&db, a.id).unwrap();
+        assert!(mobility_repo::list(&db).unwrap().is_empty());
     }
 
     #[test]
