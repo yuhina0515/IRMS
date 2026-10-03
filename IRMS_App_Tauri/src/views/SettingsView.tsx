@@ -7,6 +7,7 @@ import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { CalibrationWizardB } from '../components/CalibrationWizardB'
+import { MobilityTrend } from '../components/MobilityTrend'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
@@ -217,6 +218,7 @@ function CalibrationPane(): JSX.Element {
       >
         {m.calibrationB.title} ({m.calibrationB.beta})
       </button>
+      <MobilityTrend disabled={!isConnected} />
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>

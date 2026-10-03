@@ -231,13 +231,20 @@ pub mod mobility_repo {
         rows.collect()
     }
 
-    pub fn add(conn: &Connection, input: &MobilityRecordInput) -> rusqlite::Result<MobilityRecordRow> {
+    pub fn add(
+        conn: &Connection,
+        input: &MobilityRecordInput,
+    ) -> rusqlite::Result<MobilityRecordRow> {
         conn.execute(
             "INSERT INTO mobility_records (movementSet, totalDeg, detail) VALUES (?1, ?2, ?3)",
             params![input.movement_set, input.total_deg, input.detail],
         )?;
         let id = conn.last_insert_rowid();
-        conn.query_row("SELECT * FROM mobility_records WHERE id = ?1", [id], row_to_record)
+        conn.query_row(
+            "SELECT * FROM mobility_records WHERE id = ?1",
+            [id],
+            row_to_record,
+        )
     }
 
     pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {

@@ -42,6 +42,7 @@ export interface IrmsStub {
   actions: { [K in keyof IrmsApi['actions']]: Mock }
   firmware: { [K in keyof IrmsApi['firmware']]: Mock }
   updates: { [K in keyof IrmsApi['updates']]: Mock }
+  mobility: { [K in keyof IrmsApi['mobility']]: Mock }
   /**
    * 依呼叫順序攤平的所有 appendBatch 讀數。
    * 省去測試自己去拆 data.appendBatch.mock.calls[i][1] 再 flat——
@@ -61,6 +62,7 @@ export interface IrmsStubOverrides {
   actions?: Partial<IrmsApi['actions']>
   firmware?: Partial<IrmsApi['firmware']>
   updates?: Partial<IrmsApi['updates']>
+  mobility?: Partial<IrmsApi['mobility']>
 }
 
 /**
@@ -71,13 +73,14 @@ export interface IrmsStubOverrides {
  * 再補,而不是先猜一個形狀(firmware/updates 這兩個原本也是空的,2026-09-20 的
  * `DashboardView`/`SettingsView` 旅程測試第一次用到才照這裡的說明補上)。
  */
-export const mockIrmsApiModule: { irms: Pick<IrmsApi, 'sessions' | 'data' | 'actions' | 'firmware' | 'updates'> } = {
+export const mockIrmsApiModule: { irms: Pick<IrmsApi, 'sessions' | 'data' | 'actions' | 'firmware' | 'updates' | 'mobility'> } = {
   irms: {
     sessions: {} as IrmsApi['sessions'],
     data: {} as IrmsApi['data'],
     actions: {} as IrmsApi['actions'],
     firmware: {} as IrmsApi['firmware'],
-    updates: {} as IrmsApi['updates']
+    updates: {} as IrmsApi['updates'],
+    mobility: {} as IrmsApi['mobility']
   }
 }
 
@@ -124,6 +127,11 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       setAllowPrerelease: async (_allow: boolean) => {},
       // 預設不主動推播任何狀態;需要斷言特定狀態序列的測試自行覆寫並手動呼叫回呼
       onStatusChange: (_cb: (status: unknown) => void) => () => {}
+    },
+    mobility: {
+      list: async () => [] as unknown[],
+      add: async (input: unknown) => ({ id: 1, measuredAt: new Date().toISOString(), ...(input as object) }),
+      remove: async (_id: number) => ({ success: true as const })
     }
   }
 
@@ -140,6 +148,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
   const actionsStub = wrap(defaults.actions, overrides.actions)
   const firmwareStub = wrap(defaults.firmware, overrides.firmware)
   const updatesStub = wrap(defaults.updates, overrides.updates)
+  const mobilityStub = wrap(defaults.mobility, overrides.mobility as never)
 
   // 原地重新指派 mockIrmsApiModule.irms.{sessions,data,actions,firmware,updates} 底下的
   // 葉節點,不重建這些子物件本身——見檔頭關於 stale-reference 的說明。
@@ -148,6 +157,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
   Object.assign(mockIrmsApiModule.irms.actions, actionsStub)
   Object.assign(mockIrmsApiModule.irms.firmware, firmwareStub)
   Object.assign(mockIrmsApiModule.irms.updates, updatesStub)
+  Object.assign(mockIrmsApiModule.irms.mobility, mobilityStub)
 
   return {
     sessions: sessionsStub as IrmsStub['sessions'],
@@ -155,6 +165,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
     actions: actionsStub as IrmsStub['actions'],
     firmware: firmwareStub as IrmsStub['firmware'],
     updates: updatesStub as IrmsStub['updates'],
+    mobility: mobilityStub as IrmsStub['mobility'],
     appended,
     uninstall: () => {}
   }

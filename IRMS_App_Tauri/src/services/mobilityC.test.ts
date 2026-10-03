@@ -5,7 +5,6 @@ import {
   heldPeak,
   HOLD_MIN_SAMPLES,
   MOVEMENTS,
-  needsJumpConfirmation,
   solveMovement,
   type MobilityRecord,
   type MovementResult
@@ -143,6 +142,41 @@ describe('solveMovement (strategy C)', () => {
   })
 })
 
+describe('hip movements (thigh sensor only)', () => {
+  function runHip(id: 'hipFlexion' | 'hipExtension' | 'hipAbduction', seed: number, peak: number, dir: 1 | -1) {
+    const r = rng(seed)
+    const rot = randomRotation(r)
+    const angles = profile(peak)
+    const neutral = { thigh: toSensor(rot, seg(5, 0)), shin: { x: 0, y: 1, z: 0 } }
+    const moverSamples = angles.map((a) => noisy(toSensor(rot, seg(5, dir * a)), 0.4, r))
+    return solveMovement(neutral, { moverSamples }, MOVEMENTS[id])
+  }
+
+  it('recovers flexion, extension and abduction peaks with no reference sensor', () => {
+    for (const [id, peak] of [['hipFlexion', 100], ['hipExtension', 25], ['hipAbduction', 40]] as const) {
+      for (const dir of [1, -1] as const) {
+        const out = runHip(id, 7, peak, dir)
+        expect(out.ok, `${id} dir ${dir}`).toBe(true)
+        if (out.ok) expect(Math.abs(out.result.peakDeg - peak)).toBeLessThan(3)
+      }
+    }
+  })
+
+  it('rejects an extension past the plausible ceiling', () => {
+    expect(runHip('hipExtension', 8, 80, 1)).toEqual({ ok: false, error: 'implausible' })
+  })
+
+  it('sums several movements into one record keyed by the full set', () => {
+    const mk = (movement: MovementResult['movement'], peakDeg: number): MovementResult => ({
+      movement, peakDeg, instantMaxDeg: peakDeg, hingeAxis: { x: 1, y: 0, z: 0 }, neutral: { x: 0, y: 1, z: 0 },
+      planarityDeg: 1, spanDeg: 60, hingeUsedGyro: false, holdSpreadDeg: 1, warnings: []
+    })
+    const rec = buildMobilityRecord([mk('hipFlexion', 100), mk('kneeFlexion', 120)], 't')
+    expect(rec?.totalDeg).toBe(220)
+    expect(rec?.movementSet).toEqual(['hipFlexion', 'kneeFlexion'])
+  })
+})
+
 describe('heldPeak', () => {
   it('needs a still window and ignores a faster pass', () => {
     expect(heldPeak(Array.from({ length: 30 }, (_, i) => i * 4))).toBeNull()
@@ -173,7 +207,7 @@ describe('mobility record', () => {
     expect(buildMobilityRecord([result(90), result(95)], 'x')).toBeNull()
   })
 
-  it('compares only the same movement set and asks before a big jump', () => {
+  it('compares only the same movement set', () => {
     const mk = (t: string, total: number): MobilityRecord => ({
       measuredAt: t,
       movementSet: ['kneeFlexion'],
@@ -182,8 +216,5 @@ describe('mobility record', () => {
     })
     const old = [mk('2026-09-01', 90), mk('2026-09-10', 100)]
     expect(comparableTrend([...old, { ...mk('2026-09-05', 50), movementSet: [] }], mk('x', 0))).toHaveLength(2)
-    expect(needsJumpConfirmation(old, mk('2026-10-03', 140))).toBe(true)
-    expect(needsJumpConfirmation(old, mk('2026-10-03', 110))).toBe(false)
-    expect(needsJumpConfirmation([], mk('2026-10-03', 170))).toBe(false)
   })
 })

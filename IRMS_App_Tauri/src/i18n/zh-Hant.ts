@@ -510,6 +510,60 @@ export const zhHant = {
     apply: '確認套用'
   },
 
+  mobility: {
+    title: '活動度測量',
+    intro: '依平常方式佩戴感測器,**隔著衣物也可以**。不需要站直:先選一個你覺得放鬆的姿勢當作起點,再依序做幾個動作,每個動作慢慢做到**你能穩定維持的最大角度**。各動作的最大角度會加總成「總活動度」,長期追蹤變化。',
+    painNote: '**只做到不會受傷的程度。** 感到疼痛、頭暈或不適就停止,以你當下能安心維持的角度為準,不必勉強。',
+    movementsLabel: '要測量的動作',
+    movementNames: {
+      kneeFlexion: '膝蓋彎曲',
+      hipFlexion: '髖屈曲(抬大腿向前)',
+      hipExtension: '髖伸展(大腿向後)',
+      hipAbduction: '髖外展(大腿向側邊打開)'
+    },
+    movementDesc: {
+      kneeFlexion: '坐或站都可以,大腿保持不動,慢慢把小腿向後彎到最大,維持約 2 秒,再慢慢放回。',
+      hipFlexion: '站穩,上身不要前後晃動。把大腿慢慢向前抬到最高,維持約 2 秒,再慢慢放下。',
+      hipExtension: '站穩並扶住支撐物,上身保持直立。把大腿慢慢向後擺到最大,維持約 2 秒,再慢慢放回。',
+      hipAbduction: '站穩並扶住支撐物,上身保持直立。把大腿慢慢向側邊打開到最大,維持約 2 秒,再慢慢放回。'
+    },
+    hipCaveat: '髖部動作只用大腿上的一顆感測器,量到的是**大腿相對你起始姿勢的傾斜**,不是醫學上的關節角度;上身晃動也會影響結果,側向動作的誤差通常比前後動作更大。',
+    sideHint: '請選擇佩戴感測器的那一側腿。',
+    neutralTitle: '起始姿勢',
+    neutralDesc: '放鬆、不用勉強站直,保持任何一個舒服的姿勢不動。按下開始後倒數 3 秒,接著靜止 2 秒。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    capture: '開始(3 秒倒數)',
+    recording: '錄製中…',
+    moveNow: '現在慢慢動作,到最大角度後維持住。',
+    noData: '感測資料不足,請檢查連線後重試。',
+    errors: {
+      invalidInput: '感測資料無效,請重試。',
+      sweepTooSmall: '動作幅度太小,請再大一點(在安全範圍內)。',
+      sweepNotPlanar: '動作偏離了單一平面,請沿著同一個方向慢慢動作。',
+      neutralOffPlane: '起始姿勢和這個動作的方向不一致,請重新量起始姿勢。',
+      referenceMoved: '固定的那一段(大腿)有在動,請保持不動只動小腿。',
+      noHold: '沒有偵測到穩定維持的角度,請在最大角度停住約 2 秒。',
+      peakTooSmall: '維持的角度太小,請再大一點(在安全範圍內)。',
+      implausible: '角度超出合理範圍,請檢查感測器是否滑動後重試。'
+    },
+    retry: '重做這個動作',
+    skip: '略過這個動作',
+    resultTitle: '本次結果',
+    resultLine: (p: { name: string; peak: string }) => `${p.name}:${p.peak}°`,
+    total: (p: { total: string }) => `總活動度 ${p.total}°`,
+    incomplete: '有動作被略過,總和只代表已完成的動作組合,只會和相同組合的紀錄比較。',
+    save: '儲存紀錄',
+    saved: '已儲存活動度紀錄',
+    saveFailed: '儲存失敗,請重試。',
+    viewTitle: '活動度趨勢',
+    noRecords: '還沒有紀錄。完成一次活動度測量後,這裡會顯示長期變化。',
+    startMeasure: '開始測量',
+    compareNote: '只比較動作組合相同的紀錄。',
+    setLabel: (p: { names: string }) => `動作:${p.names}`,
+    best: (p: { total: string }) => `最佳 ${p.total}°`,
+    latest: (p: { total: string }) => `最近 ${p.total}°`
+  },
+
   calibrationB: {
     title: '校準 B',
     beta: 'beta',

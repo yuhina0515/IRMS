@@ -489,6 +489,60 @@ export const en = {
     apply: 'Apply'
   },
 
+  mobility: {
+    title: 'Range of motion',
+    intro: 'Wear the sensors as usual, **clothing is fine**. You do not need to stand straight: pick any relaxed pose as your starting point, then do a few movements, each slowly to the **largest angle you can hold steadily**. The largest angles add up to your "total mobility", tracked over time.',
+    painNote: '**Only go as far as is safe.** Stop at any pain, dizziness or discomfort; use the angle you can comfortably hold right now.',
+    movementsLabel: 'Movements to measure',
+    movementNames: {
+      kneeFlexion: 'Knee bend',
+      hipFlexion: 'Hip flexion (thigh forward)',
+      hipExtension: 'Hip extension (thigh back)',
+      hipAbduction: 'Hip abduction (thigh out to the side)'
+    },
+    movementDesc: {
+      kneeFlexion: 'Sitting or standing, keep the thigh still and slowly bend the lower leg back as far as you can. Hold about 2 seconds, then lower slowly.',
+      hipFlexion: 'Stand steady without rocking your trunk. Slowly lift the thigh forward as high as you can, hold about 2 seconds, then lower slowly.',
+      hipExtension: 'Stand steady, holding a support, trunk upright. Slowly swing the thigh back as far as you can, hold about 2 seconds, then return slowly.',
+      hipAbduction: 'Stand steady, holding a support, trunk upright. Slowly open the thigh out to the side as far as you can, hold about 2 seconds, then return slowly.'
+    },
+    hipCaveat: 'Hip movements use one sensor on the thigh, so the value is the **thigh tilt from your starting pose**, not a clinical joint angle. Trunk sway affects it, and sideways movement is usually less accurate than forward/back.',
+    sideHint: 'Choose the leg the sensors are worn on.',
+    neutralTitle: 'Starting pose',
+    neutralDesc: 'Relax; there is no need to stand straight. Hold any comfortable pose still. After you press start there is a 3 second countdown, then stay still for 2 seconds.',
+    progress: (p: { n: string; total: string }) => `Step ${p.n} / ${p.total}`,
+    capture: 'Start (3 s countdown)',
+    recording: 'Recording…',
+    moveNow: 'Move slowly now, then hold at your largest angle.',
+    noData: 'Not enough sensor data. Check the connection and try again.',
+    errors: {
+      invalidInput: 'The sensor data was invalid, please try again.',
+      sweepTooSmall: 'The movement was too small. Go a little further, within a safe range.',
+      sweepNotPlanar: 'The movement strayed from one plane. Move slowly in one direction.',
+      neutralOffPlane: 'The starting pose does not match this direction of this movement. Measure the starting pose again.',
+      referenceMoved: 'The fixed segment (thigh) moved. Keep it still and move only the lower leg.',
+      noHold: 'No steady hold was detected. Pause at your largest angle for about 2 seconds.',
+      peakTooSmall: 'The held angle was too small. Go a little further, within a safe range.',
+      implausible: 'The angle is outside the plausible range. Check whether a sensor slipped and try again.'
+    },
+    retry: 'Redo this movement',
+    skip: 'Skip this movement',
+    resultTitle: 'This result',
+    resultLine: (p: { name: string; peak: string }) => `${p.name}: ${p.peak}°`,
+    total: (p: { total: string }) => `Total mobility ${p.total}°`,
+    incomplete: 'A movement was skipped, so the total covers only the completed set and is compared only with records of the same set.',
+    save: 'Save record',
+    saved: 'Mobility record saved',
+    saveFailed: 'Saving failed, please try again.',
+    viewTitle: 'Mobility trend',
+    noRecords: 'No records yet. After a range-of-motion measurement, long-term changes appear here.',
+    startMeasure: 'Start measuring',
+    compareNote: 'Only records with the same movement set are compared.',
+    setLabel: (p: { names: string }) => `Movements: ${p.names}`,
+    best: (p: { total: string }) => `Best ${p.total}°`,
+    latest: (p: { total: string }) => `Latest ${p.total}°`
+  },
+
   calibrationB: {
     title: 'Calibration B',
     beta: 'beta',

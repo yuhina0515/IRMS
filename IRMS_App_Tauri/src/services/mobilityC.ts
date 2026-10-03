@@ -9,7 +9,7 @@ import { projectOntoHingeFrame } from './angleMath'
 type V3 = AccelVector
 
 export type Limb = 'thigh' | 'shin'
-export type MovementId = 'kneeFlexion'
+export type MovementId = 'kneeFlexion' | 'hipFlexion' | 'hipExtension' | 'hipAbduction'
 
 export interface MovementSpec {
   id: MovementId
@@ -22,8 +22,17 @@ export interface MovementSpec {
 }
 
 export const MOVEMENTS: Record<MovementId, MovementSpec> = {
-  kneeFlexion: { id: 'kneeFlexion', mover: 'shin', reference: 'thigh', plausibleMaxDeg: 170 }
+  kneeFlexion: { id: 'kneeFlexion', mover: 'shin', reference: 'thigh', plausibleMaxDeg: 170 },
+  // Hip movements use the thigh sensor alone: the value is the thigh's tilt from the wearer's neutral, not a joint
+  // angle. Trunk or pelvis motion is not seen, so the test asks the wearer to keep the trunk still. Sagittal-plane
+  // IMU values agree better than coronal ones (KB PMID-39622186), so abduction carries the same caveat in the UI.
+  hipFlexion: { id: 'hipFlexion', mover: 'thigh', reference: null, plausibleMaxDeg: 150 },
+  hipExtension: { id: 'hipExtension', mover: 'thigh', reference: null, plausibleMaxDeg: 50 },
+  hipAbduction: { id: 'hipAbduction', mover: 'thigh', reference: null, plausibleMaxDeg: 70 }
 }
+
+/** Every movement the wizard can offer, in the order it walks the wearer through them. */
+export const MOVEMENT_ORDER: MovementId[] = ['kneeFlexion', 'hipFlexion', 'hipExtension', 'hipAbduction']
 
 /** Samples per hold window; the caller decides the stream rate, so this counts samples, not seconds. */
 export const HOLD_MIN_SAMPLES = 10
@@ -31,8 +40,6 @@ export const HOLD_STILL_TOLERANCE_DEG = 4
 export const REFERENCE_MOVE_MAX_DEG = 10
 export const NEUTRAL_OFF_PLANE_MAX_DEG = 15
 export const MIN_PEAK_DEG = 5
-/** A new peak this far above the previous best asks for confirmation instead of saving silently. */
-export const JUMP_CONFIRM_DEG = 25
 
 const DEG = 180 / Math.PI
 
@@ -218,12 +225,4 @@ export function buildMobilityRecord(results: MovementResult[], measuredAt: strin
 export function comparableTrend(records: MobilityRecord[], current: MobilityRecord): MobilityRecord[] {
   const key = movementSetKey(current.movementSet)
   return records.filter((r) => movementSetKey(r.movementSet) === key).sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
-}
-
-/** True when a new total jumps well above the best comparable one, so the UI asks before saving. */
-export function needsJumpConfirmation(previous: MobilityRecord[], next: MobilityRecord): boolean {
-  const same = comparableTrend(previous, next)
-  if (same.length === 0) return false
-  const best = Math.max(...same.map((r) => r.totalDeg))
-  return next.totalDeg - best > JUMP_CONFIRM_DEG
 }
