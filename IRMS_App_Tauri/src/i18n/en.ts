@@ -201,6 +201,7 @@ export const en = {
 
   nav: {
     ariaLabel: 'Main navigation',
+    menuAria: 'Open main menu',
     dashboard: 'Live',
     actions: 'Exercises',
     history: 'History',

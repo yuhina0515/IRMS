@@ -228,6 +228,7 @@ export const zhHant = {
   /** 主導覽分頁(也作為錯誤邊界的區塊名稱) */
   nav: {
     ariaLabel: '主要功能',
+    menuAria: '開啟主選單',
     dashboard: '即時監測',
     actions: '動作處方',
     history: '療程紀錄',

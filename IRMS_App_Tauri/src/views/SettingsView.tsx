@@ -15,6 +15,7 @@ import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import {
   DATE_TIME,
@@ -325,6 +326,7 @@ export function SettingsView(): JSX.Element {
   const setView = useUiStore((s) => s.setView)
   const m = useT()
   const meta = m.settings.categories[category]
+  useEscapeKey(navOpen ? () => setNavOpen(false) : null)
 
   return (
     <div className="v3-page">
