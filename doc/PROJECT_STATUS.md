@@ -41,6 +41,7 @@ coding log,不憑印象轉述。
 | 韌體 | v3 模組化(`config.h` / `imu.h` / `.ino`),與 Electron/Tauri 兩版 App 共用同一份 BLE 協定,協定本身不受桌面端遷移影響。2026-08-28 最近一次於真裝置重新燒錄驗證。2026-09-16/17 修復了 App 端 Roll 計算的深屈膝退化 bug(見下方校準狀態),**韌體本身未變動** |
 | 校準狀態(CAL-02/CAL-03) | Roll 已於 2026-09-16/17 重新定義為「重力向量偏離屈曲平面的角度」,修好深屈膝 ±180° 退化、結構性收斂於 [-90°,90°],**尚未真機驗證**(見 [[log_20260917_cal02_design_decision]] 第五節的量化驗收門檻)。**[2026-09-25 更新]** CAL-03 已於 beta.12 以真機資料 A/B 完成,Knee 改為鉸鏈座標系中的 thigh−shin;以下為 2026-09-19 的歷史描述:Knee(膝夾角)**有已知未修的結構性風險**:兩顆獨立貼裝 IMU 的原始向量座標系彼此獨立,直接比較在某些貼裝下會算出假的相對角;候選修法 `reconcileToReferenceFrame` 已合成驗證但**刻意未接上生產路徑**,需要真機 A/B 比較(CAL-03)才能決定是否啟用——這是目前唯一卡住的正式閘門,不是遺漏 |
 | 校準 B(beta,2026-10-01) | `services/calibrationB.ts` + `components/CalibrationWizardB.tsx`:重力平面(Horn)+ 陀螺儀樞軸融合 + 六面地面階段(偏差與增益);輸出與流程 A 相同的 Settings 欄位。**僅合成資料驗證,實機待測**。韌體 1.0.1-beta.2 的 opt-in `G:` 封包(`CMD:RAW_ON`)提供陀螺儀與原始加速度;舊韌體自動退回僅重力 |
+| 活動度 C(2026-10-03,未發版) | `services/mobilityC.ts` + `components/MobilityWizard.tsx`/`MobilityTrend.tsx` + 遷移 9 `mobility_records`:相對中立姿勢的活動度(膝屈曲、髖屈曲/伸展/外展),保持峰值自動記錄、各動作加總,趨勢僅比較相同動作組合;髖部只用大腿感測器(數值為大腿傾斜量,外展可信度較低)。不影響警報上下限與設定。**僅合成資料驗證,實機待測**;執行時帶正負號膝角尚未接上,A/B 入口保留。計畫 `doc/plans/2026-10-03-calibration-c-plan.md` |
 | i18n | 繁中/English(`src/i18n`),鍵值以 `satisfies Messages` 強制兩語系一致;`clinical.*` 英文待臨床人員審閱 |
 | 實機驗證(Tauri) | **尚未執行**——Tauri 版自 2026-09-10 遷移以來,BLE OTA(`ble.rs`/`firmware.rs`)、GPIO 回饋、真實感測資料、斷線復原、Roll 修復後的深屈膝行為,以及 issue #3 的完整連線→達標→超限→斷線復原 E2E,**全部需要實體 ESP32 才能驗證**,模擬模式無法替代(見 `IRMS_App_Tauri/README.md` 架構邊界章節)。裝置目前不在使用者身邊;隊友 `harold1008` 已於 09-11 受託執行測試但尚無回應 |
 

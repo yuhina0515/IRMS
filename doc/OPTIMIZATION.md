@@ -391,6 +391,7 @@ cancellation/disposal, compatibility and release integration requirements.
 
 - [x] 校準 B 引擎(`services/calibrationB.ts`):重力平面 + Horn 解旋轉、陀螺儀樞軸融合(與平面法向量偏差 >15° 時捨棄並警示)、六面地面階段(每軸偏差與增益)。
 - [x] 精靈(`components/CalibrationWizardB.tsx`,設定頁「校準 B (beta)」);舊韌體(無 `G:`)自動退回僅重力。
+- [x] 活動度 C(2026-10-03):`services/mobilityC.ts` 引擎、`MobilityWizard`/`MobilityTrend`、`mobility_records` 表;髖屈伸/外展。待辦:執行時帶正負號膝角、隱藏 `segment_elevation`/`segment_extension`、併入舒適/極限角度、實機驗證。
 - [x] 韌體 1.0.1-beta.2:opt-in `G:` 封包(`CMD:RAW_ON` / `CMD:RAW_OFF`,斷線與 OTA 傳輸中暫停)。
 - [ ] **實機驗證(Harold)**:`G:` 串流、1.0.1-beta.2 的 OTA、約 50 notify/s 的 BLE 負載、真實穿戴者的校準 B 結果;皆以遙測回傳。目前只有合成資料與單元測試。
 - [ ] `clinical.*` 英文措辭與校準 B 的英文文案待臨床人員審閱。

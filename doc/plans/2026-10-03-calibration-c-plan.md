@@ -104,3 +104,9 @@ Verified against code unless noted.
 `services/mobilityC.ts` + `mobilityC.test.ts` (9 tests): neutral-relative signed angle about a sweep-derived hinge axis, held-peak window,
 gates (span, planarity, neutral off plane, moving reference, no hold, implausible), sum record, same-set trend, jump confirmation.
 Synthetic only; no hardware validation.
+
+## Progress (2026-10-04)
+- P1 extended to hips; P2 done (migration 9, commands, adapter); P3 done (wizard, zh-Hant/en); P4 done via Settings trend (MobilityTrend), no separate History-page view.
+- P6 partial: PROJECT_STATUS and OPTIMIZATION synced.
+- Codex knowledge base: hip values are thigh tilt, coronal least reliable; peaks auto-recorded, no pain prompt.
+- Deferred (needs hardware evidence): runtime signed knee angle + calibrationMethod marker, P5 hiding of segment_elevation/extension, merging angle-range comfort/limit, README/ROADMAP, beta.
