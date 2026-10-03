@@ -642,6 +642,8 @@ export const zhHant = {
       heading: 'Software Update 軟體更新',
       intro:
         '新版本會在背景自動下載,不會跳出安裝精靈;下載完成後畫面下方會出現提示,按下重啟即可套用(或直接關閉 App,下次啟動時自動套用)。',
+      introAndroid:
+        'Android 無法自行更新。發現新版本時畫面下方會出現提示,點下後下載 APK,再開啟檔案直接覆蓋安裝即可,資料會保留。',
       currentVersion: (p: { version: string }) => `目前版本:${p.version}`,
       downloadedWaiting: '已下載，等待套用',
       processing: '更新處理中…',

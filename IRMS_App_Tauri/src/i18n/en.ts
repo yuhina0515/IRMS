@@ -623,6 +623,8 @@ export const en = {
       heading: 'Software update',
       intro:
         'New versions download in the background without an installer. When a download finishes, a prompt appears at the bottom; restart to apply it (or just close the app and it applies on the next start).',
+      introAndroid:
+        'Android cannot update itself. When a new version is found, a banner appears at the bottom; tap it to download the APK, then open the file to install it over the current app. Your data is kept.',
       currentVersion: (p: { version: string }) => `Current version: ${p.version}`,
       downloadedWaiting: 'Downloaded, waiting to apply',
       processing: 'Updating…',

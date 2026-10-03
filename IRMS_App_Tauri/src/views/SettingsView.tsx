@@ -25,6 +25,7 @@ import {
   type LanguageSetting,
   type Messages
 } from '../i18n'
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
 
 /**
  * Language names are endonyms (each written in its own language) and deliberately not translated:
@@ -440,7 +441,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   return (
     <div className="panel glass">
       <h3 style={{ marginBottom: 14 }}>{ms.heading}</h3>
-      <p className="text-text-muted text-sm mb-3">{ms.intro}</p>
+      <p className="text-text-muted text-sm mb-3">{IS_ANDROID ? ms.introAndroid : ms.intro}</p>
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">{ms.currentVersion({ version })}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
