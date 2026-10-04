@@ -12,8 +12,8 @@
 
 優先順序是與 IRMS 的關聯及閱讀價值，不是證據品質評分。
 
-- **PMID-32545227** [Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.](../sources/PMID-32545227.md) (2020；abstract) — 整理手動、靜態、功能與解剖校準四類方法；異質的驗證參考使單一最佳方法難以成立。
-- **PMID-32580394** [Robust Plug-and-Play Joint Axis Estimation Using Inertial Sensors.](../sources/PMID-32580394.md) (2020；abstract) — 提出關節軸即插即用估計與樣本選擇、品質判斷，機械關節測試提供辨識與可信度設計參考。
+- **PMID-32545227** [Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.](../sources/PMID-32545227.md) (2020；full-text-extracted) — 54 篇校準文獻分為手動、靜態、功能、解剖四類；評估異質，不能判定通用最佳法。
+- **PMID-32580394** [Robust Plug-and-Play Joint Axis Estimation Using Inertial Sensors.](../sources/PMID-32580394.md) (2020；full-text-extracted) — 機械鉸鏈的辨識品質取決於資訊量與持續穩定；100 次最佳化重跑不等同 100 位受試者。
 - **PMID-40702014** [DIODEM - A Diverse Inertial and Optical Dataset of kinEmatic chain Motion.](../sources/PMID-40702014.md) (2025；abstract) — DIODEM 以已知機械鏈與固定差異系統化研究慣性追蹤問題，可分離感測、模型與附件偽影。
 - **PMID-37766040** [Inertial Measurement Unit Sensor-to-Segment Calibration Comparison for Sport-Specific Motion Analysis.](../sources/PMID-37766040.md) (2023；abstract) — 運動專項 ROM 驗證比較多種校準動作，結論支持依動作與量測變數選擇校準。
 - **PMID-35590949** [Inertial Sensor-to-Segment Calibration for Accurate 3D Joint Angle Calculation for Use in OpenSim.](../sources/PMID-35590949.md) (2022；abstract) — 將肢段校準整合到 OpenSim 工作流程，提供模型、感測與光學參考之間對齊的實作案例。

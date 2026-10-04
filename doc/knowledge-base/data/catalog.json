@@ -312,7 +312,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/31991862/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "systematic-review-or-meta-analysis",
+      "study_type": "methodological-systematic-review",
       "publication_types": [
         "Systematic Review",
         "review-article",
@@ -322,11 +322,11 @@
         "kinematics"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "下肢關節估計依賴特定應用與生物力學假設；加入模型限制後，必須檢查假設是否適用於實際患者與動作。",
-      "irms_application": "用於 IRMS 量測背景與功能動作驗證設計；分別報告波形、絕對角度、ROM 與各運動平面。",
-      "limitations_zh": "研究的裝置、演算法、樣本與動作不同；不能將其誤差或有效性直接宣稱為 IRMS 的實測性能。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "31 篇研究的方法與族群差異很大，跨研究誤差範圍不能當作單一裝置規格。",
+      "irms_application": "分開驗證絕對膝角、ROM、波形與不同運動平面，並記錄每種校準與相容路徑。；短試次通過後仍需長時間與重連試驗；上述時間與誤差不是 IRMS 通過線。",
+      "limitations_zh": "小樣本、短時間與健康族群占多數；可重現演算法的納入條件也可能排除部分臨床驗證。 方法性回顧可支持實驗設計；不能把各研究不同平面與參考模型的誤差直接平均。未另做正式偏誤評分。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -348,7 +348,8 @@
         "Hallez, Hans",
         "De Vroey, Henri",
         "Claeys, Kurt"
-      ]
+      ],
+      "full_text_review_id": "PMID-31991862"
     },
     {
       "id": "PMID-33322187",
@@ -783,7 +784,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/32545227/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "systematic-review-or-meta-analysis",
+      "study_type": "systematic-review",
       "publication_types": [
         "Systematic Review",
         "review-article",
@@ -793,11 +794,11 @@
         "calibration"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "整理手動、靜態、功能與解剖校準四類方法；異質的驗證參考使單一最佳方法難以成立。",
-      "irms_application": "對照 calibration.ts 與 angleMath.ts 的佩戴校準；規劃重戴、不同操作者及校準失敗條件。",
-      "limitations_zh": "校準方法、肢段與任務需逐篇比對；IRMS 的靜態向量程序不等同所有功能軸辨識方法。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "54 篇校準文獻分為手動、靜態、功能、解剖四類；評估異質，不能判定通用最佳法。",
+      "irms_application": "靜態零位、肢段軸辨識與任意佩戴不變性是不同驗證問題。；依 V02 分開同次校準、重戴與跨操作者結果；不可把靜態向量扣零稱為所有功能校準方法的實現。",
+      "limitations_zh": "中立姿勢與純軸旋轉假設可能不適用於活動受限者；方法重複性受使用者及操作者影響。 單人篩選與異質方法需要留意；未正式重評全部 54 篇的偏誤風險。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -817,7 +818,8 @@
         "Chatellier, Christian",
         "Vauzelle, Rodolphe",
         "Fradet, Laetitia"
-      ]
+      ],
+      "full_text_review_id": "PMID-32545227"
     },
     {
       "id": "PMID-32012906",
@@ -1122,7 +1124,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/32580394/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "mechanical-method-validation",
       "publication_types": [
         "research-article",
         "Journal Article"
@@ -1131,11 +1133,11 @@
         "calibration"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "提出關節軸即插即用估計與樣本選擇、品質判斷，機械關節測試提供辨識與可信度設計參考。",
-      "irms_application": "對照 calibration.ts 與 angleMath.ts 的佩戴校準；規劃重戴、不同操作者及校準失敗條件。",
-      "limitations_zh": "校準方法、肢段與任務需逐篇比對；IRMS 的靜態向量程序不等同所有功能軸辨識方法。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "機械鉸鏈的辨識品質取決於資訊量與持續穩定；100 次最佳化重跑不等同 100 位受試者。",
+      "irms_application": "V04 應測無激發與退化資料，允許延後或拒絕校準。；需要完整陀螺與加速度資料才能評估此方法；Emax 不可直接當成 IRMS 膝角誤差標準。",
+      "limitations_zh": "剛性機械系統，沒有皮膚與肌肉移動；人體非剛性系統的可靠性列為未來工作。 重排與重跑評估數值穩健性，但不提供跨裝置、跨人體的獨立樣本證據。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -1155,7 +1157,8 @@
         "Kok, Manon",
         "Seel, Thomas",
         "Halvorsen, Kjartan"
-      ]
+      ],
+      "full_text_review_id": "PMID-32580394"
     },
     {
       "id": "PMID-31771263",
@@ -1472,7 +1475,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/24743160/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "single-participant-method-validation",
       "publication_types": [
         "Research Support, Non-U.S. Gov't",
         "research-article",
@@ -1482,11 +1485,11 @@
         "hinge"
       ],
       "priority": "core",
-      "review_level": "full-text-sections",
-      "summary_zh": "運用關節運動限制辨識軸與位置，僅用加速度及角速度估計屈伸角；人體與義肢的光學對照誤差不同。",
-      "irms_application": "用於關節軸、六軸可觀測性與相對角估計的替代方案研究；先比較機械平臺再進行人體測試。",
-      "limitations_zh": "原文步態試驗為一位經股截肢受試者，使用 Xsens MTw、光學參考及特定校準；人工關節與人體側的固定條件不同。不能將其精度外推至 IRMS、一般族群或其他動作。",
-      "evidence_locator": "Abstract; sections 1.2, 1.3, 3.1, 3.2 and 4 in PMC4029684",
+      "review_level": "full-text-extracted",
+      "summary_zh": "一位截肢者的人工與人體側誤差不同，說明固定條件和參考模型的重要性。",
+      "irms_application": "分開外殼剛性姿態測試與人體解剖角度驗證。；IRMS 正規化向量與角度封包不足以直接重跑本文完整軸／位置辨識與融合。",
+      "limitations_zh": "一位受試者、特定任務與硬體；人膝不完全符合鉸鏈，參考也含軟組織誤差。 可支持模型與驗證設計；代表性及表列數值一致性有限。參考依賴與因果實作須另外核對。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -1505,7 +1508,8 @@
         "Seel, Thomas",
         "Raisch, Jörg",
         "Schauer, Thomas"
-      ]
+      ],
+      "full_text_review_id": "PMID-24743160"
     },
     {
       "id": "PMID-29933568",
@@ -1529,7 +1533,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/29933568/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "repeated-measures-validation",
       "publication_types": [
         "research-article",
         "Journal Article"
@@ -1538,11 +1542,11 @@
         "hinge"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "無磁力計三維系統的重測與長時間穩定性評估顯示，加入軟組織影響後誤差增加。",
-      "irms_application": "用於關節軸、六軸可觀測性與相對角估計的替代方案研究；先比較機械平臺再進行人體測試。",
-      "limitations_zh": "理想鉸鏈、磁環境與資料激發條件可能與人體不同；六軸不能保證任意動作下完整三維姿態可觀測。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "參考外殼標記與皮膚標記的誤差不同；光學初始化與兩次處理也影響能否部署。",
+      "irms_application": "V02 報告跨日重戴與校準，V06 分開全球方向漂移及相對膝角。；不要以外殼標記的最佳結果替代人體骨段參考；不可將此離線兩次處理結果當作即時 IRMS 性能。",
+      "limitations_zh": "CMC 出現複數的受試者被排除於平均；光學校準與初始化依賴仍需處理。 共同模型與光學初值降低了部分實際部署的不確定性；不代表獨立居家校準達相同誤差。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -1563,7 +1567,8 @@
         "Taetz, Bertram",
         "Fröhlich, Michael",
         "Bleser, Gabriele"
-      ]
+      ],
+      "full_text_review_id": "PMID-29933568"
     },
     {
       "id": "PMID-19632882",
@@ -1642,7 +1647,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/35408159/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "treadmill-pilot-validation",
       "publication_types": [
         "research-article",
         "Journal Article"
@@ -1651,11 +1656,11 @@
         "hinge"
       ],
       "priority": "supporting",
-      "review_level": "abstract",
-      "summary_zh": "分析直線步行等退化運動下的可觀測性，並結合校正與驗證來估計無磁力計髖膝運動學。",
-      "irms_application": "用於關節軸、六軸可觀測性與相對角估計的替代方案研究；先比較機械平臺再進行人體測試。",
-      "limitations_zh": "理想鉸鏈、磁環境與資料激發條件可能與人體不同；六軸不能保證任意動作下完整三維姿態可觀測。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "步行膝角的絕對 RMSE 7.87°，參考扣偏移後 3.77°；兩個數字衡量不同問題。",
+      "irms_application": "報告偏移、ROM 與波形誤差時保留 absolute／relative 定義。；不能藉此支持 IRMS kneeRoll 的臨床效度，也不能把 30 分鐘分段分析當成完整連續在線驗證。",
+      "limitations_zh": "小且年輕的樣本；髖向量需校準、骨盆垂直假設與軟組織影響；非矢狀膝角沒有相應參考驗證。 參考均值校正不能在沒有參考系統的部署中免費取得；30 秒批次最佳化不是即時逐封包處理。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -1673,7 +1678,8 @@
       "bibtex_authors": [
         "McGrath, Timothy",
         "Stirling, Leia"
-      ]
+      ],
+      "full_text_review_id": "PMID-35408159"
     },
     {
       "id": "PMID-28846613",
@@ -1916,7 +1922,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/22319365/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "method-review-with-demonstration",
       "publication_types": [
         "Research Support, Non-U.S. Gov't",
         "review-article",
@@ -1927,11 +1933,11 @@
         "fusion"
       ],
       "priority": "supporting",
-      "review_level": "abstract",
-      "summary_zh": "回顧三維人體姿態融合與濾波方法，提供演算法選擇與實作背景。",
-      "irms_application": "用於韌體姿態融合、偏移與動態加速度分析；以相同原始訊號、延遲條件比較候選濾波器。",
-      "limitations_zh": "姿態精度不等於關節角精度；量測硬體、採樣、動作、調參與因果延遲仍需在 IRMS 測試。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "EKF 頭部示例支持感測器融合原理，並非雙 IMU 膝角的臨床效度研究。",
+      "irms_application": "區分重力對傾斜的約束、航向資訊及相對關節限制。；IRMS 六軸資料、兩個 atan2 傾角與完整 quaternion EKF 的狀態及輸入不同；勿直接套用示例性能。",
+      "limitations_zh": "有限示例、短試次及固定於外殼的光學參考，不驗證人體膝角或磁干擾下的 IRMS。 可作融合推導與估計量定義的依據；示例誤差不構成通用硬體或演算法保證。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -1948,7 +1954,8 @@
       "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
       "bibtex_authors": [
         "Sabatini, Angelo Maria"
-      ]
+      ],
+      "full_text_review_id": "PMID-22319365"
     },
     {
       "id": "PMID-25302810",
@@ -2306,7 +2313,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/33916432/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "rigid-board-algorithm-benchmark",
       "publication_types": [
         "research-article",
         "Journal Article"
@@ -2315,11 +2322,11 @@
         "fusion"
       ],
       "priority": "supporting",
-      "review_level": "abstract",
-      "summary_zh": "比較多種姿態演算法與硬體，誤差隨轉速與 IMU 型號改變，沒有對所有條件皆最佳的單一方法。",
-      "irms_application": "用於韌體姿態融合、偏移與動態加速度分析；以相同原始訊號、延遲條件比較候選濾波器。",
-      "limitations_zh": "姿態精度不等於關節角精度；量測硬體、採樣、動作、調參與因果延遲仍需在 IRMS 測試。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "十種演算法以參考姿態逐情境調參；這是最佳條件比較，不能代表未知資料的部署誤差。",
+      "irms_application": "比較候選融合方法時使用相同完整原始資料及調參規則，保留獨立測試試次。；本研究桌機時間不能推得 ESP32 算力需求；IRMS 平滑與端到端回饋延遲需另外測。",
+      "limitations_zh": "尚未覆蓋平移、長時間連續運動及磁干擾；最佳參數需要已知參考姿態。 同段資料調參與報誤差提供最佳情境下界，不能用作獨立測試集的泛化結果。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -2342,7 +2349,8 @@
         "Knaflitz, Marco",
         "Della Croce, Ugo",
         "Cereatti, Andrea"
-      ]
+      ],
+      "full_text_review_id": "PMID-33916432"
     },
     {
       "id": "PMID-29283432",
@@ -3228,7 +3236,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/32393301/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "systematic-review-or-meta-analysis",
+      "study_type": "systematic-review-and-meta-analysis",
       "publication_types": [
         "Meta-Analysis",
         "Research Support, Non-U.S. Gov't",
@@ -3241,11 +3249,11 @@
         "gait"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "健康成人步行的平均時空參數通常較有支持，變異性與對稱性指標需更嚴格程序。",
-      "irms_application": "供未來步態模組定義事件與指標；逐項確認感測位置、原始訊號及族群需求，現有角度串流不足以保證功能。",
-      "limitations_zh": "步態感測位置及輸入訊號常與 IRMS 不同；健康或神經疾病結果不可直接外推膝部居家療效。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。",
+      "irms_application": "除相關或 ICC，報告偏移、RMSE、SEM／LoA 與不確定性。；依 V02 明確區分未拆下與拆下重戴；IRMS 沒有相同足部訊號時不能套用步長或步態變異的結論。",
+      "limitations_zh": "多數結果每組僅少數研究，缺乏高品質證據，部分速度混合；只限健康成人步行。 回顧作者的品質分類不等於本庫重新評分；合併 r 也不能替代絕對誤差或一致性界限。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -3269,7 +3277,8 @@
         "Krowchuk, Natasha M",
         "Thatcher, Daniel",
         "Hunt, Michael A"
-      ]
+      ],
+      "full_text_review_id": "PMID-32393301"
     },
     {
       "id": "PMID-31470423",
@@ -4296,7 +4305,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/34063355/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "systematic-review-or-meta-analysis",
+      "study_type": "rct-systematic-review-and-meta-analysis",
       "publication_types": [
         "Meta-Analysis",
         "Systematic Review",
@@ -4307,11 +4316,11 @@
         "feedback"
       ],
       "priority": "supporting",
-      "review_level": "abstract",
-      "summary_zh": "神經疾病回饋復健回顧有正向跡象，但研究品質與樣本限制使確定療效結論仍不足。",
-      "irms_application": "對照 TriggerEngine 與 LED／蜂鳴器回饋，設計理解度、延遲、保留與回饋撤除的評估。",
-      "limitations_zh": "回饋裝置、疾病與療程差異很大；短期動作改變、滿意度與長期功能改善是不同終點。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "神經疾病的穿戴回饋有部分平衡改善訊號，但感測器與療程異質，不能外推為 IRMS 膝部療效。",
+      "irms_application": "回饋模式、頻率與撤除後保留需分開設計；V12 保持兩組練習量相同。；此處的 TUG 或步速效果不是 IRMS 膝角準確度，也不是骨科膝部治療效果。",
+      "limitations_zh": "多數研究偏誤風險不清楚，樣本小、病種與回饋配置異質；只有四篇提供使用性／可行性資料。 本庫記錄作者的偏誤評估，未獨立重評全部 RCT；混合病種與療程不支持通用效果承諾。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -4335,7 +4344,8 @@
         "Crea, Simona",
         "Cattaneo, Davide",
         "Carrozza, Maria Chiara"
-      ]
+      ],
+      "full_text_review_id": "PMID-34063355"
     },
     {
       "id": "PMID-33859607",
@@ -4415,7 +4425,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/30669657/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "mixed-methods-usability-study",
       "publication_types": [
         "Clinical Trial",
         "research-article",
@@ -4425,11 +4435,11 @@
         "feedback"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "骨科復健回饋原型的混合方法評估顯示使用者感受到價值，也提出功能與真實情境精度需求。",
-      "irms_application": "對照 TriggerEngine 與 LED／蜂鳴器回饋，設計理解度、延遲、保留與回饋撤除的評估。",
-      "limitations_zh": "回饋裝置、疾病與療程差異很大；短期動作改變、滿意度與長期功能改善是不同終點。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "兩週使用性很好仍有計次與紀錄問題；SUS 分數不是量測精度或療效。",
+      "irms_application": "V11 同時測任務完成、漏計／誤計與資料保存，不能只用滿意度。；Session 次數、實際動作次數與動作品質需分別驗證並讓使用者理解。",
+      "limitations_zh": "單一私立醫院、較高教育與社經樣本；效益是使用者感受，未完成真實環境辨識準確度及客觀療效驗證。 短期研究者協助可能影響接受度，沒有對照組不能歸因療效；尚不知長期持續使用。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -4451,7 +4461,8 @@
         "Neligan, Maurice",
         "Daly, Ailish",
         "Caulfield, Brian"
-      ]
+      ],
+      "full_text_review_id": "PMID-30669657"
     },
     {
       "id": "PMID-30111337",
@@ -4707,7 +4718,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/30366919/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "qualitative-clinician-study",
       "publication_types": [
         "Research Support, Non-U.S. Gov't",
         "research-article",
@@ -4717,11 +4728,11 @@
         "feedback"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "治療師對骨科回饋原型的質性研究提出個人化與精準度需求，可用於需求訪談設計。",
-      "irms_application": "對照 TriggerEngine 與 LED／蜂鳴器回饋，設計理解度、延遲、保留與回饋撤除的評估。",
-      "limitations_zh": "回饋裝置、疾病與療程差異很大；短期動作改變、滿意度與長期功能改善是不同終點。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "十位臨床人員對原型的看法可支持需求設計，不能證明客觀臨床效益。",
+      "irms_application": "對警示與遠距功能明定誰查看、何時處理及失連情境，再做實際工作流程測試。；把使用者與專業人員共同納入 V11，不以一方意見代替另一方。",
+      "limitations_zh": "單院樣本、單次示範、無病人參與及長期結果，不能代表所有照護者。 需求與可接受性證據，不能當成有效性試驗；研究者及展示情境可能影響表述。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -4743,7 +4754,8 @@
         "Neligan, Maurice",
         "Daly, Ailish",
         "Caulfield, Brian"
-      ]
+      ],
+      "full_text_review_id": "PMID-30366919"
     },
     {
       "id": "PMID-27782290",
@@ -7426,7 +7438,6 @@
       "title": "A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.",
       "authors": [
         "Koo TK",
-        "Koo TK",
         "Li MY"
       ],
       "year": 2016,
@@ -7471,8 +7482,25 @@
       "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
       "bibtex_authors": [
         "Koo, Terry K",
-        "Koo, Terry K",
         "Li, Mae Y"
+      ],
+      "version_notices": [
+        {
+          "kind": "erratum",
+          "pmid": "29276468",
+          "doi": "10.1016/j.jcm.2017.10.001",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29276468/",
+          "checked_on": "2026-10-04",
+          "text": "原始 ICC 指引有 2017 更正通知（PMID 29276468）。本次僅核對通知書目與更正關係；原始全文及更正公式內容未取得，維持摘要層級。採用公式前須查核更正版。"
+        }
+      ],
+      "bibliographic_overrides": [
+        {
+          "field": "authors/bibtex_authors",
+          "checked_on": "2026-10-04",
+          "url": "https://www.sciencedirect.com/science/article/abs/pii/S1556370716000158",
+          "reason": "Europe PMC original record repeats Koo. Publisher author list and NLM indexed author page list Terry K. Koo and Mae Y. Li once each."
+        }
       ]
     },
     {
@@ -7832,7 +7860,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/26110027/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "research-study-design-not-extracted",
+      "study_type": "statistical-method-tutorial",
       "publication_types": [
         "review-article",
         "Review",
@@ -7842,11 +7870,11 @@
         "validation"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "Bland–Altman 分析描述方法差異與一致性界限，可接受的界限必須依用途事先定義。",
-      "irms_application": "用於量測驗證、研究設計及報告品質；確認指引適用範圍並保留歷史版本與現行版本的差別。",
-      "limitations_zh": "部分工具專為患者回報量表或特定研究設計；未完成逐篇偏誤風險、樣本數與全文資料擷取。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。",
+      "irms_application": "報告偏移、LoA 及其信賴區間，不以封包數代替受試者數。；近零膝角不適合盲目使用百分比誤差；採角度單位並事先定用途相關容許差異。",
+      "limitations_zh": "基本獨立配對教學不能直接處理同一人的自相關封包；IRMS 需對受試者／重複試次設計適當統計。 只採用一致性分析的相關段落；不將本文所有相關係數或顯著性解讀當作統計規範。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -7863,7 +7891,8 @@
       "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
       "bibtex_authors": [
         "Giavarina, Davide"
-      ]
+      ],
+      "full_text_review_id": "PMID-26110027"
     },
     {
       "id": "PMID-29435801",
@@ -8866,7 +8895,7 @@
       "url": "https://pubmed.ncbi.nlm.nih.gov/41088368/",
       "open_access": true,
       "source_type": "publication",
-      "study_type": "systematic-review-or-meta-analysis",
+      "study_type": "systematic-review-and-meta-analysis",
       "publication_types": [
         "Meta-Analysis",
         "Systematic Review",
@@ -8877,11 +8906,11 @@
         "kinematics"
       ],
       "priority": "core",
-      "review_level": "abstract",
-      "summary_zh": "近期統合分析支持部分步行矢狀面 ROM，但硬體、校準與處理造成高度異質性，不能直接移轉精度數值。",
-      "irms_application": "用於 IRMS 量測背景與功能動作驗證設計；分別報告波形、絕對角度、ROM 與各運動平面。",
-      "limitations_zh": "研究的裝置、演算法、樣本與動作不同；不能將其誤差或有效性直接宣稱為 IRMS 的實測性能。",
-      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "review_level": "full-text-extracted",
+      "summary_zh": "膝矢狀 ROM 合併 RMSE 4.60°，但 I²=96%；不能把平均結果當成 IRMS 的通用通過線。",
+      "irms_application": "ROM 誤差與每時間點絕對膝角誤差分開報告；V05 須有目標任務和族群。；不能由此宣稱 IRMS 可估 GRF，或為冠狀／橫斷膝角提供同等效度。",
+      "limitations_zh": "健康年輕樣本、異質硬體與流程；RMSE 不顯示誤差方向或 LoA，主要偏誤疑慮在受試者選擇。 作者採用的 ≤5° 參考閾值是其解讀框架，不是所有用途的通用臨床標準，也未測 IRMS。",
+      "evidence_locator": "全文方法、結果、表格與限制；詳見結構化精讀記錄。",
       "verification": {
         "status": "metadata-and-abstract-retrieved",
         "checked_on": "2026-10-03",
@@ -8903,7 +8932,8 @@
         "Gresits, Orsolya",
         "Tóth, Réka",
         "Terebessy, Tamás"
-      ]
+      ],
+      "full_text_review_id": "PMID-41088368"
     },
     {
       "id": "PMID-39622186",
@@ -11787,5 +11817,6 @@
     "firmware_commit": "15c5c709ba12603454449a2311faf3489ac7f96e",
     "checked_on": "2026-10-03",
     "note": "Source inspection only; no app, firmware or clinical acceptance performed for this knowledge task."
-  }
+  },
+  "review_update_date": "2026-10-04"
 }

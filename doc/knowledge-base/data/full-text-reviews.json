@@ -1,0 +1,830 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-04",
+  "scope": "Fourteen selected primary full texts: relevant methods, results, tables and limitations extracted by one reviewer; not an exhaustive systematic review, independent double extraction or formal risk-of-bias rating.",
+  "reviews": [
+    {
+      "id": "PMID-31991862",
+      "focus": "下肢運動學方法與驗證",
+      "design_kind": "methodological-systematic-review",
+      "takeaway": "31 篇研究的方法與族群差異很大，跨研究誤差範圍不能當作單一裝置規格。",
+      "design": {
+        "text": "檢索 PubMed、Web of Science、EMBASE，更新至 2019 年 9 月；要求可描述的 IMU 方法及參考系統驗證。",
+        "locator": "§2.1–2.3"
+      },
+      "participants": {
+        "text": "納入 31 篇；只有 4 篇超過 10 位受試者，多為健康族群。此處 31 是研究數，非受試者總數。",
+        "locator": "§3、§3.1"
+      },
+      "equipment": {
+        "text": "硬體、感測器數量、位置與處理方法依原研究而異，沒有統一裝置。",
+        "locator": "Table 1、Table 2"
+      },
+      "protocol": {
+        "text": "步行最常見，另有功能及運動任務；只有 9 篇記錄超過 30 秒。",
+        "locator": "§3.1"
+      },
+      "reference": {
+        "text": "多為光學系統，另有超音波、磁追蹤、角度計及攝影；參考模型不完全一致。",
+        "locator": "§3.3、Table 3"
+      },
+      "analysis": {
+        "text": "整理 RMSE、MAE、相關等；不同任務取較差結果，沒有合併成共同精度效應量。",
+        "locator": "§3.3"
+      },
+      "results": [
+        {
+          "text": "報告矢狀面 RMSE 範圍 1.3–11.22°，為不同研究的範圍，不是統合均值。",
+          "locator": "§3.3"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "小樣本、短時間與健康族群占多數；可重現演算法的納入條件也可能排除部分臨床驗證。",
+          "locator": "§5.4–5.5",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "方法性回顧可支持實驗設計；不能把各研究不同平面與參考模型的誤差直接平均。未另做正式偏誤評分。",
+      "irms_implications": [
+        "分開驗證絕對膝角、ROM、波形與不同運動平面，並記錄每種校準與相容路徑。",
+        "短試次通過後仍需長時間與重連試驗；上述時間與誤差不是 IRMS 通過線。"
+      ],
+      "access": {
+        "pmcid": "PMC7038336",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7038336/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7038336/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "01d03ccad88766a0f8e21a273339c21fe5f5656da5e41dda7b5a7cad8fe97e83",
+        "bytes": 218014,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-32545227",
+      "focus": "感測器與肢段校準",
+      "design_kind": "systematic-review",
+      "takeaway": "54 篇校準文獻分為手動、靜態、功能、解剖四類；評估異質，不能判定通用最佳法。",
+      "design": {
+        "text": "PubMed、ScienceDirect、IEEE Xplore，截止 2020-04-28；英文／法文，下肢角度與校準精度或重複性評估。篩選由一位 reviewer 完成。",
+        "locator": "§2.1–2.3"
+      },
+      "participants": {
+        "text": "納入 54 篇；原研究族群與樣本不同，本次不推測合計受試者數。",
+        "locator": "§3、Tables 1–4"
+      },
+      "equipment": {
+        "text": "不同 IMU；解剖校準還可能使用定位工具，手動校準依賴固定與操作者。",
+        "locator": "§3.1、§4"
+      },
+      "protocol": {
+        "text": "靜態姿勢提供重力軸；功能動作估計旋轉軸；解剖標記定位與手動對齊常混用。",
+        "locator": "§3.1–3.2"
+      },
+      "reference": {
+        "text": "參考系統、座標定義與校準比較程序不一致。",
+        "locator": "§3.3.1"
+      },
+      "analysis": {
+        "text": "比較角度誤差、軸差及重複性；沒有可用來選出單一最佳法的同條件統合。",
+        "locator": "§3.3、§5"
+      },
+      "results": [
+        {
+          "text": "辨認四類校準方法；作者指出必須以相同評估程序比較方法。",
+          "locator": "§5"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "中立姿勢與純軸旋轉假設可能不適用於活動受限者；方法重複性受使用者及操作者影響。",
+          "locator": "§3.3.3、§4",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "單人篩選與異質方法需要留意；未正式重評全部 54 篇的偏誤風險。",
+      "irms_implications": [
+        "靜態零位、肢段軸辨識與任意佩戴不變性是不同驗證問題。",
+        "依 V02 分開同次校準、重戴與跨操作者結果；不可把靜態向量扣零稱為所有功能校準方法的實現。"
+      ],
+      "access": {
+        "pmcid": "PMC7309059",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7309059/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7309059/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "17aeeb8f022adbe2310968362d5bf56f5b6cc2bba8756a76d414056b4a1300f5",
+        "bytes": 262649,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-32580394",
+      "focus": "軸辨識、激發與品質拒絕",
+      "design_kind": "mechanical-method-validation",
+      "takeaway": "機械鉸鏈的辨識品質取決於資訊量與持續穩定；100 次最佳化重跑不等同 100 位受試者。",
+      "design": {
+        "text": "3D 列印鉸鏈，14 段動作重排成 4 種情境；以不同初值重跑最佳化及不確定性接受程序。",
+        "locator": "§7.1、§7.4"
+      },
+      "participants": {
+        "text": "無人體樣本；同一機械資料各情境重跑 100 次，屬演算法估計回合。",
+        "locator": "§7.1、§7.4"
+      },
+      "equipment": {
+        "text": "兩顆 Xsens MTw、50 Hz，量程加速度 ±160 m/s²、陀螺儀 ±21 rad/s。",
+        "locator": "§7.1"
+      },
+      "protocol": {
+        "text": "靜止、獨立旋轉、剛性共同旋轉等；去除轉換段，以靜止資料扣陀螺偏移，選擇資訊樣本。",
+        "locator": "§5、§7.1"
+      },
+      "reference": {
+        "text": "裝置插槽使鉸鏈軸與兩 IMU 正 y 軸平行，提供軸方向真值；測的是軸方向，不是人體膝角。",
+        "locator": "§7.1"
+      },
+      "analysis": {
+        "text": "AD／RMSAE／MAXAE；接受閾值 Emax 與連續估計數 nmin，並測人工偏移。",
+        "locator": "§6、§7.4–7.5"
+      },
+      "results": [
+        {
+          "text": "Emax=3°、nmin=10 時，4 種情境各 100 回合的接受估計均低於該軸誤差閾值。",
+          "locator": "§8.3"
+        },
+        {
+          "text": "加入 1 m/s² 與 1°/s 偏移的試驗，Table 1 最大軸誤差 4.84°；該偏移試驗降低 Emax 至 1°。",
+          "locator": "Table 1、§9.4"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "剛性機械系統，沒有皮膚與肌肉移動；人體非剛性系統的可靠性列為未來工作。",
+          "locator": "§10",
+          "origin": "author"
+        }
+      ],
+      "open_questions": [
+        "§8.3 對 nmin=3 的情境 2 報 81%，§9.3 則報 88%；本庫保留差異，不引用其為確定成功率。"
+      ],
+      "appraisal": "重排與重跑評估數值穩健性，但不提供跨裝置、跨人體的獨立樣本證據。",
+      "irms_implications": [
+        "V04 應測無激發與退化資料，允許延後或拒絕校準。",
+        "需要完整陀螺與加速度資料才能評估此方法；Emax 不可直接當成 IRMS 膝角誤差標準。"
+      ],
+      "access": {
+        "pmcid": "PMC7348773",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7348773/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7348773/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "8c2f846714747d48b096e2bd9a8602650ff9cc1b493791027bab68299e5a572f",
+        "bytes": 398427,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-24743160",
+      "focus": "無磁力計膝角與參考附著",
+      "design_kind": "single-participant-method-validation",
+      "takeaway": "一位截肢者的人工與人體側誤差不同，說明固定條件和參考模型的重要性。",
+      "design": {
+        "text": "比較共同姿態與加速度／陀螺融合兩種膝踝屈伸估計，利用關節限制辨識軸及位置。",
+        "locator": "§3.1–3.2"
+      },
+      "participants": {
+        "text": "一位 40 歲經股截肢者，K-Level 4；六個步態試次不是六位受試者。",
+        "locator": "§4、Table 1"
+      },
+      "equipment": {
+        "text": "六顆 Xsens MTw，60 Hz；Vicon V612 十臺相機，120 Hz，標記在解剖位置。",
+        "locator": "§4"
+      },
+      "protocol": {
+        "text": "約 10 秒各肢段環繞校準，再以自選速度重複走約 10 公尺；遠離磁干擾。",
+        "locator": "§4"
+      },
+      "reference": {
+        "text": "光學步態參考；人工側的剛性固定與人體側的皮膚／肌肉附著不同。",
+        "locator": "§4"
+      },
+      "analysis": {
+        "text": "比較屈伸角 RMSE，角度融合與關節位置修正；並討論不同側的誤差來源。",
+        "locator": "§3.2、§4"
+      },
+      "results": [
+        {
+          "text": "Table 1 作者報告膝角平均 RMSE：人工側 0.71°、對側 3.30°；屬單一受試者及指定參考條件。",
+          "locator": "Table 1"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "一位受試者、特定任務與硬體；人膝不完全符合鉸鏈，參考也含軟組織誤差。",
+          "locator": "§3.3–4",
+          "origin": "author"
+        }
+      ],
+      "open_questions": [
+        "本次取得 XML 的 Table 1 對側膝列六試次數值的算術平均為 2.75°，但報告 Average=3.30°。保留原文報告並標記疑點，不自行改成推定的正確值。"
+      ],
+      "appraisal": "可支持模型與驗證設計；代表性及表列數值一致性有限。參考依賴與因果實作須另外核對。",
+      "irms_implications": [
+        "分開外殼剛性姿態測試與人體解剖角度驗證。",
+        "IRMS 正規化向量與角度封包不足以直接重跑本文完整軸／位置辨識與融合。"
+      ],
+      "access": {
+        "pmcid": "PMC4029684",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4029684/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC4029684/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "e1f72934013e6f14986f36f39edd423c0cff6fd436f33259aa99e66280b4cafc",
+        "bytes": 132630,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-29933568",
+      "focus": "重測、漂移與光學參考",
+      "design_kind": "repeated-measures-validation",
+      "takeaway": "參考外殼標記與皮膚標記的誤差不同；光學初始化與兩次處理也影響能否部署。",
+      "design": {
+        "text": "28 位健康者在兩天完成中立姿勢與六分鐘步行，兩次間隔 6.75±2.26 天。",
+        "locator": "§2.1"
+      },
+      "participants": {
+        "text": "28 人，15 女／13 男，年齡 24±2.70 歲；健康年輕樣本。",
+        "locator": "§2.1"
+      },
+      "equipment": {
+        "text": "七顆 Xsens MTw Awinda、十二臺 OptiTrack Prime 13，60 Hz，TTL 同步。",
+        "locator": "§2.1"
+      },
+      "protocol": {
+        "text": "暖機至少 20 分鐘，靜止至少 10 秒扣陀螺偏移；IEKF 不用磁力計，同段資料處理兩次，轉彎段排除。",
+        "locator": "§2.1"
+      },
+      "reference": {
+        "text": "條件 1 用剛性 IMU 外殼標記，條件 2 用解剖皮膚標記；校準、模型與初始幀來自光學。",
+        "locator": "§2.1"
+      },
+      "analysis": {
+        "text": "分段 RMSE、ROM 誤差、BA、CMC、跨日 ICC 與六分鐘漂移。",
+        "locator": "§2.2"
+      },
+      "results": [
+        {
+          "text": "外殼標記條件各關節平均 RMSE 低於 2.40°；皮膚標記條件則低於 6.00°。",
+          "locator": "§3.1–3.2、Tables 1–2"
+        },
+        {
+          "text": "矢狀面跨日 ICC 0.94–0.99；全球骨盆航向六分鐘後誤差範圍 0.21–230°，不可與相對關節漂移混淆。",
+          "locator": "§3.3–3.4、Table 4"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "CMC 出現複數的受試者被排除於平均；光學校準與初始化依賴仍需處理。",
+          "locator": "§2.1–2.2、§4.2",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "共同模型與光學初值降低了部分實際部署的不確定性；不代表獨立居家校準達相同誤差。",
+      "irms_implications": [
+        "V02 報告跨日重戴與校準，V06 分開全球方向漂移及相對膝角。",
+        "不要以外殼標記的最佳結果替代人體骨段參考；不可將此離線兩次處理結果當作即時 IRMS 性能。"
+      ],
+      "access": {
+        "pmcid": "PMC6068643",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6068643/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6068643/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "883f4220008eb12a124289a8d95d3ac472c6cb3668fdabf9b862288a88cc423b",
+        "bytes": 224571,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-35408159",
+      "focus": "絕對／扣偏移誤差與長時段",
+      "design_kind": "treadmill-pilot-validation",
+      "takeaway": "步行膝角的絕對 RMSE 7.87°，參考扣偏移後 3.77°；兩個數字衡量不同問題。",
+      "design": {
+        "text": "12 人先做功能校準，再跑步機自選速度步行約 30 分鐘；無磁力計最佳化模型。",
+        "locator": "§3.1–3.3"
+      },
+      "participants": {
+        "text": "12 人，4 男／8 女，24.6±3.0 歲；排除影響步行能力的下肢或健康問題。",
+        "locator": "§3.1"
+      },
+      "equipment": {
+        "text": "APDM Opal IMU 與十三相機 Vicon，均 200 Hz，時序脈衝同步。",
+        "locator": "§3.2"
+      },
+      "protocol": {
+        "text": "自選速度 1.13±0.18 m/s；30 分鐘切成 60 段約 30 秒，以 GTSAM／LM 最佳化並作髖旋轉漂移啟發式修正。",
+        "locator": "§3.2、§3.5"
+      },
+      "reference": {
+        "text": "解剖標記經 OpenSim gait2392 得角度；參考膝為 1-DOF，因此另兩膝平面未被驗證。",
+        "locator": "§3.5、§4.2"
+      },
+      "analysis": {
+        "text": "absolute RMSE、將 IMU 均值對齊光學的 relative RMSE，以及 relative 峰值誤差，左右腿取平均。",
+        "locator": "§3.6、Tables 1–3"
+      },
+      "results": [
+        {
+          "text": "步行膝屈伸：absolute RMSE 7.87±3.27°；reference-mean-adjusted relative RMSE 3.77±1.21°；表列 Mean±Std。",
+          "locator": "Tables 1–2"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "小且年輕的樣本；髖向量需校準、骨盆垂直假設與軟組織影響；非矢狀膝角沒有相應參考驗證。",
+          "locator": "§4.1–4.2",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "參考均值校正不能在沒有參考系統的部署中免費取得；30 秒批次最佳化不是即時逐封包處理。",
+      "irms_implications": [
+        "報告偏移、ROM 與波形誤差時保留 absolute／relative 定義。",
+        "不能藉此支持 IRMS kneeRoll 的臨床效度，也不能把 30 分鐘分段分析當成完整連續在線驗證。"
+      ],
+      "access": {
+        "pmcid": "PMC9003309",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9003309/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC9003309/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "dd6351c316e54164ef22fc039cb2614a68fb722126a6b01774c9d2a7256fff5d",
+        "bytes": 175592,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-22319365",
+      "focus": "姿態融合與可觀測性",
+      "design_kind": "method-review-with-demonstration",
+      "takeaway": "EKF 頭部示例支持感測器融合原理，並非雙 IMU 膝角的臨床效度研究。",
+      "design": {
+        "text": "姿態表示、測量模型與 quaternion EKF 的方法導讀，附頭部追蹤示範。",
+        "locator": "Orientation Estimation Algorithms、Designing a Quaternion-Based EKF"
+      },
+      "participants": {
+        "text": "頭部試次以單一 subject 描述，沒有正式樣本招募及總樣本量報告；不視為大型人體研究。",
+        "locator": "Head Motion Tracking Trial"
+      },
+      "equipment": {
+        "text": "Xsens MTx 與六臺相機 Vicon，100 Hz；IMU 與四標記固定於頭盔平板，觸發同步。",
+        "locator": "Head Motion Tracking Trial"
+      },
+      "protocol": {
+        "text": "校準後先靜止，原地自由轉頭略超過半分鐘；Matlab 離線 EKF，參數最佳化。",
+        "locator": "Head Motion Tracking Trial、Table 1"
+      },
+      "reference": {
+        "text": "平板光學姿態作參考，沒有膝關節或肢段解剖模型。",
+        "locator": "Head Motion Tracking Trial"
+      },
+      "analysis": {
+        "text": "Quaternion 姿態誤差及 Euler 各角 RMSE，比較加速度／磁力計援助的有無。",
+        "locator": "Filter Performance Assessment、Table 2"
+      },
+      "results": [
+        {
+          "text": "頭部示例 EKF 姿態 RMSE 1.62°；兩類援助皆關閉時 6.19°。數值只適用本示例與參數。",
+          "locator": "Table 2"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "有限示例、短試次及固定於外殼的光學參考，不驗證人體膝角或磁干擾下的 IRMS。",
+          "locator": "Head Motion Tracking Trial",
+          "origin": "reviewer-inference"
+        }
+      ],
+      "appraisal": "可作融合推導與估計量定義的依據；示例誤差不構成通用硬體或演算法保證。",
+      "irms_implications": [
+        "區分重力對傾斜的約束、航向資訊及相對關節限制。",
+        "IRMS 六軸資料、兩個 atan2 傾角與完整 quaternion EKF 的狀態及輸入不同；勿直接套用示例性能。"
+      ],
+      "access": {
+        "pmcid": "PMC3274035",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3274035/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC3274035/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "70a05de6174d9dd91268f80f242887c49e48e00cf0a1fb39acee6fd2f93a35c9",
+        "bytes": 306068,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-33916432",
+      "focus": "融合演算法的公平比較",
+      "design_kind": "rigid-board-algorithm-benchmark",
+      "takeaway": "十種演算法以參考姿態逐情境調參；這是最佳條件比較，不能代表未知資料的部署誤差。",
+      "design": {
+        "text": "10 種融合演算法 × 3 商用品 × 3 旋轉速率；用光學參考找每段資料的最佳參數。",
+        "locator": "§2.1–2.2"
+      },
+      "participants": {
+        "text": "非人體試驗；三組各兩顆裝置固定於木板，操作者轉動板子。",
+        "locator": "§2.3–2.4"
+      },
+      "equipment": {
+        "text": "Xsens MTx、APDM Opal、Shimmer3 與十二相機 Vicon；IMU 100／128 Hz，光學 100 Hz。",
+        "locator": "§2.3–2.4"
+      },
+      "protocol": {
+        "text": "暖機 10 分鐘、靜止 1 分鐘扣陀螺偏移；約 20°C，角速度 RMS 120／260／380°/s，低磁干擾。",
+        "locator": "§2.4"
+      },
+      "reference": {
+        "text": "剛性板標記的光學姿態；既用於驗證，也用來逐情境調參。",
+        "locator": "§2.1、§2.5"
+      },
+      "analysis": {
+        "text": "最佳與預設參數的絕對姿態誤差、情境統計及桌機運算時間。",
+        "locator": "§2.6、Table 3"
+      },
+      "results": [
+        {
+          "text": "各演算法的平均最佳誤差落在 3.8–7.1°；未找到跨情境通用最佳法，硬體與速率影響誤差。",
+          "locator": "§5"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "尚未覆蓋平移、長時間連續運動及磁干擾；最佳參數需要已知參考姿態。",
+          "locator": "§4.1、§5",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "同段資料調參與報誤差提供最佳情境下界，不能用作獨立測試集的泛化結果。",
+      "irms_implications": [
+        "比較候選融合方法時使用相同完整原始資料及調參規則，保留獨立測試試次。",
+        "本研究桌機時間不能推得 ESP32 算力需求；IRMS 平滑與端到端回饋延遲需另外測。"
+      ],
+      "access": {
+        "pmcid": "PMC8038545",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8038545/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8038545/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "31aee5a990b0cf306cddc9ed67e6bd983c93a3a3f62f554410cde71724f28942",
+        "bytes": 262556,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-32393301",
+      "focus": "步態信效度與統計報告",
+      "design_kind": "systematic-review-and-meta-analysis",
+      "takeaway": "82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。",
+      "design": {
+        "text": "五個資料庫檢索至 2019-05-07；獨立雙人篩選，資料提取後覆核，另評方法品質。",
+        "locator": "Methods／Study identification and screening、Data extraction"
+      },
+      "participants": {
+        "text": "82 篇健康成人步行研究；不是 82 位受試者，合計人數本次不推算。",
+        "locator": "Search results、Eligibility criteria"
+      },
+      "equipment": {
+        "text": "不同裝置與足、脛、腿、背等位置；未依硬體／演算法進一步合併分層。",
+        "locator": "Data pooling"
+      },
+      "protocol": {
+        "text": "效度須同步比較；重測涵蓋同日、跨日或跨測試者，且重測之間需移除感測器。",
+        "locator": "Eligibility criteria"
+      },
+      "reference": {
+        "text": "各原研究的金標準；效度與重測信度分開處理。",
+        "locator": "Eligibility criteria、Data pooling"
+      },
+      "analysis": {
+        "text": "合併效度 r 與信度 ICC，依結果／位置分組，隨機效應及 Fisher z；只有 17 類結果可統合。",
+        "locator": "Data pooling、Discussion"
+      },
+      "results": [
+        {
+          "text": "方法品質分類為高 1、中 13、低 50、極低 18 篇；為該回顧工具的評分。",
+          "locator": "Methodological quality、Table 1"
+        },
+        {
+          "text": "下肢關節角結果未能合併；步／跨步平均指標不能代表變異性與對稱指標。",
+          "locator": "Discussion"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "多數結果每組僅少數研究，缺乏高品質證據，部分速度混合；只限健康成人步行。",
+          "locator": "Discussion",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "回顧作者的品質分類不等於本庫重新評分；合併 r 也不能替代絕對誤差或一致性界限。",
+      "irms_implications": [
+        "除相關或 ICC，報告偏移、RMSE、SEM／LoA 與不確定性。",
+        "依 V02 明確區分未拆下與拆下重戴；IRMS 沒有相同足部訊號時不能套用步長或步態變異的結論。"
+      ],
+      "access": {
+        "pmcid": "PMC7216606",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7216606/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7216606/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "af7853700d557322a0732eca7120f91f2b2024f48264189facaa13964995a4e8",
+        "bytes": 269995,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-41088368",
+      "focus": "近期膝 ROM 誤差與異質性",
+      "design_kind": "systematic-review-and-meta-analysis",
+      "takeaway": "膝矢狀 ROM 合併 RMSE 4.60°，但 I²=96%；不能把平均結果當成 IRMS 的通用通過線。",
+      "design": {
+        "text": "四個資料庫，更新至 2025-08-26，PRISMA 與已登錄 PROSPERO；要求同步光學／力板參考。",
+        "locator": "Methods／Protocol and registration、Information sources and search strategy"
+      },
+      "participants": {
+        "text": "回顧 27 篇／441 人；統合 22 篇／357 人，實際全為健康者，研究平均年齡 20–32 歲。",
+        "locator": "Results of literature search"
+      },
+      "equipment": {
+        "text": "不同 IMU 與位置，採樣 20–1000 Hz，多數 100–240 Hz；含靜態／解剖與功能校準。",
+        "locator": "Basic characteristics of studies included、Table 1"
+      },
+      "protocol": {
+        "text": "步行矢狀面 ROM 與部分地面反作用力估計，依平地／跑步機分組；沒有合格跑步 ROM 研究。",
+        "locator": "Eligibility criteria、Limitations and future directions"
+      },
+      "reference": {
+        "text": "ROM 對 3D 光學，GRF 對力板，兩者估計量與單位不同。",
+        "locator": "Eligibility criteria"
+      },
+      "analysis": {
+        "text": "隨機效應、REML、Hartung–Knapp 調整與 I²；作者使用 QUADAS-2 評原研究。",
+        "locator": "Statistical synthesis、Risk of bias assessment"
+      },
+      "results": [
+        {
+          "text": "19 篇膝矢狀 ROM 研究的合併 RMSE 4.60°，95% CI 3.60–5.60°，I²=96%。",
+          "locator": "Knee joint RoM (sagittal plane)、Figure 3"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "健康年輕樣本、異質硬體與流程；RMSE 不顯示誤差方向或 LoA，主要偏誤疑慮在受試者選擇。",
+          "locator": "Risk of bias assessment、Limitations and future directions",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "作者採用的 ≤5° 參考閾值是其解讀框架，不是所有用途的通用臨床標準，也未測 IRMS。",
+      "irms_implications": [
+        "ROM 誤差與每時間點絕對膝角誤差分開報告；V05 須有目標任務和族群。",
+        "不能由此宣稱 IRMS 可估 GRF，或為冠狀／橫斷膝角提供同等效度。"
+      ],
+      "access": {
+        "pmcid": "PMC12519875",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12519875/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC12519875/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "a02088e6668ae10a5725b045230cf97b5903f846e667289adfc3ef0eb21d46f1",
+        "bytes": 141249,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-26110027",
+      "focus": "一致性界限與偏移",
+      "design_kind": "statistical-method-tutorial",
+      "takeaway": "高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。",
+      "design": {
+        "text": "Bland–Altman 的方法教學與假想配對數據示例，非裝置臨床驗證。",
+        "locator": "The analysis of differences: the Bland and Altman method、Table 1"
+      },
+      "participants": {
+        "text": "Table 1 為 30 對假想量測，不是 30 位病人或 IRMS 試次。",
+        "locator": "Table 1"
+      },
+      "equipment": {
+        "text": "假想 Method A／B，沒有特定硬體。",
+        "locator": "Table 1"
+      },
+      "protocol": {
+        "text": "差值對均值，檢視偏移、分布與隨量級改變的誤差；另討論百分比表示。",
+        "locator": "The analysis of differences、Bland and Altman method: plot difference as percentage"
+      },
+      "reference": {
+        "text": "配對方法比較，不假設任一方法必然是真值。",
+        "locator": "Introduction、The analysis of differences"
+      },
+      "analysis": {
+        "text": "近似常態差值時 mean difference ±1.96 SD，以及偏移／界限的信賴區間。",
+        "locator": "Bias and agreement limits、Precision of estimated limits of agreement"
+      },
+      "results": [
+        {
+          "text": "假想示例 r=0.996，平均差約 −27.2 units，LoA 約 −95.4 至 41.1 units，顯示相關不保證一致。",
+          "locator": "Table 1、Figures 1–5"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "基本獨立配對教學不能直接處理同一人的自相關封包；IRMS 需對受試者／重複試次設計適當統計。",
+          "locator": "Precision of estimated limits of agreement（IRMS 外推）",
+          "origin": "reviewer-inference"
+        }
+      ],
+      "appraisal": "只採用一致性分析的相關段落；不將本文所有相關係數或顯著性解讀當作統計規範。",
+      "irms_implications": [
+        "報告偏移、LoA 及其信賴區間，不以封包數代替受試者數。",
+        "近零膝角不適合盲目使用百分比誤差；採角度單位並事先定用途相關容許差異。"
+      ],
+      "access": {
+        "pmcid": "PMC4470095",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4470095/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC4470095/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "b5186d54a197f410c9f584e8a34a14dee12293b86a9def9c43122f84edd54659",
+        "bytes": 77035,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-30669657",
+      "focus": "術後使用性與資料信任",
+      "design_kind": "mixed-methods-usability-study",
+      "takeaway": "兩週使用性很好仍有計次與紀錄問題；SUS 分數不是量測精度或療效。",
+      "design": {
+        "text": "單中心混合方法原型評估：15 位膝置換者居家使用兩週、訪談及 SUS／uMARS。",
+        "locator": "§2.1、§2.3–2.4"
+      },
+      "participants": {
+        "text": "15 人，9 女／6 男，63±8.32 歲；10 人術後 2–3 天、5 人術後至少六週。",
+        "locator": "§2.1"
+      },
+      "equipment": {
+        "text": "單顆前脛 Shimmer3 IMU、102.4 Hz，±2g／500°/s，Android 平板、Bluetooth。",
+        "locator": "§2.2"
+      },
+      "protocol": {
+        "text": "約 30 分鐘訓練後居家兩週；研究者另訪兩次，提供動作 avatar、計次與技巧提示。",
+        "locator": "§2.2–2.3"
+      },
+      "reference": {
+        "text": "問卷、訪談及應用記錄；沒有同步角度真值或隨機療效對照。",
+        "locator": "§2.3–2.4、§4"
+      },
+      "analysis": {
+        "text": "SUS／uMARS 均值與 SD、主題分析；依完成 Session 數估計依從性。",
+        "locator": "§2.4"
+      },
+      "results": [
+        {
+          "text": "SUS 90.8±7.8／100，整體 uMARS 4.1±0.39／5；使用者仍回報計次、提示與紀錄問題。",
+          "locator": "§3.1、Table 2"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "單一私立醫院、較高教育與社經樣本；效益是使用者感受，未完成真實環境辨識準確度及客觀療效驗證。",
+          "locator": "§4",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "短期研究者協助可能影響接受度，沒有對照組不能歸因療效；尚不知長期持續使用。",
+      "irms_implications": [
+        "V11 同時測任務完成、漏計／誤計與資料保存，不能只用滿意度。",
+        "Session 次數、實際動作次數與動作品質需分別驗證並讓使用者理解。"
+      ],
+      "access": {
+        "pmcid": "PMC6359655",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6359655/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6359655/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "50e89e91f0bc93125c42773b24cc5ff466d01e55f8c88aa1c82c5ed8e5511a6e",
+        "bytes": 99497,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-30366919",
+      "focus": "臨床工作流程與責任",
+      "design_kind": "qualitative-clinician-study",
+      "takeaway": "十位臨床人員對原型的看法可支持需求設計，不能證明客觀臨床效益。",
+      "design": {
+        "text": "單一私立醫院便利樣本，示範前後半結構訪談，主題分析。",
+        "locator": "Methods／Participants、Experimental procedure、Data analysis"
+      },
+      "participants": {
+        "text": "10 人，6 女／4 男，36.5±9.06 歲；4 位物理治療師及其他護理／骨科／職能人員。沒有病人參與。",
+        "locator": "Participants、Patient and public involvement"
+      },
+      "equipment": {
+        "text": "單顆脛部 Shimmer、Android 平板、Bluetooth；示範計次、技巧與進度。",
+        "locator": "Prototype exercise biofeedback system"
+      },
+      "protocol": {
+        "text": "每人一次約一小時，原型只示範一次，沒有長期實際照護部署。",
+        "locator": "Experimental procedure、Limitations"
+      },
+      "reference": {
+        "text": "匿名逐字稿及研究者主題分析，非角度真值或客觀照護結果。",
+        "locator": "Data analysis、Limitations"
+      },
+      "analysis": {
+        "text": "兩位研究者持續比較與交叉檢查主題，分歧討論；沒有量測效應量。",
+        "locator": "Data analysis"
+      },
+      "results": [
+        {
+          "text": "關注客製化、準確度、資訊理解、資料保護及警示責任；正向影響屬受訪者預期。",
+          "locator": "Results／Opportunities and challenges、Challenges"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "單院樣本、單次示範、無病人參與及長期結果，不能代表所有照護者。",
+          "locator": "Discussion／Limitations",
+          "origin": "author"
+        }
+      ],
+      "appraisal": "需求與可接受性證據，不能當成有效性試驗；研究者及展示情境可能影響表述。",
+      "irms_implications": [
+        "對警示與遠距功能明定誰查看、何時處理及失連情境，再做實際工作流程測試。",
+        "把使用者與專業人員共同納入 V11，不以一方意見代替另一方。"
+      ],
+      "access": {
+        "pmcid": "PMC6224760",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6224760/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6224760/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "919ca10f3d56a769ee9990096cecdf77a1c22fa3d375c75ad0bec7b44e951923",
+        "bytes": 80907,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    },
+    {
+      "id": "PMID-34063355",
+      "focus": "回饋設計與介入證據",
+      "design_kind": "rct-systematic-review-and-meta-analysis",
+      "takeaway": "神經疾病的穿戴回饋有部分平衡改善訊號，但感測器與療程異質，不能外推為 IRMS 膝部療效。",
+      "design": {
+        "text": "五個資料庫與灰色來源，英文 RCT 截至 2020 年 1 月；登錄 PROSPERO，雙人篩選。",
+        "locator": "§2.1–2.3"
+      },
+      "participants": {
+        "text": "19 篇 RCT、513 位神經疾病者；研究均齡 46–79 歲，含中風、帕金森與 MCI。混合族群研究使疾病分類有重疊。",
+        "locator": "§3.1、Table 2"
+      },
+      "equipment": {
+        "text": "壓力、IMU、EMG、EEG 等；IMU 單獨使用僅三篇，不是同一套硬體。",
+        "locator": "§3.2"
+      },
+      "protocol": {
+        "text": "依 add-on／非 add-on、任務及回饋模式分類；add-on 組與對照做相同練習而添加回饋。",
+        "locator": "§2.4、§3.3–3.5"
+      },
+      "reference": {
+        "text": "平衡／步態量表與速度，不是膝角光學真值；對照方案依研究而異。",
+        "locator": "§2.2、§3.6"
+      },
+      "analysis": {
+        "text": "隨機效應 MD 與 95% CI，依神經疾病／感測器分組；作者以 Cochrane 六類偏誤域評估。",
+        "locator": "§2.4–2.5"
+      },
+      "results": [
+        {
+          "text": "add-on TUG：五篇研究，MD −3.43 秒，95% CI −6.53 至 −0.32 秒。",
+          "locator": "§3.6.2、Figure 5"
+        },
+        {
+          "text": "整體步速：六篇研究，MD 0.08 m/s，95% CI −0.00 至 0.17，p=0.06，未達作者顯著性標準。",
+          "locator": "§3.6.3、Figure 6"
+        }
+      ],
+      "limitations": [
+        {
+          "text": "多數研究偏誤風險不清楚，樣本小、病種與回饋配置異質；只有四篇提供使用性／可行性資料。",
+          "locator": "§4.3–4.4、§5",
+          "origin": "author"
+        }
+      ],
+      "open_questions": [
+        "§3.6.3 壓力感測器子組的 CI 0.01–0.14 與文字 p=0.91 不相符；未核對更正前不採其顯著性敘述。"
+      ],
+      "appraisal": "本庫記錄作者的偏誤評估，未獨立重評全部 RCT；混合病種與療程不支持通用效果承諾。",
+      "irms_implications": [
+        "回饋模式、頻率與撤除後保留需分開設計；V12 保持兩組練習量相同。",
+        "此處的 TUG 或步速效果不是 IRMS 膝角準確度，也不是骨科膝部治療效果。"
+      ],
+      "access": {
+        "pmcid": "PMC8156914",
+        "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8156914/",
+        "xml_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8156914/fullTextXML",
+        "retrieved_on": "2026-10-04",
+        "sha256": "f9e65a17faab7f7135256c91ada75ce8b7aeb53290d7478742a4422ee00b2298",
+        "bytes": 184360,
+        "extractor": "Codex, single-reviewer located extraction"
+      }
+    }
+  ]
+}

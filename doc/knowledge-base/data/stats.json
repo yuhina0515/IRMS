@@ -10,11 +10,14 @@
     "technical-report": 1
   },
   "review_levels": {
-    "abstract": 156,
-    "full-text-sections": 2,
+    "abstract": 143,
+    "full-text-extracted": 14,
     "metadata-only": 2,
-    "primary-page-excerpt": 42
+    "primary-page-excerpt": 42,
+    "full-text-sections": 1
   },
   "doi_count": 157,
-  "core_count": 29
+  "core_count": 29,
+  "full_text_review_count": 14,
+  "review_update_date": "2026-10-04"
 }

@@ -12,7 +12,7 @@
 
 優先順序是與 IRMS 的關聯及閱讀價值，不是證據品質評分。
 
-- **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](../sources/PMID-32393301.md) (2020；abstract) — 健康成人步行的平均時空參數通常較有支持，變異性與對稱性指標需更嚴格程序。
+- **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](../sources/PMID-32393301.md) (2020；full-text-extracted) — 82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。
 - **PMID-37316858** [Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.](../sources/PMID-37316858.md) (2023；abstract) — 真實生活步態驗證顯示短步行段與慢速會降低性能，演算法選擇具有族群依賴。
 - **PMID-33924403** [Wearable Sensor-Based Real-Time Gait Detection: A Systematic Review.](../sources/PMID-33924403.md) (2021；abstract) — 即時步態事件回顧指出規則式方法常見，但病理步態實測與統一評估標準仍不足。
 - **PMID-34857567** [Technical validation of real-world monitoring of gait: a multicentric observational study.](../sources/PMID-34857567.md) (2021；abstract) — 這是多中心真實生活步態驗證的研究計畫，描述方法與倫理安排，不能當作已完成的效能結果。

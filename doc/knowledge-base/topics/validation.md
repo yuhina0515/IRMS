@@ -15,7 +15,7 @@
 - **PMID-40228499** [CONSORT 2025 Statement: Updated Guideline for Reporting Randomized Trials.](../sources/PMID-40228499.md) (2025；abstract) — CONSORT 2025 更新隨機試驗報告框架，正式新試驗應以現行版本核對透明度、結果與參與者流程。
 - **PMID-40294593** [SPIRIT 2025 Statement: Updated Guideline for Protocols of Randomized Trials.](../sources/PMID-40294593.md) (2025；abstract) — SPIRIT 2025 更新隨機試驗計畫書框架，適合在介入與收案前定義方法、終點與評估時程。
 - **PMID-27330520** [A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.](../sources/PMID-27330520.md) (2016；abstract) — ICC 必須依模型、單次或平均量測、絕對一致性或一致程度選擇，不能只報一個係數。
-- **PMID-26110027** [Understanding Bland Altman analysis.](../sources/PMID-26110027.md) (2015；abstract) — Bland–Altman 分析描述方法差異與一致性界限，可接受的界限必須依用途事先定義。
+- **PMID-26110027** [Understanding Bland Altman analysis.](../sources/PMID-26110027.md) (2015；full-text-extracted) — 高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。
 - **PMID-15705040** [Quantifying test-retest reliability using the intraclass correlation coefficient and the SEM.](../sources/PMID-15705040.md) (2005；abstract) — ICC 與 SEM 提供相對及絕對重測誤差的不同資訊，SEM 可用於個人分數與可偵測差異的解讀。
 - **PMID-33789826** [The PRISMA 2020 statement: An updated guideline for reporting systematic reviews.](../sources/PMID-33789826.md) (2021；abstract) — PRISMA 2020 提供系統性回顧報告清單與流程圖；使用清單不代表搜尋已完整或研究品質已足夠。
 - **PMID-29260445** [COSMIN Risk of Bias checklist for systematic reviews of Patient-Reported Outcome Measures.](../sources/PMID-29260445.md) (2018；abstract) — 這份 COSMIN 偏誤風險清單專為患者回報量測工具的系統性回顧，移用到感測器需要適用性論證。

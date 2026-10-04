@@ -8,6 +8,8 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 本資料庫提供 IRMS 的研究背景、工程依據與待驗證問題：**202 筆來源、22 個主題、12 篇專業導讀**，包含 157 篇研究／方法期刊來源、1 份作者技術報告、41 份技術／官方指引及 3 個資料集入口。快照日為 **2026-10-03**。同一來源跨主題只計一次。
 
+**2026-10-04 升級：14 篇核心全文精讀**，補上族群、樣本、設備、方法、結果、限制及章節／表格定位，並接入所有檢索格式。[精讀比較與入口](FULL_TEXT_REVIEW.md)
+
 每筆都有書目／原始入口、繁體中文重點、IRMS 用途、適用限制、閱讀深度與查核狀態。這是經主題篩選的參考庫，未完成全文系統性回顧或逐篇偏誤風險評估；引用文獻不能直接證明 IRMS 的準確度、診斷能力或復健療效。
 
 ## 立即使用
@@ -18,6 +20,7 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 | 目的 | 入口 |
 |---|---|
+| 查核研究數值與方法 | [14 篇全文精讀](FULL_TEXT_REVIEW.md)、[結構化摘錄](data/full-text-reviews.json) |
 | 專題背景與研究動機 | [復健背景](guides/07-rehabilitation-context.md)、[閱讀路徑](READING_PATHS.md) |
 | 理解可量到的角度 | [量測模型](guides/01-measurement-model.md)、[佩戴校準](guides/02-calibration.md) |
 | 處理誤差與精度論述 | [濾波延遲](guides/03-signal-fusion.md)、[統計驗證](guides/04-validation-statistics.md) |
@@ -49,8 +52,9 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 | 標記 | 本庫意義 | 本次筆數 |
 |---|---|---:|
-| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 156 |
-| `full-text-sections` | 檢查原文指定章節，仍非完整系統性審查 | 2 |
+| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 143 |
+| `full-text-extracted` | 全文方法、結果、表格與限制的結構化單人摘錄，未做正式偏誤評分 | 14 |
+| `full-text-sections` | 檢查原文指定章節，仍非完整系統性審查 | 1 |
 | `primary-page-excerpt` | 檢查官方頁面標題與相關內容／文件身分 | 42 |
 | `metadata-only` | 官方目錄確認文件，但直接原文未取得 | 2 |
 
@@ -71,7 +75,7 @@ python doc/knowledge-base/scripts/check.py
 node doc/knowledge-base/scripts/check_search.js
 ```
 
-`build.py` 重建卡片、主題、引用、離線搜尋、檢索 JSONL 與 **irms-knowledge.sqlite**。SQLite 是本機可重建產物，不進 Git；本次交付目錄已建立。它不讀取、更動或取代 IRMS 的使用者 Session 資料庫。中文版搜尋採子字串；SQLite FTS5 的英文斷詞不能取代中文查詢。
+`data/catalog.json` 維護一般來源；`data/full-text-reviews.json` 維護全文事實與定位。`build.py` 重建精讀筆記、卡片、主題、引用、離線搜尋、檢索 JSONL 與 **irms-knowledge.sqlite**。SQLite 是本機可重建產物，不進 Git；本次交付目錄已建立。它不讀取、更動或取代 IRMS 的使用者 Session 資料庫。中文版搜尋採子字串；SQLite FTS5 的英文斷詞不能取代中文查詢。
 
 ## 使用與版本範圍
 

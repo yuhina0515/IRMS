@@ -28,6 +28,15 @@ def main():
     for r in records:
         citation_present = r['url'] in r['text'] or bool(r.get('doi') and r['doi'] in r['text'])
         require('限制：' in r['text'] and '閱讀深度：' in r['text'] and citation_present, 'Retrieval lost citation/limits')
+        if r['review_level'] == 'full-text-extracted':
+            extraction = r['full_text_review']
+            for f in extraction['results'] + extraction['limitations']:
+                require(f['text'] in r['text'] and f['locator'] in r['text'], 'Retrieval lost located evidence')
+            require(extraction['id'] == r['id'], 'Retrieval extraction identity mismatch')
+        for notice in r.get('version_notices', []):
+            require(notice['text'] in r['text'] and notice['url'] in r['text'], 'Retrieval lost correction notice')
+    reviewed_ids = {s['id'] for s in catalog['sources'] if 'full_text_review' in s}
+    require(reviewed_ids == {p.stem for p in (ROOT / 'reviews').glob('*.md')}, 'Full-text notes mismatch')
     ris = (ROOT / 'references.ris').read_text(encoding='utf-8')
     bib = (ROOT / 'references.bib').read_text(encoding='utf-8')
     require(set(re.findall(r'^ID  - (.+)$', ris, re.M)) == ids and len(re.findall(r'^ER  -$', ris, re.M)) == len(ids), 'RIS identity mismatch')
@@ -40,6 +49,7 @@ def main():
     stats = json.loads((ROOT / 'data/stats.json').read_text(encoding='utf-8'))
     require(stats['source_count'] == len(ids) and stats['topic_count'] == len(topics), 'Stats mismatch')
     require(stats['review_levels'] == dict(collections.Counter(s['review_level'] for s in catalog['sources'])), 'Review stats mismatch')
+    require(stats['full_text_review_count'] == len(reviewed_ids), 'Full-text stats mismatch')
     broken, links = [], 0
     for p in ROOT.rglob('*.md'):
         for url in re.findall(r'\]\(([^)]+)\)', p.read_text(encoding='utf-8')):
@@ -60,13 +70,18 @@ def main():
             require(not db.execute('PRAGMA foreign_key_check').fetchall(), 'SQLite foreign keys')
             require(db.execute('SELECT COUNT(*) FROM sources').fetchone()[0] == len(ids), 'SQLite count')
             require(db.execute("SELECT COUNT(*) FROM sources_fts WHERE sources_fts MATCH 'calibration'").fetchone()[0] > 0, 'SQLite FTS search')
+            require('PMID-35408159' in {r[0] for r in db.execute("SELECT id FROM sources_fts WHERE sources_fts MATCH 'GTSAM'")}, 'SQLite lost full-text evidence')
+            require('PMID-27330520' in {r[0] for r in db.execute("SELECT id FROM sources_fts WHERE sources_fts MATCH '29276468'")}, 'SQLite lost correction notice')
+            for sid, raw in db.execute("SELECT id,record_json FROM sources WHERE review_level='full-text-extracted'"):
+                require(json.loads(raw)['full_text_review']['id'] == sid, 'SQLite lost structured review')
     outputs = list((ROOT / 'sources').glob('*.md')) + list((ROOT / 'topics').glob('*.md'))
     outputs += [ROOT / p for p in ['INDEX.md', 'references.bib', 'references.ris', 'index.html', 'data/stats.json', 'data/retrieval.jsonl']]
+    outputs += list((ROOT / 'reviews').glob('*.md')) + [ROOT / 'FULL_TEXT_REVIEW.md']
     before = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in outputs}
     subprocess.run([sys.executable, str(ROOT / 'scripts/build.py'), '--no-sqlite'], check=True, stdout=subprocess.DEVNULL)
     require(all(hashlib.sha256(p.read_bytes()).hexdigest() == sha for p, sha in before.items()), 'Non-deterministic generated output')
     print(json.dumps({'sources': len(ids), 'topics': len(topics), 'local_links': links, 'citation_exports': 'passed',
-                      'retrieval_limits': 'passed', 'sqlite': 'passed' if dbpath.exists() else 'not-built',
+                      'retrieval_limits': 'passed', 'full_text_reviews': len(reviewed_ids), 'sqlite': 'passed' if dbpath.exists() else 'not-built',
                       'deterministic_rebuild': 'passed'}, ensure_ascii=False))
 
 

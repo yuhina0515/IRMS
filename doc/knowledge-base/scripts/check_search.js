@@ -39,6 +39,17 @@ set('query', ''); set('topic', 'validation'); count(catalog.sources.filter(s => 
 set('topic', ''); set('kind', 'dataset'); count(3);
 set('kind', ''); set('depth', 'metadata-only'); count(2);
 for (const article of elements.results.children) assert.match(article.children.find(e => e.tagName === 'details').children[2].textContent, /^限制：/);
+set('depth', 'full-text-extracted'); count(catalog.sources.filter(s => s.full_text_review).length);
+for (const article of elements.results.children) {
+  const details = article.children.find(e => e.tagName === 'details');
+  assert.ok(details.children.some(e => e.tagName === 'a' && e.href.startsWith('reviews/')));
+}
+set('depth', ''); set('query', 'GTSAM'); count(1);
+assert.match(elements.results.children[0].children[1].textContent, /35408159/);
+set('query', '29276468'); count(1);
+const corrected = elements.results.children[0].children.find(e => e.tagName === 'details');
+assert.ok(corrected.children.some(e => e.textContent.startsWith('版本提醒：')));
+set('query', '');
 set('depth', ''); elements.core.checked = true; elements.core.fire('input'); count(catalog.sources.filter(s => s.priority === 'core').length);
 assert.equal(elements.topic.children.length, topics.length);
-console.log(JSON.stringify({ sourceCount: catalog.sources.length, checks: ['Chinese/English/PMID search', 'empty results', 'topic/type/depth/core filters', 'pagination', 'citation display', 'limitations retained'], environment: 'Node VM with minimal DOM; browser rendering not verified' }));
+console.log(JSON.stringify({ sourceCount: catalog.sources.length, fullTextCount: catalog.sources.filter(s => s.full_text_review).length, checks: ['Chinese/English/PMID search', 'empty results', 'topic/type/depth/core filters', 'pagination', 'citation display', 'limitations retained', 'full-text-only keyword and evidence links', 'correction notice search/display'], environment: 'Node VM with minimal DOM; browser rendering not verified' }));

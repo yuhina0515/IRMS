@@ -2,7 +2,7 @@
 
 202 筆來源，22 個主題；快照 2026-10-03。主題間有交叉索引，同一來源只計一次。
 
-[使用說明](README.md) · [離線搜尋](index.html) · [引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md)
+[使用說明](README.md) · [離線搜尋](index.html) · [引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md) · [核心全文精讀](FULL_TEXT_REVIEW.md)
 
 ## 生物力學與關節座標
 
@@ -22,8 +22,8 @@
 
 [主題導讀](topics/kinematics.md)：哪些任務、族群與運動平面有量測支持？
 
-- **PMID-41088368** [Concurrent validity of wearable IMUs for sagittal plane lower-limb range of motion during walking and estimated ground reaction forces: a systematic review and meta-analysis.](sources/PMID-41088368.md) (2025；abstract) — 近期統合分析支持部分步行矢狀面 ROM，但硬體、校準與處理造成高度異質性，不能直接移轉精度數值。
-- **PMID-31991862** [Inertial Sensor-Based Lower Limb Joint Kinematics: A Methodological Systematic Review.](sources/PMID-31991862.md) (2020；abstract) — 下肢關節估計依賴特定應用與生物力學假設；加入模型限制後，必須檢查假設是否適用於實際患者與動作。
+- **PMID-41088368** [Concurrent validity of wearable IMUs for sagittal plane lower-limb range of motion during walking and estimated ground reaction forces: a systematic review and meta-analysis.](sources/PMID-41088368.md) (2025；full-text-extracted) — 膝矢狀 ROM 合併 RMSE 4.60°，但 I²=96%；不能把平均結果當成 IRMS 的通用通過線。
+- **PMID-31991862** [Inertial Sensor-Based Lower Limb Joint Kinematics: A Methodological Systematic Review.](sources/PMID-31991862.md) (2020；full-text-extracted) — 31 篇研究的方法與族群差異很大，跨研究誤差範圍不能當作單一裝置規格。
 - **PMID-29476427** [Wearable Inertial Sensor Systems for Lower Limb Exercise Detection and Evaluation: A Systematic Review.](sources/PMID-29476427.md) (2018；abstract) — 將下肢運動研究區分為辨識、品質分類與量測驗證；截至該回顧期間，使用者評估與臨床試驗仍不足。
 - **PMID-41901917** [Validity, Reliability and Interpretability of an IMU-Based System to Measure 3D Lower Limb Kinematics of Patients with Heterogeneous Gait Disorders.](sources/PMID-41901917.md) (2026；abstract) — 異質步態疾病的 IMU 波形、絕對角與整體步態分數表現不同，去中心化誤差較小不能替代絕對準確度。
 - **PMID-39622186** [Validity of an inertial measurement system to measure lower-limb kinematics in patients with hip and knee pathology.](sources/PMID-39622186.md) (2025；abstract) — 髖膝病變患者的矢狀面較有一致性，冠狀、橫斷平面與嚴重變形情境需要更審慎解讀。
@@ -42,8 +42,8 @@
 
 [主題導讀](topics/calibration.md)：重戴、操作者、姿勢與激發動作如何影響校準？
 
-- **PMID-32545227** [Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.](sources/PMID-32545227.md) (2020；abstract) — 整理手動、靜態、功能與解剖校準四類方法；異質的驗證參考使單一最佳方法難以成立。
-- **PMID-32580394** [Robust Plug-and-Play Joint Axis Estimation Using Inertial Sensors.](sources/PMID-32580394.md) (2020；abstract) — 提出關節軸即插即用估計與樣本選擇、品質判斷，機械關節測試提供辨識與可信度設計參考。
+- **PMID-32545227** [Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.](sources/PMID-32545227.md) (2020；full-text-extracted) — 54 篇校準文獻分為手動、靜態、功能、解剖四類；評估異質，不能判定通用最佳法。
+- **PMID-32580394** [Robust Plug-and-Play Joint Axis Estimation Using Inertial Sensors.](sources/PMID-32580394.md) (2020；full-text-extracted) — 機械鉸鏈的辨識品質取決於資訊量與持續穩定；100 次最佳化重跑不等同 100 位受試者。
 - **PMID-40702014** [DIODEM - A Diverse Inertial and Optical Dataset of kinEmatic chain Motion.](sources/PMID-40702014.md) (2025；abstract) — DIODEM 以已知機械鏈與固定差異系統化研究慣性追蹤問題，可分離感測、模型與附件偽影。
 - **PMID-37766040** [Inertial Measurement Unit Sensor-to-Segment Calibration Comparison for Sport-Specific Motion Analysis.](sources/PMID-37766040.md) (2023；abstract) — 運動專項 ROM 驗證比較多種校準動作，結論支持依動作與量測變數選擇校準。
 - **PMID-35590949** [Inertial Sensor-to-Segment Calibration for Accurate 3D Joint Angle Calculation for Use in OpenSim.](sources/PMID-35590949.md) (2022；abstract) — 將肢段校準整合到 OpenSim 工作流程，提供模型、感測與光學參考之間對齊的實作案例。
@@ -61,9 +61,9 @@
 
 [主題導讀](topics/hinge.md)：鉸鏈限制與六軸訊號何時足以辨識相對角度？
 
-- **PMID-29933568** [Validity, Test-Retest Reliability and Long-Term Stability of Magnetometer Free Inertial Sensor Based 3D Joint Kinematics.](sources/PMID-29933568.md) (2018；abstract) — 無磁力計三維系統的重測與長時間穩定性評估顯示，加入軟組織影響後誤差增加。
-- **PMID-24743160** [IMU-based joint angle measurement for gait analysis.](sources/PMID-24743160.md) (2014；full-text-sections) — 運用關節運動限制辨識軸與位置，僅用加速度及角速度估計屈伸角；人體與義肢的光學對照誤差不同。
-- **PMID-35408159** [Body-Worn IMU-Based Human Hip and Knee Kinematics Estimation during Treadmill Walking.](sources/PMID-35408159.md) (2022；abstract) — 分析直線步行等退化運動下的可觀測性，並結合校正與驗證來估計無磁力計髖膝運動學。
+- **PMID-29933568** [Validity, Test-Retest Reliability and Long-Term Stability of Magnetometer Free Inertial Sensor Based 3D Joint Kinematics.](sources/PMID-29933568.md) (2018；full-text-extracted) — 參考外殼標記與皮膚標記的誤差不同；光學初始化與兩次處理也影響能否部署。
+- **PMID-24743160** [IMU-based joint angle measurement for gait analysis.](sources/PMID-24743160.md) (2014；full-text-extracted) — 一位截肢者的人工與人體側誤差不同，說明固定條件和參考模型的重要性。
+- **PMID-35408159** [Body-Worn IMU-Based Human Hip and Knee Kinematics Estimation during Treadmill Walking.](sources/PMID-35408159.md) (2022；full-text-extracted) — 步行膝角的絕對 RMSE 7.87°，參考扣偏移後 3.77°；兩個數字衡量不同問題。
 - **PMID-33276492** [Body-Worn IMU Human Skeletal Pose Estimation Using a Factor Graph-Based Optimization Framework.](sources/PMID-33276492.md) (2020；abstract) — 因子圖最佳化結合人體模型與限制條件，示範無磁力計骨架姿態與膝屈伸估計。
 - **PMID-28846613** [Method for Estimating Three-Dimensional Knee Rotations Using Two Inertial Measurement Units: Validation with a Coordinate Measurement Machine.](sources/PMID-28846613.md) (2017；abstract) — 兩顆 IMU 的三維膝旋轉以座標量測機驗證，提供純軸與混合旋轉的機械測試架構。
 - **PMID-19632882** [Feasibility of using inertial sensors to assess human movement.](sources/PMID-19632882.md) (2010；abstract) — 初期慣性感測可行性研究提供人體運動量測案例；可行性本身不能替代完善的參考對照驗證。
@@ -74,7 +74,7 @@
 
 - **ALG-VQF2023** [VQF: Highly accurate IMU orientation estimation with bias estimation and magnetic disturbance rejection](sources/ALG-VQF2023.md) (2023；abstract) — 四元數姿態融合包含偏移估計、磁干擾排除與離線版本，作者使用多個資料集比較演算法。
 - **ALG-MADGWICK2010** [An efficient orientation filter for inertial and inertial/magnetic sensor arrays](sources/ALG-MADGWICK2010.md) (2010；full-text-sections) — 作者技術報告提出四元數梯度下降姿態濾波，分別討論六軸與含磁力計輸入的實作。
-- **PMID-33916432** [Analysis of the Accuracy of Ten Algorithms for Orientation Estimation Using Inertial and Magnetic Sensing under Optimal Conditions: One Size Does Not Fit All.](sources/PMID-33916432.md) (2021；abstract) — 比較多種姿態演算法與硬體，誤差隨轉速與 IMU 型號改變，沒有對所有條件皆最佳的單一方法。
+- **PMID-33916432** [Analysis of the Accuracy of Ten Algorithms for Orientation Estimation Using Inertial and Magnetic Sensing under Optimal Conditions: One Size Does Not Fit All.](sources/PMID-33916432.md) (2021；full-text-extracted) — 十種演算法以參考姿態逐情境調參；這是最佳條件比較，不能代表未知資料的部署誤差。
 - **PMID-32117943** [Drift-Free Foot Orientation Estimation in Running Using Wearable IMU.](sources/PMID-32117943.md) (2020；abstract) — 跑步足部姿態估計使用專門校正，顯示步行的零速假設不宜直接移植至跑步。
 - **PMID-29283432** [How Magnetic Disturbance Influences the Attitude and Heading in Magnetic and Inertial Sensor-Based Orientation Estimation.](sources/PMID-29283432.md) (2017；abstract) — 比較磁擾動對傾角與航向的不同影響，可用於建立磁力計方案的干擾測試矩陣。
 - **PMID-27455266** [On Inertial Body Tracking in the Presence of Model Calibration Errors.](sources/PMID-27455266.md) (2016；abstract) — 感測器到肢段的方向校準誤差可傳播至肢段姿態，模型與感測誤差需分別分析。
@@ -83,7 +83,7 @@
 - **PMID-25775483** [A Novel Kalman Filter for Human Motion Tracking With an Inertial-Based Dynamic Inclinometer.](sources/PMID-25775483.md) (2015；abstract) — 動態傾角的卡爾曼方法處理加速度中的重力與運動分量，適合理解動態傾角估計的限制。
 - **PMID-25302810** [Estimating orientation using magnetic and inertial sensors and different sensor fusion approaches: accuracy assessment in manual and locomotion tasks.](sources/PMID-25302810.md) (2014；abstract) — 不同動作、靜止片段與測試期間影響姿態估計誤差，濾波器名稱不是性能的唯一決定因素。
 - **PMID-21715167** [Quantification of inertial sensor-based 3D joint angle measurement accuracy using an instrumented gimbal.](sources/PMID-21715167.md) (2011；abstract) — 以儀器化轉臺量化三維關節角精度，提供人體測試前先驗證感測器與演算法的方法。
-- **PMID-22319365** [Estimating three-dimensional orientation of human body parts by inertial/magnetic sensing.](sources/PMID-22319365.md) (2011；abstract) — 回顧三維人體姿態融合與濾波方法，提供演算法選擇與實作背景。
+- **PMID-22319365** [Estimating three-dimensional orientation of human body parts by inertial/magnetic sensing.](sources/PMID-22319365.md) (2011；full-text-extracted) — EKF 頭部示例支持感測器融合原理，並非雙 IMU 膝角的臨床效度研究。
 - **PMID-17894280** [Estimating body segment orientation by applying inertial and magnetic sensing near ferromagnetic materials.](sources/PMID-17894280.md) (2007；abstract) — 鐵磁材料附近的姿態誤差可明顯增加，磁干擾模型可減輕影響但需情境驗證。
 - **PMID-15865139** [Measuring orientation of human body segments using miniature gyroscopes and accelerometers.](sources/PMID-15865139.md) (2005；abstract) — 以加速度與陀螺儀的卡爾曼估計追蹤肢段姿態，並在試驗期間估計陀螺儀偏移。
 - **PMID-16200762** [Compensation of magnetic disturbances improves inertial and magnetic sensing of human body segment orientation.](sources/PMID-16200762.md) (2005；abstract) — 磁干擾補償改善姿態估計，顯示加入磁力計也必須處理環境擾動。
@@ -110,7 +110,7 @@
 
 [主題導讀](topics/gait.md)：哪種訊號與佩戴位置支持哪種步態事件及指標？
 
-- **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](sources/PMID-32393301.md) (2020；abstract) — 健康成人步行的平均時空參數通常較有支持，變異性與對稱性指標需更嚴格程序。
+- **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](sources/PMID-32393301.md) (2020；full-text-extracted) — 82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。
 - **PMID-37316858** [Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.](sources/PMID-37316858.md) (2023；abstract) — 真實生活步態驗證顯示短步行段與慢速會降低性能，演算法選擇具有族群依賴。
 - **PMID-33924403** [Wearable Sensor-Based Real-Time Gait Detection: A Systematic Review.](sources/PMID-33924403.md) (2021；abstract) — 即時步態事件回顧指出規則式方法常見，但病理步態實測與統一評估標準仍不足。
 - **PMID-34857567** [Technical validation of real-world monitoring of gait: a multicentric observational study.](sources/PMID-34857567.md) (2021；abstract) — 這是多中心真實生活步態驗證的研究計畫，描述方法與倫理安排，不能當作已完成的效能結果。
@@ -129,10 +129,10 @@
 
 [主題導讀](topics/feedback.md)：回饋是否易理解、夠即時，且在撤除後仍有保留？
 
-- **PMID-30669657** [Wearable Sensor-Based Exercise Biofeedback for Orthopaedic Rehabilitation: A Mixed Methods User Evaluation of a Prototype System.](sources/PMID-30669657.md) (2019；abstract) — 骨科復健回饋原型的混合方法評估顯示使用者感受到價值，也提出功能與真實情境精度需求。
-- **PMID-30366919** [Clinician perceptions of a prototype wearable exercise biofeedback system for orthopaedic rehabilitation: a qualitative exploration.](sources/PMID-30366919.md) (2018；abstract) — 治療師對骨科回饋原型的質性研究提出個人化與精準度需求，可用於需求訪談設計。
+- **PMID-30669657** [Wearable Sensor-Based Exercise Biofeedback for Orthopaedic Rehabilitation: A Mixed Methods User Evaluation of a Prototype System.](sources/PMID-30669657.md) (2019；full-text-extracted) — 兩週使用性很好仍有計次與紀錄問題；SUS 分數不是量測精度或療效。
+- **PMID-30366919** [Clinician perceptions of a prototype wearable exercise biofeedback system for orthopaedic rehabilitation: a qualitative exploration.](sources/PMID-30366919.md) (2018；full-text-extracted) — 十位臨床人員對原型的看法可支持需求設計，不能證明客觀臨床效益。
 - **PMID-33859607** [Biofeedback for Post-stroke Gait Retraining: A Review of Current Evidence and Future Research Directions in the Context of Emerging Technologies.](sources/PMID-33859607.md) (2021；abstract) — 中風步態回饋回顧說明穿戴與遠距的可能用途，仍需要更深入研究確認介入效果。
-- **PMID-34063355** [Wearable Devices for Biofeedback Rehabilitation: A Systematic Review and Meta-Analysis to Design Application Rules and Estimate the Effectiveness on Balance and Gait Outcomes in Neurological Diseases.](sources/PMID-34063355.md) (2021；abstract) — 神經疾病回饋復健回顧有正向跡象，但研究品質與樣本限制使確定療效結論仍不足。
+- **PMID-34063355** [Wearable Devices for Biofeedback Rehabilitation: A Systematic Review and Meta-Analysis to Design Application Rules and Estimate the Effectiveness on Balance and Gait Outcomes in Neurological Diseases.](sources/PMID-34063355.md) (2021；full-text-extracted) — 神經疾病的穿戴回饋有部分平衡改善訊號，但感測器與療程異質，不能外推為 IRMS 膝部療效。
 - **PMID-32183338** [Biofeedback Systems for Gait Rehabilitation of Individuals with Lower-Limb Amputation: A Systematic Review.](sources/PMID-32183338.md) (2020；abstract) — 下肢截肢回饋回顧討論早期復健、使用性與訓練保留問題，適用族群有界限。
 - **PMID-28950803** [Changes in gait and plantar foot loading upon using vibrotactile wearable biofeedback system in patients with stroke.](sources/PMID-28950803.md) (2018；abstract) — 中風患者的足底力振動回饋呈現即時步態改變訊號，長期與其他族群效果仍需驗證。
 - **PMID-29494998** [The learning process of gait retraining using real-time feedback in patients with medial knee osteoarthritis.](sources/PMID-29494998.md) (2018；abstract) — 內側膝骨關節炎的步態回饋學習研究同時觀察自然步行與認知需求，提醒評估保留與自動化。
@@ -215,7 +215,7 @@
 - **PMID-40228499** [CONSORT 2025 Statement: Updated Guideline for Reporting Randomized Trials.](sources/PMID-40228499.md) (2025；abstract) — CONSORT 2025 更新隨機試驗報告框架，正式新試驗應以現行版本核對透明度、結果與參與者流程。
 - **PMID-40294593** [SPIRIT 2025 Statement: Updated Guideline for Protocols of Randomized Trials.](sources/PMID-40294593.md) (2025；abstract) — SPIRIT 2025 更新隨機試驗計畫書框架，適合在介入與收案前定義方法、終點與評估時程。
 - **PMID-27330520** [A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.](sources/PMID-27330520.md) (2016；abstract) — ICC 必須依模型、單次或平均量測、絕對一致性或一致程度選擇，不能只報一個係數。
-- **PMID-26110027** [Understanding Bland Altman analysis.](sources/PMID-26110027.md) (2015；abstract) — Bland–Altman 分析描述方法差異與一致性界限，可接受的界限必須依用途事先定義。
+- **PMID-26110027** [Understanding Bland Altman analysis.](sources/PMID-26110027.md) (2015；full-text-extracted) — 高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。
 - **PMID-15705040** [Quantifying test-retest reliability using the intraclass correlation coefficient and the SEM.](sources/PMID-15705040.md) (2005；abstract) — ICC 與 SEM 提供相對及絕對重測誤差的不同資訊，SEM 可用於個人分數與可偵測差異的解讀。
 - **PMID-33789826** [The PRISMA 2020 statement: An updated guideline for reporting systematic reviews.](sources/PMID-33789826.md) (2021；abstract) — PRISMA 2020 提供系統性回顧報告清單與流程圖；使用清單不代表搜尋已完整或研究品質已足夠。
 - **PMID-29260445** [COSMIN Risk of Bias checklist for systematic reviews of Patient-Reported Outcome Measures.](sources/PMID-29260445.md) (2018；abstract) — 這份 COSMIN 偏誤風險清單專為患者回報量測工具的系統性回顧，移用到感測器需要適用性論證。

@@ -12,8 +12,8 @@
 
 優先順序是與 IRMS 的關聯及閱讀價值，不是證據品質評分。
 
-- **PMID-41088368** [Concurrent validity of wearable IMUs for sagittal plane lower-limb range of motion during walking and estimated ground reaction forces: a systematic review and meta-analysis.](../sources/PMID-41088368.md) (2025；abstract) — 近期統合分析支持部分步行矢狀面 ROM，但硬體、校準與處理造成高度異質性，不能直接移轉精度數值。
-- **PMID-31991862** [Inertial Sensor-Based Lower Limb Joint Kinematics: A Methodological Systematic Review.](../sources/PMID-31991862.md) (2020；abstract) — 下肢關節估計依賴特定應用與生物力學假設；加入模型限制後，必須檢查假設是否適用於實際患者與動作。
+- **PMID-41088368** [Concurrent validity of wearable IMUs for sagittal plane lower-limb range of motion during walking and estimated ground reaction forces: a systematic review and meta-analysis.](../sources/PMID-41088368.md) (2025；full-text-extracted) — 膝矢狀 ROM 合併 RMSE 4.60°，但 I²=96%；不能把平均結果當成 IRMS 的通用通過線。
+- **PMID-31991862** [Inertial Sensor-Based Lower Limb Joint Kinematics: A Methodological Systematic Review.](../sources/PMID-31991862.md) (2020；full-text-extracted) — 31 篇研究的方法與族群差異很大，跨研究誤差範圍不能當作單一裝置規格。
 - **PMID-29476427** [Wearable Inertial Sensor Systems for Lower Limb Exercise Detection and Evaluation: A Systematic Review.](../sources/PMID-29476427.md) (2018；abstract) — 將下肢運動研究區分為辨識、品質分類與量測驗證；截至該回顧期間，使用者評估與臨床試驗仍不足。
 - **PMID-41901917** [Validity, Reliability and Interpretability of an IMU-Based System to Measure 3D Lower Limb Kinematics of Patients with Heterogeneous Gait Disorders.](../sources/PMID-41901917.md) (2026；abstract) — 異質步態疾病的 IMU 波形、絕對角與整體步態分數表現不同，去中心化誤差較小不能替代絕對準確度。
 - **PMID-39622186** [Validity of an inertial measurement system to measure lower-limb kinematics in patients with hip and knee pathology.](../sources/PMID-39622186.md) (2025；abstract) — 髖膝病變患者的矢狀面較有一致性，冠狀、橫斷平面與嚴重變形情境需要更審慎解讀。

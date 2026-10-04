@@ -7,7 +7,7 @@
 1. 先辨認問題：量測、校準、辨識、回饋、復健背景、工程規格或研究設計。
 2. 從 [主題索引](INDEX.md) 或 `scripts/query.py` 查找；中文與英文術語可搭配 [術語表](GLOSSARY.md)。
 3. 同時讀取來源的 `summary_zh`、`irms_application`、`limitations_zh`、`review_level`、`verification`。不要只把重點欄位放入提示詞。
-4. 需要原文數值、族群、樣本數、量測條件或效應量時，開啟原始來源；未取得全文時明說。
+4. 需要數值或方法時，先讀 [全文精讀](FULL_TEXT_REVIEW.md)／`full_text_review`；回答保留對應 `locator`、族群、樣本單位、參考模型與限制。檢查 `open_questions`、`version_notices`，有疑點時不要自行修正數字。沒有摘錄或超出摘錄範圍，再開啟原始來源；未取得全文時明說。
 5. 比較目前 IRMS 程式與 [固定快照](IRMS_MAPPING.md)，判斷實作是否符合論文假設。
 6. 回答中保留來源 ID、原始連結、閱讀深度及適用限制；工程推論另外標示。
 
@@ -15,7 +15,7 @@
 
 ## 檢索格式
 
-`data/retrieval.jsonl` 每行是一筆自足的檢索單位，包含引用、整理、用途、限制與閱讀深度。適合後續建立向量索引，但本次沒有部署嵌入服務、外部 RAG 或 App 內問答功能。需要精確欄位或篩選時，使用 [catalog.json](data/catalog.json)；需要全文證據時，仍需取得原文。
+`data/retrieval.jsonl` 每行是一筆自足的檢索單位，包含引用、整理、用途、限制與閱讀深度。適合後續建立向量索引，但本次沒有部署嵌入服務、外部 RAG 或 App 內問答功能。需要精確欄位或篩選時，使用 [catalog.json](data/catalog.json)；14 筆 `full_text_review` 保存具原文定位的原創摘錄；JSONL 同時含工程推論及版本提醒。這些不是出版商全文，正式引用仍核對原文與更正版。
 
 不要移除 JSONL 中的限制句。不同來源的族群與實驗條件不可合併成虛構的單一研究。`priority=core` 代表閱讀順序，並非高品質證據評分；`open_access=true` 也不是重新散布或模型訓練授權。
 

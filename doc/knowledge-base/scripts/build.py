@@ -1,6 +1,6 @@
 """Build the offline IRMS reference library from the reviewed JSON catalog.
 
-來源 JSON 是唯一編輯入口；產生卡片、主題索引、引用與本地 SQLite，避免版本分歧。
+來源 catalog 與全文摘錄 JSON 是編輯入口；產生卡片、主題索引、引用與本地 SQLite，避免版本分歧。
 """
 import argparse
 import collections
@@ -8,6 +8,7 @@ import json
 import pathlib
 import re
 import sqlite3
+from full_text import join_reviews, render_reviews, review_text
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -24,7 +25,7 @@ def load_catalog(root=ROOT):
             raise ValueError(f"Missing reviewed fields: {s.get('id')}")
         if any(not a.strip() for a in s['authors']) or any(not a.strip() for a in s.get('bibtex_authors', [])):
             raise ValueError(f"Empty author: {s.get('id')}")
-        if s['review_level'] not in {'abstract', 'full-text-sections', 'primary-page-excerpt', 'metadata-only'}:
+        if s['review_level'] not in {'abstract', 'full-text-sections', 'full-text-extracted', 'primary-page-excerpt', 'metadata-only'}:
             raise ValueError(f"Unknown review depth: {s.get('id')}")
         if not re.fullmatch(r"[A-Z0-9-]+", s["id"]) or s["id"] in seen_ids:
             raise ValueError(f"Invalid or duplicate id: {s['id']}")
@@ -43,6 +44,7 @@ def load_catalog(root=ROOT):
             raise ValueError(f"Publication after cutoff: {s['id']}")
         if s["verification"]["status"] == "pending-fetch":
             raise ValueError(f"Unverified candidate: {s['id']}")
+    join_reviews(root, catalog)
     repo = root.parents[1]
     for t in topics:
         if not any(t["id"] in s["topics"] for s in catalog["sources"]):
@@ -112,14 +114,14 @@ def build_sqlite(root, sources, topics):
         for s in sources:
             db.execute("INSERT INTO sources VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", tuple(s.get(k) for k in ["id", "title", "year", "doi", "source_type", "review_level", "priority", "summary_zh", "irms_application", "limitations_zh", "url"]) + (json.dumps(s, ensure_ascii=False),))
             db.executemany("INSERT INTO source_topics VALUES (?,?)", [(s["id"], t) for t in s["topics"]])
-            db.execute("INSERT INTO sources_fts VALUES (?,?,?,?,?)", tuple(s[k] for k in ["id", "title", "summary_zh", "irms_application", "limitations_zh"]))
+            db.execute("INSERT INTO sources_fts VALUES (?,?,?,?,?)", (s['id'], s['title'], s['summary_zh'] + '\n' + review_text(s), s['irms_application'], s['limitations_zh']))
         if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
             raise ValueError("SQLite integrity validation failed")
     return path
 
 
 def build(root=ROOT, sqlite=True):
-    """從唯一資料來源產生可閱讀與可檢索格式，維持出處及限制同時存在。"""
+    """從標準資料入口產生可閱讀與可檢索格式，維持出處及限制同時存在。"""
     catalog, topics = load_catalog(root)
     sources, date = catalog["sources"], catalog["snapshot_date"]
     labels = {t["id"]: t["name"] for t in topics}
@@ -127,18 +129,32 @@ def build(root=ROOT, sqlite=True):
              "source_types": dict(collections.Counter(s["source_type"] for s in sources)),
              "review_levels": dict(collections.Counter(s["review_level"] for s in sources)),
              "doi_count": sum(bool(s.get("doi")) for s in sources),
-             "core_count": sum(s["priority"] == "core" for s in sources)}
+             "core_count": sum(s["priority"] == "core" for s in sources),
+             "full_text_review_count": sum('full_text_review' in s for s in sources),
+             "review_update_date": catalog['review_update_date']}
     write(root / "data/stats.json", json.dumps(stats, ensure_ascii=False, indent=2) + "\n")
     index = ["# IRMS 來源總索引", "", f"{len(sources)} 筆來源，{len(topics)} 個主題；快照 {date}。主題間有交叉索引，同一來源只計一次。", "", "[使用說明](README.md) · [離線搜尋](index.html) · [引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md)", ""]
     retrieval, ris = [], []
     for s in sources:
         links = " · ".join(f"[{labels[t]}](../topics/{t}.md)" for t in s["topics"])
         card = ["---", "tags: [irms, knowledge, reference]", f"source_id: {s['id']}", f"date: {date}", "---", "", "# " + s["title"], "", links, "", "## 書目與原始來源", "", citation(s), "", f"- 原始入口：[來源]({s['url']})", f"- 類型：`{s['source_type']}`；研究形式：`{s['study_type']}`", f"- 閱讀深度：`{s['review_level']}`；查核：`{s['verification']['status']}`", f"- 證據定位：{s['evidence_locator']}", "", "## 重點", "", s["summary_zh"], "", "## IRMS 用途", "", s["irms_application"], "", "## 適用限制", "", s["limitations_zh"], "", "研究族群、樣本數、效應量、完整實驗設定與偏誤風險未全面擷取；正式報告採用數值前須核對原文。", "", "## 追溯與版權", "", f"資料取得／檢查日：{s['verification']['checked_on']}。來源記錄：[出處]({s['provenance']['record_url']})。", "", s["rights_note"], "", "[知識庫首頁](../README.md) · [完整機器可讀資料](../data/catalog.json)", ""]
+        if 'full_text_review' in s:
+            card[card.index('研究族群、樣本數、效應量、完整實驗設定與偏誤風險未全面擷取；正式報告採用數值前須核對原文。')] = f"[全文精讀](../reviews/{s['id']}.md) 已摘錄設計、樣本、設備、方法、結果與原文定位；單人擷取，未做正式偏誤風險評分。"
+        for override in s.get('bibliographic_overrides', []):
+            card += ['## 書目修正查核', '', f"{override['checked_on']}；{override['field']}：{override['reason']} [查核來源]({override['url']})", '']
+        if s.get('version_notices'):
+            card += ['## 版本提醒', '', review_text(s), '']
         if s["verification"].get("catalog_url"):
             card.insert(-3, f"官方目錄：[文件身分]({s['verification']['catalog_url']})。直接文件本次未取得。\n")
         write(root / "sources" / (s["id"] + ".md"), "\n".join(card))
         retrieval.append({"id": s["id"], "title": s["title"], "topics": s["topics"], "url": s["url"], "doi": s.get("doi"), "review_level": s["review_level"], "verification_status": s["verification"]["status"], "snapshot_date": date,
                           "text": "\n".join([citation(s), "重點：" + s["summary_zh"], "IRMS 用途：" + s["irms_application"], "限制：" + s["limitations_zh"], "閱讀深度：" + s["review_level"], "來源不能直接證明 IRMS 的準確度、診斷能力或療效。"])} )
+        if review_text(s):
+            retrieval[-1]['text'] += '\n' + review_text(s)
+        if 'full_text_review' in s:
+            retrieval[-1]['full_text_review'] = s['full_text_review']
+        if s.get('version_notices'):
+            retrieval[-1]['version_notices'] = s['version_notices']
         entry = ["TY  - " + ("JOUR" if s["source_type"] == "publication" else "RPRT" if s["source_type"] == "technical-report" else "ELEC"), "ID  - " + s["id"], "TI  - " + s["title"]]
         entry.extend("AU  - " + a for a in s.get("bibtex_authors", s["authors"]))
         for tag, key in [("PY", "year"), ("JO", "journal"), ("VL", "volume"), ("IS", "issue"), ("DO", "doi"), ("UR", "url")]:
@@ -164,7 +180,9 @@ def build(root=ROOT, sqlite=True):
         body += ["", "[首頁](../README.md) · [引用主張](../CLAIMS.md)", ""]
         write(root / "topics" / (t["id"] + ".md"), "\n".join(body))
         index.append("")
+    index[4] += ' · [核心全文精讀](FULL_TEXT_REVIEW.md)'
     write(root / "INDEX.md", "\n".join(index))
+    render_reviews(root, catalog, write)
     write(root / "references.bib", "\n".join(bibtex(s, date) for s in sources))
     write(root / "references.ris", "\n".join(ris))
     write(root / "data/retrieval.jsonl", "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in retrieval))
