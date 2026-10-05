@@ -53,7 +53,7 @@
 
 **來源與實際閱讀位置**
 
-- [PMID-37766040](sources/PMID-37766040.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-37766040](sources/PMID-37766040.md)：§3.1、Table 2；§3.2、Appendix A；`full-text-extracted`。
 - [PMID-32545227](sources/PMID-32545227.md)：§5；`full-text-extracted`。
 
 **實作對照**：[IRMS_App_Tauri/src/services/calibration.ts](../../IRMS_App_Tauri/src/services/calibration.ts)
@@ -143,7 +143,7 @@
 
 **來源與實際閱讀位置**
 
-- [PMID-35957218](sources/PMID-35957218.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-35957218](sources/PMID-35957218.md)：§3、Figures 6–7；§3；`full-text-extracted`。
 - [PMID-35408159](sources/PMID-35408159.md)：Tables 1–2；`full-text-extracted`。
 
 **實作對照**：[IRMS_App_Tauri/src/services/sessionAnalysis.ts](../../IRMS_App_Tauri/src/services/sessionAnalysis.ts)

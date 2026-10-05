@@ -1,6 +1,7 @@
 """Join and render original, located full-text extractions without redistributing articles."""
 import json
 import re
+from datetime import date
 
 FACTS = {'design': '研究設計', 'participants': '族群與樣本', 'equipment': '設備與取樣',
          'protocol': '實驗程序', 'reference': '參考系統', 'analysis': '分析方法'}
@@ -20,7 +21,7 @@ def join_reviews(root, catalog):
         if s.get('full_text_review_id') != sid or s['review_level'] != 'full-text-extracted':
             raise ValueError('Review pointer/depth mismatch: ' + sid)
         a = r['access']
-        if a['pmcid'] != s['pmcid'] or a['retrieved_on'] != data['reviewed_on'] or not re.fullmatch('[a-f0-9]{64}', a['sha256']):
+        if a['pmcid'] != s['pmcid'] or date.fromisoformat(a['retrieved_on']) > date.fromisoformat(data['reviewed_on']) or not re.fullmatch('[a-f0-9]{64}', a['sha256']):
             raise ValueError('Review provenance mismatch: ' + sid)
         if not a['xml_url'].startswith('https://') or not a['full_text_url'].startswith('https://'):
             raise ValueError('Unsafe full-text URL: ' + sid)
@@ -79,7 +80,9 @@ def render_reviews(root, catalog, write):
         body += [f'| {label} | {r[k]["text"]} | {r[k]["locator"]} |' for k, label in FACTS.items()]
         body += ['', '## 結果', ''] + [f'- {f["text"]}（{f["locator"]}）' for f in r['results']]
         body += ['', '## 限制與閱讀評析', ''] + [f'- {f["text"]}（{f["locator"]}；{f["origin"]}）' for f in r['limitations']]
-        body += ['', r['appraisal'], '', '[品質與外推域的單人逐項評讀](../QUALITY_APPRAISAL.md)。', '', '## IRMS 工程推論', '', '以下是專案推論，不是原文直接驗證 IRMS 的結果。', '']
+        body += ['', r['appraisal'], '']
+        body += ['[品質與外推域的單人逐項評讀](../QUALITY_APPRAISAL.md)。'] if s.get('quality_appraisal') else ['本篇尚未進行逐項品質評讀；全文摘錄不是正式偏誤評分。']
+        body += ['', '## IRMS 工程推論', '', '以下是專案推論，不是原文直接驗證 IRMS 的結果。', '']
         body += ['- ' + t for t in r['irms_implications']]
         if r.get('open_questions'):
             body += ['', '## 原文疑點：待釐清', ''] + ['- ' + q for q in r['open_questions']]

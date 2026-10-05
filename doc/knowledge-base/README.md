@@ -12,6 +12,8 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 **2026-10-06 查核**：[4 項更正／數值疑點](EVIDENCE_RECONCILIATION.md)、[25 主張與 12 驗證活動對照](EVIDENCE_MAP.md)，包含 Claude 已提交的真機紀錄與尚缺的完成證據。[全部後續工作](GOAL_PROGRESS.md)
 
+第二批另完成 **10 篇全文摘錄，合計 24 篇**，涵蓋佩戴偏移、機械已知角、跨操作者重戴、骨關節炎及異質步態障礙。[第二批選編與限制](BATCH2_REVIEW.md)；逐項品質評讀仍只涵蓋第一批 14 篇。
+
 [14 篇逐項品質與外推域評讀](QUALITY_APPRAISAL.md) 區分 JBI 歷史清單與自訂工程檢查，非獨立雙人審查。[實際瀏覽器／Zotero 驗收流程](ACCEPTANCE_CHECKLIST.md) 尚待執行。
 
 每筆都有書目／原始入口、繁體中文重點、IRMS 用途、適用限制、閱讀深度與查核狀態。這是經主題篩選的參考庫，未完成全文系統性回顧或逐篇偏誤風險評估；引用文獻不能直接證明 IRMS 的準確度、診斷能力或復健療效。
@@ -24,7 +26,7 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 | 目的 | 入口 |
 |---|---|
-| 查核研究數值與方法 | [14 篇全文精讀](FULL_TEXT_REVIEW.md)、[結構化摘錄](data/full-text-reviews.json) |
+| 查核研究數值與方法 | [24 篇全文精讀](FULL_TEXT_REVIEW.md)、[結構化摘錄](data/full-text-reviews.json) |
 | 專題背景與研究動機 | [復健背景](guides/07-rehabilitation-context.md)、[閱讀路徑](READING_PATHS.md) |
 | 理解可量到的角度 | [量測模型](guides/01-measurement-model.md)、[佩戴校準](guides/02-calibration.md) |
 | 處理誤差與精度論述 | [濾波延遲](guides/03-signal-fusion.md)、[統計驗證](guides/04-validation-statistics.md) |
@@ -56,8 +58,8 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 | 標記 | 本庫意義 | 本次筆數 |
 |---|---|---:|
-| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 143 |
-| `full-text-extracted` | 全文方法、結果、表格與限制的結構化單人摘錄，未做正式偏誤評分 | 14 |
+| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 133 |
+| `full-text-extracted` | 全文方法、結果、表格與限制的結構化單人摘錄，未做正式偏誤評分 | 24 |
 | `full-text-sections` | 檢查原文指定章節，仍非完整系統性審查 | 1 |
 | `primary-page-excerpt` | 檢查官方頁面標題與相關內容／文件身分 | 42 |
 | `metadata-only` | 官方目錄確認文件，但直接原文未取得 | 2 |

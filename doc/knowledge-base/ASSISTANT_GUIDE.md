@@ -15,7 +15,7 @@
 
 ## 檢索格式
 
-`data/retrieval.jsonl` 每行是一筆自足的檢索單位，包含引用、整理、用途、限制與閱讀深度。適合後續建立向量索引，但本次沒有部署嵌入服務、外部 RAG 或 App 內問答功能。需要精確欄位或篩選時，使用 [catalog.json](data/catalog.json)；14 筆 `full_text_review` 保存具原文定位的原創摘錄；JSONL 同時含工程推論及版本提醒。這些不是出版商全文，正式引用仍核對原文與更正版。
+`data/retrieval.jsonl` 每行是一筆自足的檢索單位，包含引用、整理、用途、限制與閱讀深度。適合後續建立向量索引，但本次沒有部署嵌入服務、外部 RAG 或 App 內問答功能。需要精確欄位或篩選時，使用 [catalog.json](data/catalog.json)；24 筆 `full_text_review` 保存具原文定位的原創摘錄；JSONL 同時含工程推論及版本提醒。這些不是出版商全文，正式引用仍核對原文與更正版。
 
 不要移除 JSONL 中的限制句。不同來源的族群與實驗條件不可合併成虛構的單一研究。`priority=core` 代表閱讀順序，並非高品質證據評分；`open_access=true` 也不是重新散布或模型訓練授權。
 

@@ -1,8 +1,19 @@
 {
-  "checked_on": "2026-10-04",
+  "checked_on": "2026-10-06",
   "method": "Europe PMC MED core commentCorrectionList plus retrieved full-text XML related-article fields; not exhaustive publisher/Crossmark validation",
-  "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=SRC%3AMED+AND+%28EXT_ID%3A22319365+OR+EXT_ID%3A24743160+OR+EXT_ID%3A26110027+OR+EXT_ID%3A29933568+OR+EXT_ID%3A30366919+OR+EXT_ID%3A30669657+OR+EXT_ID%3A31991862+OR+EXT_ID%3A32393301+OR+EXT_ID%3A32545227+OR+EXT_ID%3A32580394+OR+EXT_ID%3A33916432+OR+EXT_ID%3A34063355+OR+EXT_ID%3A35408159+OR+EXT_ID%3A41088368+OR+EXT_ID%3A27330520%29&format=json&resultType=core&pageSize=100",
+  "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=SRC%3AMED+AND+%28EXT_ID%3A31991862+OR+EXT_ID%3A32545227+OR+EXT_ID%3A32580394+OR+EXT_ID%3A24743160+OR+EXT_ID%3A29933568+OR+EXT_ID%3A35408159+OR+EXT_ID%3A22319365+OR+EXT_ID%3A33916432+OR+EXT_ID%3A32393301+OR+EXT_ID%3A41088368+OR+EXT_ID%3A26110027+OR+EXT_ID%3A30669657+OR+EXT_ID%3A30366919+OR+EXT_ID%3A34063355+OR+EXT_ID%3A32012906+OR+EXT_ID%3A35957218+OR+EXT_ID%3A37766040+OR+EXT_ID%3A41901917+OR+EXT_ID%3A33322187+OR+EXT_ID%3A35161609+OR+EXT_ID%3A28846613+OR+EXT_ID%3A29495600+OR+EXT_ID%3A37448005+OR+EXT_ID%3A28398224+OR+EXT_ID%3A27330520%29&format=json&resultType=core&pageSize=100",
+  "response_sha256": "5cd5f34b8da762e01c52097bad8a15399ce6da7c0a81c160ae6b84062ec57c94",
   "records": [
+    {
+      "id": "PMID-41901917",
+      "title": "Validity, Reliability and Interpretability of an IMU-Based System to Measure 3D Lower Limb Kinematics of Patients with Heterogeneous Gait Disorders.",
+      "doi": "10.3390/s26061746",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
     {
       "id": "PMID-41088368",
       "title": "Concurrent validity of wearable IMUs for sagittal plane lower-limb range of motion during walking and estimated ground reaction forces: a systematic review and meta-analysis.",
@@ -16,9 +27,57 @@
       "comment_corrections": []
     },
     {
+      "id": "PMID-37766040",
+      "title": "Inertial Measurement Unit Sensor-to-Segment Calibration Comparison for Sport-Specific Motion Analysis.",
+      "doi": "10.3390/s23187987",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-37448005",
+      "title": "Evaluation of Upper Body and Lower Limbs Kinematics through an <i>IMU</i>-Based Medical System: A Comparative Study with the Optoelectronic System.",
+      "doi": "10.3390/s23136156",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-35957218",
+      "title": "Three-Dimensional Lower-Limb Kinematics from Accelerometers and Gyroscopes with Simple and Minimal Functional Calibration Tasks: Validation on Asymptomatic Participants.",
+      "doi": "10.3390/s22155657",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": [
+        {
+          "source": "PPR",
+          "id": "PPR511189",
+          "type": "Preprint in",
+          "note": "CrossRef Pre-print loader",
+          "orderIn": 10002
+        }
+      ]
+    },
+    {
       "id": "PMID-35408159",
       "title": "Body-Worn IMU-Based Human Hip and Knee Kinematics Estimation during Treadmill Walking.",
       "doi": "10.3390/s22072544",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-35161609",
+      "title": "Reliability and Validity of an Inertial Measurement System to Quantify Lower Extremity Joint Angle in Functional Movements.",
+      "doi": "10.3390/s22030863",
       "publication_types": [
         "research-article",
         "Journal Article"
@@ -43,6 +102,17 @@
       "doi": "10.3390/s21072543",
       "publication_types": [
         "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-33322187",
+      "title": "Wearable Inertial Sensors for Gait Analysis in Adults with Osteoarthritis-A Scoping Review.",
+      "doi": "10.3390/s20247143",
+      "publication_types": [
+        "Scoping Review",
+        "review-article",
         "Journal Article"
       ],
       "comment_corrections": []
@@ -78,6 +148,16 @@
         "Systematic Review",
         "Validation Study",
         "review-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-32012906",
+      "title": "Lower Limb Kinematics Using Inertial Sensors during Locomotion: Accuracy and Reproducibility of Joint Angle Calculations with Different Sensor-to-Segment Calibrations.",
+      "doi": "10.3390/s20030715",
+      "publication_types": [
+        "research-article",
         "Journal Article"
       ],
       "comment_corrections": []
@@ -119,6 +199,36 @@
       "id": "PMID-29933568",
       "title": "Validity, Test-Retest Reliability and Long-Term Stability of Magnetometer Free Inertial Sensor Based 3D Joint Kinematics.",
       "doi": "10.3390/s18071980",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-29495600",
+      "title": "Inertial Measurement Units for Clinical Movement Analysis: Reliability and Concurrent Validity.",
+      "doi": "10.3390/s18030719",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-28846613",
+      "title": "Method for Estimating Three-Dimensional Knee Rotations Using Two Inertial Measurement Units: Validation with a Coordinate Measurement Machine.",
+      "doi": "10.3390/s17091970",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "comment_corrections": []
+    },
+    {
+      "id": "PMID-28398224",
+      "title": "Inertial Sensor-Based Robust Gait Analysis in Non-Hospital Settings for Neurological Disorders.",
+      "doi": "10.3390/s17040825",
       "publication_types": [
         "research-article",
         "Journal Article"

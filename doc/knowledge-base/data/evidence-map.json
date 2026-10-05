@@ -78,8 +78,8 @@
       "evidence": [
         {
           "source_id": "PMID-37766040",
-          "locator": "Abstract; metadata from Europe PMC MED record",
-          "review_level": "abstract"
+          "locator": "§3.1、Table 2；§3.2、Appendix A",
+          "review_level": "full-text-extracted"
         },
         {
           "source_id": "PMID-32545227",
@@ -236,8 +236,8 @@
       "evidence": [
         {
           "source_id": "PMID-35957218",
-          "locator": "Abstract; metadata from Europe PMC MED record",
-          "review_level": "abstract"
+          "locator": "§3、Figures 6–7；§3",
+          "review_level": "full-text-extracted"
         },
         {
           "source_id": "PMID-35408159",
