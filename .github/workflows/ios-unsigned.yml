@@ -47,15 +47,18 @@ jobs:
           set +e
           npx tauri ios build --target aarch64 --ci --export-method debugging 2>&1 | tail -60
           set -e
-          APP=$(find src-tauri/gen/apple ~/Library/Developer/Xcode/DerivedData -type d -name 'IRMS*.app' -path '*iphoneos*' -o -type d -name '*.app' -path '*Release-iphoneos*' | head -1)
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -type d -name '*.app' -path '*/Products/release-iphoneos/*' -maxdepth 6 | head -1)
           echo "app: $APP"
           test -n "$APP"
+          test -f "$APP/Info.plist"
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qry IRMS_unsigned.ipa Payload
+          test $(stat -f%z IRMS_unsigned.ipa) -gt 1000000
           ls -la IRMS_unsigned.ipa
 
       - uses: actions/upload-artifact@v4
         with:
           name: IRMS-unsigned-ipa
           path: IRMS_App_Tauri/IRMS_unsigned.ipa
+
           if-no-files-found: error
