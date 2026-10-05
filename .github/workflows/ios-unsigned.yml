@@ -2,6 +2,9 @@ name: iOS unsigned IPA
 
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/ios-unsigned-ipa]
+    paths: ['.github/workflows/ios-unsigned.yml']
 
 permissions:
   contents: read
