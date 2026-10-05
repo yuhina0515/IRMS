@@ -10,6 +10,10 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 **2026-10-04 升級：14 篇核心全文精讀**，補上族群、樣本、設備、方法、結果、限制及章節／表格定位，並接入所有檢索格式。[精讀比較與入口](FULL_TEXT_REVIEW.md)
 
+**2026-10-06 查核**：[4 項更正／數值疑點](EVIDENCE_RECONCILIATION.md)、[25 主張與 12 驗證活動對照](EVIDENCE_MAP.md)，包含 Claude 已提交的真機紀錄與尚缺的完成證據。[全部後續工作](GOAL_PROGRESS.md)
+
+[14 篇逐項品質與外推域評讀](QUALITY_APPRAISAL.md) 區分 JBI 歷史清單與自訂工程檢查，非獨立雙人審查。[實際瀏覽器／Zotero 驗收流程](ACCEPTANCE_CHECKLIST.md) 尚待執行。
+
 每筆都有書目／原始入口、繁體中文重點、IRMS 用途、適用限制、閱讀深度與查核狀態。這是經主題篩選的參考庫，未完成全文系統性回顧或逐篇偏誤風險評估；引用文獻不能直接證明 IRMS 的準確度、診斷能力或復健療效。
 
 ## 立即使用

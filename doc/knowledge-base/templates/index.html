@@ -38,7 +38,7 @@ const link=(parent,text,url)=>{const a=append(parent,'a',text);a.href=url;if(url
 function render(){
  const terms=el('query').value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
  filtered=catalog.sources.filter(s=>{
-  const text=[s.id,s.title,s.authors.join(' '),s.doi,s.year,s.summary_zh,s.irms_application,s.limitations_zh,JSON.stringify(s.full_text_review??{}),JSON.stringify(s.version_notices??[]),...s.topics.map(t=>label[t])].join(' ').toLocaleLowerCase();
+  const text=[s.id,s.title,s.authors.join(' '),s.doi,s.year,s.summary_zh,s.irms_application,s.limitations_zh,JSON.stringify(s.full_text_review??{}),JSON.stringify(s.version_notices??[]),JSON.stringify(s.evidence_reconciliation??{}),JSON.stringify(s.quality_appraisal??{}),...s.topics.map(t=>label[t])].join(' ').toLocaleLowerCase();
   return terms.every(t=>text.includes(t))&&(!el('topic').value||s.topics.includes(el('topic').value))&&(!el('kind').value||s.source_type===el('kind').value)&&(!el('depth').value||s.review_level===el('depth').value)&&(!el('core').checked||s.priority==='core');
  });
  page=Math.min(page,Math.max(0,Math.ceil(filtered.length/pageSize)-1));
@@ -52,6 +52,8 @@ function render(){
   append(details,'p',`查核：${s.verification.status}；${s.evidence_locator}`);link(details,'本地來源卡',`sources/${s.id}.md`);
   if(s.full_text_review){append(details,'p','全文重點：'+s.full_text_review.takeaway);link(details,'全文事實、結果與原文定位',`reviews/${s.id}.md`)}
   for(const notice of s.version_notices??[]){append(details,'p','版本提醒：'+notice.text);link(details,'更正通知',notice.url)}
+  if(s.evidence_reconciliation){append(details,'p','數值查核：'+s.evidence_reconciliation.conclusion);append(details,'p','採用規則：'+s.evidence_reconciliation.use_rule);link(details,'查核結果與原始版本','EVIDENCE_RECONCILIATION.md')}
+  if(s.quality_appraisal){append(details,'p','品質評讀：'+s.quality_appraisal.tool+'；'+s.quality_appraisal.assessment_scope);link(details,'逐項判讀與原文定位','QUALITY_APPRAISAL.md')}
   const button=append(article,'button','顯示引用');button.type='button';button.addEventListener('click',()=>{el('citation').value=[s.authors.join(', '),s.year??'n.d.',s.title.replace(/\.$/,''),s.journal,s.doi?'https://doi.org/'+s.doi:s.url,'Accessed '+s.verification.checked_on+'.'].filter(Boolean).join('. ');el('citation').focus();el('citation').select()});
  }
  el('status').textContent=`符合 ${filtered.length} 筆；第 ${filtered.length?page+1:0}／${Math.ceil(filtered.length/pageSize)} 頁。${filtered.length?'':'請減少關鍵字或篩選條件。'}`;

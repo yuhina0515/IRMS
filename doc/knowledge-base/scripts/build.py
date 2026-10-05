@@ -9,6 +9,7 @@ import pathlib
 import re
 import sqlite3
 from full_text import join_reviews, render_reviews, review_text
+from audit import load_audits, render_mapping, render_quality
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -45,6 +46,7 @@ def load_catalog(root=ROOT):
         if s["verification"]["status"] == "pending-fetch":
             raise ValueError(f"Unverified candidate: {s['id']}")
     join_reviews(root, catalog)
+    load_audits(root, catalog)
     repo = root.parents[1]
     for t in topics:
         if not any(t["id"] in s["topics"] for s in catalog["sources"]):
@@ -144,6 +146,10 @@ def build(root=ROOT, sqlite=True):
             card += ['## 書目修正查核', '', f"{override['checked_on']}；{override['field']}：{override['reason']} [查核來源]({override['url']})", '']
         if s.get('version_notices'):
             card += ['## 版本提醒', '', review_text(s), '']
+        if s.get('evidence_reconciliation'):
+            card += ['## 更正與數值查核', '', '[查核結果與採用規則](../EVIDENCE_RECONCILIATION.md)。', '']
+        if s.get('quality_appraisal'):
+            card += ['## 品質與外推域', '', '[單人逐項評讀](../QUALITY_APPRAISAL.md)；未做獨立雙人系統回顧評讀，不以總分認證 IRMS。', '']
         if s["verification"].get("catalog_url"):
             card.insert(-3, f"官方目錄：[文件身分]({s['verification']['catalog_url']})。直接文件本次未取得。\n")
         write(root / "sources" / (s["id"] + ".md"), "\n".join(card))
@@ -155,6 +161,10 @@ def build(root=ROOT, sqlite=True):
             retrieval[-1]['full_text_review'] = s['full_text_review']
         if s.get('version_notices'):
             retrieval[-1]['version_notices'] = s['version_notices']
+        if s.get('evidence_reconciliation'):
+            retrieval[-1]['evidence_reconciliation'] = s['evidence_reconciliation']
+        if s.get('quality_appraisal'):
+            retrieval[-1]['quality_appraisal'] = s['quality_appraisal']
         entry = ["TY  - " + ("JOUR" if s["source_type"] == "publication" else "RPRT" if s["source_type"] == "technical-report" else "ELEC"), "ID  - " + s["id"], "TI  - " + s["title"]]
         entry.extend("AU  - " + a for a in s.get("bibtex_authors", s["authors"]))
         for tag, key in [("PY", "year"), ("JO", "journal"), ("VL", "volume"), ("IS", "issue"), ("DO", "doi"), ("UR", "url")]:
@@ -183,6 +193,8 @@ def build(root=ROOT, sqlite=True):
     index[4] += ' · [核心全文精讀](FULL_TEXT_REVIEW.md)'
     write(root / "INDEX.md", "\n".join(index))
     render_reviews(root, catalog, write)
+    render_mapping(root, load_audits(root, catalog), write)
+    render_quality(root, catalog, write)
     write(root / "references.bib", "\n".join(bibtex(s, date) for s in sources))
     write(root / "references.ris", "\n".join(ris))
     write(root / "data/retrieval.jsonl", "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in retrieval))

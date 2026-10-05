@@ -35,6 +35,12 @@ def main():
             require(extraction['id'] == r['id'], 'Retrieval extraction identity mismatch')
         for notice in r.get('version_notices', []):
             require(notice['text'] in r['text'] and notice['url'] in r['text'], 'Retrieval lost correction notice')
+        if r.get('evidence_reconciliation'):
+            a = r['evidence_reconciliation']
+            require(a['conclusion'] in r['text'] and a['use_rule'] in r['text'] and a['locator'] in r['text'], 'Retrieval lost audit or use restriction')
+        if r.get('quality_appraisal'):
+            for item in r['quality_appraisal']['items']:
+                require(item['reason'] in r['text'] and item['locator'] in r['text'], 'Retrieval lost quality judgment or location')
     reviewed_ids = {s['id'] for s in catalog['sources'] if 'full_text_review' in s}
     require(reviewed_ids == {p.stem for p in (ROOT / 'reviews').glob('*.md')}, 'Full-text notes mismatch')
     ris = (ROOT / 'references.ris').read_text(encoding='utf-8')
@@ -76,7 +82,7 @@ def main():
                 require(json.loads(raw)['full_text_review']['id'] == sid, 'SQLite lost structured review')
     outputs = list((ROOT / 'sources').glob('*.md')) + list((ROOT / 'topics').glob('*.md'))
     outputs += [ROOT / p for p in ['INDEX.md', 'references.bib', 'references.ris', 'index.html', 'data/stats.json', 'data/retrieval.jsonl']]
-    outputs += list((ROOT / 'reviews').glob('*.md')) + [ROOT / 'FULL_TEXT_REVIEW.md']
+    outputs += list((ROOT / 'reviews').glob('*.md')) + [ROOT / 'FULL_TEXT_REVIEW.md', ROOT / 'EVIDENCE_MAP.md', ROOT / 'QUALITY_APPRAISAL.md']
     before = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in outputs}
     subprocess.run([sys.executable, str(ROOT / 'scripts/build.py'), '--no-sqlite'], check=True, stdout=subprocess.DEVNULL)
     require(all(hashlib.sha256(p.read_bytes()).hexdigest() == sha for p, sha in before.items()), 'Non-deterministic generated output')

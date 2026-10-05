@@ -22,6 +22,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-06 evidence audit and mapping** ([Log](coding%20log/log_20261006_evidence_audit_and_claim_mapping.md)): four primary-source discrepancy audits, 25 claims/all 12 validation activities and 14 located single-reviewer appraisals. Claude CAL-03 hardware evidence reconciled; saved raw trace replayed. Browser/Zotero and V01/V02 acceptance remain open.
 - **2026-10-04 core full-text extraction** ([Log](coding%20log/log_20261004_core_fulltext_review.md)): 14 located full-text reviews, sample/method/reference distinctions, source discrepancies and ICC erratum notice; searchable through HTML, CLI, JSONL and SQLite. Single-reviewer extraction; no IRMS performance or clinical validation.
 - **2026-10-03 reference knowledge base** ([Log](coding%20log/log_20261003_knowledge_base.md)): 202 traceable sources, 22 topics, 12 guides, claim boundaries, validation proposals and offline search. Reading depth is explicit; no IRMS accuracy or clinical outcome validation was performed.
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.

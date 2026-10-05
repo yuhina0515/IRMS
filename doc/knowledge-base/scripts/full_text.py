@@ -49,7 +49,14 @@ def review_text(s):
         lines += [f'全文限制 [{f["origin"]}]：{f["text"]}（{f["locator"]}）' for f in r['limitations']]
         lines += ['閱讀評析：' + r['appraisal'], 'IRMS 工程推論：' + '；'.join(r['irms_implications'])]
         lines += ['原文疑點：' + q for q in r.get('open_questions', [])]
-    lines += ['版本提醒：' + n['text'] + ' ' + n['url'] for n in s.get('version_notices', [])]
+    lines += ['版本提醒：' + n['text'] + ' ' + n.get('pmid', '') + ' ' + n.get('doi', '') + ' ' + n['url'] for n in s.get('version_notices', [])]
+    a = s.get('evidence_reconciliation')
+    if a:
+        lines += ['數值查核：' + a['conclusion'] + '（' + a['locator'] + '）', '採用規則：' + a['use_rule']]
+    q = s.get('quality_appraisal')
+    if q:
+        lines += ['品質評讀：' + q['tool'] + '；' + q['assessment_scope'] + '；' + q['reviewer']]
+        lines += [f'品質項目 {i["domain"]} [{i["answer"]}]：{i["reason"]}（{i["locator"]}）' for i in q['items']]
     return '\n'.join(lines)
 
 
@@ -72,10 +79,12 @@ def render_reviews(root, catalog, write):
         body += [f'| {label} | {r[k]["text"]} | {r[k]["locator"]} |' for k, label in FACTS.items()]
         body += ['', '## 結果', ''] + [f'- {f["text"]}（{f["locator"]}）' for f in r['results']]
         body += ['', '## 限制與閱讀評析', ''] + [f'- {f["text"]}（{f["locator"]}；{f["origin"]}）' for f in r['limitations']]
-        body += ['', r['appraisal'], '', '## IRMS 工程推論', '', '以下是專案推論，不是原文直接驗證 IRMS 的結果。', '']
+        body += ['', r['appraisal'], '', '[品質與外推域的單人逐項評讀](../QUALITY_APPRAISAL.md)。', '', '## IRMS 工程推論', '', '以下是專案推論，不是原文直接驗證 IRMS 的結果。', '']
         body += ['- ' + t for t in r['irms_implications']]
         if r.get('open_questions'):
             body += ['', '## 原文疑點：待釐清', ''] + ['- ' + q for q in r['open_questions']]
+        if s.get('evidence_reconciliation'):
+            body += ['', '[更正與數值查核及採用規則](../EVIDENCE_RECONCILIATION.md)。', '']
         body += ['', '## 取得與重現', '', f'全文身分：{a["pmcid"]}；取得：{a["retrieved_on"]}；格式：JATS XML。', '',
                  f'原始回應 SHA-256：`{a["sha256"]}`。全文暫存供本次擷取查核，沒有收錄或重新散布於此 repo。', '',
                  '版本查核只涵蓋 Europe PMC MED 的 commentCorrectionList 與 XML related-article 欄位，不能保證不存在其他更正。', '',
@@ -86,6 +95,6 @@ def render_reviews(root, catalog, write):
               '- 機械鉸鏈、健康步行、神經疾病回饋與術後使用性研究，須分別解讀；受試者數、研究數與重複試次不能混用。',
               '- 離線最佳化、光學初始化、每組資料調參及移除平均偏差，均不能直接代表 IRMS 即時絕對角度誤差。',
               '- 原文有數值衝突時，摘錄保留並標記；不自行更正後當作已確認結論。Olsson 軸辨識、Seel 表格與 Bowman 統計敘述均有待釐清項目。',
-              '- [ICC 指引](sources/PMID-27330520.md) 有 [2017 更正通知](https://pubmed.ncbi.nlm.nih.gov/29276468/)。全文取得失敗，維持摘要層級；本次未擷取更正公式內容。',
+              '- [ICC 指引](sources/PMID-27330520.md) 有 [2017 更正通知](https://pubmed.ncbi.nlm.nih.gov/29276468/)。2026-10-06 已核對更正文字；原始指引全文 XML 未取得，仍維持摘要層級。詳見 [數值查核](EVIDENCE_RECONCILIATION.md)。',
               '- 上述來源尚不能建立 IRMS 本身的精度、診斷能力或療效；工程落地請對照 [驗證計畫](VALIDATION_PLAN.md)。', '']
     write(root / 'FULL_TEXT_REVIEW.md', '\n'.join(index))

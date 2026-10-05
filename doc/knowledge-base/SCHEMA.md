@@ -30,6 +30,10 @@
 
 `metadata-and-abstract-retrieved` 表示 API 書目／摘要取得；`retrieved` 等官方查核標記描述本次頁面取得；`metadata-only-document-unavailable` 表示只有官方目錄確認身分。這些狀態不是研究品質評分。
 
+`data/reconciliation.json` 保存更正／疑點的結論、定位、原始 URL、PDF 雜湊、未解狀態及採用規則。建置時以來源 ID 加入 `evidence_reconciliation`，所有搜尋及 JSONL 保留結論與限制。`data/evidence-map.json` 是 25 主張對照的編輯入口，保存來源閱讀深度與定位、程式路徑、驗證活動、缺口及完成證據；產生 `EVIDENCE_MAP.md`。所有 V01–V12 至少對應一項主張。
+
+`data/quality-appraisals.json` 保存 14 篇第二次核對的逐項判讀、理由、定位及適用工具，建置時加入 `quality_appraisal` 並產生 `QUALITY_APPRAISAL.md`。JBI 歷史清單與自訂工程域分開，沒有跨設計總分；同代理核對不能稱獨立雙人評讀。品質評讀與全文擷取是不同欄位，後續新全文不自動取得已評讀標記。
+
 `data/query-manifest.json` 保存本次候選搜尋的原始查詢、日期、排序、命中及取得筆數；不保存出版商全文。`data/link-checks.json` 保存官方入口查核，並區分成功 PDF、HTML、重新導向、阻擋及工具無法取得。
 
 ## 產生格式

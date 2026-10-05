@@ -49,6 +49,16 @@ assert.match(elements.results.children[0].children[1].textContent, /35408159/);
 set('query', '29276468'); count(1);
 const corrected = elements.results.children[0].children.find(e => e.tagName === 'details');
 assert.ok(corrected.children.some(e => e.textContent.startsWith('版本提醒：')));
+assert.ok(corrected.children.some(e => e.textContent.startsWith('採用規則：')));
+set('query', 'cross-format-conflict-unresolved'); count(2);
+for (const article of elements.results.children) {
+  const details = article.children.find(e => e.tagName === 'details');
+  assert.ok(details.children.some(e => e.tagName === 'a' && e.href === 'EVIDENCE_RECONCILIATION.md'));
+}
+set('query', '');
+set('query', 'JBI-SR-2017'); count(5);
+set('query', 'JBI-QUAL-2017'); count(2);
+set('query', 'IRMS-METHOD-DOMAINS-v1'); count(7);
 set('query', '');
 set('depth', ''); elements.core.checked = true; elements.core.fire('input'); count(catalog.sources.filter(s => s.priority === 'core').length);
 assert.equal(elements.topic.children.length, topics.length);
