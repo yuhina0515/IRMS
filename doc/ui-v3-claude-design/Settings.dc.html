@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>設定</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="{{themeVars}};width:1280px;height:800px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--canvas);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;overflow:hidden">
+  <header style="height:64px;flex-shrink:0;display:flex;align-items:center;gap:32px;padding:0 24px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;letter-spacing:0.04em">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" style="fill:var(--accent)"/><path d="M12 6 L13 15 L21 18" fill="none" style="stroke:var(--onaccent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      IRMS
+    </div>
+    <nav aria-label="主要功能" style="display:flex;gap:4px;flex-grow:1">
+      <a href="Main.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">即時監測</a>
+      <a href="Actions.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">動作處方</a>
+      <a href="History.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">療程紀錄</a>
+      <a href="Settings.dc.html" aria-current="page" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;background:var(--tint);color:var(--accent);font-weight:700;text-decoration:none">設定</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span role="status" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)"><span style="width:10px;height:10px;border-radius:50%;background:var(--good)"></span>裝置已連線</span>
+      <button style="height:44px;padding:0 20px;border-radius:22px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:500 15px 'Noto Sans TC',sans-serif">中斷連線</button>
+    </div>
+  </header>
+
+  <main style="flex-grow:1;min-height:0;padding:0 24px 24px;box-sizing:border-box;display:flex">
+    <section aria-label="設定" style="flex-grow:1;min-width:0;display:flex;background:var(--paper);border:1px solid var(--line);border-radius:24px;overflow:hidden">
+      <nav aria-label="設定分類" style="flex:0 0 280px;box-sizing:border-box;border-right:1px solid var(--line);padding:28px 20px;display:flex;flex-direction:column;gap:6px">
+        <h1 style="margin:0 12px 14px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:30px;line-height:1.2">設定</h1>
+        <a href="#device" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;color:var(--muted);font-weight:500;text-decoration:none">裝置與韌體</a>
+        <a href="#privacy" aria-current="page" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;background:var(--tint);color:var(--accent);font-weight:700;text-decoration:none">隱私與遙測</a>
+        <a href="#data" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;color:var(--muted);font-weight:500;text-decoration:none">資料與匯出</a>
+        <a href="#display" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;color:var(--muted);font-weight:500;text-decoration:none">外觀與語言</a>
+        <a href="#modules" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;color:var(--muted);font-weight:500;text-decoration:none">模組</a>
+        <a href="#demo" style="display:flex;align-items:center;height:52px;padding:0 16px;border-radius:14px;color:var(--muted);font-weight:500;text-decoration:none">示範模式</a>
+        <div style="flex-grow:1"></div>
+        <div style="padding:0 16px;font-size:13px;color:var(--muted)">IRMS 智慧復健監測 · BETA</div>
+      </nav>
+
+      <div style="flex-grow:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:28px 40px 14px">
+          <h2 style="margin:0;font-family:'Noto Serif TC',serif;font-weight:700;font-size:26px">隱私與遙測</h2>
+          <p style="margin:6px 0 0;font-size:15px;color:var(--muted)">所有療程紀錄預設只存在這台電腦;下列選項只影響要不要回傳匿名的使用狀況。</p>
+        </div>
+        <div style="flex-grow:1;min-height:0;overflow-y:auto;padding:6px 40px 28px;display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;align-items:center;gap:24px;padding:22px 0;border-top:1px solid var(--line)">
+            <div style="flex-grow:1">
+              <div style="font-weight:700;font-size:17px">傳送匿名使用資料</div>
+              <div style="font-size:14px;line-height:1.6;color:var(--muted);margin-top:4px;max-width:520px">協助改善校準與連線穩定度。不含姓名、療程內容或原始角度曲線。預設關閉,可隨時改變。</div>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:12px">
+              <span style="font-size:15px;font-weight:700;color:var(--muted)">已關閉</span>
+              <button role="switch" aria-checked="false" aria-label="傳送匿名使用資料" style="width:64px;height:44px;border-radius:22px;border:1.5px solid var(--edge);background:var(--soft);position:relative;padding:0"><span style="position:absolute;left:5px;top:5px;width:30px;height:30px;border-radius:50%;background:var(--edge)"></span></button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;padding:22px 0;border-top:1px solid var(--line)">
+            <div style="flex-grow:1">
+              <div style="font-weight:700;font-size:17px">傳送當機報告</div>
+              <div style="font-size:14px;line-height:1.6;color:var(--muted);margin-top:4px;max-width:520px">程式異常結束時,附上錯誤訊息與版本。傳送前會顯示內容讓你確認。</div>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:12px">
+              <span style="font-size:15px;font-weight:700;color:var(--accent)">詢問我</span>
+              <button role="switch" aria-checked="true" aria-label="傳送當機報告" style="width:64px;height:44px;border-radius:22px;border:0;background:var(--accent);position:relative;padding:0"><span style="position:absolute;right:5px;top:7px;width:30px;height:30px;border-radius:50%;background:var(--onaccent)"></span></button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;padding:22px 0;border-top:1px solid var(--line)">
+            <div style="flex-grow:1">
+              <div style="font-weight:700;font-size:17px">裝置識別碼</div>
+              <div style="font-size:14px;line-height:1.6;color:var(--muted);margin-top:4px;max-width:520px">遙測開啟時用來區分不同裝置的隨機代碼,可重設。</div>
+            </div>
+            <button style="height:48px;padding:0 22px;border-radius:24px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:700 15px 'Noto Sans TC',sans-serif">重設代碼</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+            <div style="flex-grow:1">
+              <div style="font-weight:700;font-size:17px">刪除已回傳的資料</div>
+              <div style="font-size:14px;line-height:1.6;color:var(--muted);margin-top:4px;max-width:520px">要求刪除伺服器上與此代碼相關的所有紀錄。本機療程紀錄不受影響。</div>
+            </div>
+            <button style="height:48px;padding:0 22px;border-radius:24px;border:2px solid var(--danger);background:var(--dangerbg);color:var(--danger);font:700 15px 'Noto Sans TC',sans-serif">要求刪除</button>
+          </div>
+        </div>
+        <div style="flex-shrink:0;height:44px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)">
+          <span>本機紀錄 · 遙測預設關閉</span>
+          <span>只有這個區塊會捲動</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+const L = {canvas:'#EEEAE2',paper:'#FFFCF6',soft:'#E8E2D8',ink:'#29252D',muted:'#625C65',line:'#CFC6BD',edge:'#827784',accent:'#684563',onaccent:'#FFFFFF',tint:'#EDE1EA',good:'#286047',goodbg:'#E0EBDF',warn:'#805017',warnbg:'#F4E7CF',danger:'#B02D32',dangerbg:'#FAE5E0'};
+const D = {canvas:'#201E23',paper:'#29262D',soft:'#36313A',ink:'#F4EEE6',muted:'#C3B8C5',line:'#514853',edge:'#A698AA',accent:'#D9B6D0',onaccent:'#29252D',tint:'#463443',good:'#ACD7B8',goodbg:'#2D4033',warn:'#F0C182',warnbg:'#493922',danger:'#FFA7A0',dangerbg:'#502D30'};
+const t = this.props.dark ? D : L;
+return { themeVars: Object.keys(t).map((k) => '--' + k + ':' + t[k]).join(';') };
+}
+}
+</script>
+</body>
+</html>
