@@ -20,7 +20,8 @@ export function installFirmwareAutoUpdate(): () => void {
         connected: s.isConnected,
         simulated: bluetoothService.isSimulated,
         sessionRunning: s.session.running,
-        hardwareError: s.hardwareError != null
+        hardwareError: s.hardwareError != null,
+        linkTruncated: s.linkTruncated
       }
     },
     readDeviceVersion: () => bluetoothService.getDeviceFirmwareVersion(),

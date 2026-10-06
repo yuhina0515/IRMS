@@ -389,6 +389,62 @@ async fn send_and_wait_for_ota_status(
     .map_err(|_| "OTA status timeout".to_string())?
 }
 
+/// Unconfirmed-byte ceiling for the OTA transfer. Firmware acks every 4 KB with OTA:PROGRESS, so
+/// this keeps at most four acks of data in flight.
+const OTA_WINDOW_BYTES: usize = 16 * 1024;
+/// How long the sender waits for the device to confirm anything before declaring the link stalled.
+const OTA_STALL_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn parse_ota_progress(text: &str) -> Option<usize> {
+    text.strip_prefix("OTA:PROGRESS:")?.parse().ok()
+}
+
+fn absorb_ota_status(text: &str, confirmed: &mut usize) -> Result<(), String> {
+    if let Some(n) = parse_ota_progress(text) {
+        *confirmed = (*confirmed).max(n);
+    } else if text.starts_with("OTA:ERROR:") {
+        return Err(describe_ota_error(text));
+    } else if text == "OTA:ABORTED" {
+        return Err("OTA update aborted".to_string());
+    }
+    Ok(())
+}
+
+/// Write-Without-Response has no ack, so a link that silently drops bytes (e.g. MTU stuck at 23,
+/// where a 125-byte chunk arrives as 20 bytes) would otherwise "succeed" until the device gives
+/// up. Block while too much is unconfirmed and fail fast when the device stops confirming.
+async fn wait_for_ota_window(
+    rx: &mut broadcast::Receiver<String>,
+    sent: usize,
+    confirmed: &mut usize,
+    window: usize,
+    stall: Duration,
+) -> Result<(), String> {
+    use broadcast::error::{RecvError, TryRecvError};
+    loop {
+        loop {
+            match rx.try_recv() {
+                Ok(text) => absorb_ota_status(&text, confirmed)?,
+                Err(TryRecvError::Lagged(_)) => continue,
+                Err(_) => break,
+            }
+        }
+        if sent.saturating_sub(*confirmed) < window {
+            return Ok(());
+        }
+        match tokio::time::timeout(stall, rx.recv()).await {
+            Ok(Ok(text)) => absorb_ota_status(&text, confirmed)?,
+            Ok(Err(RecvError::Lagged(_))) => {}
+            Ok(Err(RecvError::Closed)) => return Err("OTA status channel closed".to_string()),
+            Err(_) => {
+                return Err(format!(
+                    "裝置沒有確認收到資料(已送出 {sent} bytes,僅確認 {confirmed} bytes),                     疑似藍牙連線 MTU 過小或傳輸過載,更新已中止"
+                ))
+            }
+        }
+    }
+}
+
 fn describe_ota_error(status_text: &str) -> String {
     let code = status_text
         .strip_prefix("OTA:ERROR:")
@@ -463,6 +519,8 @@ pub async fn ble_perform_ota_update(
     });
 
     let mut offset = 0;
+    let mut confirmed = 0usize;
+    let mut progress_rx = state.ota_status_tx.subscribe();
     let result: Result<String, String> = async {
         let start_cmd = format!("OTA:START:{total}:{md5}");
         send_and_wait_for_ota_status(
@@ -483,6 +541,14 @@ pub async fn ble_perform_ota_update(
         while offset < total {
             let end = (offset + OTA_CHUNK_SIZE).min(total);
             let chunk = &data[offset..end];
+            wait_for_ota_window(
+                &mut progress_rx,
+                offset,
+                &mut confirmed,
+                OTA_WINDOW_BYTES,
+                OTA_STALL_TIMEOUT,
+            )
+            .await?;
             {
                 let guard = state.peripheral.lock().await;
                 let peripheral = guard.as_ref().ok_or("裝置未連線")?;
@@ -563,6 +629,79 @@ pub async fn ble_abort_ota(state: State<'_, BleState>) -> Result<(), String> {
 #[cfg(test)]
 mod ota_tests {
     use super::*;
+
+    #[test]
+    fn parses_only_progress_statuses() {
+        assert_eq!(parse_ota_progress("OTA:PROGRESS:4100"), Some(4100));
+        assert_eq!(parse_ota_progress("OTA:READY"), None);
+        assert_eq!(parse_ota_progress("OTA:PROGRESS:x"), None);
+    }
+
+    #[tokio::test]
+    async fn window_opens_without_waiting_when_little_is_in_flight() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        wait_for_ota_window(
+            &mut rx,
+            1000,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap();
+        drop(tx);
+    }
+
+    #[tokio::test]
+    async fn full_window_reopens_when_device_confirms_progress() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        tx.send("OTA:PROGRESS:4100".into()).unwrap();
+        wait_for_ota_window(
+            &mut rx,
+            8200,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(50),
+        )
+        .await
+        .unwrap();
+        assert_eq!(confirmed, 4100);
+    }
+
+    #[tokio::test]
+    async fn stalled_device_fails_fast_instead_of_streaming_into_the_void() {
+        let (_tx, mut rx) = broadcast::channel::<String>(32);
+        let mut confirmed = 0;
+        let err = wait_for_ota_window(
+            &mut rx,
+            9000,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("MTU"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn device_error_during_transfer_is_surfaced() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        tx.send("OTA:ERROR:WRITE_FAIL".into()).unwrap();
+        let err = wait_for_ota_window(
+            &mut rx,
+            100,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(err, describe_ota_error("OTA:ERROR:WRITE_FAIL"));
+    }
 
     #[tokio::test]
     async fn captures_reply_before_write_ack() {

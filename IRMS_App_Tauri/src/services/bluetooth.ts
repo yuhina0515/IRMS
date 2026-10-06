@@ -347,6 +347,8 @@ export class BluetoothService {
   ): Promise<{ ok: boolean; message: string }> {
     if (this.simulated) return { ok: false, message: getT().settings.firmware.demoNoFirmware }
     if (!this.connected) return { ok: false, message: getT().settings.firmware.deviceNotConnected }
+    // MTU 停在預設 23 時,125 bytes 的 OTA 分塊只有 20 bytes 會抵達裝置,傳完必然失敗。
+    if (this.truncationReported) return { ok: false, message: getT().settings.firmware.linkTruncated }
 
     // 用可變物件而非單純 let 變數存放最後一個 phase:TS 的控制流分析看不到
     // listen() 回呼(非同步、之後才觸發)裡的賦值,若用 let 會把型別窄化死在

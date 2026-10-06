@@ -155,6 +155,7 @@ export const en = {
     alreadyFailed: (p: { version: string }) =>
       `Automatic update to ${p.version} already failed once. Update manually in Settings`,
     deferredStateChanged: 'State changed; firmware update postponed',
+    deferredTruncatedLink: 'BLE link is truncated (MTU too small); firmware update postponed. Reconnect the device to retry',
     done: (p: { version: string }) => `Device firmware updated to ${p.version}. The device is restarting`,
     deviceStateChanged: 'Device state changed; update postponed',
     updatingToast: (p: { version: string }) =>
@@ -695,6 +696,7 @@ export const en = {
       needDevice: 'Connect a real device from the top bar first',
       demoNoFirmware: 'Demo mode has no real device, so firmware cannot be updated',
       deviceNotConnected: 'Device not connected',
+      linkTruncated: 'BLE link is truncated (MTU too small), so firmware chunks would be cut off. Disconnect, reconnect, and try again',
       readFailedOld: 'Read failed; the device may have old firmware without OTA support',
       readFileFailed: (p: { message: string }) => `Could not read firmware: ${p.message}`,
       emptyFile: 'The selected file is empty. Choose a .bin file again',
