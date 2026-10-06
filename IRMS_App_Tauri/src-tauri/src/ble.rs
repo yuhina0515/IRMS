@@ -450,6 +450,7 @@ fn describe_ota_error(status_text: &str) -> String {
         .strip_prefix("OTA:ERROR:")
         .unwrap_or(status_text);
     match code {
+        "MTU_TOO_SMALL" => "藍牙連線 MTU 過小(裝置要求 128),韌體分塊會被截斷;請斷線後重新連線,仍無法改善時請改用其他藍牙配接器".to_string(),
         "NO_SPACE" => "裝置回報空間不足,無法開始寫入新韌體".to_string(),
         "BAD_START" => "啟動參數格式錯誤(App 端 bug,不應該發生)".to_string(),
         "ALREADY_RUNNING" => "裝置已有進行中的更新,請先等待或中止".to_string(),
@@ -739,6 +740,13 @@ mod ota_tests {
             result.unwrap_err(),
             describe_ota_error("OTA:ERROR:ALREADY_RUNNING")
         );
+    }
+
+    #[test]
+    fn mtu_too_small_has_actionable_hint() {
+        let msg = describe_ota_error("OTA:ERROR:MTU_TOO_SMALL");
+        assert!(msg.contains("MTU"));
+        assert!(!msg.contains("裝置回報錯誤"));
     }
 
     #[tokio::test]

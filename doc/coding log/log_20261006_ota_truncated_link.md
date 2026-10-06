@@ -35,3 +35,9 @@ Investigate the OTA interruption seen in IRMS telemetry, and why power was lost 
 ## Resume state
 - Retest on hardware. If OTA still drops with a healthy MTU, capture serial `esp_reset_reason()` and then consider moving `Update.write()` out of the BLE callback.
 - Open question: why Windows left the MTU at 23 on this connection (fresh reconnect fixed it in other runs).
+
+## Follow-up: firmware MTU guard (same day)
+- Firmware (`new-IRMS-Firmware`, branch `feat/raw-stream`, commit b712e30): `negotiatedMtu` tracked in `onMtuChanged`, reset to 23 on connect/disconnect; `OTA:START` replies `OTA:ERROR:MTU_TOO_SMALL` when below `BLE_MTU` (128); boot prints `esp_reset_reason()`. Takes effect only after the next USB flash.
+- App: `MTU_TOO_SMALL` hint added to `describe_ota_error` (ble.rs) and `OTA_ERROR_HINTS` (protocol.ts), with test `mtu_too_small_has_actionable_hint`.
+- Verification: arduino-cli 1.5.2-rc.1 (downloaded to scratchpad) + esp32 core 3.3.11 compiled the sketch OK (README pins 3.0.7; not compiled against that). `cargo test --lib`: 90 passed; clippy clean; tsc clean. Disabled the new match arm: test FAILED; restored: all pass.
+- Not done: Windows MTU negotiation (btleplug 0.11.8 has no GattSession handling; hypothesis only); real-device test.

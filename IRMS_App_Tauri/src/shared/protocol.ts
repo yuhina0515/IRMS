@@ -64,7 +64,8 @@ export const OTA_ERROR_HINTS: Readonly<Record<string, string>> = {
   ALREADY_RUNNING: '裝置已有進行中的更新,請先等待或中止',
   NOT_STARTED: '尚未送出 OTA:START 就收到 END',
   SIZE_MISMATCH: '實際收到的位元組數與宣告的大小不符,更新已中止',
-  WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)'
+  WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)',
+  MTU_TOO_SMALL: '藍牙連線 MTU 過小(裝置要求 128),韌體分塊會被截斷;請斷線後重新連線,仍無法改善時請改用其他藍牙配接器'
 }
 
 // 已移除:buildSyncCommand / buildProfilePayload — 文件化了一份現行韌體並不實作的
