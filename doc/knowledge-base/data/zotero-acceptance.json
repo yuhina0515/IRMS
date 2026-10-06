@@ -1,0 +1,1590 @@
+{
+  "checked_on": "2026-10-06",
+  "source_commit": "b2ebbaf7402294956202c0d6e7ef07857c516cb0",
+  "application": "Zotero",
+  "version": "10.0.5",
+  "distribution": "Official Windows x64 ZIP; temporary extraction, no installer executed",
+  "download_url": "https://www.zotero.org/download/client/dl?channel=release&platform=win-x64-zip",
+  "zip_sha256": "67bdb715012b162271e24baf11ee02a9f7fde8bc73a4216ca12b0567667c98f1",
+  "executable_sha256": "c4cdb1248aa24a978be72940a355d9031b337b7723cf9ba8d132b1e6401247b0",
+  "signature_status": "Valid",
+  "signature_signer": "Corporation for Digital Scholarship",
+  "method": "Actual File > Import wizard through Windows UI; independent fresh profile and custom data directory per format; closed saved SQLite read-only comparison against catalog",
+  "isolation": "Profiles and custom data directories in temporary acceptance directory; no account login or sync initiated",
+  "raw_evidence_directory": "C:\\Users\\Yuhina\\AppData\\Local\\Temp\\irms-evidence-20261006",
+  "audit_script_sha256": "a66a36395db7f0d48fdb74baaa0bc05ffadcd3d19f4687025d31d53a70842119",
+  "formats": [
+    {
+      "format": "bib",
+      "input_sha256": "8a3ecb0668b2fb39e802d614f25c60d852493e2c271fc2f5bc6723b89ace47b9",
+      "gui_completion_text": "已匯入 202 個項目",
+      "saved_items": 202,
+      "matched_catalog_urls": 202,
+      "sqlite_integrity": "ok",
+      "sqlite_sha256": "794fb82c68c9f13c9a0161de06d35e3ad86d157de95852b34f1a84d120fed7e8",
+      "audit_report_sha256": "63ea352edf4eea59f04ac07bc3e1b739e187028cd4009ed492d7f9bf392381a1",
+      "doi_items": 157,
+      "comparison_fields": [
+        "title",
+        "DOI",
+        "volume",
+        "issue",
+        "journal for publications",
+        "pages",
+        "year",
+        "creator count/order/firstName/lastName/fieldMode"
+      ],
+      "differences": [
+        [
+          "PMID-15844264",
+          "title",
+          "ISB recommendation on definitions of joint coordinate systems of various joints for the reporting of human joint motion--Part II: shoulder, elbow, wrist and hand.",
+          "ISB recommendation on definitions of joint coordinate systems of various joints for the reporting of human joint motion–Part II: shoulder, elbow, wrist and hand."
+        ],
+        [
+          "PMID-11934426",
+          "title",
+          "ISB recommendation on definitions of joint coordinate system of various joints for the reporting of human joint motion--part I: ankle, hip, and spine. International Society of Biomechanics.",
+          "ISB recommendation on definitions of joint coordinate system of various joints for the reporting of human joint motion–part I: ankle, hip, and spine. International Society of Biomechanics."
+        ],
+        [
+          "PMID-15311818",
+          "title",
+          "Establishment of a knee-joint coordinate system from helical axes analysis--a kinematic approach without anatomical referencing.",
+          "Establishment of a knee-joint coordinate system from helical axes analysis–a kinematic approach without anatomical referencing."
+        ],
+        [
+          "ALG-MADGWICK2010",
+          "journal",
+          "Author technical report",
+          null
+        ]
+      ],
+      "difference_interpretation": "BibTeX double-hyphen converted to en dash in three titles. Madgwick is a report: source journal descriptor is not retained as publicationTitle in either format; report item type remains intact.",
+      "samples": {
+        "PMID-30935116": {
+          "fields": {
+            "title": "Validity and Reliability of Wearable Sensors for Joint Angle Estimation: A Systematic Review.",
+            "date": "2019-00-00 2019",
+            "DOI": "10.3390/s19071555",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/30935116/",
+            "accessDate": "2026-10-03",
+            "volume": "19",
+            "pages": "E1555",
+            "publicationTitle": "Sensors (Basel, Switzerland)",
+            "issue": "7"
+          },
+          "creators": [
+            {
+              "first": "Isabelle",
+              "last": "Poitras",
+              "mode": 0
+            },
+            {
+              "first": "Frédérique",
+              "last": "Dupuis",
+              "mode": 0
+            },
+            {
+              "first": "Mathieu",
+              "last": "Bielmann",
+              "mode": 0
+            },
+            {
+              "first": "Alexandre",
+              "last": "Campeau-Lecours",
+              "mode": 0
+            },
+            {
+              "first": "Catherine",
+              "last": "Mercier",
+              "mode": 0
+            },
+            {
+              "first": "Laurent J",
+              "last": "Bouyer",
+              "mode": 0
+            },
+            {
+              "first": "Jean-Sébastien",
+              "last": "Roy",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-32545227": {
+          "fields": {
+            "title": "Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.",
+            "date": "2020-00-00 2020",
+            "DOI": "10.3390/s20113322",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/32545227/",
+            "accessDate": "2026-10-03",
+            "volume": "20",
+            "pages": "E3322",
+            "publicationTitle": "Sensors (Basel, Switzerland)",
+            "issue": "11"
+          },
+          "creators": [
+            {
+              "first": "Léonie",
+              "last": "Pacher",
+              "mode": 0
+            },
+            {
+              "first": "Christian",
+              "last": "Chatellier",
+              "mode": 0
+            },
+            {
+              "first": "Rodolphe",
+              "last": "Vauzelle",
+              "mode": 0
+            },
+            {
+              "first": "Laetitia",
+              "last": "Fradet",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-37316858": {
+          "fields": {
+            "title": "Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.",
+            "date": "2023-00-00 2023",
+            "DOI": "10.1186/s12984-023-01198-5",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/37316858/",
+            "accessDate": "2026-10-03",
+            "volume": "20",
+            "pages": "78",
+            "publicationTitle": "Journal of neuroengineering and rehabilitation",
+            "issue": "1"
+          },
+          "creators": [
+            {
+              "first": "M Encarna",
+              "last": "Micó-Amigo",
+              "mode": 0
+            },
+            {
+              "first": "Tecla",
+              "last": "Bonci",
+              "mode": 0
+            },
+            {
+              "first": "Anisoara",
+              "last": "Paraschiv-Ionescu",
+              "mode": 0
+            },
+            {
+              "first": "Martin",
+              "last": "Ullrich",
+              "mode": 0
+            },
+            {
+              "first": "Cameron",
+              "last": "Kirk",
+              "mode": 0
+            },
+            {
+              "first": "Abolfazl",
+              "last": "Soltani",
+              "mode": 0
+            },
+            {
+              "first": "Arne",
+              "last": "Küderle",
+              "mode": 0
+            },
+            {
+              "first": "Eran",
+              "last": "Gazit",
+              "mode": 0
+            },
+            {
+              "first": "Francesca",
+              "last": "Salis",
+              "mode": 0
+            },
+            {
+              "first": "Lisa",
+              "last": "Alcock",
+              "mode": 0
+            },
+            {
+              "first": "Kamiar",
+              "last": "Aminian",
+              "mode": 0
+            },
+            {
+              "first": "Clemens",
+              "last": "Becker",
+              "mode": 0
+            },
+            {
+              "first": "Stefano",
+              "last": "Bertuletti",
+              "mode": 0
+            },
+            {
+              "first": "Philip",
+              "last": "Brown",
+              "mode": 0
+            },
+            {
+              "first": "Ellen",
+              "last": "Buckley",
+              "mode": 0
+            },
+            {
+              "first": "Alma",
+              "last": "Cantu",
+              "mode": 0
+            },
+            {
+              "first": "Anne-Elie",
+              "last": "Carsin",
+              "mode": 0
+            },
+            {
+              "first": "Marco",
+              "last": "Caruso",
+              "mode": 0
+            },
+            {
+              "first": "Brian",
+              "last": "Caulfield",
+              "mode": 0
+            },
+            {
+              "first": "Andrea",
+              "last": "Cereatti",
+              "mode": 0
+            },
+            {
+              "first": "Lorenzo",
+              "last": "Chiari",
+              "mode": 0
+            },
+            {
+              "first": "Ilaria",
+              "last": "D'Ascanio",
+              "mode": 0
+            },
+            {
+              "first": "Bjoern",
+              "last": "Eskofier",
+              "mode": 0
+            },
+            {
+              "first": "Sara",
+              "last": "Fernstad",
+              "mode": 0
+            },
+            {
+              "first": "Marcel",
+              "last": "Froehlich",
+              "mode": 0
+            },
+            {
+              "first": "Judith",
+              "last": "Garcia-Aymerich",
+              "mode": 0
+            },
+            {
+              "first": "Clint",
+              "last": "Hansen",
+              "mode": 0
+            },
+            {
+              "first": "Jeffrey M",
+              "last": "Hausdorff",
+              "mode": 0
+            },
+            {
+              "first": "Hugo",
+              "last": "Hiden",
+              "mode": 0
+            },
+            {
+              "first": "Emily",
+              "last": "Hume",
+              "mode": 0
+            },
+            {
+              "first": "Alison",
+              "last": "Keogh",
+              "mode": 0
+            },
+            {
+              "first": "Felix",
+              "last": "Kluge",
+              "mode": 0
+            },
+            {
+              "first": "Sarah",
+              "last": "Koch",
+              "mode": 0
+            },
+            {
+              "first": "Walter",
+              "last": "Maetzler",
+              "mode": 0
+            },
+            {
+              "first": "Dimitrios",
+              "last": "Megaritis",
+              "mode": 0
+            },
+            {
+              "first": "Arne",
+              "last": "Mueller",
+              "mode": 0
+            },
+            {
+              "first": "Martijn",
+              "last": "Niessen",
+              "mode": 0
+            },
+            {
+              "first": "Luca",
+              "last": "Palmerini",
+              "mode": 0
+            },
+            {
+              "first": "Lars",
+              "last": "Schwickert",
+              "mode": 0
+            },
+            {
+              "first": "Kirsty",
+              "last": "Scott",
+              "mode": 0
+            },
+            {
+              "first": "Basil",
+              "last": "Sharrack",
+              "mode": 0
+            },
+            {
+              "first": "Henrik",
+              "last": "Sillén",
+              "mode": 0
+            },
+            {
+              "first": "David",
+              "last": "Singleton",
+              "mode": 0
+            },
+            {
+              "first": "Beatrix",
+              "last": "Vereijken",
+              "mode": 0
+            },
+            {
+              "first": "Ioannis",
+              "last": "Vogiatzis",
+              "mode": 0
+            },
+            {
+              "first": "Alison J",
+              "last": "Yarnall",
+              "mode": 0
+            },
+            {
+              "first": "Lynn",
+              "last": "Rochester",
+              "mode": 0
+            },
+            {
+              "first": "Claudia",
+              "last": "Mazzà",
+              "mode": 0
+            },
+            {
+              "first": "Silvia",
+              "last": "Del Din",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "Mobilise-D consortium",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27371547": {
+          "fields": {
+            "title": "Validation of Quantitative Measures of Rotatory Knee Laxity.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1177/0363546516650667",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27371547/",
+            "accessDate": "2026-10-03",
+            "volume": "44",
+            "pages": "2393-2398",
+            "publicationTitle": "The American journal of sports medicine",
+            "issue": "9"
+          },
+          "creators": [
+            {
+              "first": "Volker",
+              "last": "Musahl",
+              "mode": 0
+            },
+            {
+              "first": "Chad",
+              "last": "Griffith",
+              "mode": 0
+            },
+            {
+              "first": "James J",
+              "last": "Irrgang",
+              "mode": 0
+            },
+            {
+              "first": "Yuichi",
+              "last": "Hoshino",
+              "mode": 0
+            },
+            {
+              "first": "Ryosuke",
+              "last": "Kuroda",
+              "mode": 0
+            },
+            {
+              "first": "Nicola",
+              "last": "Lopomo",
+              "mode": 0
+            },
+            {
+              "first": "Stefano",
+              "last": "Zaffagnini",
+              "mode": 0
+            },
+            {
+              "first": "Kristian",
+              "last": "Samuelsson",
+              "mode": 0
+            },
+            {
+              "first": "Jon",
+              "last": "Karlsson",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "PIVOT Study Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27330520": {
+          "fields": {
+            "title": "A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1016/j.jcm.2016.02.012",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27330520/",
+            "accessDate": "2026-10-03",
+            "volume": "15",
+            "pages": "155-163",
+            "publicationTitle": "Journal of chiropractic medicine",
+            "issue": "2"
+          },
+          "creators": [
+            {
+              "first": "Terry K",
+              "last": "Koo",
+              "mode": 0
+            },
+            {
+              "first": "Mae Y",
+              "last": "Li",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-20334633": {
+          "fields": {
+            "title": "CONSORT 2010 Statement: updated guidelines for reporting parallel group randomised trials.",
+            "date": "2010-00-00 2010",
+            "DOI": "10.1186/1741-7015-8-18",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/20334633/",
+            "accessDate": "2026-10-03",
+            "volume": "8",
+            "pages": "18",
+            "publicationTitle": "BMC medicine"
+          },
+          "creators": [
+            {
+              "first": "Kenneth F",
+              "last": "Schulz",
+              "mode": 0
+            },
+            {
+              "first": "Douglas G",
+              "last": "Altman",
+              "mode": 0
+            },
+            {
+              "first": "David",
+              "last": "Moher",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "CONSORT Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-23268518": {
+          "fields": {
+            "title": "Reporting of noninferiority and equivalence randomized trials: extension of the CONSORT 2010 statement.",
+            "date": "2012-00-00 2012",
+            "DOI": "10.1001/jama.2012.87802",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/23268518/",
+            "accessDate": "2026-10-03",
+            "volume": "308",
+            "pages": "2594-2604",
+            "publicationTitle": "JAMA",
+            "issue": "24"
+          },
+          "creators": [
+            {
+              "first": "Gilda",
+              "last": "Piaggio",
+              "mode": 0
+            },
+            {
+              "first": "Diana R",
+              "last": "Elbourne",
+              "mode": 0
+            },
+            {
+              "first": "Stuart J",
+              "last": "Pocock",
+              "mode": 0
+            },
+            {
+              "first": "Stephen J W",
+              "last": "Evans",
+              "mode": 0
+            },
+            {
+              "first": "Douglas G",
+              "last": "Altman",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "CONSORT Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27965879": {
+          "fields": {
+            "title": "CONSORT 2010 statement: extension to randomised pilot and feasibility trials.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1186/s40814-016-0105-8",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27965879/",
+            "accessDate": "2026-10-03",
+            "volume": "2",
+            "pages": "64",
+            "publicationTitle": "Pilot and feasibility studies"
+          },
+          "creators": [
+            {
+              "first": "Sandra M",
+              "last": "Eldridge",
+              "mode": 0
+            },
+            {
+              "first": "Claire L",
+              "last": "Chan",
+              "mode": 0
+            },
+            {
+              "first": "Michael J",
+              "last": "Campbell",
+              "mode": 0
+            },
+            {
+              "first": "Christine M",
+              "last": "Bond",
+              "mode": 0
+            },
+            {
+              "first": "Sally",
+              "last": "Hopewell",
+              "mode": 0
+            },
+            {
+              "first": "Lehana",
+              "last": "Thabane",
+              "mode": 0
+            },
+            {
+              "first": "Gillian A",
+              "last": "Lancaster",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "PAFS consensus group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-15844264": {
+          "fields": {
+            "title": "ISB recommendation on definitions of joint coordinate systems of various joints for the reporting of human joint motion–Part II: shoulder, elbow, wrist and hand.",
+            "date": "2005-00-00 2005",
+            "DOI": "10.1016/j.jbiomech.2004.05.042",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/15844264/",
+            "accessDate": "2026-10-03",
+            "volume": "38",
+            "pages": "981-992",
+            "publicationTitle": "Journal of biomechanics",
+            "issue": "5"
+          },
+          "creators": [
+            {
+              "first": "Ge",
+              "last": "Wu",
+              "mode": 0
+            },
+            {
+              "first": "Frans C T",
+              "last": "van der Helm",
+              "mode": 0
+            },
+            {
+              "first": "H E J DirkJan",
+              "last": "Veeger",
+              "mode": 0
+            },
+            {
+              "first": "Mohsen",
+              "last": "Makhsous",
+              "mode": 0
+            },
+            {
+              "first": "Peter",
+              "last": "Van Roy",
+              "mode": 0
+            },
+            {
+              "first": "Carolyn",
+              "last": "Anglin",
+              "mode": 0
+            },
+            {
+              "first": "Jochem",
+              "last": "Nagels",
+              "mode": 0
+            },
+            {
+              "first": "Andrew R",
+              "last": "Karduna",
+              "mode": 0
+            },
+            {
+              "first": "Kevin",
+              "last": "McQuade",
+              "mode": 0
+            },
+            {
+              "first": "Xuguang",
+              "last": "Wang",
+              "mode": 0
+            },
+            {
+              "first": "Frederick W",
+              "last": "Werner",
+              "mode": 0
+            },
+            {
+              "first": "Bryan",
+              "last": "Buchholz",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "International Society of Biomechanics",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-11934426": {
+          "fields": {
+            "title": "ISB recommendation on definitions of joint coordinate system of various joints for the reporting of human joint motion–part I: ankle, hip, and spine. International Society of Biomechanics.",
+            "date": "2002-00-00 2002",
+            "DOI": "10.1016/s0021-9290(01)00222-6",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/11934426/",
+            "accessDate": "2026-10-03",
+            "volume": "35",
+            "pages": "543-548",
+            "publicationTitle": "Journal of biomechanics",
+            "issue": "4"
+          },
+          "creators": [
+            {
+              "first": "Ge",
+              "last": "Wu",
+              "mode": 0
+            },
+            {
+              "first": "Sorin",
+              "last": "Siegler",
+              "mode": 0
+            },
+            {
+              "first": "Paul",
+              "last": "Allard",
+              "mode": 0
+            },
+            {
+              "first": "Chris",
+              "last": "Kirtley",
+              "mode": 0
+            },
+            {
+              "first": "Alberto",
+              "last": "Leardini",
+              "mode": 0
+            },
+            {
+              "first": "Dieter",
+              "last": "Rosenbaum",
+              "mode": 0
+            },
+            {
+              "first": "Mike",
+              "last": "Whittle",
+              "mode": 0
+            },
+            {
+              "first": "Darryl D",
+              "last": "D'Lima",
+              "mode": 0
+            },
+            {
+              "first": "Luca",
+              "last": "Cristofolini",
+              "mode": 0
+            },
+            {
+              "first": "Hartmut",
+              "last": "Witte",
+              "mode": 0
+            },
+            {
+              "first": "Oskar",
+              "last": "Schmid",
+              "mode": 0
+            },
+            {
+              "first": "Ian",
+              "last": "Stokes",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "Standardization and Terminology Committee of the International Society of Biomechanics",
+              "mode": 1
+            }
+          ]
+        }
+      },
+      "status": "import-and-saved-field-checks-completed; export-round-trip-open"
+    },
+    {
+      "format": "ris",
+      "input_sha256": "d8524605e69c97410f094c5d47240950375451022ab27892c1d2fd28739a4557",
+      "gui_completion_text": "已匯入 202 個項目",
+      "saved_items": 202,
+      "matched_catalog_urls": 202,
+      "sqlite_integrity": "ok",
+      "sqlite_sha256": "3576621028bf4886d3a528714366662d828979496a29f39c7341b9895facf6eb",
+      "audit_report_sha256": "4230137d8fad074beabb808cdd1f297951f7bd426e824c7276c9603fe825c568",
+      "doi_items": 157,
+      "comparison_fields": [
+        "title",
+        "DOI",
+        "volume",
+        "issue",
+        "journal for publications",
+        "pages",
+        "year",
+        "creator count/order/firstName/lastName/fieldMode"
+      ],
+      "differences": [
+        [
+          "ALG-MADGWICK2010",
+          "journal",
+          "Author technical report",
+          null
+        ]
+      ],
+      "difference_interpretation": "BibTeX double-hyphen converted to en dash in three titles. Madgwick is a report: source journal descriptor is not retained as publicationTitle in either format; report item type remains intact.",
+      "samples": {
+        "PMID-30935116": {
+          "fields": {
+            "title": "Validity and Reliability of Wearable Sensors for Joint Angle Estimation: A Systematic Review.",
+            "date": "2019-00-00 2019",
+            "DOI": "10.3390/s19071555",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/30935116/",
+            "accessDate": "2026-10-03",
+            "volume": "19",
+            "pages": "E1555",
+            "publicationTitle": "Sensors (Basel, Switzerland)",
+            "issue": "7",
+            "journalAbbreviation": "Sensors (Basel, Switzerland)"
+          },
+          "creators": [
+            {
+              "first": "Isabelle",
+              "last": "Poitras",
+              "mode": 0
+            },
+            {
+              "first": "Frédérique",
+              "last": "Dupuis",
+              "mode": 0
+            },
+            {
+              "first": "Mathieu",
+              "last": "Bielmann",
+              "mode": 0
+            },
+            {
+              "first": "Alexandre",
+              "last": "Campeau-Lecours",
+              "mode": 0
+            },
+            {
+              "first": "Catherine",
+              "last": "Mercier",
+              "mode": 0
+            },
+            {
+              "first": "Laurent J",
+              "last": "Bouyer",
+              "mode": 0
+            },
+            {
+              "first": "Jean-Sébastien",
+              "last": "Roy",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-32545227": {
+          "fields": {
+            "title": "Sensor-to-Segment Calibration Methodologies for Lower-Body Kinematic Analysis with Inertial Sensors: A Systematic Review.",
+            "date": "2020-00-00 2020",
+            "DOI": "10.3390/s20113322",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/32545227/",
+            "accessDate": "2026-10-03",
+            "volume": "20",
+            "pages": "E3322",
+            "publicationTitle": "Sensors (Basel, Switzerland)",
+            "issue": "11",
+            "journalAbbreviation": "Sensors (Basel, Switzerland)"
+          },
+          "creators": [
+            {
+              "first": "Léonie",
+              "last": "Pacher",
+              "mode": 0
+            },
+            {
+              "first": "Christian",
+              "last": "Chatellier",
+              "mode": 0
+            },
+            {
+              "first": "Rodolphe",
+              "last": "Vauzelle",
+              "mode": 0
+            },
+            {
+              "first": "Laetitia",
+              "last": "Fradet",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-37316858": {
+          "fields": {
+            "title": "Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.",
+            "date": "2023-00-00 2023",
+            "DOI": "10.1186/s12984-023-01198-5",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/37316858/",
+            "accessDate": "2026-10-03",
+            "volume": "20",
+            "pages": "78",
+            "publicationTitle": "Journal of neuroengineering and rehabilitation",
+            "issue": "1",
+            "journalAbbreviation": "Journal of neuroengineering and rehabilitation"
+          },
+          "creators": [
+            {
+              "first": "M Encarna",
+              "last": "Micó-Amigo",
+              "mode": 0
+            },
+            {
+              "first": "Tecla",
+              "last": "Bonci",
+              "mode": 0
+            },
+            {
+              "first": "Anisoara",
+              "last": "Paraschiv-Ionescu",
+              "mode": 0
+            },
+            {
+              "first": "Martin",
+              "last": "Ullrich",
+              "mode": 0
+            },
+            {
+              "first": "Cameron",
+              "last": "Kirk",
+              "mode": 0
+            },
+            {
+              "first": "Abolfazl",
+              "last": "Soltani",
+              "mode": 0
+            },
+            {
+              "first": "Arne",
+              "last": "Küderle",
+              "mode": 0
+            },
+            {
+              "first": "Eran",
+              "last": "Gazit",
+              "mode": 0
+            },
+            {
+              "first": "Francesca",
+              "last": "Salis",
+              "mode": 0
+            },
+            {
+              "first": "Lisa",
+              "last": "Alcock",
+              "mode": 0
+            },
+            {
+              "first": "Kamiar",
+              "last": "Aminian",
+              "mode": 0
+            },
+            {
+              "first": "Clemens",
+              "last": "Becker",
+              "mode": 0
+            },
+            {
+              "first": "Stefano",
+              "last": "Bertuletti",
+              "mode": 0
+            },
+            {
+              "first": "Philip",
+              "last": "Brown",
+              "mode": 0
+            },
+            {
+              "first": "Ellen",
+              "last": "Buckley",
+              "mode": 0
+            },
+            {
+              "first": "Alma",
+              "last": "Cantu",
+              "mode": 0
+            },
+            {
+              "first": "Anne-Elie",
+              "last": "Carsin",
+              "mode": 0
+            },
+            {
+              "first": "Marco",
+              "last": "Caruso",
+              "mode": 0
+            },
+            {
+              "first": "Brian",
+              "last": "Caulfield",
+              "mode": 0
+            },
+            {
+              "first": "Andrea",
+              "last": "Cereatti",
+              "mode": 0
+            },
+            {
+              "first": "Lorenzo",
+              "last": "Chiari",
+              "mode": 0
+            },
+            {
+              "first": "Ilaria",
+              "last": "D'Ascanio",
+              "mode": 0
+            },
+            {
+              "first": "Bjoern",
+              "last": "Eskofier",
+              "mode": 0
+            },
+            {
+              "first": "Sara",
+              "last": "Fernstad",
+              "mode": 0
+            },
+            {
+              "first": "Marcel",
+              "last": "Froehlich",
+              "mode": 0
+            },
+            {
+              "first": "Judith",
+              "last": "Garcia-Aymerich",
+              "mode": 0
+            },
+            {
+              "first": "Clint",
+              "last": "Hansen",
+              "mode": 0
+            },
+            {
+              "first": "Jeffrey M",
+              "last": "Hausdorff",
+              "mode": 0
+            },
+            {
+              "first": "Hugo",
+              "last": "Hiden",
+              "mode": 0
+            },
+            {
+              "first": "Emily",
+              "last": "Hume",
+              "mode": 0
+            },
+            {
+              "first": "Alison",
+              "last": "Keogh",
+              "mode": 0
+            },
+            {
+              "first": "Felix",
+              "last": "Kluge",
+              "mode": 0
+            },
+            {
+              "first": "Sarah",
+              "last": "Koch",
+              "mode": 0
+            },
+            {
+              "first": "Walter",
+              "last": "Maetzler",
+              "mode": 0
+            },
+            {
+              "first": "Dimitrios",
+              "last": "Megaritis",
+              "mode": 0
+            },
+            {
+              "first": "Arne",
+              "last": "Mueller",
+              "mode": 0
+            },
+            {
+              "first": "Martijn",
+              "last": "Niessen",
+              "mode": 0
+            },
+            {
+              "first": "Luca",
+              "last": "Palmerini",
+              "mode": 0
+            },
+            {
+              "first": "Lars",
+              "last": "Schwickert",
+              "mode": 0
+            },
+            {
+              "first": "Kirsty",
+              "last": "Scott",
+              "mode": 0
+            },
+            {
+              "first": "Basil",
+              "last": "Sharrack",
+              "mode": 0
+            },
+            {
+              "first": "Henrik",
+              "last": "Sillén",
+              "mode": 0
+            },
+            {
+              "first": "David",
+              "last": "Singleton",
+              "mode": 0
+            },
+            {
+              "first": "Beatrix",
+              "last": "Vereijken",
+              "mode": 0
+            },
+            {
+              "first": "Ioannis",
+              "last": "Vogiatzis",
+              "mode": 0
+            },
+            {
+              "first": "Alison J",
+              "last": "Yarnall",
+              "mode": 0
+            },
+            {
+              "first": "Lynn",
+              "last": "Rochester",
+              "mode": 0
+            },
+            {
+              "first": "Claudia",
+              "last": "Mazzà",
+              "mode": 0
+            },
+            {
+              "first": "Silvia",
+              "last": "Del Din",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "Mobilise-D consortium",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27371547": {
+          "fields": {
+            "title": "Validation of Quantitative Measures of Rotatory Knee Laxity.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1177/0363546516650667",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27371547/",
+            "accessDate": "2026-10-03",
+            "volume": "44",
+            "pages": "2393-2398",
+            "publicationTitle": "The American journal of sports medicine",
+            "issue": "9",
+            "journalAbbreviation": "The American journal of sports medicine"
+          },
+          "creators": [
+            {
+              "first": "Volker",
+              "last": "Musahl",
+              "mode": 0
+            },
+            {
+              "first": "Chad",
+              "last": "Griffith",
+              "mode": 0
+            },
+            {
+              "first": "James J",
+              "last": "Irrgang",
+              "mode": 0
+            },
+            {
+              "first": "Yuichi",
+              "last": "Hoshino",
+              "mode": 0
+            },
+            {
+              "first": "Ryosuke",
+              "last": "Kuroda",
+              "mode": 0
+            },
+            {
+              "first": "Nicola",
+              "last": "Lopomo",
+              "mode": 0
+            },
+            {
+              "first": "Stefano",
+              "last": "Zaffagnini",
+              "mode": 0
+            },
+            {
+              "first": "Kristian",
+              "last": "Samuelsson",
+              "mode": 0
+            },
+            {
+              "first": "Jon",
+              "last": "Karlsson",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "PIVOT Study Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27330520": {
+          "fields": {
+            "title": "A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1016/j.jcm.2016.02.012",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27330520/",
+            "accessDate": "2026-10-03",
+            "volume": "15",
+            "pages": "155-163",
+            "publicationTitle": "Journal of chiropractic medicine",
+            "issue": "2",
+            "journalAbbreviation": "Journal of chiropractic medicine"
+          },
+          "creators": [
+            {
+              "first": "Terry K",
+              "last": "Koo",
+              "mode": 0
+            },
+            {
+              "first": "Mae Y",
+              "last": "Li",
+              "mode": 0
+            }
+          ]
+        },
+        "PMID-20334633": {
+          "fields": {
+            "title": "CONSORT 2010 Statement: updated guidelines for reporting parallel group randomised trials.",
+            "date": "2010-00-00 2010",
+            "DOI": "10.1186/1741-7015-8-18",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/20334633/",
+            "accessDate": "2026-10-03",
+            "volume": "8",
+            "pages": "18",
+            "publicationTitle": "BMC medicine",
+            "journalAbbreviation": "BMC medicine"
+          },
+          "creators": [
+            {
+              "first": "Kenneth F",
+              "last": "Schulz",
+              "mode": 0
+            },
+            {
+              "first": "Douglas G",
+              "last": "Altman",
+              "mode": 0
+            },
+            {
+              "first": "David",
+              "last": "Moher",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "CONSORT Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-23268518": {
+          "fields": {
+            "title": "Reporting of noninferiority and equivalence randomized trials: extension of the CONSORT 2010 statement.",
+            "date": "2012-00-00 2012",
+            "DOI": "10.1001/jama.2012.87802",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/23268518/",
+            "accessDate": "2026-10-03",
+            "volume": "308",
+            "pages": "2594-2604",
+            "publicationTitle": "JAMA",
+            "issue": "24",
+            "journalAbbreviation": "JAMA"
+          },
+          "creators": [
+            {
+              "first": "Gilda",
+              "last": "Piaggio",
+              "mode": 0
+            },
+            {
+              "first": "Diana R",
+              "last": "Elbourne",
+              "mode": 0
+            },
+            {
+              "first": "Stuart J",
+              "last": "Pocock",
+              "mode": 0
+            },
+            {
+              "first": "Stephen J W",
+              "last": "Evans",
+              "mode": 0
+            },
+            {
+              "first": "Douglas G",
+              "last": "Altman",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "CONSORT Group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-27965879": {
+          "fields": {
+            "title": "CONSORT 2010 statement: extension to randomised pilot and feasibility trials.",
+            "date": "2016-00-00 2016",
+            "DOI": "10.1186/s40814-016-0105-8",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/27965879/",
+            "accessDate": "2026-10-03",
+            "volume": "2",
+            "pages": "64",
+            "publicationTitle": "Pilot and feasibility studies",
+            "journalAbbreviation": "Pilot and feasibility studies"
+          },
+          "creators": [
+            {
+              "first": "Sandra M",
+              "last": "Eldridge",
+              "mode": 0
+            },
+            {
+              "first": "Claire L",
+              "last": "Chan",
+              "mode": 0
+            },
+            {
+              "first": "Michael J",
+              "last": "Campbell",
+              "mode": 0
+            },
+            {
+              "first": "Christine M",
+              "last": "Bond",
+              "mode": 0
+            },
+            {
+              "first": "Sally",
+              "last": "Hopewell",
+              "mode": 0
+            },
+            {
+              "first": "Lehana",
+              "last": "Thabane",
+              "mode": 0
+            },
+            {
+              "first": "Gillian A",
+              "last": "Lancaster",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "PAFS consensus group",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-15844264": {
+          "fields": {
+            "title": "ISB recommendation on definitions of joint coordinate systems of various joints for the reporting of human joint motion--Part II: shoulder, elbow, wrist and hand.",
+            "date": "2005-00-00 2005",
+            "DOI": "10.1016/j.jbiomech.2004.05.042",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/15844264/",
+            "accessDate": "2026-10-03",
+            "volume": "38",
+            "pages": "981-992",
+            "publicationTitle": "Journal of biomechanics",
+            "issue": "5",
+            "journalAbbreviation": "Journal of biomechanics"
+          },
+          "creators": [
+            {
+              "first": "Ge",
+              "last": "Wu",
+              "mode": 0
+            },
+            {
+              "first": "Frans C T",
+              "last": "van der Helm",
+              "mode": 0
+            },
+            {
+              "first": "H E J DirkJan",
+              "last": "Veeger",
+              "mode": 0
+            },
+            {
+              "first": "Mohsen",
+              "last": "Makhsous",
+              "mode": 0
+            },
+            {
+              "first": "Peter",
+              "last": "Van Roy",
+              "mode": 0
+            },
+            {
+              "first": "Carolyn",
+              "last": "Anglin",
+              "mode": 0
+            },
+            {
+              "first": "Jochem",
+              "last": "Nagels",
+              "mode": 0
+            },
+            {
+              "first": "Andrew R",
+              "last": "Karduna",
+              "mode": 0
+            },
+            {
+              "first": "Kevin",
+              "last": "McQuade",
+              "mode": 0
+            },
+            {
+              "first": "Xuguang",
+              "last": "Wang",
+              "mode": 0
+            },
+            {
+              "first": "Frederick W",
+              "last": "Werner",
+              "mode": 0
+            },
+            {
+              "first": "Bryan",
+              "last": "Buchholz",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "International Society of Biomechanics",
+              "mode": 1
+            }
+          ]
+        },
+        "PMID-11934426": {
+          "fields": {
+            "title": "ISB recommendation on definitions of joint coordinate system of various joints for the reporting of human joint motion--part I: ankle, hip, and spine. International Society of Biomechanics.",
+            "date": "2002-00-00 2002",
+            "DOI": "10.1016/s0021-9290(01)00222-6",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/11934426/",
+            "accessDate": "2026-10-03",
+            "volume": "35",
+            "pages": "543-548",
+            "publicationTitle": "Journal of biomechanics",
+            "issue": "4",
+            "journalAbbreviation": "Journal of biomechanics"
+          },
+          "creators": [
+            {
+              "first": "Ge",
+              "last": "Wu",
+              "mode": 0
+            },
+            {
+              "first": "Sorin",
+              "last": "Siegler",
+              "mode": 0
+            },
+            {
+              "first": "Paul",
+              "last": "Allard",
+              "mode": 0
+            },
+            {
+              "first": "Chris",
+              "last": "Kirtley",
+              "mode": 0
+            },
+            {
+              "first": "Alberto",
+              "last": "Leardini",
+              "mode": 0
+            },
+            {
+              "first": "Dieter",
+              "last": "Rosenbaum",
+              "mode": 0
+            },
+            {
+              "first": "Mike",
+              "last": "Whittle",
+              "mode": 0
+            },
+            {
+              "first": "Darryl D",
+              "last": "D'Lima",
+              "mode": 0
+            },
+            {
+              "first": "Luca",
+              "last": "Cristofolini",
+              "mode": 0
+            },
+            {
+              "first": "Hartmut",
+              "last": "Witte",
+              "mode": 0
+            },
+            {
+              "first": "Oskar",
+              "last": "Schmid",
+              "mode": 0
+            },
+            {
+              "first": "Ian",
+              "last": "Stokes",
+              "mode": 0
+            },
+            {
+              "first": "",
+              "last": "Standardization and Terminology Committee of the International Society of Biomechanics",
+              "mode": 1
+            }
+          ]
+        }
+      },
+      "status": "import-and-saved-field-checks-completed; export-round-trip-open"
+    }
+  ],
+  "export_round_trip": {
+    "status": "not-completed",
+    "reason": "Owned export dialog could be observed, but input could not reliably select format or saved filename; no output file or round trip verified"
+  },
+  "browser_keyboard": {
+    "status": "not-completed",
+    "reason": "Chrome Browser Use rejected file URL by security policy; manual B01-B09 result requested"
+  },
+  "v01_v02": {
+    "status": "not-completed",
+    "reason": "No new independent known-angle or complete remount/rater/day measurement data"
+  }
+}

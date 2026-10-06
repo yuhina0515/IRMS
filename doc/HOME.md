@@ -22,6 +22,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-06 Zotero portable import acceptance** ([Log](coding%20log/log_20261006_zotero_portable_import_acceptance.md)): official signed Zotero 10.0.5 actually imported 202 BibTeX and 202 RIS records in separate temporary libraries; saved fields/integrity checked. Export round trip and browser/keyboard acceptance remain open due to UI control and file URL restrictions.
 - **2026-10-06 second full-text batch** ([Log](coding%20log/log_20261006_second_batch_and_bench_protocol.md)): ten further located extractions, 24 total full texts within 202 sources; first-batch appraisal scope stays explicit. V01/V02 data requirements and human-reference plan prepared, but actual browser/Zotero and hardware acceptance remain open.
 - **2026-10-06 evidence audit and mapping** ([Log](coding%20log/log_20261006_evidence_audit_and_claim_mapping.md)): four primary-source discrepancy audits, 25 claims/all 12 validation activities and 14 located single-reviewer appraisals. Claude CAL-03 hardware evidence reconciled; saved raw trace replayed. Browser/Zotero and V01/V02 acceptance remain open.
 - **2026-10-04 core full-text extraction** ([Log](coding%20log/log_20261004_core_fulltext_review.md)): 14 located full-text reviews, sample/method/reference distinctions, source discrepancies and ICC erratum notice; searchable through HTML, CLI, JSONL and SQLite. Single-reviewer extraction; no IRMS performance or clinical validation.
