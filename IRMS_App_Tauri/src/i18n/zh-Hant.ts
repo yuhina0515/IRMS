@@ -154,6 +154,15 @@ export const zhHant = {
   },
 
   /** 教練提示(services/guidance.ts)中非安全性的引導 */
+  voice: {
+    sessionStart: '療程開始',
+    rep: (p: { n: number }) => `第 ${p.n} 下完成`,
+    hold: '保持',
+    overLimit: '超過極限角度,請慢慢放鬆',
+    sessionEnd: (p: { n: number }) => `療程結束,共完成 ${p.n} 下`,
+    connectionLost: '連線中斷,療程已結束'
+  },
+
   guidance: {
     noData: '等待感測資料…',
     raise: (p: { verb: string; deg: string }) => `再${p.verb} ${p.deg}°`,
@@ -669,7 +678,9 @@ export const zhHant = {
       pose2d: '2D 側面(建議)',
       poseHint: '2D 只呈現判定平面的屈伸;3D 的側向角度尚未驗證,僅作方向示意。',
       maxChartPoints: '即時圖表最大點數',
-      flushInterval: '資料寫入間隔 (秒)'
+      flushInterval: '資料寫入間隔 (秒)',
+      voice: '語音提示',
+      voiceHint: '療程中以語音報讀次數、保持與超過極限角度的提醒。'
     },
     autoPhase: {
       idle: '連線裝置後自動檢查',

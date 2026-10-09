@@ -68,7 +68,7 @@ export function ActionsView(): JSX.Element {
   // 否則治療師只能在感測器已綁上的情況下「盲打」目標,這是錯誤目標的最大來源。
   const angles = useStore((s) => s.angles)
   const isConnected = useStore((s) => s.isConnected)
-  const liveMetric = angles == null || form == null ? null : computeMetricSample(angles, form.triggerType, form.tolerance).value
+  const liveMetric = angles == null || form == null ? null : computeMetricSample(angles, form.triggerType, clampTolerance(form.tolerance)).value
 
   useEscapeKey(form ? () => setForm(null) : null)
 
@@ -330,7 +330,7 @@ export function ActionsView(): JSX.Element {
                       type="number"
                       min={TARGET_ANGLE_BOUND.min}
                       max={TARGET_ANGLE_BOUND.max}
-                      value={form.targetAngle}
+                      value={Number.isFinite(form.targetAngle) ? form.targetAngle : ''}
                       onChange={(e) => setForm({ ...form, targetAngle: parseFloat(e.target.value) })}
                       onBlur={(e) => setForm({ ...form, targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
                     />
@@ -342,7 +342,7 @@ export function ActionsView(): JSX.Element {
                       type="number"
                       min={TOLERANCE_BOUND.min}
                       max={TOLERANCE_BOUND.max}
-                      value={form.tolerance}
+                      value={Number.isFinite(form.tolerance) ? form.tolerance : ''}
                       onChange={(e) => setForm({ ...form, tolerance: parseFloat(e.target.value) })}
                       onBlur={(e) => setForm({ ...form, tolerance: clampTolerance(parseFloat(e.target.value)) })}
                     />
@@ -355,7 +355,7 @@ export function ActionsView(): JSX.Element {
                       min={HOLD_TIME_BOUND.min / 1000}
                       max={HOLD_TIME_BOUND.max / 1000}
                       step={0.1}
-                      value={form.holdTimeMs / 1000}
+                      value={Number.isFinite(form.holdTimeMs) ? form.holdTimeMs / 1000 : ''}
                       onChange={(e) => setForm({ ...form, holdTimeMs: Math.round(parseFloat(e.target.value) * 1000) })}
                       onBlur={(e) =>
                         setForm({ ...form, holdTimeMs: clampHoldTimeMs(Math.round(parseFloat(e.target.value) * 1000)) })

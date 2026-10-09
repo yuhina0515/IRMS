@@ -20,8 +20,9 @@ use futures::StreamExt;
 use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager as _, State};
 use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
@@ -36,6 +37,26 @@ pub struct BleState {
     /// notification listener — mirrors bluetooth.ts's waitForOtaStatus().
     ota_status_tx: broadcast::Sender<String>,
     ota_update_lock: Mutex<()>,
+    /// Identifies the live connection. A notification listener that outlives its connection
+    /// (manual disconnect, or a newer connect) sees a different value and must stay silent;
+    /// otherwise its late "stream ended" would clear or report the newer connection as down.
+    generation: AtomicU64,
+}
+
+impl BleState {
+    /// Starts a new connection epoch and returns its id.
+    fn begin_connection(&self) -> u64 {
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Invalidates the current epoch (no listener is current afterwards).
+    fn invalidate_connection(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
 }
 
 impl Default for BleState {
@@ -45,6 +66,7 @@ impl Default for BleState {
             peripheral: Mutex::new(None),
             ota_status_tx,
             ota_update_lock: Mutex::new(()),
+            generation: AtomicU64::new(0),
         }
     }
 }
@@ -165,6 +187,7 @@ fn spawn_notification_listener(
     app: AppHandle,
     peripheral: Peripheral,
     ota_status_tx: broadcast::Sender<String>,
+    generation: u64,
 ) {
     tauri::async_runtime::spawn(async move {
         let mut stream = match peripheral.notifications().await {
@@ -205,7 +228,15 @@ fn spawn_notification_listener(
                 let _ = ota_status_tx.send(text);
             }
         }
-        // Stream ended — device disconnected. Web Bluetooth's gattserverdisconnected has a
+        // A manual disconnect or a newer connect already owns the UI state; stay silent.
+        let state = app.state::<BleState>();
+        if !state.is_current(generation) {
+            return;
+        }
+        // Stream ended — device disconnected. Drop the dead handle so later commands report
+        // "not connected" instead of writing to a stale peripheral.
+        *state.peripheral.lock().await = None;
+        // Web Bluetooth's gattserverdisconnected has a
         // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
         // stream) that a full reconnect-loop port should listen to separately; this skeleton
         // only reports the notification stream closing, not full reconnect orchestration.
@@ -243,10 +274,47 @@ pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<S
 }
 
 async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
+    // A second connect while one is live would leave two listeners on two handles; retire the
+    // old connection first so exactly one listener and one peripheral exist.
+    if let Some(old) = state.peripheral.lock().await.take() {
+        state.invalidate_connection();
+        let _ = old.disconnect().await;
+    }
+
     let adapter = find_adapter().await?;
     let peripheral = scan_for_device(&adapter).await?;
 
     peripheral.connect().await.map_err(|e| error_chain(&e))?;
+    // Everything after the OS-level connect must release it on failure; otherwise the device
+    // stays connected at the OS level while we report failure, and the next scan cannot see it.
+    match setup_connection(&peripheral).await {
+        Ok(name) => {
+            let generation = state.begin_connection();
+            spawn_notification_listener(
+                app.clone(),
+                peripheral.clone(),
+                state.ota_status_tx.clone(),
+                generation,
+            );
+            *state.peripheral.lock().await = Some(peripheral);
+
+            let _ = app.emit(
+                "ble:connection",
+                ConnectionEvent {
+                    connected: true,
+                    device_name: Some(name.clone()),
+                },
+            );
+            Ok(name)
+        }
+        Err(err) => {
+            let _ = peripheral.disconnect().await;
+            Err(err)
+        }
+    }
+}
+
+async fn setup_connection(peripheral: &Peripheral) -> Result<String, String> {
     peripheral
         .discover_services()
         .await
@@ -262,29 +330,19 @@ async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
         .await
         .map_err(|e| error_chain(&e))?;
 
-    let name = peripheral
+    Ok(peripheral
         .properties()
         .await
         .ok()
         .flatten()
         .and_then(|p| p.local_name)
-        .unwrap_or_else(|| "IRMS Device".to_string());
-
-    spawn_notification_listener(app.clone(), peripheral.clone(), state.ota_status_tx.clone());
-    *state.peripheral.lock().await = Some(peripheral);
-
-    let _ = app.emit(
-        "ble:connection",
-        ConnectionEvent {
-            connected: true,
-            device_name: Some(name.clone()),
-        },
-    );
-    Ok(name)
+        .unwrap_or_else(|| "IRMS Device".to_string()))
 }
 
 #[tauri::command]
 pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Result<(), String> {
+    // Retire the listener first so its late stream-end cannot report a second "disconnected".
+    state.invalidate_connection();
     let mut guard = state.peripheral.lock().await;
     let result = if let Some(p) = guard.take() {
         p.disconnect().await.map_err(|e| e.to_string())
@@ -354,9 +412,17 @@ pub async fn ble_get_firmware_version(
         return Ok(None);
     };
     match peripheral.read(&fw_char).await {
-        Ok(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).to_string())),
+        Ok(bytes) => Ok(clean_firmware_version(&bytes)),
         Err(_) => Ok(None),
     }
+}
+
+/// The firmware version characteristic is a fixed-size buffer on the device; trailing NULs or
+/// whitespace would break the exact string comparison against the release manifest.
+fn clean_firmware_version(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let trimmed = text.trim_matches(|c: char| c == ' ' || c.is_whitespace());
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 /// Subscribe before polling the BLE write: a notification can arrive before its ACK.
@@ -630,6 +696,37 @@ pub async fn ble_abort_ota(state: State<'_, BleState>) -> Result<(), String> {
 #[cfg(test)]
 mod ota_tests {
     use super::*;
+
+    #[test]
+    fn firmware_version_drops_trailing_nul_and_whitespace() {
+        assert_eq!(
+            clean_firmware_version(b"1.4.2   "),
+            Some("1.4.2".to_string())
+        );
+        assert_eq!(
+            clean_firmware_version(
+                b" 1.4.2
+"
+            ),
+            Some("1.4.2".to_string())
+        );
+        assert_eq!(clean_firmware_version(b"  "), None);
+        assert_eq!(clean_firmware_version(b""), None);
+    }
+
+    #[test]
+    fn stale_listener_is_not_current_after_disconnect_or_reconnect() {
+        let state = BleState::default();
+        let first = state.begin_connection();
+        assert!(state.is_current(first));
+
+        state.invalidate_connection();
+        assert!(!state.is_current(first));
+
+        let second = state.begin_connection();
+        assert!(state.is_current(second));
+        assert!(!state.is_current(first));
+    }
 
     #[test]
     fn parses_only_progress_statuses() {

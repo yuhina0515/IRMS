@@ -103,7 +103,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   useGlobalShortcut({ key: 'Enter' }, running ? () => void handleEnd() : canStart ? () => void handleStart() : null)
 
   if (running) {
-    const holdSec = (session.holdProgress / 100) * (params.holdTimeMs / 1000)
+    const holdSec = (session.holdProgress / 100) * (clampHoldTimeMs(params.holdTimeMs) / 1000)
     return (
       <div className="v3-dock running">
         <div className="v3-dock-stat">
@@ -117,7 +117,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           <span className="v3-dock-label">{m.sessionDock.currentHold}</span>
           <span className="v3-dock-value">
             {formatNumber(locale, holdSec)}
-            <small>{m.sessionDock.holdOf({ total: formatNumber(locale, params.holdTimeMs / 1000) })}</small>
+            <small>{m.sessionDock.holdOf({ total: formatNumber(locale, clampHoldTimeMs(params.holdTimeMs) / 1000) })}</small>
           </span>
           <span className="v3-hold-bar" aria-hidden>
             <span style={{ width: `${Math.min(100, session.holdProgress)}%` }} />
@@ -155,7 +155,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           type="number"
           min={TARGET_ANGLE_BOUND.min}
           max={TARGET_ANGLE_BOUND.max}
-          value={params.targetAngle}
+          value={Number.isFinite(params.targetAngle) ? params.targetAngle : ''}
           onChange={(e) => setParams({ targetAngle: parseFloat(e.target.value) })}
           onBlur={(e) => setParams({ targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
         />
@@ -167,7 +167,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           type="number"
           min={TOLERANCE_BOUND.min}
           max={TOLERANCE_BOUND.max}
-          value={params.tolerance}
+          value={Number.isFinite(params.tolerance) ? params.tolerance : ''}
           onChange={(e) => setParams({ tolerance: parseFloat(e.target.value) })}
           onBlur={(e) => setParams({ tolerance: clampTolerance(parseFloat(e.target.value)) })}
         />
@@ -180,7 +180,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           min={HOLD_TIME_BOUND.min / 1000}
           max={HOLD_TIME_BOUND.max / 1000}
           step={0.1}
-          value={params.holdTimeMs / 1000}
+          value={Number.isFinite(params.holdTimeMs) ? params.holdTimeMs / 1000 : ''}
           onChange={(e) => setParams({ holdTimeMs: Math.round(parseFloat(e.target.value) * 1000) })}
           onBlur={(e) => setParams({ holdTimeMs: clampHoldTimeMs(Math.round(parseFloat(e.target.value) * 1000)) })}
         />

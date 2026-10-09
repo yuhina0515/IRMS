@@ -25,6 +25,9 @@ use tauri::{AppHandle, Manager};
 const FLUSH_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_BATCH: usize = 2000;
 const MAX_QUEUE: usize = 200_000;
+/// RISK-FIX (2026-10-10): largest serialized `data` a frontend event may carry; bigger payloads
+/// are counted as dropped so one oversized event cannot bloat the queue or its upload batch.
+const MAX_EVENT_DATA_BYTES: usize = 64 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Longest wait between retries after consecutive failures.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
@@ -185,7 +188,15 @@ pub fn telemetry_log(state: tauri::State<'_, TelemetryState>, kind: String, data
     if kind.is_empty() || kind.len() > 40 {
         return;
     }
+    if !data_within_limit(&data) {
+        state.lock().dropped += 1;
+        return;
+    }
     state.record(&kind, data);
+}
+
+fn data_within_limit(data: &Value) -> bool {
+    serde_json::to_vec(data).is_ok_and(|b| b.len() <= MAX_EVENT_DATA_BYTES)
 }
 
 #[tauri::command]
@@ -325,6 +336,14 @@ mod tests {
         let state = TelemetryState::default();
         state.lock().enabled = true;
         state
+    }
+
+    #[test]
+    fn oversized_event_data_is_rejected_but_normal_data_passes() {
+        assert!(data_within_limit(&json!({ "n": 1 })));
+        assert!(data_within_limit(&Value::Null));
+        let big = json!({ "blob": "x".repeat(MAX_EVENT_DATA_BYTES) });
+        assert!(!data_within_limit(&big));
     }
 
     #[test]

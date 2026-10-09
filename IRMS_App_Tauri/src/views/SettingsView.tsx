@@ -311,6 +311,12 @@ function DisplayPane(): JSX.Element {
         />
         <p className="field-hint">{md.poseHint}</p>
       </div>
+      <div style={{ maxWidth: 360 }}>
+        <Toggle label={md.voice} checked={settings.voiceEnabled} onChange={(v) => setSettings({ voiceEnabled: v })} />
+        <p className="field-hint" style={{ marginTop: 6 }}>
+          {md.voiceHint}
+        </p>
+      </div>
       <details className="adv-fold">
         <summary>{m.common.advanced}</summary>
         <div className="row">

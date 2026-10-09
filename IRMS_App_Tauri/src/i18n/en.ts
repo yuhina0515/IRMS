@@ -131,6 +131,15 @@ export const en = {
       'Firmware cannot be updated during a session: writing flash briefly stalls sensor sampling and feedback, which is not safe while the patient is wearing the device. End the session first.'
   },
 
+  voice: {
+    sessionStart: 'Session started',
+    rep: (p: { n: number }) => `Rep ${p.n} complete`,
+    hold: 'Hold',
+    overLimit: 'Beyond your limit angle, ease off slowly',
+    sessionEnd: (p: { n: number }) => `Session finished, ${p.n} ${p.n === 1 ? 'rep' : 'reps'}`,
+    connectionLost: 'Connection lost, session ended'
+  },
+
   guidance: {
     noData: 'Waiting for sensor data…',
     raise: (p: { verb: string; deg: string }) => `${p.verb} ${p.deg}° more`,
@@ -650,7 +659,9 @@ export const en = {
       pose2d: '2D side (recommended)',
       poseHint: '2D shows only flexion/extension in the detection plane. 3D lateral angles are unvalidated and show direction only.',
       maxChartPoints: 'Max live chart points',
-      flushInterval: 'Data write interval (s)'
+      flushInterval: 'Data write interval (s)',
+      voice: 'Voice prompts',
+      voiceHint: 'Speaks rep counts, hold cues and over-limit warnings during a session.'
     },
     autoPhase: {
       idle: 'Checks automatically once a device connects',

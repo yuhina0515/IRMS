@@ -61,6 +61,7 @@ const SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
+  voiceEnabled: true
 }
 
 describe('computeCaptureStats', () => {
