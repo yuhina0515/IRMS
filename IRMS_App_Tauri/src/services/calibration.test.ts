@@ -429,6 +429,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
     expect(calibrationDrift(buildCalibrationSnapshot(SETTINGS), SETTINGS)).toEqual([])
   })
 
+  it('向量欄位從 JSON 讀回(新物件)後不算漂移', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 0, y: 1, z: 0 },
+      distalZeroAccel: { x: 0.1, y: 0.2, z: 0.97 }
+    }
+    const roundTripped = JSON.parse(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(roundTripped, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 0, y: 0, z: 1 } }
+    expect(calibrationDrift(roundTripped, moved)).toEqual(['proximalHingeAxis'])
+  })
+
   it('列出所有不一致的欄位', () => {
     const snapshot = buildCalibrationSnapshot(SETTINGS)
     const now: Settings = { ...SETTINGS, distalInvert: true, proximalZeroRaw: 4 }

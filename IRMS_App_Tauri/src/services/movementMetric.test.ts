@@ -86,6 +86,19 @@ describe('metricInfo', () => {
 })
 
 // --- zone 不變式 ---
+describe('computeMetricZone — 低目標角度的休息位置可達', () => {
+  it('joint_angle 的 rest 必須 > 0(膝角恆 ≥ 0,否則只計一下就卡在 restPending)', () => {
+    const zone = computeMetricZone({
+      targetAngle: 10,
+      tolerance: 10,
+      holdTimeMs: 1000,
+      triggerType: 'joint_angle'
+    })
+    expect(zone.rest).toBeGreaterThan(0)
+    expect(zone.rest).toBeLessThan(zone.min)
+  })
+})
+
 describe('computeMetricZone — rest 不變式', () => {
   it('所有合法參數組合都滿足 rest < min(否則靜止的腿會產生幻影 reps)', () => {
     for (const targetAngle of [10, 20, 35, 45, 90, 170]) {

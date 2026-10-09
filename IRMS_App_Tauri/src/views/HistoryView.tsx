@@ -48,9 +48,9 @@ function sessionLimits(session: Session): { comfort: number | null; limit: numbe
 }
 
 function durationText(sec: number): string {
-  const m = Math.floor(sec / 60)
-  const s = Math.round(sec % 60)
-  return `${m}:${String(s).padStart(2, '0')}`
+  if (!Number.isFinite(sec) || sec < 0) return '--:--'
+  const total = Math.round(sec)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
 async function exportCsv(session: Session): Promise<boolean> {

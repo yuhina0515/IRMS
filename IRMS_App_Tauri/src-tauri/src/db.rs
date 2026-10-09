@@ -354,17 +354,17 @@ pub mod sessions_repo {
             .collect();
         let sampled = lttb(&points, max_points);
 
-        // Map sampled points back to their source rows by matching (x, y) — points carry no
-        // index, so recover it the same way the TS version does implicitly via array identity;
-        // here we rebuild via a parallel index scan since Rust doesn't share object identity.
+        // lttb keeps input order, so walk forward with a cursor: matching on (x, y) alone would
+        // resolve two same-millisecond, same-angle rows to the first one twice.
         let mut out = Vec::with_capacity(sampled.len());
+        let mut cursor = 0;
         for p in &sampled {
-            if let Some((idx, _)) = points
+            if let Some(offset) = points[cursor..]
                 .iter()
-                .enumerate()
-                .find(|(_, pt)| pt.x == p.x && pt.y == p.y)
+                .position(|pt| pt.x == p.x && pt.y == p.y)
             {
-                out.push(rows[idx].clone());
+                out.push(rows[cursor + offset].clone());
+                cursor += offset + 1;
             }
         }
         Ok(out)
@@ -616,6 +616,32 @@ mod tests {
         }
         mobility_repo::delete(&db, a.id).unwrap();
         assert!(mobility_repo::list(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn downsampling_never_returns_the_same_row_twice() {
+        let mut conn = fresh_db();
+        let session_id = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        // Same timestamp and knee angle on every row; only thigh_angle tells them apart.
+        let readings: Vec<SensorReading> = (0..50)
+            .map(|i| SensorReading {
+                knee_angle: 30.0,
+                thigh_angle: i as f64,
+                shin_angle: 0.0,
+                knee_roll: 0.0,
+                thigh_roll: 0.0,
+                shin_roll: 0.0,
+                timestamp: "2026-09-07T10:00:00.000Z".to_string(),
+            })
+            .collect();
+        data_repo::append_batch(&mut conn, session_id, &readings).unwrap();
+
+        let sampled = sessions_repo::get_data(&conn, session_id, Some(10)).unwrap();
+        let mut thighs: Vec<i64> = sampled.iter().map(|r| r.thigh_angle as i64).collect();
+        let total = thighs.len();
+        thighs.sort_unstable();
+        thighs.dedup();
+        assert_eq!(thighs.len(), total, "duplicate rows returned");
     }
 
     #[test]

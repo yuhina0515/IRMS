@@ -172,6 +172,20 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 
+describe('開始/結束的重入防護', () => {
+  it('連點開始只建立一場 Session', async () => {
+    await Promise.all([sessionController.startSession(), sessionController.startSession()])
+    expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('同時結束兩次只寫入一次 sessions.end,且只有一個呼叫回報 true', async () => {
+    await sessionController.startSession()
+    const results = await Promise.all([sessionController.endSession(), sessionController.endSession()])
+    expect(stub.sessions.end).toHaveBeenCalledTimes(1)
+    expect(results.filter(Boolean)).toHaveLength(1)
+  })
+})
+
 // ─────────────────────────────────────────────────────────────
 // T1 — 警報鏈:超限 → 靜音 → 自動重新武裝
 // 本專案安全意義最高、且此前完全未測的一段。

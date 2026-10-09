@@ -253,7 +253,22 @@ class SessionController {
     return currentTriggerConfig()
   }
 
+  /** 開始/結束的重入防護:兩者都要 await,session.id/running 要等 await 之後才變 */
+  private starting = false
+  private ending = false
+
   async startSession(): Promise<void> {
+    const state = useStore.getState()
+    if (this.starting || this.ending || state.session.running || state.session.id != null) return
+    this.starting = true
+    try {
+      await this.doStartSession()
+    } finally {
+      this.starting = false
+    }
+  }
+
+  private async doStartSession(): Promise<void> {
     const state = useStore.getState()
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
@@ -336,13 +351,24 @@ class SessionController {
     // 計時器一律停掉:早退時若跳過,一場已經結束的 Session 的時鐘會繼續跑
     this.stopTimers()
     const { session } = useStore.getState()
-    if (session.id == null) return false
+    if (session.id == null || this.ending) return false
+    this.ending = true
+    try {
+      return await this.doEndSession(session, session.id)
+    } finally {
+      this.ending = false
+    }
+  }
 
+  private async doEndSession(
+    session: ReturnType<typeof useStore.getState>['session'],
+    sessionId: number
+  ): Promise<boolean> {
     await this.flush()
 
     let endError: string | null = null
     try {
-      await irms.sessions.end(session.id, session.reps)
+      await irms.sessions.end(sessionId, session.reps)
       useStore.getState().log(`Ended session #${session.id}. Reps: ${session.reps}.`)
     } catch (err) {
       endError = (err as Error).message
@@ -365,6 +391,7 @@ class SessionController {
   }
 
   private startTimers(): void {
+    this.stopTimers()
     const flushMs = Math.max(1, useStore.getState().settings.flushIntervalSec) * 1000
     this.flushTimer = setInterval(() => void this.flush(), flushMs)
     this.clockTimer = setInterval(() => {

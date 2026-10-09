@@ -72,14 +72,22 @@ function NumField({
   onChange: (v: number) => void
   disabled?: boolean
 }): JSX.Element {
+  // 輸入中的字串另存:每個按鍵都立刻鉗制並回寫的話,輸入「20」會先變成 10(被 max(10,…) 擋),
+  // 清空欄位則會把 0 寫進校準值。只有可解析的數字才回寫,離開欄位後才以儲存值為準。
+  const [draft, setDraft] = useState<string | null>(null)
   return (
     <div className="field" style={{ flex: 1 }}>
       <label>{label}</label>
       <input
         type="number"
-        value={value}
+        value={draft ?? value}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          const n = parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(n)
+        }}
+        onBlur={() => setDraft(null)}
       />
     </div>
   )

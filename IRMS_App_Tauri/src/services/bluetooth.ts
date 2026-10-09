@@ -82,6 +82,12 @@ export class BluetoothService {
   private async registerEventListeners(): Promise<void> {
     await listen<ConnectionEventPayload>('ble:connection', (event) => {
       const { connected, deviceName } = event.payload
+      if (connected && this.manualDisconnect) {
+        // 重連迴圈中的 ble_connect 在使用者按下斷線之後才成功:UI 已是斷線意圖,
+        // 若照單全收會顯示已連線、封包卻全被丟棄。直接把剛建立的鏈路關掉。
+        void invoke('ble_disconnect').catch(() => {})
+        return
+      }
       this.connected = connected
       if (connected) {
         useStore.getState().setConnection(true, deviceName ?? 'IRMS Device')

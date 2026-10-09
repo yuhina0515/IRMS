@@ -245,7 +245,8 @@ pub fn spawn_uploader(app: AppHandle) {
 }
 
 /// Sends at most one batch. Ok(n) = n events delivered (0 when disabled or idle);
-/// Err(()) = the request failed and the batch stays queued (error kept in `last_error`).
+/// Err(()) = the request failed (error kept in `last_error`); the batch stays queued unless the
+/// server rejected it as permanently invalid (400/413/422), in which case it is dropped.
 async fn flush_once(
     client: &reqwest::Client,
     state: &TelemetryState,
@@ -277,12 +278,18 @@ async fn flush_once(
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (e.to_string(), false))
         .and_then(|res| {
+            let code = res.status().as_u16();
             if res.status().is_success() {
                 Ok(())
             } else {
-                Err(format!("伺服器回應 HTTP {}", res.status().as_u16()))
+                // 400/413/422 mean this exact batch is rejected; retrying it would block every
+                // later event forever. Other failures (404, 5xx, 429, network) may heal.
+                Err((
+                    format!("伺服器回應 HTTP {code}"),
+                    matches!(code, 400 | 413 | 422),
+                ))
             }
         });
 
@@ -298,7 +305,12 @@ async fn flush_once(
             inner.last_error = None;
             Ok(delivered)
         }
-        Err(err) => {
+        Err((err, permanent)) => {
+            if permanent {
+                let before = inner.queue.len();
+                inner.queue.retain(|e| e.seq > last_seq);
+                inner.dropped += (before - inner.queue.len()) as u64;
+            }
             inner.last_error = Some(err);
             Err(())
         }
