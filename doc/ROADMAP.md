@@ -48,7 +48,7 @@ elbow/shoulder 沿用 thigh/shin 命名與軸向。泛化時**先改共享型別
 
 ### D4|DB Schema 版本化
 
-引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 8 版)。
+引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 9 版)。
 Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一個消費者。
 
 ### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01)

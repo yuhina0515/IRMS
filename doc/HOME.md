@@ -21,6 +21,11 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
+- **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。
+- **2026-10-09 主動稽核** ([[log_20261009_proactive_audit|Log]]): 修正已驗證 bug(migration 清理、downsample、telemetry、trigger、session、BLE)。
+- **2026-10-04 beta.24 發版** ([[log_20261004_beta24_release|Log]]): 含校準 C 活動度紀錄([[log_20261003_calibration_c_mobility|Log]])與 beta.23 抽屜選單([[log_20261003_drawer_menus_beta23|Log]])。
+
 - **2026-10-01 校準 B(beta)+ 韌體 `G:` 原始串流** ([[log_20261001_calibration_b_beta_and_raw_stream|Log]]): 重力平面 + 陀螺儀樞軸 + 六面地面階段的新校準流程(設定頁「校準 B (beta)」),韌體 1.0.1-beta.2 新增 opt-in `G:` 封包(`CMD:RAW_ON`)。僅合成資料與單元測試驗證,**實機待 Harold 測試並以遙測回傳**。
 - **2026-10-06 OTA on truncated link** ([[log_20261006_ota_truncated_link|Log]]): run f86c2579 failed because MTU stayed 23; app now blocks OTA on truncated links and fails fast on unacked transfers. Firmware untouched; hardware retest pending.
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.
@@ -755,7 +760,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `electron-builder --publish` 自動產生的 `latest.yml`,三種檔名規則(本地/GitHub/
   yml 內宣告)還互不一致——刪掉重來,改用 `electron-builder --publish always` 正確
   發布。最終隔離啟動打包後的 exe 拿到正確的 `not-available` 結果(目前就是最新版),
-  證實整條檢查/比對流程真的能動。**連帶更正了 [[irms-project-conventions]] 的 beta
+  證實整條檢查/比對流程真的能動。**連帶更正了 irms-project-conventions 的 beta
   發版慣例**:往後一律要用 `electron-builder --publish`,不能再手動拼湊。
 - **2026-09-05 Dashboard 改用 Container Query 自適應版面(依 Gemini 04 號簡報)**
   ([[log_20260905_dashboard_container_query_adaptive_layout|完整日誌]]):針對「換更小

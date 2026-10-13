@@ -68,7 +68,7 @@
 ### 8. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
 - [x] better-sqlite3(WAL、外鍵、交易批次寫入)
-- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 8 版(Tauri 版 `migrations.rs`);見 [ROADMAP](ROADMAP.md) D4)
+- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 9 版(Tauri 版 `migrations.rs`);見 [ROADMAP](ROADMAP.md) D4)
 - [x] 孤兒 session 啟動收尾 + `abandoned` 標記(2026-08-01)
 - [x] React ErrorBoundary 包裹各視圖(2026-08-01)
 - [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
