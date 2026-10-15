@@ -652,7 +652,10 @@ export const en = {
     wearing: {
       rezero: 'The sensors are slightly offset from the zero (in the bend direction). A quick re-zero is recommended before starting. Start anyway?',
       recalibrate: 'The sensors are rotated sideways from the zero, possibly a turned strap. Recalibrating is recommended before starting. Start anyway?',
-      title: 'Wearing check'
+      title: 'Wearing check',
+      posture: (p: { posture: string }) => `To check the sensors, take your calibration reference posture (${p.posture}) and hold still for 2 seconds. Start the check?`,
+      neutralPosture: 'your neutral pose',
+      inconclusive: 'No steady reading could be taken (the legs moved or no data arrived), so the wearing could not be checked. Start anyway?'
     }
   },
 

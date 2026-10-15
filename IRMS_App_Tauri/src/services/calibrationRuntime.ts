@@ -55,12 +55,15 @@ export function sampleStillPose(ms: number, maxSpreadDeg = 4): Promise<{ thigh: 
   })
 }
 
-/** Pre-session wearing check (plan 3.6). Resolves null for non-unified calibrations or when inconclusive. */
-export async function wearingCheck(): Promise<ReferenceCheck | null> {
+/** The stored profile the wearing check compares against, or null for non-unified calibrations / no stored row. */
+export async function wearingProfile(): Promise<CalibrationProfile | null> {
   const { settings } = useStore.getState()
   if (settings.calibrationMethod !== 'unified') return null
-  const profile = await loadProfileById(settings.calibrationId)
-  if (!profile) return null
+  return loadProfileById(settings.calibrationId)
+}
+
+/** Samples a still pose and compares it with `profile`; null when the reading is inconclusive (moving or no data). */
+export async function wearingCheck(profile: CalibrationProfile): Promise<ReferenceCheck | null> {
   const current = await sampleStillPose(2000)
   return wearingVerdict(profile, current)
 }

@@ -674,7 +674,10 @@ export const zhHant = {
     wearing: {
       rezero: '感測器相對零位有些偏移(約在屈伸方向)。建議先「快速重設零位」再開始。仍要開始嗎?',
       recalibrate: '感測器相對零位出現側向旋轉,可能是綁帶轉動。建議重新校準再開始。仍要開始嗎?',
-      title: '穿戴檢查'
+      title: '穿戴檢查',
+      posture: (p: { posture: string }) => `要檢查感測器位置,請擺出校準時的零位姿勢(${p.posture}),並保持不動 2 秒。開始檢查嗎?`,
+      neutralPosture: '你的自然放鬆姿勢',
+      inconclusive: '沒能取得穩定讀數(腿在動或沒有資料),無法檢查穿戴。仍要開始嗎?'
     }
   },
 
