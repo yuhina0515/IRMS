@@ -241,12 +241,22 @@ export function CalibrationFlow({
   const apply = async (): Promise<void> => {
     if (!profile || saving) return
     setSaving(true)
+    setErr(null)
     const side = profile.side
-    setSettings({ ...compileProfile(profile), calibrationId: profile.id, wearSide: side, lastCalibratedAt: profile.createdAt })
-    let ok = true
+    // Write first: the live settings change only once the profile row is stored, so a failed write cannot leave
+    // the device running a calibration that exists nowhere on disk (and cannot be re-zeroed or audited later).
     try {
       await irms.calibrationProfiles.add({ id: profile.id, side, profile: JSON.stringify(profile), active: true })
-      if (!quick && flow.preset === 'mobility' && saveMobility && outcome) {
+    } catch {
+      setSaving(false)
+      setErr(c.applyFailed)
+      showToast(c.applyFailed, 'error')
+      return
+    }
+    setSettings({ ...compileProfile(profile), calibrationId: profile.id, wearSide: side, lastCalibratedAt: profile.createdAt })
+    let mobilityOk = true
+    if (!quick && flow.preset === 'mobility' && saveMobility && outcome) {
+      try {
         const rec = mobilityRecordFromResults(outcome.results, new Date().toISOString(), {
           schema: MOBILITY_UNIFIED_SCHEMA,
           side,
@@ -266,11 +276,11 @@ export function CalibrationFlow({
             calibrationId: profile.id
           })
         }
+      } catch {
+        mobilityOk = false
       }
-    } catch {
-      ok = false
     }
-    showToast(ok ? c.applied : c.applyFailed, ok ? 'success' : 'warning')
+    showToast(mobilityOk ? c.applied : c.mobilityNotSaved, mobilityOk ? 'success' : 'warning')
     onApplied?.()
     onClose()
   }
@@ -411,6 +421,7 @@ export function CalibrationFlow({
           <div className="wizard-step">
             <h4>{c.reviewTitle}</h4>
             {reviewError && <p className="wizard-err">{reviewError}</p>}
+            {err && <p className="wizard-err">{err}</p>}
             {profile && (
               <>
                 <p className="desc">{c.quality[profile.quality.level]}</p>
