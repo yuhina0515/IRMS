@@ -1,3 +1,5 @@
+> **Superseded 2026-10-15** by [2026-10-15-calibration-unified-plan.md](2026-10-15-calibration-unified-plan.md). Kept for history; do not extend.
+
 # Calibration module B — plan (2026-10-01)
 
 ## Goal

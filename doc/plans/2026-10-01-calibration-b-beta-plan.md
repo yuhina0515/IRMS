@@ -1,3 +1,5 @@
+> **Superseded 2026-10-15** by [2026-10-15-calibration-unified-plan.md](2026-10-15-calibration-unified-plan.md). Kept for history; do not extend.
+
 # Calibration B beta + firmware raw stream + doc sync (2026-10-01)
 
 Request (user, /squad): (1) lift the firmware limit via OTA if possible, else finish and say "flash it" (Harold will test everything later and upload via telemetry); (2) update every non-log document under `doc/`; (3) ship calibration B as an app beta.
