@@ -21,6 +21,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-15 統一校準實作** ([[log_20261015_unified_calibration|Log]]): 分支 `feat/unified-calibration` 完成 S0–S8(帶正負號膝角與過度伸直警示、統一精靈與快速歸零、`calibration_profiles` migration 10、活動度趨勢依校準方式分組、零位非直立時停用分段觸發與姿態);S9 硬體關卡略過,實機全未驗證;過度伸直容許值 5° 與用語待擁有者確認。未推送。
 - **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。
 - **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
 - **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。
