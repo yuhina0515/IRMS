@@ -416,8 +416,15 @@ describe('compileProfile', () => {
 })
 
 describe('zeroIsUpright (segment trigger and pose gating)', () => {
-  const s = (calibrationMethod: string, referenceKind: string | null, referencePosture: string | null) =>
-    ({ calibrationMethod, referenceKind, referencePosture }) as never
+  const frame = { x: 0, y: 0, z: 1 }
+  const s = (calibrationMethod: string, referenceKind: string | null, referencePosture: string | null, thighFrame = true) =>
+    ({
+      calibrationMethod,
+      referenceKind,
+      referencePosture,
+      proximalZeroAccel: thighFrame ? frame : null,
+      proximalHingeAxis: thighFrame ? frame : null
+    }) as never
   it('is true for a straight standing unified zero and for any legacy calibration', () => {
     expect(zeroIsUpright(s('unified', 'straight', 'standing'))).toBe(true)
     expect(zeroIsUpright(s('unified', 'straight', null))).toBe(true)
@@ -428,5 +435,9 @@ describe('zeroIsUpright (segment trigger and pose gating)', () => {
     expect(zeroIsUpright(s('unified', 'neutral', 'standing'))).toBe(false)
     expect(zeroIsUpright(s('unified', 'straight', 'longSitting'))).toBe(false)
     expect(zeroIsUpright(s('unified', 'straight', 'supine'))).toBe(false)
+  })
+  it('is false for a shin-only unified profile: with no thigh frame the thigh reads 0 and segment views are meaningless', () => {
+    expect(zeroIsUpright(s('unified', 'straight', 'standing', false))).toBe(false)
+    expect(zeroIsUpright(s('legacyAEuler', null, null, false))).toBe(true)
   })
 })

@@ -602,8 +602,10 @@ export function isUnified(settings: Pick<Settings, 'calibrationMethod'>): boolea
  * Legacy calibrations keep their existing behaviour untouched.
  */
 export function zeroIsUpright(
-  settings: Pick<Settings, 'calibrationMethod' | 'referenceKind' | 'referencePosture'>
+  settings: Pick<Settings, 'calibrationMethod' | 'referenceKind' | 'referencePosture' | 'proximalZeroAccel' | 'proximalHingeAxis'>
 ): boolean {
   if (settings.calibrationMethod !== 'unified') return true
+  // A shin-only profile has no thigh frame, so the thigh reads 0 and every segment reading would be fiction.
+  if (settings.proximalZeroAccel == null || settings.proximalHingeAxis == null) return false
   return settings.referenceKind !== 'neutral' && (settings.referencePosture == null || settings.referencePosture === 'standing')
 }
