@@ -830,6 +830,13 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
  * - Roll:0° = 站直,正 = 向外側傾
  * - kneeRoll:帶符號 shinRoll − thighRoll,正 = 外翻 (valgus)、負 = 內翻 (varus)
  */
+/** True when a unified profile cannot be evaluated because the packet lacks the gravity vectors it needs. */
+export function unifiedVectorsMissing(raw: RawAngles, s: Settings): boolean {
+  if (s.calibrationMethod !== 'unified') return false
+  if (!raw.shinAccel) return true
+  return Boolean(s.proximalZeroAccel && s.proximalHingeAxis && !raw.thighAccel)
+}
+
 export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   let thigh: number
   let thighRoll: number
@@ -884,7 +891,11 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   // so the SIGNED knee is thigh minus shin and hyperextension stays negative instead of being folded into +flexion
   // (finding X3). Legacy methods above are untouched. A profile without a thigh frame (shin only) has no thigh
   // compensation: the thigh reads 0 and the knee is the negated shin angle.
-  if (s.calibrationMethod === 'unified' && raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis) {
+  if (unifiedVectorsMissing(raw, s)) {
+    // A truncated BLE link drops the V: field. The Euler fallback above would read unset zeros and always
+    // report a positive knee, hiding hyperextension, so a unified profile reports "no data" instead.
+    knee = Number.NaN
+  } else if (s.calibrationMethod === 'unified' && raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis) {
     if (hingeFramed) {
       knee = shortestArcDelta(shin, thigh)
     } else {

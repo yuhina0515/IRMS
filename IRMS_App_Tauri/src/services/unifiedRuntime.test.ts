@@ -75,6 +75,19 @@ describe('applyCalibration with method unified', () => {
     expect(a.knee).toBeCloseTo(70, 0)
   })
 
+  it('returns no knee (NaN) when the shin vector is missing instead of a knee from unset Euler zeros', () => {
+    const rig = createRig({ seed: 3 })
+    const s = unifiedSettings(rig)
+    const { traj } = buildTrajectory([{ to: { kneeFlex: -12 }, moveSec: 0, holdSec: 1 }])
+    const raw = toWire(simulate(traj, 1, rig, { seed: 1 }))[2].raw
+    expect(Number.isNaN(applyCalibration({ ...raw, shinAccel: undefined }, s).knee)).toBe(true)
+    expect(Number.isNaN(applyCalibration({ ...raw, thighAccel: undefined }, s).knee)).toBe(true)
+    expect(Number.isNaN(applyCalibration(raw, s).knee)).toBe(false)
+    // shin-only profile does not need a thigh vector
+    const shinOnly = unifiedSettings(rig, false)
+    expect(Number.isNaN(applyCalibration({ ...raw, thighAccel: undefined }, shinOnly).knee)).toBe(false)
+  })
+
   it('legacy flow A still folds hyperextension to a positive angle (unchanged)', () => {
     const rig = createRig({ seed: 3 })
     const k = kneeCurl(70)

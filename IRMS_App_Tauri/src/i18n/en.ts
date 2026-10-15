@@ -322,6 +322,7 @@ export const en = {
       notConnected: 'Connect a device first',
       noAction: 'Select an exercise first',
       notCalibrated: 'Calibrate first',
+      unifiedNeedsVectors: 'The link is truncated, so this calibration cannot read the knee. Reconnect with a larger MTU or recalibrate in legacy mode',
       segmentNeedsUprightZero: 'Leg-raise exercises need a straight-knee, standing calibration. Recalibrate or pick a knee exercise'
     },
     firmwareUpdatingPct: (p: { pct: number }) => `Updating firmware ${p.pct}%`,

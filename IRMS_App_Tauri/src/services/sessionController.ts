@@ -302,6 +302,9 @@ class SessionController {
 
   private async doStartSession(): Promise<void> {
     const state = useStore.getState()
+    if (state.settings.calibrationMethod === 'unified' && state.linkTruncated) {
+      throw new Error('Unified calibration needs the gravity vectors; the BLE link is truncated')
+    }
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
     // 會與當時的判定行為對不上,事後無法解讀

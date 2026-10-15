@@ -350,6 +350,7 @@ export const zhHant = {
       notConnected: '請先連線裝置',
       noAction: '請先選擇動作',
       notCalibrated: '請先完成校準',
+      unifiedNeedsVectors: '連線封包被截斷,統一校準無法讀取膝角。請重新連線(加大 MTU)或改用舊式校準',
       segmentNeedsUprightZero: '抬腿類動作需要「站姿、膝蓋打直」的校準。請重新校準,或改選膝蓋動作'
     },
     firmwareUpdatingPct: (p: { pct: number }) => `韌體更新中 ${p.pct}%`,

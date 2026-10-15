@@ -13,7 +13,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { parseAnglePacket, parseRawPacket, type LiveAngles, type ParsedPacket, type RawMotion } from '@shared/protocol'
-import { DEFAULT_SETTINGS, applyCalibration, useStore } from '../store/useStore'
+import { DEFAULT_SETTINGS, applyCalibration, unifiedVectorsMissing, useStore } from '../store/useStore'
 import { AngleSmoother } from './smoothing'
 import { getT } from '../i18n'
 
@@ -293,6 +293,9 @@ export class BluetoothService {
     // 模擬資料是以「預設校準」產生的姿勢;套用真實裝置留下的零位/反相/屈曲軸
     // 會把情境角度扭曲,示範動作因此達不到目標。模擬鏈路一律以恆等校準解讀。
     const calibration = this.simulated ? DEFAULT_SETTINGS : this.store.settings
+    // A unified calibration without the packet's gravity vectors has no valid knee: drop the sample rather than
+    // feed NaN (or a fabricated positive angle) to the engine.
+    if (unifiedVectorsMissing(parsed.raw, calibration)) return
     const angles = this.smoother.next(applyCalibration(parsed.raw, calibration))
     this.onAnglesReceived?.(angles)
   }

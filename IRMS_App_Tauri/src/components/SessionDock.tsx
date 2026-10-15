@@ -41,6 +41,8 @@ export function startBlocker(s: {
   running: boolean
   /** The selected action is a segment trigger but the calibration zero is not an upright leg. */
   segmentNeedsUprightZero?: boolean
+  /** A unified calibration is active but the BLE link is truncated, so the gravity vectors never arrive. */
+  unifiedLinkTruncated?: boolean
 }): StartBlocker | null {
   if (s.running) return 'running'
   if (!s.protocolOk) return 'protocolUnsupported'
@@ -50,6 +52,7 @@ export function startBlocker(s: {
   // 2026-09-25 使用者裁定:未校準不得開始。實測證明角度正確性取決於校準
   // (衣物墊高讓感測器不平行);示範模式的模擬姿態本身就在校準座標系,不受此限。
   if (!s.calibrated && !s.simulated) return 'notCalibrated'
+  if (s.unifiedLinkTruncated) return 'unifiedNeedsVectors'
   if (s.segmentNeedsUprightZero) return 'segmentNeedsUprightZero'
   return null
 }
@@ -60,6 +63,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const setParams = useStore((s) => s.setParams)
   const protocol = useStore((s) => s.settings.protocol)
   const calibrated = useStore((s) => s.settings.lastCalibratedAt != null)
+  const unifiedLinkTruncated = useStore((s) => s.settings.calibrationMethod === 'unified' && s.linkTruncated)
   const zeroUpright = useStore((s) => zeroIsUpright(s.settings))
   const actions = useStore((s) => s.customActions)
   const selectedActionId = useStore((s) => s.selectedActionId)
@@ -84,6 +88,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     calibrated,
     simulated: bluetoothService.isSimulated,
     running,
+    unifiedLinkTruncated,
     segmentNeedsUprightZero: selectedTrigger != null && selectedTrigger !== 'joint_angle' && !zeroUpright
   })
   const canStart = blocker == null

@@ -21,3 +21,10 @@ describe('startBlocker segment gating', () => {
     expect(startBlocker({ ...ok, calibrated: false, segmentNeedsUprightZero: true })).toBe('notCalibrated')
   })
 })
+
+describe('startBlocker truncated link with a unified calibration', () => {
+  it('refuses to start because the vectors the unified knee needs are missing', () => {
+    expect(startBlocker({ ...ok, unifiedLinkTruncated: true })).toBe('unifiedNeedsVectors')
+    expect(startBlocker({ ...ok, unifiedLinkTruncated: false })).toBeNull()
+  })
+})
