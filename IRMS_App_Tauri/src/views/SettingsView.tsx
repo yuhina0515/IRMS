@@ -185,6 +185,10 @@ function CalibrationPane(): JSX.Element {
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
   const calibrationLocked = useStore((s) => s.session.running)
+  // The Euler-era fields below are not what a unified profile reads, and flipping the method to 'manual' would
+  // drop its signed knee (hyperextension alarm). Unified profiles are changed only through the flow.
+  const unified = settings.calibrationMethod === 'unified'
+  const manualLocked = calibrationLocked || unified
   // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
   const linkTruncated = useStore((s) => s.linkTruncated)
   const m = useT()
@@ -284,23 +288,24 @@ function CalibrationPane(): JSX.Element {
       <details className="adv-fold">
         <summary>{mc.manualSummary}</summary>
         <p className="field-hint">{mc.manualHint}</p>
+        {unified && <p className="field-hint" data-testid="manual-unified-note">{mc.manualUnifiedNote}</p>}
         <div className="row">
-          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
-          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
+          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={manualLocked} />
+          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={manualLocked} />
         </div>
         <div className="row">
-          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
-          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={manualLocked} />
+          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={manualLocked} />
         </div>
-        <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
+        <button className="btn btn-secondary" disabled={manualLocked} onClick={quickZero}>
           {mc.quickZero}
         </button>
       </details>

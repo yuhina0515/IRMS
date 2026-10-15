@@ -744,6 +744,8 @@ export const en = {
       locked:
         "Calibration cannot change during a session; all of a session's data must come from one set of conversions. End the session first.",
       manualSummary: 'Advanced manual calibration (use the wizard in most cases)',
+      manualUnifiedNote:
+        'This calibration came from the unified flow, so these legacy fields are locked. Use Calibrate or Quick re-zero instead.',
       manualHint:
         'The Zero fields are the raw sensor readings while standing straight, not offsets to add or subtract. In most cases use "Quick zero".',
       invertThigh: 'Invert Thigh',

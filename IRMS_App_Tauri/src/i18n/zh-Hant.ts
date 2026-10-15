@@ -765,6 +765,7 @@ export const zhHant = {
       needConnection: '校準需要即時感測器數值,請先連線裝置。',
       locked: '療程進行中無法變更校準——一場的資料必須全程由同一組轉換產生。請先結束療程。',
       manualSummary: '進階手動校準(一般情況請使用精靈)',
+      manualUnifiedNote: '目前校準來自統一校準流程,這些舊式欄位已鎖定。請改用「重新校準」或「快速重新歸零」。',
       manualHint: 'Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用「快速歸零」。',
       invertThigh: 'Invert Thigh 反相',
       invertShin: 'Invert Shin 反相',
