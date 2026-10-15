@@ -61,7 +61,13 @@ const SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
-  voiceEnabled: true
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 describe('computeCaptureStats', () => {

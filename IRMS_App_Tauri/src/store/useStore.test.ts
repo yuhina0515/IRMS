@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CustomAction } from '@shared/types'
 import type { LiveAngles } from '@shared/protocol'
-import { effectiveRaw } from '../services/calibration'
+import { buildCalibrationSnapshot, effectiveRaw } from '../services/calibration'
 import { deriveHingeAxis } from '../services/angleMath'
 import {
   applyCalibration,
@@ -48,7 +48,13 @@ const BASE_SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
-  voiceEnabled: true
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 describe('migrateSettings', () => {
@@ -146,7 +152,7 @@ describe('migrateSettings', () => {
 
   it('v16 的 persist 資料補上 language / voiceEnabled 預設,且不動使用者既有值', () => {
     // 新增欄位必須 bump persist version,否則 migrate 根本不會跑(見 useStore.ts version 註解)
-    expect(SETTINGS_PERSIST_VERSION).toBe(18)
+    expect(SETTINGS_PERSIST_VERSION).toBe(19)
     const v16 = { settings: { themeMode: 'dark', maxChartPoints: 80, proximalZeroRaw: 12.5 } }
     const { settings } = migratePersisted(v16, 16)
     expect(settings.language).toBe('system')
@@ -558,5 +564,107 @@ describe('sanitizeSettings', () => {
     const ok = sanitizeSettings({ ...DEFAULT_SETTINGS, flushIntervalSec: 5, maxChartPoints: 120 })
     expect(ok.flushIntervalSec).toBe(5)
     expect(ok.maxChartPoints).toBe(120)
+  })
+})
+
+describe('calibration provenance (persist v19)', () => {
+  const unit = (x: number, y: number, z: number): { x: number; y: number; z: number } => {
+    const n = Math.hypot(x, y, z)
+    return { x: x / n, y: y / n, z: z / n }
+  }
+  const hingeShape = {
+    proximalZeroAccel: unit(0, 0, 1),
+    proximalHingeAxis: unit(1, 0, 0),
+    distalZeroAccel: unit(0, 0, 1),
+    distalHingeAxis: unit(1, 0, 0)
+  }
+  const migrate = (settings: object, from = 18): Settings =>
+    migratePersisted({ settings }, from).settings
+
+  it('CALIBRATION_KEYS carry the provenance fields so every session snapshot records the method', () => {
+    for (const key of [
+      'calibrationMethod',
+      'calibrationId',
+      'referenceKind',
+      'referencePosture',
+      'calibrationQuality',
+      'firmwareProtocol'
+    ] as const) {
+      expect(CALIBRATION_KEYS).toContain(key)
+    }
+  })
+
+  it('never-calibrated defaults and empty storage become none', () => {
+    expect(migrate({}).calibrationMethod).toBe('none')
+    const s = migrate({ proximalZeroRaw: 5 })
+    expect(s.calibrationMethod).toBe('none')
+    expect(s.referenceKind).toBeNull()
+  })
+
+  it('Electron-boolean era and offset era settings without a wizard run stay none', () => {
+    expect(migrate({ thighAxisSwap: true, thighOffset: 3 }, 3).calibrationMethod).toBe('none')
+  })
+
+  it('Euler settings with a wizard timestamp become legacyAEuler (standing, straight)', () => {
+    const s = migrate({ proximalAxisRotationDeg: 12, lastCalibratedAt: '2026-09-10T00:00:00.000Z' })
+    expect(s.calibrationMethod).toBe('legacyAEuler')
+    expect(s.firmwareProtocol).toBe('euler')
+    expect(s.referenceKind).toBe('straight')
+    expect(s.referencePosture).toBe('standing')
+  })
+
+  it('hinge settings with the A signature (distalInvert true) become legacyAVector', () => {
+    const s = migrate({ ...hingeShape, distalInvert: true, lastCalibratedAt: '2026-09-25T00:00:00.000Z' })
+    expect(s.calibrationMethod).toBe('legacyAVector')
+    expect(s.firmwareProtocol).toBe('vector')
+  })
+
+  it('hinge settings with both inverts false (B signature) become legacyB', () => {
+    const s = migrate({ ...hingeShape, lastCalibratedAt: '2026-10-02T00:00:00.000Z' })
+    expect(s.calibrationMethod).toBe('legacyB')
+  })
+
+  it('hinge settings never stamped by a wizard become legacyUnknownVector with unknown reference', () => {
+    const s = migrate({ ...hingeShape })
+    expect(s.calibrationMethod).toBe('legacyUnknownVector')
+    expect(s.referenceKind).toBeNull()
+  })
+
+  it('a stored v19 value is not re-inferred (migrate only runs for older versions)', () => {
+    const s = migrate({ ...hingeShape, calibrationMethod: 'manual' }, 19)
+    expect(s.calibrationMethod).toBe('manual')
+  })
+
+  it('runtime angles are bit-identical before and after provenance inference', () => {
+    const shapes: object[] = [
+      { ...hingeShape, distalInvert: true, lastCalibratedAt: 'x' },
+      { ...hingeShape, lastCalibratedAt: 'x' },
+      { proximalAxisRotationDeg: 20, proximalZeroRaw: 4, distalZeroRaw: -3, lastCalibratedAt: 'x' }
+    ]
+    const raw = {
+      thigh: 31,
+      shin: -12,
+      thighRoll: 3,
+      shinRoll: -2,
+      thighAccel: unit(0.1, 0.5, 0.8),
+      shinAccel: unit(-0.2, 0.7, 0.4)
+    }
+    for (const shape of shapes) {
+      const before = migrateSettings({ settings: shape }).settings
+      const after = migrate(shape)
+      expect(applyCalibration(raw, after)).toEqual(applyCalibration(raw, before))
+    }
+  })
+
+  it('sanitizeSettings resets a corrupted method marker to none', () => {
+    const bad = { ...DEFAULT_SETTINGS, calibrationMethod: 'bogus' as unknown as Settings['calibrationMethod'] }
+    expect(sanitizeSettings(bad).calibrationMethod).toBe('none')
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, calibrationMethod: 'unified' }).calibrationMethod).toBe('unified')
+  })
+
+  it('the snapshot written at session start carries the method (S0 requirement)', () => {
+    const snap = buildCalibrationSnapshot({ ...DEFAULT_SETTINGS, calibrationMethod: 'legacyB', calibrationId: 'abc' })
+    expect(snap.calibrationMethod).toBe('legacyB')
+    expect(snap.calibrationId).toBe('abc')
   })
 })

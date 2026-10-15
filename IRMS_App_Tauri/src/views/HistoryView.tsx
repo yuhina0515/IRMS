@@ -309,6 +309,13 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
             ) : (
               <p className="v3-note">{m.history.sameCalibration}</p>
             )}
+            {snapshot != null && (
+              <p className="v3-note" data-testid="history-calibration-method">
+                {snapshot.calibrationMethod
+                  ? m.history.methodLabel({ method: m.history.methods[snapshot.calibrationMethod] ?? snapshot.calibrationMethod })
+                  : m.history.methodUnknown}
+              </p>
+            )}
             <h3>{m.history.perRep}</h3>
             <p className="v3-note">{m.history.perRepNote}</p>
           </aside>

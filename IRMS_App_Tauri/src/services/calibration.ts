@@ -339,7 +339,12 @@ function buildCalibrationPatchFromEuler(
     proximalZeroRaw: effBase.thigh,
     distalZeroRaw: effBase.shin,
     proximalRollZeroRaw: effBase.thighRoll,
-    distalRollZeroRaw: effBase.shinRoll
+    distalRollZeroRaw: effBase.shinRoll,
+    calibrationMethod: 'legacyAEuler',
+    firmwareProtocol: 'euler',
+    referenceKind: 'straight',
+    referencePosture: 'standing',
+    calibrationQuality: null
   }
   return { ok: true, patch, couplingWarning }
 }
@@ -415,7 +420,12 @@ function buildCalibrationPatchFromVectors(
     distalHingeAxis,
     proximalZeroAccel: baseThigh,
     distalZeroAccel: baseShin,
-    kneeZeroRaw: vectorAngleDeg(baseThigh, baseShin)
+    kneeZeroRaw: vectorAngleDeg(baseThigh, baseShin),
+    calibrationMethod: 'legacyAVector',
+    firmwareProtocol: 'vector',
+    referenceKind: 'straight',
+    referencePosture: 'standing',
+    calibrationQuality: null
   }
   return { ok: true, patch, couplingWarning }
 }
@@ -446,6 +456,13 @@ export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial
     patch.kneeZeroRaw = vectorAngleDeg(raw.thighAccel, raw.shinAccel)
   }
   return patch
+}
+
+/** Fresh id for one wizard run; stored as `calibrationId` and later in the profile row. */
+export function newCalibrationId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  if (c?.randomUUID) return c.randomUUID()
+  return `cal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 /**

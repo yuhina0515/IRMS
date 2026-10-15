@@ -5,7 +5,16 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AngleRangeRecord, CustomAction, JointProtocol } from '@shared/types'
+import type {
+  AngleRangeRecord,
+  CalibrationMethod,
+  CalibrationQuality,
+  CustomAction,
+  FirmwareProtocol,
+  JointProtocol,
+  ReferenceKind,
+  ReferencePosture
+} from '@shared/types'
 import type { AccelVector, LiveAngles, RawAngles } from '@shared/protocol'
 import type { EnginePhase } from '../services/triggerEngine'
 import {
@@ -133,6 +142,20 @@ export interface Settings {
   language: LanguageSetting
   /** Spoken cues during a session (rep count, hold, over-limit, end). Added in persist v18. */
   voiceEnabled: boolean
+  /**
+   * Provenance of the active calibration (persist v19, unified calibration S1). These do not change
+   * any angle formula; they say how the numbers were produced and are snapshotted per session.
+   * 'none' = never calibrated; 'manual' = a wizard result edited by hand.
+   */
+  calibrationMethod: CalibrationMethod
+  /** uuid of the wizard run that produced the active calibration; null for migrated/manual/none. */
+  calibrationId: string | null
+  /** Which posture is 0 degrees; null = unknown (legacy unknown vector, manual, none). */
+  referenceKind: ReferenceKind | null
+  referencePosture: ReferencePosture | null
+  calibrationQuality: CalibrationQuality | null
+  /** Wire protocol the calibration was solved against; null = unknown. */
+  firmwareProtocol: FirmwareProtocol | null
 }
 
 /**
@@ -206,7 +229,13 @@ export const DEFAULT_SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
-  voiceEnabled: true
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 /**
@@ -252,7 +281,14 @@ export const CALIBRATION_KEYS = [
   'distalAxisRotationVerified',
   'proximalRollVerified',
   'distalRollVerified',
-  'lastCalibratedAt'
+  'lastCalibratedAt',
+  // Provenance (unified calibration S1): the method marker goes into the snapshot before any math changes.
+  'calibrationMethod',
+  'calibrationId',
+  'referenceKind',
+  'referencePosture',
+  'calibrationQuality',
+  'firmwareProtocol'
 ] as const satisfies readonly (keyof Settings)[]
 
 /** 把一筆 settings patch 拆成「Session 進行中仍可套用」與「被凍結」兩部分。export 供測試。 */
@@ -378,7 +414,7 @@ export function reconcileSelection(
 }
 
 /** settings 的 persist 版本(說明見下方 persist 設定的 version 註解)。export 供測試鎖定。 */
-export const SETTINGS_PERSIST_VERSION = 18
+export const SETTINGS_PERSIST_VERSION = 19
 
 export const useStore = create<StoreState>()(
   persist(
@@ -554,6 +590,8 @@ export const useStore = create<StoreState>()(
       //      重設為 system,否則曾手動切到日間/夜間的使用者會被永久卡在該主題。
       // v17:language(i18n P0),預設 system。
       // v18:voiceEnabled(語音提示),預設開啟。
+      // v19:calibration provenance (calibrationMethod/Id, referenceKind/Posture, quality, firmwareProtocol);
+      //      method inferred from the stored shape by inferCalibrationProvenance.
       migrate: migratePersisted,
       // RISK-FIX (2026-10-10): migrate only runs when the stored version is older, so a corrupted
       // same-version value (null/NaN/negative) used to flow straight into timers and the chart.
@@ -571,6 +609,8 @@ export function sanitizeSettings(settings: Settings): Settings {
     typeof v === 'number' && Number.isFinite(v) && v >= min ? v : fallback
   return {
     ...settings,
+    // A corrupted same-version method marker must not pass as a real one.
+    calibrationMethod: isCalibrationMethod(settings.calibrationMethod) ? settings.calibrationMethod : 'none',
     maxChartPoints: Math.round(positive(settings.maxChartPoints, DEFAULT_SETTINGS.maxChartPoints, 10)),
     flushIntervalSec: Math.round(positive(settings.flushIntervalSec, DEFAULT_SETTINGS.flushIntervalSec, 1))
   }
@@ -583,8 +623,55 @@ export function migratePersisted(persisted: unknown, version: number): { setting
   // v17:新欄位由 DEFAULT_SETTINGS 補上 'system';毀損/未知的值同樣回退,
   // 否則 resolveLocale 雖然會回退,設定頁卻會顯示一個不存在的選項。
   if (!isLanguageSetting(migrated.settings.language)) migrated.settings.language = 'system'
+  // v19: infer provenance for installs that predate it. Runtime numbers are untouched.
+  if (version < 19) Object.assign(migrated.settings, inferCalibrationProvenance(migrated.settings))
   return migrated
 }
+
+const dotV = (a: AccelVector, b: AccelVector): number => a.x * b.x + a.y * b.y + a.z * b.z
+
+/**
+ * Infer how a pre-v19 install was calibrated (unified calibration plan section 3.4). Only provenance
+ * fields are returned; no angle formula input changes, so legacy runtime output is bit-identical.
+ *
+ * Evidence used (all from the stored shape):
+ * - Flow A's vector path derives hinge = cross(baseline, moved) with zero = baseline, which makes
+ *   proximalInvert always false and distalInvert always true (knee curl moves backwards). Flow B
+ *   hard-codes both inverts to false. A hinge pair with both inverts false and zero perpendicular to
+ *   hinge is therefore attributed to B. This is a heuristic: a hand-edited A result also matches.
+ * - Hinge axes in a profile that was never wizard-stamped (lastCalibratedAt null) stay 'legacyUnknownVector'.
+ * - Euler-only settings with a wizard timestamp are flow A's Euler path.
+ * Wizards A and B both define 0 degrees as standing straight.
+ */
+export function inferCalibrationProvenance(s: Settings): Partial<Settings> {
+  const hasHinge = Boolean(s.proximalHingeAxis && s.distalHingeAxis && s.proximalZeroAccel && s.distalZeroAccel)
+  const standing = {
+    referenceKind: 'straight' as ReferenceKind,
+    referencePosture: 'standing' as ReferencePosture,
+    calibrationQuality: null,
+    calibrationId: null
+  }
+  if (hasHinge) {
+    if (s.lastCalibratedAt == null) {
+      return { calibrationMethod: 'legacyUnknownVector', firmwareProtocol: 'vector', referenceKind: null, referencePosture: null, calibrationQuality: null, calibrationId: null }
+    }
+    const orthogonal =
+      Math.abs(dotV(s.proximalHingeAxis as AccelVector, s.proximalZeroAccel as AccelVector)) < 1e-6 &&
+      Math.abs(dotV(s.distalHingeAxis as AccelVector, s.distalZeroAccel as AccelVector)) < 1e-6
+    const looksLikeB = !s.proximalInvert && !s.distalInvert && orthogonal
+    return { ...standing, calibrationMethod: looksLikeB ? 'legacyB' : 'legacyAVector', firmwareProtocol: 'vector' }
+  }
+  if (s.lastCalibratedAt != null) {
+    return { ...standing, calibrationMethod: 'legacyAEuler', firmwareProtocol: 'euler' }
+  }
+  return { calibrationMethod: 'none', firmwareProtocol: null, referenceKind: null, referencePosture: null, calibrationQuality: null, calibrationId: null }
+}
+
+const CALIBRATION_METHODS: readonly CalibrationMethod[] = [
+  'unified', 'legacyAVector', 'legacyAEuler', 'legacyB', 'legacyUnknownVector', 'manual', 'none'
+]
+export const isCalibrationMethod = (v: unknown): v is CalibrationMethod =>
+  typeof v === 'string' && (CALIBRATION_METHODS as readonly string[]).includes(v)
 
 /** v3 及更早版本使用的「符號摺疊」offset 欄位——已被 zeroRaw 取代,僅遷移時讀取 */
 interface LegacyOffsetFields {

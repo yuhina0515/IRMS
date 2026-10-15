@@ -478,6 +478,17 @@ export const zhHant = {
     drift: (p: { keys: string }) =>
       `校準已變更:這場的 ${p.keys} 與目前設定不同。曲線的零點或方向可能與現在不一致,請勿直接與近期紀錄比較。`,
     sameCalibration: '與目前校準相同。',
+    methodUnknown: '校準方式:舊資料,方法未記錄',
+    methodLabel: (p: { method: string }) => `校準方式:${p.method}`,
+    methods: {
+      unified: '統一校準',
+      legacyAVector: '舊版方法 A(向量)',
+      legacyAEuler: '舊版方法 A(歐拉角)',
+      legacyB: '舊版方法 B',
+      legacyUnknownVector: '舊版向量校準(來源不明)',
+      manual: '手動調整',
+      none: '未校準'
+    },
     perRep: '逐次分析',
     perRepNote:
       '目前紀錄只保存連續角度與完成次數,尚未保存每一次動作的開始與結束事件,因此不提供逐次峰值與保持時間,以免呈現推測出的精確度。',

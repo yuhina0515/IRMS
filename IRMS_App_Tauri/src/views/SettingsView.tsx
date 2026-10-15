@@ -174,8 +174,10 @@ function CalibrationPane(): JSX.Element {
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardBOpen, setWizardBOpen] = useState(false)
+  // A hand edit of a calibration number makes the wizard provenance untrue: mark it 'manual'
+  // (it cannot be detected retroactively, so this only applies from now on).
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
-    setSettings({ [key]: value } as Partial<Settings>)
+    setSettings({ [key]: value, calibrationMethod: 'manual', calibrationId: null } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
   const calibrationLocked = useStore((s) => s.session.running)

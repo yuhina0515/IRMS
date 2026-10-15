@@ -455,6 +455,17 @@ export const en = {
     drift: (p: { keys: string }) =>
       `Calibration changed: this session's ${p.keys} differ from the current settings. The curve's zero or direction may not match today's, so do not compare it directly with recent sessions.`,
     sameCalibration: 'Same as the current calibration.',
+    methodUnknown: 'Calibration method: legacy data, method not recorded',
+    methodLabel: (p: { method: string }) => `Calibration method: ${p.method}`,
+    methods: {
+      unified: 'Unified calibration',
+      legacyAVector: 'Older method A (vector)',
+      legacyAEuler: 'Older method A (Euler)',
+      legacyB: 'Older method B',
+      legacyUnknownVector: 'Older vector calibration (origin unknown)',
+      manual: 'Manually adjusted',
+      none: 'Not calibrated'
+    },
     perRep: 'Per-rep analysis',
     perRepNote:
       'Sessions currently store only the continuous angle and the rep count, not when each rep starts and ends, so per-rep peaks and hold times are not shown rather than implying precision the data does not have.',

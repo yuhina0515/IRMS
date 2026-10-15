@@ -154,6 +154,27 @@ export interface Session {
 }
 
 /**
+ * How the active calibration was produced (unified calibration plan, section 3.1). Stored in the
+ * Settings and in every session snapshot so old and new numbers can always be told apart.
+ * Old numbers are never reinterpreted: legacy methods keep their exact runtime path.
+ */
+export type CalibrationMethod =
+  | 'unified'
+  | 'legacyAVector'
+  | 'legacyAEuler'
+  | 'legacyB'
+  | 'legacyUnknownVector'
+  | 'manual'
+  | 'none'
+
+/** Which posture counts as 0 degrees: knee straight, or any relaxed pose chosen by a wearer who cannot straighten. */
+export type ReferenceKind = 'straight' | 'neutral'
+export type ReferencePosture = 'standing' | 'longSitting' | 'supine' | 'seated' | 'other'
+export type CalibrationQuality = 'high' | 'medium' | 'low'
+/** Wire protocol the calibration was solved against. */
+export type FirmwareProtocol = 'vector' | 'euler'
+
+/**
  * 一場 Session 開始當下實際生效的校準轉換快照(migration 6 起以單一 JSON 欄位存於 sessions)。
  *
  * 沒有它,`sensor_data` 只留下校準後的數值,而產生那些數值的仿射轉換活在 localStorage:
@@ -191,6 +212,16 @@ export interface CalibrationSnapshot {
   distalRollVerified: boolean
   /** 最近一次跑完精靈的時間;null = 從未跑過(全預設值或純手動輸入) */
   lastCalibratedAt: string | null
+  /**
+   * Provenance (unified calibration S0/S1). All optional: snapshots recorded before these fields
+   * existed have none of them and are labelled "legacy, method unknown" at read time, never rewritten.
+   */
+  calibrationMethod?: CalibrationMethod
+  calibrationId?: string | null
+  referenceKind?: ReferenceKind | null
+  referencePosture?: ReferencePosture | null
+  calibrationQuality?: CalibrationQuality | null
+  firmwareProtocol?: FirmwareProtocol | null
 }
 
 /** 開始 Session 的輸入 */

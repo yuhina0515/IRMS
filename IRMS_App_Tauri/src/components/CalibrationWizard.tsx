@@ -16,6 +16,7 @@ import {
   PITCH_AXES,
   ROLL_AXES,
   maxAxisDelta,
+  newCalibrationId,
   type CalibrationError,
   type CaptureStats
 } from '../services/calibration'
@@ -315,7 +316,7 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
 
   const apply = (): void => {
     if (!patch) return
-    setSettings({ ...patch, lastCalibratedAt: new Date().toISOString() })
+    setSettings({ ...patch, calibrationId: newCalibrationId(), lastCalibratedAt: new Date().toISOString() })
     showToast(m.calibration.applied, 'success')
     onClose()
   }
