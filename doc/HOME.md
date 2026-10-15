@@ -21,6 +21,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。
 - **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
 - **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。
 - **2026-10-09 主動稽核** ([[log_20261009_proactive_audit|Log]]): 修正已驗證 bug(migration 清理、downsample、telemetry、trigger、session、BLE)。
@@ -593,6 +594,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   UI 層與桌面版 Electron+Tailwind 各自獨立(商業邏輯層 `services/` 純函式兩邊共用不受影響)。
   **手機作業排在桌面版 Phase 4 完成之後**才開始(Task #10 佔位追蹤,目前阻塞中)。純決策,
   無程式碼變更
+  (註:此 React Native 決策後來被 Tauri mobile 取代,見 [[ROADMAP#D5|ROADMAP D5]];iOS 自 2026-10-15 暫停)
 - **2026-09-02 UI 重建 Phase 4(一):基礎元件層 + 新導覽**
   ([[log_20260902_ui_redesign_phase4_foundation_and_nav|日誌]]):`tailwind.css` 新增
   `@layer components`,把舊 `global.css` 的 class 詞彙(panel/glass/btn/field/dialog/

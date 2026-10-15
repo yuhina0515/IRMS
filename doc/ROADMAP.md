@@ -6,7 +6,7 @@ description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-27 
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
 
-> **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。
+> **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。iOS 開發自 2026-10-15 起暫停(分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程保留、未合併);Android 維持原狀。
 
 > **相關文件**:[[HOME|導覽首頁]] · [[OPTIMIZATION|優化待辦(細項)]] · [[log_20260703_architecture_audit_fixes|審查修復日誌]]
 > 本文件負責「決策與階段順序」;逐項細目仍以 [[OPTIMIZATION]] 為活清單。
@@ -51,7 +51,9 @@ elbow/shoulder 沿用 thigh/shin 命名與軸向。泛化時**先改共享型別
 引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 9 版)。
 Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一個消費者。
 
-### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01)
+### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01,已被 Tauri mobile 取代)
+
+> **現況(2026-10-15)**:本決策為歷史紀錄,**已不是現行方向**。行動版改走 Tauri mobile,沿用桌面版程式碼:Android 已有 sideload APK(`v1.2.0-beta.21` 起,見 [[log_20261001_android_apk_beta21]],真機 BLE 未驗證)。**iOS 自 2026-10-15 起暫停開發**,不是「進行中」也不是「下一步」;既有成果僅有分支 `feat/ios-unsigned-ipa` 上的未簽章 IPA 工作流程(GitHub Actions macOS runner),尚未合併,真機安裝/BLE/啟動皆未驗證。Android 維持原狀。下文為當時的決策內容,原樣保留。
 
 **背景**:桌面版 UI 重建(Phase 1–3,見 [[UI_REDESIGN]])進行中時,使用者提出要準備
 Android/iOS 部署。查證後確認一個決定技術路線的硬限制:**iOS 的 Safari/WebKit 完全不支援
