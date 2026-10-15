@@ -562,7 +562,8 @@ export const en = {
     viewTitle: 'Mobility trend',
     noRecords: 'No records yet. After a range-of-motion measurement, long-term changes appear here.',
     startMeasure: 'Start measuring',
-    compareNote: 'Only records with the same movement set are compared.',
+    compareNote: 'Only records with the same movement set and calibration method are compared.',
+    methodBreak: '-- Calibration method changed: values above and below this line are not directly comparable --',
     setLabel: (p: { names: string }) => `Movements: ${p.names}`,
     best: (p: { total: string }) => `Best ${p.total}°`,
     latest: (p: { total: string }) => `Latest ${p.total}°`

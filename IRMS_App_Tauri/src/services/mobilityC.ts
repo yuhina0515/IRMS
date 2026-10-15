@@ -198,7 +198,21 @@ export function solveMovement(neutral: Neutral, capture: MovementCapture, spec: 
 
 // ---------- long-term record ----------
 
-export interface MobilityRecord {
+/**
+ * Method identity of a record (migration 10). A record without it (schema null/undefined) was measured with the
+ * pre-unified neutral-vector method; its totals are not comparable with unified ones or across references.
+ */
+export interface MobilityIdentity {
+  schema: number | null
+  side: 'left' | 'right' | null
+  referenceKind: 'straight' | 'neutral' | null
+  posture: string | null
+  calibrationId: string | null
+}
+
+export const MOBILITY_UNIFIED_SCHEMA = 2
+
+export interface MobilityRecord extends Partial<MobilityIdentity> {
   measuredAt: string
   /** Sorted movement ids; trends compare only records with the same set. */
   movementSet: MovementId[]
@@ -206,23 +220,58 @@ export interface MobilityRecord {
   totalDeg: number
 }
 
+/**
+ * Two records are comparable only when this key matches. calibrationId is deliberately NOT part of it: re-capturing
+ * the same kind of reference keeps the trend; changing kind, posture, side or schema starts a new series.
+ */
+export function methodKey(r: Partial<MobilityIdentity>): string {
+  if (r.schema == null) return 'legacy'
+  return [r.schema, r.side ?? '-', r.referenceKind ?? '-', r.posture ?? '-'].join('|')
+}
+
 export function movementSetKey(set: MovementId[]): string {
   return [...set].sort().join('+')
 }
 
 /** Sum of the held peaks; refuses an incomplete set so a partial sum is never saved as a total. */
-export function buildMobilityRecord(results: MovementResult[], measuredAt: string): MobilityRecord | null {
+export function buildMobilityRecord(
+  results: MovementResult[],
+  measuredAt: string,
+  identity?: MobilityIdentity
+): MobilityRecord | null {
   if (results.length === 0) return null
   const peaks: Partial<Record<MovementId, number>> = {}
   for (const r of results) peaks[r.movement] = r.peakDeg
   const movementSet = (Object.keys(peaks) as MovementId[]).sort()
   if (movementSet.length !== results.length) return null
   const totalDeg = movementSet.reduce((s, id) => s + (peaks[id] ?? 0), 0)
-  return { measuredAt, movementSet, peaks, totalDeg }
+  return { measuredAt, movementSet, peaks, totalDeg, ...identity }
 }
 
-/** Records comparable with `current` (same movement set), oldest first. */
+/** Records comparable with `current` (same movement set AND same method identity), oldest first. */
 export function comparableTrend(records: MobilityRecord[], current: MobilityRecord): MobilityRecord[] {
   const key = movementSetKey(current.movementSet)
-  return records.filter((r) => movementSetKey(r.movementSet) === key).sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
+  const method = methodKey(current)
+  return records
+    .filter((r) => movementSetKey(r.movementSet) === key && methodKey(r) === method)
+    .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
+}
+
+export type TrendEntry = { kind: 'record'; record: MobilityRecord } | { kind: 'methodBreak' }
+
+/**
+ * Same-set records, oldest first, with a methodBreak entry wherever the method identity changes between
+ * neighbours. The display draws a separator there so a jump caused by a new reference is never read as progress.
+ */
+export function trendWithBreaks(records: MobilityRecord[], current: MobilityRecord): TrendEntry[] {
+  const key = movementSetKey(current.movementSet)
+  const sameSet = records
+    .filter((r) => movementSetKey(r.movementSet) === key)
+    .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
+  const out: TrendEntry[] = []
+  sameSet.forEach((r, i) => {
+    if (i > 0 && methodKey(r) !== methodKey(sameSet[i - 1])) out.push({ kind: 'methodBreak' })
+    out.push({ kind: 'record', record: r })
+  })
+  return out
 }

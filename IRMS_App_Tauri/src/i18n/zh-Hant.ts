@@ -584,7 +584,8 @@ export const zhHant = {
     viewTitle: '活動度趨勢',
     noRecords: '還沒有紀錄。完成一次活動度測量後,這裡會顯示長期變化。',
     startMeasure: '開始測量',
-    compareNote: '只比較動作組合相同的紀錄。',
+    compareNote: '只比較動作組合與校正方式都相同的紀錄。',
+    methodBreak: '── 校正方式改變,此線以下與以上的數值不能直接比較 ──',
     setLabel: (p: { names: string }) => `動作:${p.names}`,
     best: (p: { total: string }) => `最佳 ${p.total}°`,
     latest: (p: { total: string }) => `最近 ${p.total}°`

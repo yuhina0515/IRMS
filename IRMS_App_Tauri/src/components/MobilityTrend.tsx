@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { irms } from '../platform/irmsApi'
 import type { MobilityRecordRow } from '@shared/types'
-import { comparableTrend, MOVEMENT_ORDER, type MobilityRecord, type MovementId } from '../services/mobilityC'
+import { comparableTrend, MOVEMENT_ORDER, trendWithBreaks, type MobilityRecord, type MovementId } from '../services/mobilityC'
 import { useLocale, useT } from '../i18n'
 import { DATE_TIME, formatDateTime, formatNumber } from '../i18n/format'
 import { MobilityWizard } from './MobilityWizard'
@@ -15,7 +15,17 @@ const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   } catch {
     // detail is informational; the total and set key are authoritative
   }
-  return { measuredAt: r.measuredAt, movementSet: ids, peaks, totalDeg: r.totalDeg }
+  return {
+    measuredAt: r.measuredAt,
+    movementSet: ids,
+    peaks,
+    totalDeg: r.totalDeg,
+    schema: r.schema,
+    side: r.side,
+    referenceKind: r.referenceKind,
+    posture: r.posture,
+    calibrationId: r.calibrationId
+  }
 }
 
 export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX.Element {
@@ -36,6 +46,8 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
   const records = (rows ?? []).map(toRecord)
   const latest = records[0] // list() is newest first
   const same = latest ? comparableTrend(records, latest) : []
+  const entries = latest ? trendWithBreaks(records, latest) : []
+  const hasBreak = entries.some((e) => e.kind === 'methodBreak')
   const best = same.length ? Math.max(...same.map((r) => r.totalDeg)) : null
   const names = latest ? latest.movementSet.map((id) => c.movementNames[id]).join(m.common.listSeparator) : ''
   const fmt = (n: number): string => formatNumber(locale, n, 0)
@@ -63,13 +75,22 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
           {c.startMeasure}
         </button>
       </div>
-      {same.length > 1 && (
+      {(same.length > 1 || hasBreak) && (
         <ul className="v3-scope" data-testid="mobility-history">
-          {same.slice(-8).reverse().map((r) => (
-            <li key={r.measuredAt} className="ok">
-              {formatDateTime(locale, new Date(r.measuredAt), DATE_TIME)} · {fmt(r.totalDeg)}°
-            </li>
-          ))}
+          {entries
+            .slice(-10)
+            .reverse()
+            .map((e, i) =>
+              e.kind === 'methodBreak' ? (
+                <li key={`break-${i}`} className="warn" data-testid="mobility-method-break">
+                  {c.methodBreak}
+                </li>
+              ) : (
+                <li key={e.record.measuredAt} className="ok">
+                  {formatDateTime(locale, new Date(e.record.measuredAt), DATE_TIME)} · {fmt(e.record.totalDeg)}°
+                </li>
+              )
+            )}
         </ul>
       )}
       {open && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
