@@ -6,6 +6,7 @@ import { comparableTrend, MOVEMENT_ORDER, trendWithBreaks, type MobilityRecord, 
 import { useLocale, useT } from '../i18n'
 import { DATE_TIME, formatDateTime, formatNumber } from '../i18n/format'
 import { MobilityWizard } from './MobilityWizard'
+import { CalibrationFlow } from './CalibrationFlow'
 
 const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   const ids = r.movementSet.split('+').filter((x): x is MovementId => (MOVEMENT_ORDER as string[]).includes(x))
@@ -28,7 +29,8 @@ const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   }
 }
 
-export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX.Element {
+/** `legacy` opens the old mobility wizard (developer toggle); otherwise the unified flow with the mobility preset. */
+export function MobilityTrend({ disabled = false, legacy = false }: { disabled?: boolean; legacy?: boolean }): JSX.Element {
   const m = useT()
   const c = m.mobility
   const locale = useLocale()
@@ -93,7 +95,8 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
             )}
         </ul>
       )}
-      {open && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && legacy && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && !legacy && <CalibrationFlow preset="mobility" onClose={() => setOpen(false)} onApplied={reload} />}
     </>
   )
 }

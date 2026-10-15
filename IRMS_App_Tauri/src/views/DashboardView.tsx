@@ -12,7 +12,7 @@ import { computeGuidance, guidanceText } from '../services/guidance'
 import { zeroIsUpright } from '../services/calibrationCore'
 import { PoseSide } from '../components/PoseSide'
 import { SessionDock } from '../components/SessionDock'
-import { CalibrationWizard } from '../components/CalibrationWizard'
+import { CalibrationFlow } from '../components/CalibrationFlow'
 import { TRIGGER_SHORT } from './actionLabels'
 import { TIME_MINUTES, formatDateTime, formatNumber, useLocale, useT } from '../i18n'
 
@@ -289,7 +289,7 @@ export function DashboardView(): JSX.Element {
         <SessionDock onCalibrate={() => setWizardOpen(true)} />
       </section>
 
-      {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
+      {wizardOpen && <CalibrationFlow onClose={() => setWizardOpen(false)} />}
     </div>
   )
 }

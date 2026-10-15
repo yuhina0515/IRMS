@@ -571,6 +571,89 @@ export const en = {
     latest: (p: { total: string }) => `Latest ${p.total}°`
   },
 
+  calibrationFlow: {
+    title: 'Sensor calibration',
+    presetLabel: 'What to do',
+    presets: {
+      calibrate: { name: 'Calibrate only', desc: 'Zero + knee bend + hip flexion, about 2 minutes.' },
+      mobility: { name: 'Calibrate + mobility', desc: 'Adds hip extension and abduction and saves each movement\'s largest steady angle as a mobility record.' },
+      quickRezero: { name: 'Quick re-zero', desc: 'Re-measures only the zero and keeps the stored axes; use after re-donning or a slipped strap.' }
+    },
+    sideHint: 'Choose the leg the sensors are worn on.',
+    intro: 'Wear the sensors as usual, **over clothing is fine**. The zero is "standing with the knee straight" by default. Do each movement slowly and within a safe range.',
+    postureLabel: 'Zero posture',
+    postures: { standing: 'Standing', longSitting: 'Long sitting (leg straight)', supine: 'Lying on back', seated: 'Seated', other: 'Other' },
+    neutralLabel: 'I cannot fully straighten my knee',
+    neutralHint: 'The zero is then recorded as a "neutral" pose. Segment triggers and the 3D/2D pose are turned off because they assume the zero is an upright leg.',
+    start: 'Start',
+    legacyTitle: 'This firmware or link needs the older calibration',
+    legacyDesc: 'The current firmware (Euler protocol) or link (BLE MTU negotiation failed, so roll data is missing) does not support the new flow. The older step-by-step calibration is used instead.',
+    progress: (p: { n: string; total: string }) => `Step ${p.n} / ${p.total}`,
+    referenceTitle: 'Measure the zero',
+    referenceStraight: 'Stand with both legs and knees straight and **hold still**.',
+    referenceNeutral: 'Take the most natural, relaxed pose you can and **hold still**.',
+    handsFree: (p: { sec: string }) => `Hands-free: hold the pose steady for ${p.sec} s to start automatically`,
+    capture: 'Start (3 s countdown)',
+    recording: 'Recording…',
+    moveNow: 'Move slowly now, then hold at your largest angle.',
+    movementTitle: (p: { name: string }) => `Movement: ${p.name}`,
+    optionalNote: 'You can skip this movement; skipping hip flexion builds a shin-only calibration.',
+    mandatoryNote: 'Knee bend is required: it defines the shin frame.',
+    skip: 'Skip this movement',
+    recapture: 'Re-measure the zero',
+    recaptureConfirmTitle: 'Re-measure the zero?',
+    recaptureConfirmBody: 'Every movement was measured against the old zero, so re-measuring clears the recorded movements.',
+    back: 'Back',
+    reviewTitle: 'Check the result',
+    quality: { high: 'Quality: high', medium: 'Quality: medium', low: 'Quality: low, redoing is recommended' },
+    warnings: {
+      shinOnly: 'No thigh frame (hip flexion was skipped), so the thigh is not compensated.',
+      gyroWeak: 'The gyroscope signal is weak, so the axis was estimated from gravity alone.',
+      gyroDisagrees: 'Gravity and the gyroscope disagree on the axis. Check the sensor has not slipped and redo.',
+      twoPoint: 'The movement was small, so the axis is estimated from two points and is less reliable.'
+    },
+    resultLine: (p: { name: string; peak: string }) => `${p.name}: ${p.peak}°`,
+    driftWarn: 'The thigh moved during the knee movement; treat the result as approximate.',
+    redo: 'Redo this movement',
+    saveMobility: 'Also save a mobility record',
+    apply: 'Apply',
+    discard: 'Discard',
+    applied: 'Calibration applied',
+    applyFailed: 'Calibration applied, but saving the calibration file failed',
+    cancelledLink: 'The connection dropped or a session started, so calibration was cancelled and nothing was saved.',
+    noData: 'Not enough sensor data. Check the connection and try again.',
+    noProfile: 'No earlier calibration file was found. Do a full calibration first.',
+    unverified: 'How closely the angles match a goniometer has not been verified on a device.',
+    referenceErrors: {
+      invalidInput: 'The sensor data was invalid, please try again.',
+      tooShort: 'The steady period was too short. Hold the pose and try again.',
+      shaking: 'Movement detected. Hold still and try again.'
+    },
+    movementErrors: {
+      invalidInput: 'The sensor data was invalid, please try again.',
+      needsThighFrame: 'This movement needs a thigh frame. Do hip flexion first.',
+      wrongDirection: 'The movement went the opposite way. Redo it as instructed.',
+      referenceMoved: 'The thigh moved too much during the knee movement. Keep it still and move only the lower leg.',
+      noHold: 'No steady hold was detected. Pause at your largest angle for about 2 seconds.',
+      peakTooSmall: 'The held angle was too small. Go a little further, within a safe range.',
+      implausible: 'The angle is outside the plausible range. Check whether a sensor slipped and try again.'
+    },
+    limbErrors: {
+      invalidInput: 'invalid sensor data',
+      sweepTooSmall: 'the movement was too small',
+      sweepNotPlanar: 'the movement strayed from one plane',
+      referenceOffPlane: 'the zero pose does not match the movement plane',
+      wrongDirection: 'the movement went the opposite way'
+    },
+    solveFailed: (p: { limb: string; reason: string }) => `Could not build the ${p.limb} frame: ${p.reason}. Please redo.`,
+    missing: { reference: 'The zero has not been measured', side: 'No leg selected', kneeFlexion: 'The knee bend has not been recorded' },
+    wearing: {
+      rezero: 'The sensors are slightly offset from the zero (in the bend direction). A quick re-zero is recommended before starting. Start anyway?',
+      recalibrate: 'The sensors are rotated sideways from the zero, possibly a turned strap. Recalibrating is recommended before starting. Start anyway?',
+      title: 'Wearing check'
+    }
+  },
+
   calibrationB: {
     title: 'Calibration B',
     beta: 'beta',
@@ -665,7 +748,24 @@ export const en = {
         'The Zero fields are the raw sensor readings while standing straight, not offsets to add or subtract. In most cases use "Quick zero".',
       invertThigh: 'Invert Thigh',
       invertShin: 'Invert Shin',
-      quickZero: 'Quick zero'
+      quickZero: 'Quick zero',
+      method: {
+        unified: 'Unified',
+        legacyB: 'Legacy B',
+        legacyAVector: 'Legacy A',
+        legacyAEuler: 'Legacy A (Euler)',
+        legacyUnknownVector: 'Legacy (unknown source)',
+        manual: 'Manual',
+        none: 'Not calibrated'
+      },
+      summary: (p: { method: string; reference: string; quality: string }) => `Method: ${p.method} · Zero: ${p.reference} · ${p.quality}`,
+      referenceKind: { straight: 'straight', neutral: 'neutral pose' },
+      qualityShort: { high: 'quality high', medium: 'quality medium', low: 'quality low' },
+      unifiedStart: 'Calibrate',
+      quickRezeroStart: 'Quick re-zero',
+      legacySummary: 'Developer: legacy calibration',
+      legacyToggle: 'Show legacy calibration (A / B / mobility wizards)',
+      legacyHint: 'The legacy wizards are kept for comparison and rollback. Normal use goes through the unified calibration above.'
     },
     display: {
       language: 'Language',

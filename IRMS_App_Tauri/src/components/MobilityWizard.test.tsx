@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { installIrmsStub } from '../test/irmsApiStub'
 import { MobilityWizard } from './MobilityWizard'
 import { MobilityTrend } from './MobilityTrend'
+
+// MobilityTrend pulls in the unified flow, which imports the real bluetooth service.
+vi.mock('../services/bluetooth', () => ({
+  bluetoothService: { onRawMotion: () => () => {}, enableRawStream: vi.fn().mockResolvedValue(undefined) }
+}))
 
 describe('MobilityWizard intro', () => {
   it('needs a side, then starts; deselecting every movement blocks start', async () => {

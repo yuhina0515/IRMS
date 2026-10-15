@@ -8,6 +8,7 @@ import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
 import { zeroIsUpright } from '../services/calibrationCore'
+import { wearingCheck } from '../services/calibrationRuntime'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
 import { isProtocolSupported } from '@shared/types'
@@ -88,6 +89,16 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const canStart = blocker == null
 
   const handleStart = async (): Promise<void> => {
+    // Two-second wearing check against the stored unified reference: a turned strap or shifted sensor is
+    // reported before the session, never silently corrected. Inconclusive (moving, no profile) = no prompt.
+    if (!bluetoothService.isSimulated) {
+      const check = await wearingCheck()
+      if (check && check.verdict !== 'ok') {
+        const w = m.calibrationFlow.wearing
+        const ok = await requestConfirm(w.title, check.verdict === 'rezero' ? w.rezero : w.recalibrate)
+        if (!ok) return
+      }
+    }
     // 個人角度範圍沒有預設值:未量測時判定不做任何角度警示,開始前提醒一次(仍可開始)
     if (useStore.getState().angleRange == null && !bluetoothService.isSimulated) {
       const ok = await requestConfirm(m.clinical.noRangeTitle, m.clinical.noRangeBody)

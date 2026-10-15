@@ -7,6 +7,8 @@ import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { CalibrationWizardB } from '../components/CalibrationWizardB'
+import { CalibrationFlow } from '../components/CalibrationFlow'
+import type { Preset } from '../services/calibrationFlow'
 import { MobilityTrend } from '../components/MobilityTrend'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
@@ -174,6 +176,8 @@ function CalibrationPane(): JSX.Element {
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardBOpen, setWizardBOpen] = useState(false)
+  const [flowPreset, setFlowPreset] = useState<Preset | null>(null)
+  const [legacyOn, setLegacyOn] = useState(false)
   // A hand edit of a calibration number makes the wizard provenance untrue: mark it 'manual'
   // (it cannot be detected retroactively, so this only applies from now on).
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
@@ -216,19 +220,56 @@ function CalibrationPane(): JSX.Element {
               : mc.notCalibrated}
           </p>
         </div>
-        <button className="btn btn-primary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
-          {settings.lastCalibratedAt ? mc.recalibrate : mc.start}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          {settings.calibrationMethod === 'unified' && (
+            <button
+              className="btn btn-secondary"
+              data-testid="flow-quick-rezero"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setFlowPreset('quickRezero')}
+            >
+              {mc.quickRezeroStart}
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            data-testid="flow-open"
+            disabled={!isConnected || calibrationLocked}
+            onClick={() => setFlowPreset('calibrate')}
+          >
+            {settings.lastCalibratedAt ? mc.recalibrate : mc.unifiedStart}
+          </button>
+        </div>
       </div>
-      <button
-        className="btn btn-secondary"
-        data-testid="calib-b-open"
-        disabled={!isConnected || calibrationLocked}
-        onClick={() => setWizardBOpen(true)}
-      >
-        {m.calibrationB.title} ({m.calibrationB.beta})
-      </button>
-      <MobilityTrend disabled={!isConnected} />
+      <p className="field-hint" data-testid="calibration-summary">
+        {mc.summary({
+          method: mc.method[settings.calibrationMethod],
+          reference: settings.referenceKind ? mc.referenceKind[settings.referenceKind] : '-',
+          quality: settings.calibrationQuality ? mc.qualityShort[settings.calibrationQuality] : '-'
+        })}
+      </p>
+      <label className="field-hint">
+        <input type="checkbox" data-testid="legacy-toggle" checked={legacyOn} onChange={(e) => setLegacyOn(e.target.checked)} /> {mc.legacyToggle}
+      </label>
+      {legacyOn && (
+        <>
+          <p className="field-hint">{mc.legacyHint}</p>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-secondary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
+              {mc.start} (A)
+            </button>
+            <button
+              className="btn btn-secondary"
+              data-testid="calib-b-open"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setWizardBOpen(true)}
+            >
+              {m.calibrationB.title} ({m.calibrationB.beta})
+            </button>
+          </div>
+        </>
+      )}
+      <MobilityTrend disabled={!isConnected} legacy={legacyOn} />
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>
@@ -263,6 +304,7 @@ function CalibrationPane(): JSX.Element {
           {mc.quickZero}
         </button>
       </details>
+      {flowPreset && <CalibrationFlow preset={flowPreset} onClose={() => setFlowPreset(null)} />}
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
       {wizardBOpen && <CalibrationWizardB onClose={() => setWizardBOpen(false)} />}
     </>

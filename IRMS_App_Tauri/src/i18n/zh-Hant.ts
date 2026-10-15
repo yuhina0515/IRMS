@@ -593,6 +593,89 @@ export const zhHant = {
     latest: (p: { total: string }) => `最近 ${p.total}°`
   },
 
+  calibrationFlow: {
+    title: '感測器校準',
+    presetLabel: '校準內容',
+    presets: {
+      calibrate: { name: '只校準', desc: '零位 + 膝蓋彎曲 + 髖屈曲,約 2 分鐘。' },
+      mobility: { name: '校準 + 活動度', desc: '再加髖伸展與髖外展,並把各動作的最大穩定角度存為活動度紀錄。' },
+      quickRezero: { name: '快速重設零位', desc: '只重新量零位,沿用既有的轉軸;換穿或鬆動後使用。' }
+    },
+    sideHint: '選擇感測器穿戴的腿。',
+    intro: '感測器照平常穿戴即可,**隔著衣物也行**。零位預設是「膝蓋伸直站立」。流程中的動作請在安全範圍內慢慢做。',
+    postureLabel: '零位姿勢',
+    postures: { standing: '站立', longSitting: '長坐(腿伸直)', supine: '仰躺', seated: '坐姿', other: '其他' },
+    neutralLabel: '我的膝蓋無法完全伸直',
+    neutralHint: '勾選後零位記為「自然姿勢」。此時分段觸發與 3D/2D 姿態會停用,因為它們假設零位是直立的腿。',
+    start: '開始',
+    legacyTitle: '此韌體或連線需使用舊版校準',
+    legacyDesc: '目前的韌體(Euler 協定)或連線(BLE MTU 協商失敗,roll 資料沒有送達)不支援新流程,改用逐步的舊版校準。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    referenceTitle: '量測零位',
+    referenceStraight: '雙腿站直、膝蓋伸直,**維持不動**。',
+    referenceNeutral: '擺出你能做到最自然、放鬆的姿勢,**維持不動**。',
+    handsFree: (p: { sec: string }) => `免按鈕:姿勢穩定 ${p.sec} 秒會自動開始`,
+    capture: '開始(3 秒倒數)',
+    recording: '錄製中…',
+    moveNow: '現在慢慢做動作,到最大角度後停住。',
+    movementTitle: (p: { name: string }) => `動作:${p.name}`,
+    optionalNote: '這個動作可以略過;略過髖屈曲時只會建立小腿的校準。',
+    mandatoryNote: '膝蓋彎曲是必要的,用來決定小腿的座標。',
+    skip: '略過這個動作',
+    recapture: '重新量零位',
+    recaptureConfirmTitle: '重新量零位?',
+    recaptureConfirmBody: '所有動作都是對照舊零位量的,重新量零位會清掉已錄的動作。',
+    back: '返回',
+    reviewTitle: '確認結果',
+    quality: { high: '品質:高', medium: '品質:中', low: '品質:低,建議重做' },
+    warnings: {
+      shinOnly: '沒有大腿座標(已略過髖屈曲),大腿不會被補償。',
+      gyroWeak: '陀螺儀訊號偏弱,轉軸只用重力估計。',
+      gyroDisagrees: '重力與陀螺儀估計的轉軸不一致,請確認感測器沒有鬆動後重做。',
+      twoPoint: '動作幅度偏小,轉軸由兩點估計,可靠度較低。'
+    },
+    resultLine: (p: { name: string; peak: string }) => `${p.name}:${p.peak}°`,
+    driftWarn: '大腿在膝蓋動作中有移動,結果僅供參考。',
+    redo: '重做這個動作',
+    saveMobility: '同時儲存活動度紀錄',
+    apply: '套用',
+    discard: '放棄',
+    applied: '校準已套用',
+    applyFailed: '校準已套用,但儲存校準檔案失敗',
+    cancelledLink: '連線中斷或療程開始,校準已取消,未寫入任何資料。',
+    noData: '感測器資料不足,請確認連線後重試。',
+    noProfile: '找不到先前的校準檔案,請先做完整校準。',
+    unverified: '角度與量角器的吻合程度尚未在實機驗證。',
+    referenceErrors: {
+      invalidInput: '感測器資料無效,請重試。',
+      tooShort: '穩定的時間太短,請維持姿勢再試一次。',
+      shaking: '偵測到晃動,請維持不動再試一次。'
+    },
+    movementErrors: {
+      invalidInput: '感測器資料無效,請重試。',
+      needsThighFrame: '這個動作需要大腿座標,請先完成髖屈曲。',
+      wrongDirection: '動作方向與預期相反,請依指示重做。',
+      referenceMoved: '大腿在膝蓋動作中移動太多,請固定大腿只動小腿。',
+      noHold: '沒有偵測到穩定停留,請在最大角度停住約 2 秒。',
+      peakTooSmall: '停留的角度太小,請在安全範圍內再多做一點。',
+      implausible: '角度超出合理範圍,請確認感測器沒有滑動後重做。'
+    },
+    limbErrors: {
+      invalidInput: '感測器資料無效',
+      sweepTooSmall: '動作幅度太小',
+      sweepNotPlanar: '動作偏離了單一平面',
+      referenceOffPlane: '零位姿勢與動作平面不符',
+      wrongDirection: '動作方向與預期相反'
+    },
+    solveFailed: (p: { limb: string; reason: string }) => `${p.limb}無法建立座標:${p.reason}。請重做。`,
+    missing: { reference: '尚未量零位', side: '尚未選擇腿', kneeFlexion: '尚未錄膝蓋彎曲' },
+    wearing: {
+      rezero: '感測器相對零位有些偏移(約在屈伸方向)。建議先「快速重設零位」再開始。仍要開始嗎?',
+      recalibrate: '感測器相對零位出現側向旋轉,可能是綁帶轉動。建議重新校準再開始。仍要開始嗎?',
+      title: '穿戴檢查'
+    }
+  },
+
   calibrationB: {
     title: '校準 B',
     beta: 'beta',
@@ -685,7 +768,24 @@ export const zhHant = {
       manualHint: 'Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用「快速歸零」。',
       invertThigh: 'Invert Thigh 反相',
       invertShin: 'Invert Shin 反相',
-      quickZero: '快速歸零'
+      quickZero: '快速歸零',
+      method: {
+        unified: '統一校準',
+        legacyB: '舊版 B',
+        legacyAVector: '舊版 A',
+        legacyAEuler: '舊版 A(Euler)',
+        legacyUnknownVector: '舊版(來源不明)',
+        manual: '手動',
+        none: '尚未校準'
+      },
+      summary: (p: { method: string; reference: string; quality: string }) => `方式:${p.method} · 零位:${p.reference} · ${p.quality}`,
+      referenceKind: { straight: '伸直', neutral: '自然姿勢' },
+      qualityShort: { high: '品質高', medium: '品質中', low: '品質低' },
+      unifiedStart: '校準',
+      quickRezeroStart: '快速重設零位',
+      legacySummary: '開發者:舊版校準',
+      legacyToggle: '顯示舊版校準(A / B / 活動度精靈)',
+      legacyHint: '舊版精靈保留供比對與回溯,一般使用請走上方的統一校準。'
     },
     display: {
       language: '語言',
