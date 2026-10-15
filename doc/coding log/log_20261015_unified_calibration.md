@@ -48,7 +48,7 @@ Branch `feat/unified-calibration`, cut from `fix/ota-truncated-link-flow-control
 
 ## Design notes
 - `calibration_profiles` in migration 10 is simpler than the plan: `id, createdAt, side, profile (JSON), active`. The JSON carries everything else.
-- Old mobility rows keep a null schema and group as `legacy`; the trend never mixes methods.
+- Old mobility rows are tagged schema 1 with their side copied from the detail JSON (see QA fixes), so the trend never mixes methods or sides.
 - The gyro-fusion benefit cannot be demonstrated in the simulator (it models no out-of-plane disturbance), so only that it does not hurt is tested.
 
 ## Tests
@@ -65,3 +65,16 @@ Goniometer accuracy of the signed knee; the parallel-hinge assumption with real 
 
 ## S9 (skipped)
 The hardware gate: bench check against a goniometer and real-strap tests. It needs the device and a human; skipped by instruction. Until it is done, the unified method should be treated as unverified on hardware.
+
+## QA fixes
+Each bug was reproduced by a failing test first, then fixed.
+- BUG1 (safety): editing the advanced fold set `calibrationMethod` to `manual`, which dropped the signed knee and the hyperextension alarm. The fold's fields and the legacy quick zero are now locked on a unified profile, with a note pointing to Calibrate / Quick re-zero. Also covers RISK5 (the old quick zero skipped the off-plane check and left the stored profile stale).
+- BUG2 (safety): a truncated BLE link drops `V:`, so the knee came from unset Euler zeros and was always positive. `applyCalibration` now returns a NaN knee for a unified profile without the needed vectors, the BLE handler drops that sample, Start is blocked (`unifiedNeedsVectors`) and `startSession` refuses.
+- RISK4: Apply writes the profile first and changes the live settings only on success; a failed write keeps the flow open with an error. A failed mobility-record write after a good profile write is reported separately.
+- RISK6: `zeroIsUpright` is false for a shin-only unified profile (no thigh frame).
+- RISK3: the wearing check names the reference posture before sampling (declining cancels the start), and an inconclusive reading asks "start anyway?" instead of starting silently.
+- NIT: migration 10 now tags existing mobility rows schema 1 and copies `side` from the detail JSON. Migration 10 was never in a release (no tag contains it, branch unpushed), so it was amended in place. A dev database already at version 10 will not re-run it.
+- Tests after the fixes: vitest 64 files / 611 tests, cargo 101 passed / 3 ignored (migration test rewritten), tsc, fmt, clippy and build clean.
+
+### Still open (need hardware)
+- RISK7 and RISK8 were not addressed; both need a device to reproduce or confirm.
