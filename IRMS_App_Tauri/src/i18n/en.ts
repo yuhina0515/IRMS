@@ -7,6 +7,7 @@ import type { Messages } from './zh-Hant'
 export const en = {
   clinical: {
     overLimit: (p: { deg: string }) => `⚠ ${p.deg}° past your limit range. Lower your leg now`,
+    hyperextension: (p: { deg: string }) => `⚠ Knee hyperextended ${p.deg}°. Relax it, do not push backward`,
     straightenKnee: (p: { deg: string }) => `Straighten your knee ${p.deg}° more`,
     metric: {
       kneeAngle: 'Knee joint angle',
@@ -50,6 +51,8 @@ export const en = {
       sensorFaultSub: 'Feedback is paused until the sensor recovers. You can end the session at any time',
       overLimitTitle: 'Past your limit range. Stop going deeper',
       overLimitSub: (p: { knee: string; limit: string }) => `Knee angle ${p.knee}° · your limit range ${p.limit}°`,
+      hyperTitle: 'Knee hyperextended. Relax it',
+      hyperSub: (p: { deg: string }) => `Your knee is pushed back ${p.deg}°. Relax the leg and do not press backward`,
       holding: 'Good, hold this position',
       holdingSub: (p: { sec: string }) => `In the target zone. Hold for ${p.sec} s`,
       restPending: 'Done. Return to the start position',
@@ -136,6 +139,7 @@ export const en = {
     rep: (p: { n: number }) => `Rep ${p.n} complete`,
     hold: 'Hold',
     overLimit: 'Beyond your limit angle, ease off slowly',
+    hyperextension: 'Knee hyperextended, relax it',
     sessionEnd: (p: { n: number }) => `Session finished, ${p.n} ${p.n === 1 ? 'rep' : 'reps'}`,
     connectionLost: 'Connection lost, session ended'
   },

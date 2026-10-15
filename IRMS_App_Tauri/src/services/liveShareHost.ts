@@ -24,7 +24,8 @@ export interface LiveSnapshot {
   hardwareError: string | null
   triggerType: TriggerType
   metric: { label: string; value: number | null; unit: string }
-  angles: { knee: number; thigh: number; shin: number } | null
+  /** knee is clamped at 0 for consumers that predate signed knees; kneeSigned keeps the sign (negative = hyperextension). */
+  angles: { knee: number; kneeSigned: number; thigh: number; shin: number } | null
   params: SessionParams
   zone: { min: number; max: number | null; rest: number }
   /** 使用者本人的舒適角度/極限範圍(膝角);未量測為 null */
@@ -73,7 +74,7 @@ export function buildSnapshot(): LiveSnapshot {
     hardwareError: s.hardwareError,
     triggerType: cfg.triggerType,
     metric: { label: info.label, value: value == null ? null : round1(value), unit: info.unit },
-    angles: s.angles ? { knee: round1(s.angles.knee), thigh: round1(s.angles.thigh), shin: round1(s.angles.shin) } : null,
+    angles: s.angles ? { knee: round1(Math.max(0, s.angles.knee)), kneeSigned: round1(s.angles.knee), thigh: round1(s.angles.thigh), shin: round1(s.angles.shin) } : null,
     params: { targetAngle: cfg.targetAngle, tolerance: cfg.tolerance, holdTimeMs: cfg.holdTimeMs },
     zone: { min: zone.min, max: Number.isFinite(zone.max) ? zone.max : null, rest: zone.rest },
     limits: { comfort: cfg.limits?.comfort ?? null, limit: cfg.limits?.limit ?? null },

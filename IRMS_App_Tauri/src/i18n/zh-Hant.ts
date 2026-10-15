@@ -16,6 +16,8 @@ export const zhHant = {
   clinical: {
     /** 膝角超過使用者個人極限範圍時的緊急回落提示 */
     overLimit: (p: { deg: string }) => `⚠ 超出極限範圍 ${p.deg}°,請立即回落`,
+    /** 膝蓋過度伸直(帶符號膝角低於 0 超過容許值);措辭待負責人審閱 */
+    hyperextension: (p: { deg: string }) => `⚠ 膝蓋過度伸直 ${p.deg}°,請放鬆,不要向後頂`,
     /** segment 類動作的前置條件:膝蓋需近乎打直 */
     straightenKnee: (p: { deg: string }) => `膝蓋再打直 ${p.deg}°`,
     /** 主指標名稱(movementMetric.metricInfo) */
@@ -67,6 +69,8 @@ export const zhHant = {
       sensorFaultSub: '已停止回饋輸出,等待感測器復原;可隨時結束療程',
       overLimitTitle: '超出極限範圍,請停止加深',
       overLimitSub: (p: { knee: string; limit: string }) => `膝角 ${p.knee}° · 你的極限範圍 ${p.limit}°`,
+      hyperTitle: '膝蓋過度伸直,請放鬆',
+      hyperSub: (p: { deg: string }) => `膝蓋往後頂了 ${p.deg}°。把腿放鬆,不要用力向後壓`,
       holding: '很好,保持這個位置',
       holdingSub: (p: { sec: string }) => `已進入目標區間,保持滿 ${p.sec} 秒`,
       restPending: '已完成,請回到起始位',
@@ -159,6 +163,7 @@ export const zhHant = {
     rep: (p: { n: number }) => `第 ${p.n} 下完成`,
     hold: '保持',
     overLimit: '超過極限角度,請慢慢放鬆',
+    hyperextension: '膝蓋過度伸直,請放鬆',
     sessionEnd: (p: { n: number }) => `療程結束,共完成 ${p.n} 下`,
     connectionLost: '連線中斷,療程已結束'
   },

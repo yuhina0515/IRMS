@@ -7,6 +7,7 @@ import { formatNumber, getLocale, t, type Locale } from '../i18n'
 
 export type Guidance =
   | { kind: 'noData' }
+  | { kind: 'hyperextension'; deg: number }
   | { kind: 'overLimit'; excessDeg: number }
   | { kind: 'straightenKnee'; excessDeg: number }
   | { kind: 'raise'; deltaDeg: number }
@@ -23,6 +24,9 @@ export function computeGuidance(
   limits: AngleLimits = NO_LIMITS
 ): Guidance {
   if (!sample) return { kind: 'noData' }
+
+  // Hyperextension (unified calibration only) outranks everything else.
+  if (sample.hyperextended) return { kind: 'hyperextension', deg: -sample.knee }
 
   // 安全優先:膝角超過個人極限範圍時,無論 phase 一律先要求回落。
   // 超過舒適角度不在這裡處理——它只是提示,不該蓋掉「保持」等正常引導(由畫面另行顯示)。
@@ -72,6 +76,8 @@ export function guidanceText(g: Guidance, info: MetricInfo, locale: Locale = get
   switch (g.kind) {
     case 'noData':
       return m.guidance.noData
+    case 'hyperextension':
+      return m.clinical.hyperextension({ deg: fmt(locale, g.deg) })
     case 'overLimit':
       return m.clinical.overLimit({ deg: fmt(locale, g.excessDeg) })
     case 'straightenKnee':

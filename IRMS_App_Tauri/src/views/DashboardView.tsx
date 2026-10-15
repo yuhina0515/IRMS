@@ -93,6 +93,8 @@ export function DashboardView(): JSX.Element {
   // State contract (PROPOSAL §5): fault / beyond personal limit → blocking conditions → coaching.
   const coach: Coach = hardwareError
     ? { tone: 'danger', mark: '×', title: c.sensorFault({ code: hardwareError }), sub: c.sensorFaultSub }
+    : guidance.kind === 'hyperextension'
+      ? { tone: 'danger', mark: '!', title: c.hyperTitle, sub: c.hyperSub({ deg: n0(-(sample?.knee ?? 0)) }) }
     : session.alarmActive || guidance.kind === 'overLimit'
       ? {
           tone: 'danger',

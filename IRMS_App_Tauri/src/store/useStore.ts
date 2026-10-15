@@ -880,6 +880,20 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
     knee = Math.abs(vectorAngleDeg(raw.thighAccel, raw.shinAccel) - (s.kneeZeroRaw ?? 0))
   }
 
+  // Unified calibration (plan 2026-10-15): both limb angles are forward-positive about a common hinge direction,
+  // so the SIGNED knee is thigh minus shin and hyperextension stays negative instead of being folded into +flexion
+  // (finding X3). Legacy methods above are untouched. A profile without a thigh frame (shin only) has no thigh
+  // compensation: the thigh reads 0 and the knee is the negated shin angle.
+  if (s.calibrationMethod === 'unified' && raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis) {
+    if (hingeFramed) {
+      knee = shortestArcDelta(shin, thigh)
+    } else {
+      thigh = 0
+      thighRoll = 0
+      knee = normalizeDeg(-shin)
+    }
+  }
+
   return {
     thigh,
     shin,
