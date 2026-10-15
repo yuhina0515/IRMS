@@ -402,6 +402,30 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
   })
 })
 
+describe('buildQuickZeroPatch with hinge axes (finding X1)', () => {
+  it('keeps the reference perpendicular to the hinge so the re-zeroed pose reads 0 deg', () => {
+    const hinge = { x: 1, y: 0, z: 0 }
+    const hinged: Settings = { ...SETTINGS, proximalHingeAxis: hinge, distalHingeAxis: hinge }
+    // Current still pose is tilted 10 deg out of the hinge plane (x component 0.17).
+    const tilted = { x: 0.1736, y: 0, z: 0.9848 }
+    const cur: RawAngles = { ...raw(0, 0), thighAccel: tilted, shinAccel: tilted }
+    const patch = buildQuickZeroPatch(cur, hinged)
+    for (const z of [patch.proximalZeroAccel, patch.distalZeroAccel]) {
+      if (!z) throw new Error('zero missing')
+      expect(Math.abs(z.x * hinge.x + z.y * hinge.y + z.z * hinge.z)).toBeLessThan(1e-9)
+    }
+    const stand = applyCalibration(cur, { ...hinged, ...patch })
+    expect(stand.thigh).toBeCloseTo(0, 5)
+    expect(stand.shin).toBeCloseTo(0, 5)
+  })
+
+  it('without hinge axes the reference is stored unchanged', () => {
+    const v = { x: 0.1, y: 0.2, z: 0.97 }
+    const patch = buildQuickZeroPatch({ ...raw(0, 0), thighAccel: v, shinAccel: v }, SETTINGS)
+    expect(patch.proximalZeroAccel).toEqual(v)
+  })
+})
+
 describe('校準快照(migration 6)', () => {
   it('快照涵蓋全部被凍結的欄位,一個都不少', () => {
     // 漏掉任一欄位,那個欄位就是「有在影響角度、卻沒被記錄」——正是這個功能要消滅的狀況
