@@ -321,7 +321,8 @@ export const en = {
       firmwareUpdating: 'Updating firmware',
       notConnected: 'Connect a device first',
       noAction: 'Select an exercise first',
-      notCalibrated: 'Calibrate first'
+      notCalibrated: 'Calibrate first',
+      segmentNeedsUprightZero: 'Leg-raise exercises need a straight-knee, standing calibration. Recalibrate or pick a knee exercise'
     },
     firmwareUpdatingPct: (p: { pct: number }) => `Updating firmware ${p.pct}%`,
     started: 'Session started',
@@ -370,7 +371,8 @@ export const en = {
     view2d: '2D side',
     values: 'Values',
     loading3d: 'Loading 3D…',
-    notCalibratedCaption: '! Not calibrated'
+    notCalibratedCaption: '! Not calibrated',
+    poseNeedsUprightZero: 'The calibration zero is not a straight-knee standing leg, so the pose drawing would be misleading and is hidden. Readings and alarms are unaffected; recalibrate to see the pose.'
   },
 
   actions: {

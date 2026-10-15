@@ -349,7 +349,8 @@ export const zhHant = {
       firmwareUpdating: '韌體更新中',
       notConnected: '請先連線裝置',
       noAction: '請先選擇動作',
-      notCalibrated: '請先完成校準'
+      notCalibrated: '請先完成校準',
+      segmentNeedsUprightZero: '抬腿類動作需要「站姿、膝蓋打直」的校準。請重新校準,或改選膝蓋動作'
     },
     firmwareUpdatingPct: (p: { pct: number }) => `韌體更新中 ${p.pct}%`,
     started: '療程已開始',
@@ -398,7 +399,8 @@ export const zhHant = {
     view2d: '2D 側面',
     values: '數值',
     loading3d: '載入 3D…',
-    notCalibratedCaption: '! 尚未校準'
+    notCalibratedCaption: '! 尚未校準',
+    poseNeedsUprightZero: '目前的校準零點不是「站姿、膝蓋打直」,姿勢圖會失真,已先隱藏。數值與警示不受影響;想看姿勢圖請重新校準。'
   },
 
   actions: {

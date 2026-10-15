@@ -7,6 +7,7 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
+import { zeroIsUpright } from '../services/calibrationCore'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
 import { isProtocolSupported } from '@shared/types'
@@ -37,6 +38,8 @@ export function startBlocker(s: {
   calibrated: boolean
   simulated: boolean
   running: boolean
+  /** The selected action is a segment trigger but the calibration zero is not an upright leg. */
+  segmentNeedsUprightZero?: boolean
 }): StartBlocker | null {
   if (s.running) return 'running'
   if (!s.protocolOk) return 'protocolUnsupported'
@@ -46,6 +49,7 @@ export function startBlocker(s: {
   // 2026-09-25 使用者裁定:未校準不得開始。實測證明角度正確性取決於校準
   // (衣物墊高讓感測器不平行);示範模式的模擬姿態本身就在校準座標系,不受此限。
   if (!s.calibrated && !s.simulated) return 'notCalibrated'
+  if (s.segmentNeedsUprightZero) return 'segmentNeedsUprightZero'
   return null
 }
 
@@ -55,6 +59,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const setParams = useStore((s) => s.setParams)
   const protocol = useStore((s) => s.settings.protocol)
   const calibrated = useStore((s) => s.settings.lastCalibratedAt != null)
+  const zeroUpright = useStore((s) => zeroIsUpright(s.settings))
   const actions = useStore((s) => s.customActions)
   const selectedActionId = useStore((s) => s.selectedActionId)
   const selectAction = useStore((s) => s.selectAction)
@@ -69,6 +74,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const running = session.running
   const protocolOk = isProtocolSupported(protocol)
   const fwBusy = firmwareUpdateBusy(fwStatus)
+  const selectedTrigger = actions.find((a) => a.id === selectedActionId)?.triggerType
   const blocker = startBlocker({
     protocolOk,
     fwBusy,
@@ -76,7 +82,8 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     hasAction: selectedActionId != null,
     calibrated,
     simulated: bluetoothService.isSimulated,
-    running
+    running,
+    segmentNeedsUprightZero: selectedTrigger != null && selectedTrigger !== 'joint_angle' && !zeroUpright
   })
   const canStart = blocker == null
 

@@ -12,6 +12,7 @@ import {
   limbAngles,
   rezeroLimb,
   solveProfile,
+  zeroIsUpright,
   type CalibrationProfile,
   type Frame,
   type Side
@@ -411,5 +412,21 @@ describe('compileProfile', () => {
     const rig = createRig({ seed: 1 })
     const patch = compileProfile(buildProfile(rig, { thigh: false }))
     expect(patch.proximalHingeAxis).toBeNull()
+  })
+})
+
+describe('zeroIsUpright (segment trigger and pose gating)', () => {
+  const s = (calibrationMethod: string, referenceKind: string | null, referencePosture: string | null) =>
+    ({ calibrationMethod, referenceKind, referencePosture }) as never
+  it('is true for a straight standing unified zero and for any legacy calibration', () => {
+    expect(zeroIsUpright(s('unified', 'straight', 'standing'))).toBe(true)
+    expect(zeroIsUpright(s('unified', 'straight', null))).toBe(true)
+    expect(zeroIsUpright(s('legacyAEuler', null, null))).toBe(true)
+    expect(zeroIsUpright(s('none', null, null))).toBe(true)
+  })
+  it('is false for a neutral (cannot fully straighten) zero or a non-standing posture', () => {
+    expect(zeroIsUpright(s('unified', 'neutral', 'standing'))).toBe(false)
+    expect(zeroIsUpright(s('unified', 'straight', 'longSitting'))).toBe(false)
+    expect(zeroIsUpright(s('unified', 'straight', 'supine'))).toBe(false)
   })
 })

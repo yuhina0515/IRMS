@@ -594,3 +594,16 @@ export function checkReference(profile: CalibrationProfile, current: { thigh: V3
 export function isUnified(settings: Pick<Settings, 'calibrationMethod'>): boolean {
   return settings.calibrationMethod === 'unified'
 }
+
+/**
+ * Segment elevation/extension read the thigh angle against the zero, so they mean "from upright" only when the
+ * zero is an upright leg. A zero recorded with "cannot fully straighten" (neutral) or in a sitting/lying posture
+ * would silently shift every reading, so the triggers and the pose views that assume an upright zero are withheld.
+ * Legacy calibrations keep their existing behaviour untouched.
+ */
+export function zeroIsUpright(
+  settings: Pick<Settings, 'calibrationMethod' | 'referenceKind' | 'referencePosture'>
+): boolean {
+  if (settings.calibrationMethod !== 'unified') return true
+  return settings.referenceKind !== 'neutral' && (settings.referencePosture == null || settings.referencePosture === 'standing')
+}

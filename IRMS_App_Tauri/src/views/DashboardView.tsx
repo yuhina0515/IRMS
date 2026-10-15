@@ -9,6 +9,7 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { computeMetricSample, computeMetricZone, metricInfo } from '../services/movementMetric'
 import { computeGuidance, guidanceText } from '../services/guidance'
+import { zeroIsUpright } from '../services/calibrationCore'
 import { PoseSide } from '../components/PoseSide'
 import { SessionDock } from '../components/SessionDock'
 import { CalibrationWizard } from '../components/CalibrationWizard'
@@ -62,6 +63,7 @@ export function DashboardView(): JSX.Element {
   const lastCalibratedAt = useStore((s) => s.settings.lastCalibratedAt)
   const protocol = useStore((s) => s.settings.protocol)
   const poseView = useStore((s) => s.settings.poseView)
+  const zeroUpright = useStore((s) => zeroIsUpright(s.settings))
   const setSettings = useStore((s) => s.setSettings)
   const action = useStore((s) => s.customActions.find((a) => a.id === s.selectedActionId))
   const demoMode = useUiStore((s) => s.demoMode)
@@ -263,8 +265,13 @@ export function DashboardView(): JSX.Element {
               </div>
             </div>
             <div className="v3-pose-body">
-              {stage === '2d' && <PoseSide triggerType={triggerType} targetMin={zone.min} inZone={inZone} />}
-              {stage === '3d' && (
+              {!zeroUpright && stage !== 'detail' && (
+                <p className="v3-pose-caption" role="status" data-testid="pose-needs-upright-zero">
+                  {m.dashboard.poseNeedsUprightZero}
+                </p>
+              )}
+              {zeroUpright && stage === '2d' && <PoseSide triggerType={triggerType} targetMin={zone.min} inZone={inZone} />}
+              {zeroUpright && stage === '3d' && (
                 <Suspense fallback={<span className="v3-pose-caption">{m.dashboard.loading3d}</span>}>
                   <Leg3D />
                 </Suspense>
