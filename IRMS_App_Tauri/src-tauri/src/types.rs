@@ -317,6 +317,12 @@ pub struct MobilityRecordRow {
     pub movement_set: String,
     pub total_deg: f64,
     pub detail: String,
+    /// Method identity (migration 10); all None on rows measured before the unified scheme.
+    pub schema: Option<i64>,
+    pub side: Option<String>,
+    pub reference_kind: Option<String>,
+    pub posture: Option<String>,
+    pub calibration_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -325,6 +331,36 @@ pub struct MobilityRecordInput {
     pub movement_set: String,
     pub total_deg: f64,
     pub detail: String,
+    #[serde(default)]
+    pub schema: Option<i64>,
+    #[serde(default)]
+    pub side: Option<String>,
+    #[serde(default)]
+    pub reference_kind: Option<String>,
+    #[serde(default)]
+    pub posture: Option<String>,
+    #[serde(default)]
+    pub calibration_id: Option<String>,
+}
+
+/// A stored unified calibration profile (migration 10). `profile` is app-built JSON.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalibrationProfileRow {
+    pub id: String,
+    pub created_at: String,
+    pub side: String,
+    pub profile: String,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalibrationProfileInput {
+    pub id: String,
+    pub side: String,
+    pub profile: String,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

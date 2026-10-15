@@ -162,7 +162,7 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
 * 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
-### 4.3 SQLite Schema(目前 `user_version = 9`)
+### 4.3 SQLite Schema(目前 `user_version = 10`)
 
 > 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
 > DB 檔存於 Tauri 的 app data 目錄(不進版控)。
@@ -197,7 +197,10 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
     `comfortAngle`、`limitAngle` 選填、`note`),由獨立發佈的 `angle-range` 模組寫入;不綁動作類型。
   * `mobility_records`(migration 9):長期活動度紀錄(`id`、`measuredAt`、`movementSet` 排序後以 `+` 串接的動作 id、
     `totalDeg` 0–1000 該組動作各保持峰值之和、`detail` 不透明 JSON 預設 `'{}'`,資料庫不解讀其內容);
-    僅同一 `movementSet` 之間可比較趨勢。
+    僅同一 `movementSet` 之間可比較趨勢。migration 10 另加可為 NULL 的方法身分欄位
+    `schema`、`side`、`referenceKind`、`posture`、`calibrationId`(NULL = 統一校正之前的紀錄)。
+  * `calibration_profiles`(migration 10):統一校正檔案(`id` TEXT 主鍵、`createdAt`、`side` left/right、
+    `profile` 不透明 JSON、`active` 0/1;一台裝置一位病人,沒有擁有者欄位)。
   * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
     歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
   * ⚠ **`source` 刻意不採「NULL = 舊行為」慣例**(migration 4/5/6 都採)。那三次的 NULL

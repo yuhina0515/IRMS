@@ -182,6 +182,31 @@ fn migration_9(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
+    // Unified calibration (2026-10-15). `calibration_profiles` keeps the app-built profile JSON
+    // (opaque to the database) so a profile can be listed, compared and restored; one device is one
+    // patient, so there is no owner column. Mobility records gain nullable method-identity columns:
+    // old rows stay NULL (= measured before the unified scheme) and the app draws a method break
+    // between rows whose identity differs, instead of trending across incompatible references.
+    conn.execute_batch(
+        "
+        CREATE TABLE calibration_profiles (
+            id TEXT PRIMARY KEY CHECK (length(id) > 0),
+            createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            side TEXT NOT NULL CHECK (side IN ('left','right')),
+            profile TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 0 CHECK (active IN (0,1))
+        );
+        ALTER TABLE mobility_records ADD COLUMN schema INTEGER;
+        ALTER TABLE mobility_records ADD COLUMN side TEXT CHECK (side IS NULL OR side IN ('left','right'));
+        ALTER TABLE mobility_records ADD COLUMN referenceKind TEXT
+            CHECK (referenceKind IS NULL OR referenceKind IN ('straight','neutral'));
+        ALTER TABLE mobility_records ADD COLUMN posture TEXT;
+        ALTER TABLE mobility_records ADD COLUMN calibrationId TEXT;
+        ",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -227,6 +252,11 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 9,
         name: "mobility records (strategy C long-term range-of-motion total)",
         up: migration_9,
+    },
+    Migration {
+        version: 10,
+        name: "calibration profiles; mobility records carry method identity",
+        up: migration_10,
     },
 ];
 
@@ -565,7 +595,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8, 9]
+                vec![7, 8, 9, 10]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();
@@ -576,6 +606,41 @@ mod tests {
                 .collect();
             assert_eq!(sources.len(), 2);
             assert!(sources.iter().all(|s| s == "device"));
+        }
+
+        #[test]
+        fn upgrading_from_v9_keeps_mobility_rows_with_null_identity() {
+            let db = fresh();
+            assert_eq!(
+                apply_migrations(&db, &MIGRATIONS[..9], noop_log)
+                    .unwrap()
+                    .len(),
+                9
+            );
+            db.execute(
+                "INSERT INTO mobility_records (movementSet, totalDeg) VALUES ('kneeFlexion', 130)",
+                [],
+            )
+            .unwrap();
+            assert_eq!(
+                apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
+                vec![10]
+            );
+            let (total, schema, side, cal): (f64, Option<i64>, Option<String>, Option<String>) = db
+                .query_row(
+                    "SELECT totalDeg, schema, side, calibrationId FROM mobility_records",
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+                )
+                .unwrap();
+            assert_eq!(total, 130.0);
+            assert!(schema.is_none() && side.is_none() && cal.is_none());
+            let n: i64 = db
+                .query_row("SELECT count(*) FROM calibration_profiles", [], |r| {
+                    r.get(0)
+                })
+                .unwrap();
+            assert_eq!(n, 0);
         }
 
         #[test]

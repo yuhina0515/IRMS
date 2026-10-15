@@ -92,12 +92,39 @@ export interface MobilityRecordRow {
   movementSet: string
   totalDeg: number
   detail: string
+  /** 方法身分(migration 10);null = 統一校正方案之前量的紀錄 */
+  schema: number | null
+  side: 'left' | 'right' | null
+  referenceKind: ReferenceKind | null
+  posture: string | null
+  calibrationId: string | null
 }
 
 export interface MobilityRecordInput {
   movementSet: string
   totalDeg: number
   detail: string
+  schema?: number | null
+  side?: 'left' | 'right' | null
+  referenceKind?: ReferenceKind | null
+  posture?: string | null
+  calibrationId?: string | null
+}
+
+/** 統一校正檔案(migration 10);profile 是 App 組出的 JSON,資料庫不解讀 */
+export interface CalibrationProfileRow {
+  id: string
+  createdAt: string
+  side: 'left' | 'right'
+  profile: string
+  active: boolean
+}
+
+export interface CalibrationProfileInput {
+  id: string
+  side: 'left' | 'right'
+  profile: string
+  active: boolean
 }
 
 /** 建立/更新動作的輸入(無 id) */
@@ -340,6 +367,11 @@ export interface IrmsApi {
     list(): Promise<MobilityRecordRow[]>
     add(input: MobilityRecordInput): Promise<MobilityRecordRow>
     remove(id: number): Promise<void>
+  }
+  calibrationProfiles: {
+    list(): Promise<CalibrationProfileRow[]>
+    add(input: CalibrationProfileInput): Promise<CalibrationProfileRow>
+    remove(id: string): Promise<void>
   }
   data: {
     appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>

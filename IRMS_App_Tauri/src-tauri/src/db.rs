@@ -220,6 +220,11 @@ pub mod mobility_repo {
             movement_set: row.get("movementSet")?,
             total_deg: row.get("totalDeg")?,
             detail: row.get("detail")?,
+            schema: row.get("schema")?,
+            side: row.get("side")?,
+            reference_kind: row.get("referenceKind")?,
+            posture: row.get("posture")?,
+            calibration_id: row.get("calibrationId")?,
         })
     }
 
@@ -236,8 +241,18 @@ pub mod mobility_repo {
         input: &MobilityRecordInput,
     ) -> rusqlite::Result<MobilityRecordRow> {
         conn.execute(
-            "INSERT INTO mobility_records (movementSet, totalDeg, detail) VALUES (?1, ?2, ?3)",
-            params![input.movement_set, input.total_deg, input.detail],
+            "INSERT INTO mobility_records (movementSet, totalDeg, detail, schema, side, referenceKind, posture, calibrationId)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                input.movement_set,
+                input.total_deg,
+                input.detail,
+                input.schema,
+                input.side,
+                input.reference_kind,
+                input.posture,
+                input.calibration_id
+            ],
         )?;
         let id = conn.last_insert_rowid();
         conn.query_row(
@@ -249,6 +264,56 @@ pub mod mobility_repo {
 
     pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
         conn.execute("DELETE FROM mobility_records WHERE id = ?1", [id])?;
+        Ok(())
+    }
+}
+
+pub mod calibration_repo {
+    use super::*;
+    use crate::types::{CalibrationProfileInput, CalibrationProfileRow};
+
+    fn row_to_profile(row: &rusqlite::Row) -> rusqlite::Result<CalibrationProfileRow> {
+        Ok(CalibrationProfileRow {
+            id: row.get("id")?,
+            created_at: row.get("createdAt")?,
+            side: row.get("side")?,
+            profile: row.get("profile")?,
+            active: row.get::<_, i64>("active")? != 0,
+        })
+    }
+
+    /// Newest first.
+    pub fn list(conn: &Connection) -> rusqlite::Result<Vec<CalibrationProfileRow>> {
+        let mut stmt =
+            conn.prepare("SELECT * FROM calibration_profiles ORDER BY createdAt DESC, rowid DESC")?;
+        let rows = stmt.query_map([], row_to_profile)?;
+        rows.collect()
+    }
+
+    /// Inserts a profile; when `active`, it becomes the only active one (one device = one patient).
+    pub fn add(
+        conn: &mut Connection,
+        input: &CalibrationProfileInput,
+    ) -> rusqlite::Result<CalibrationProfileRow> {
+        let tx = conn.transaction()?;
+        if input.active {
+            tx.execute("UPDATE calibration_profiles SET active = 0", [])?;
+        }
+        tx.execute(
+            "INSERT INTO calibration_profiles (id, side, profile, active) VALUES (?1, ?2, ?3, ?4)",
+            params![input.id, input.side, input.profile, input.active as i64],
+        )?;
+        let row = tx.query_row(
+            "SELECT * FROM calibration_profiles WHERE id = ?1",
+            [&input.id],
+            row_to_profile,
+        )?;
+        tx.commit()?;
+        Ok(row)
+    }
+
+    pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<()> {
+        conn.execute("DELETE FROM calibration_profiles WHERE id = ?1", [id])?;
         Ok(())
     }
 }
@@ -597,10 +662,16 @@ mod tests {
                 movement_set: "kneeFlexion".into(),
                 total_deg: 130.5,
                 detail: "{\"peaks\":{\"kneeFlexion\":130.5}}".into(),
+                schema: None,
+                side: None,
+                reference_kind: None,
+                posture: None,
+                calibration_id: None,
             },
         )
         .unwrap();
         assert_eq!(a.total_deg, 130.5);
+        assert!(a.schema.is_none() && a.side.is_none() && a.calibration_id.is_none());
         assert!(a.detail.contains("kneeFlexion"));
         assert_eq!(mobility_repo::list(&db).unwrap().len(), 1);
         for bad in [("", 10.0), ("kneeFlexion", -1.0), ("kneeFlexion", 5000.0)] {
@@ -610,12 +681,61 @@ mod tests {
                     movement_set: bad.0.into(),
                     total_deg: bad.1,
                     detail: "{}".into(),
+                    schema: None,
+                    side: None,
+                    reference_kind: None,
+                    posture: None,
+                    calibration_id: None,
                 },
             )
             .is_err());
         }
         mobility_repo::delete(&db, a.id).unwrap();
         assert!(mobility_repo::list(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn mobility_method_identity_roundtrip_and_constraints() {
+        let db = fresh_db();
+        let mk = |side: Option<&str>, kind: Option<&str>| crate::types::MobilityRecordInput {
+            movement_set: "kneeFlexion".into(),
+            total_deg: 120.0,
+            detail: "{}".into(),
+            schema: Some(2),
+            side: side.map(String::from),
+            reference_kind: kind.map(String::from),
+            posture: Some("standing".into()),
+            calibration_id: Some("cal-1".into()),
+        };
+        let r = mobility_repo::add(&db, &mk(Some("left"), Some("straight"))).unwrap();
+        assert_eq!(r.schema, Some(2));
+        assert_eq!(r.side.as_deref(), Some("left"));
+        assert_eq!(r.reference_kind.as_deref(), Some("straight"));
+        assert_eq!(r.calibration_id.as_deref(), Some("cal-1"));
+        assert!(mobility_repo::add(&db, &mk(Some("up"), None)).is_err());
+        assert!(mobility_repo::add(&db, &mk(None, Some("bogus"))).is_err());
+    }
+
+    #[test]
+    fn calibration_profiles_roundtrip_and_single_active() {
+        let mut db = fresh_db();
+        let mk = |id: &str, side: &str, active: bool| crate::types::CalibrationProfileInput {
+            id: id.into(),
+            side: side.into(),
+            profile: "{\"v\":1}".into(),
+            active,
+        };
+        calibration_repo::add(&mut db, &mk("a", "left", true)).unwrap();
+        let b = calibration_repo::add(&mut db, &mk("b", "right", true)).unwrap();
+        assert!(b.active);
+        let rows = calibration_repo::list(&db).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.iter().filter(|r| r.active).count(), 1);
+        assert!(calibration_repo::add(&mut db, &mk("a", "left", false)).is_err());
+        assert!(calibration_repo::add(&mut db, &mk("c", "both", false)).is_err());
+        assert!(calibration_repo::add(&mut db, &mk("", "left", false)).is_err());
+        calibration_repo::delete(&db, "a").unwrap();
+        assert_eq!(calibration_repo::list(&db).unwrap().len(), 1);
     }
 
     #[test]
