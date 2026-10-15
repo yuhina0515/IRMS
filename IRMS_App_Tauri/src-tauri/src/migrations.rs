@@ -641,7 +641,8 @@ mod tests {
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
                 vec![10]
             );
-            let rows: Vec<(f64, Option<i64>, Option<String>, Option<String>)> = db
+            type Row = (f64, Option<i64>, Option<String>, Option<String>);
+            let rows: Vec<Row> = db
                 .prepare("SELECT totalDeg, schema, side, calibrationId FROM mobility_records ORDER BY id")
                 .unwrap()
                 .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
