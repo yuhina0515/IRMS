@@ -5,6 +5,7 @@ import {
   heldPeak,
   HOLD_MIN_SAMPLES,
   MOBILITY_UNIFIED_SCHEMA,
+  methodKey,
   MOVEMENTS,
   solveMovement,
   trendWithBreaks,
@@ -279,5 +280,14 @@ describe('mobility record', () => {
       const current = mk('b', 2)
       expect(trendWithBreaks([mk('a', 1), current], current).some((e) => e.kind === 'methodBreak')).toBe(false)
     })
+  })
+})
+
+describe('methodKey for migrated legacy rows (schema 1)', () => {
+  it('keeps left and right legacy records in separate series, apart from unified ones', () => {
+    const l = methodKey({ schema: 1, side: 'left' })
+    const r = methodKey({ schema: 1, side: 'right' })
+    expect(l).not.toBe(r)
+    expect(l).not.toBe(methodKey({ schema: MOBILITY_UNIFIED_SCHEMA, side: 'left', referenceKind: 'straight', posture: 'standing' }))
   })
 })

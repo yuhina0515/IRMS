@@ -185,9 +185,11 @@ fn migration_9(conn: &Connection) -> rusqlite::Result<()> {
 fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
     // Unified calibration (2026-10-15). `calibration_profiles` keeps the app-built profile JSON
     // (opaque to the database) so a profile can be listed, compared and restored; one device is one
-    // patient, so there is no owner column. Mobility records gain nullable method-identity columns:
-    // old rows stay NULL (= measured before the unified scheme) and the app draws a method break
-    // between rows whose identity differs, instead of trending across incompatible references.
+    // patient, so there is no owner column. Mobility records gain nullable method-identity columns.
+    // Rows measured before the unified scheme are tagged schema 1 and get their side from the detail
+    // JSON (the old wizard stored it there), so left and right legacy records are separate trends and
+    // the app draws a method break between rows whose identity differs instead of trending across
+    // incompatible references. Migration 10 has never shipped in a release, so it is amended in place.
     conn.execute_batch(
         "
         CREATE TABLE calibration_profiles (
@@ -203,6 +205,12 @@ fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
             CHECK (referenceKind IS NULL OR referenceKind IN ('straight','neutral'));
         ALTER TABLE mobility_records ADD COLUMN posture TEXT;
         ALTER TABLE mobility_records ADD COLUMN calibrationId TEXT;
+        UPDATE mobility_records SET
+            schema = 1,
+            side = CASE
+                WHEN json_valid(detail) AND json_extract(detail, '$.side') IN ('left','right')
+                THEN json_extract(detail, '$.side')
+            END;
         ",
     )
 }
@@ -609,7 +617,7 @@ mod tests {
         }
 
         #[test]
-        fn upgrading_from_v9_keeps_mobility_rows_with_null_identity() {
+        fn upgrading_from_v9_tags_legacy_mobility_rows_with_schema_1_and_their_side() {
             let db = fresh();
             assert_eq!(
                 apply_migrations(&db, &MIGRATIONS[..9], noop_log)
@@ -617,24 +625,40 @@ mod tests {
                     .len(),
                 9
             );
-            db.execute(
-                "INSERT INTO mobility_records (movementSet, totalDeg) VALUES ('kneeFlexion', 130)",
-                [],
-            )
-            .unwrap();
+            for (total, detail) in [
+                (130.0, r#"{"peaks":{},"side":"left"}"#),
+                (120.0, r#"{"peaks":{},"side":"right"}"#),
+                (110.0, r#"{"peaks":{},"side":null}"#),
+                (100.0, "not json"),
+            ] {
+                db.execute(
+                    "INSERT INTO mobility_records (movementSet, totalDeg, detail) VALUES ('kneeFlexion', ?1, ?2)",
+                    rusqlite::params![total, detail],
+                )
+                .unwrap();
+            }
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
                 vec![10]
             );
-            let (total, schema, side, cal): (f64, Option<i64>, Option<String>, Option<String>) = db
-                .query_row(
-                    "SELECT totalDeg, schema, side, calibrationId FROM mobility_records",
-                    [],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-                )
-                .unwrap();
-            assert_eq!(total, 130.0);
-            assert!(schema.is_none() && side.is_none() && cal.is_none());
+            let rows: Vec<(f64, Option<i64>, Option<String>, Option<String>)> = db
+                .prepare("SELECT totalDeg, schema, side, calibrationId FROM mobility_records ORDER BY id")
+                .unwrap()
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect();
+            // schema 1 = measured before the unified scheme; side comes from the detail JSON so
+            // left and right legacy records never share one trend. Unreadable detail -> side NULL.
+            assert_eq!(
+                rows,
+                vec![
+                    (130.0, Some(1), Some("left".to_string()), None),
+                    (120.0, Some(1), Some("right".to_string()), None),
+                    (110.0, Some(1), None, None),
+                    (100.0, Some(1), None, None),
+                ]
+            );
             let n: i64 = db
                 .query_row("SELECT count(*) FROM calibration_profiles", [], |r| {
                     r.get(0)
