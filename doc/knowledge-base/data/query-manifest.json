@@ -246,5 +246,218 @@
       "hit_count": 15,
       "returned_count": 8
     }
+  ],
+  "supplements": [
+    {
+      "date": "2026-10-16",
+      "gaps": [
+        "G1",
+        "G2"
+      ],
+      "selection": "Targeted gap-filling search for knee hyperextension evidence (G1) and patient-facing alert wording (G2); editorial selection of 20 records, each identity-checked by Europe PMC EXT_ID lookup. Not a systematic review; English/MED bias.",
+      "selected_source_count": 20,
+      "queries": [
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "TITLE:\"genu recurvatum\" AND SRC:MED sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22genu+recurvatum%22+AND+SRC%3AMED+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:09+00:00",
+          "hit_count": 181,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "TITLE:\"knee hyperextension\" AND SRC:MED sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22knee+hyperextension%22+AND+SRC%3AMED+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:11+00:00",
+          "hit_count": 66,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "targeted",
+          "query": "TITLE:\"hyperextension\" AND TITLE:\"biofeedback\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22hyperextension%22+AND+TITLE%3A%22biofeedback%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:12+00:00",
+          "hit_count": 2,
+          "returned_count": 2
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "TITLE:\"recurvatum\" AND (TITLE:\"arthroplasty\" OR TITLE:\"knee replacement\") sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22recurvatum%22+AND+%28TITLE%3A%22arthroplasty%22+OR+TITLE%3A%22knee+replacement%22%29+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:13+00:00",
+          "hit_count": 20,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "TITLE:\"range of motion\" AND TITLE:\"reference values\" AND SRC:MED sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22range+of+motion%22+AND+TITLE%3A%22reference+values%22+AND+SRC%3AMED+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:15+00:00",
+          "hit_count": 8,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "TITLE:\"knee\" AND TITLE:\"goniometer\" AND TITLE:\"reliability\" AND SRC:MED sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22knee%22+AND+TITLE%3A%22goniometer%22+AND+TITLE%3A%22reliability%22+AND+SRC%3AMED+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:17+00:00",
+          "hit_count": 17,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "citation-count",
+          "query": "ABSTRACT:\"Beighton\" AND ABSTRACT:\"hyperextension\" AND ABSTRACT:\"10\" AND OPEN_ACCESS:Y sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=ABSTRACT%3A%22Beighton%22+AND+ABSTRACT%3A%22hyperextension%22+AND+ABSTRACT%3A%2210%22+AND+OPEN_ACCESS%3AY+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:18+00:00",
+          "hit_count": 3,
+          "returned_count": 3
+        },
+        {
+          "gap": "G1",
+          "category": "hyperextension",
+          "sort": "targeted",
+          "query": "TITLE:\"loss of normal knee motion\" AND AUTH:\"Shelbourne\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22loss+of+normal+knee+motion%22+AND+AUTH%3A%22Shelbourne%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:19+00:00",
+          "hit_count": 2,
+          "returned_count": 2
+        },
+        {
+          "gap": "G2",
+          "category": "alert-language",
+          "sort": "citation-count",
+          "query": "TITLE:\"nocebo\" AND (TITLE:\"physiotherapy\" OR TITLE:\"musculoskeletal\" OR TITLE:\"rehabilitation\") sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22nocebo%22+AND+%28TITLE%3A%22physiotherapy%22+OR+TITLE%3A%22musculoskeletal%22+OR+TITLE%3A%22rehabilitation%22%29+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:21+00:00",
+          "hit_count": 7,
+          "returned_count": 6
+        },
+        {
+          "gap": "G2",
+          "category": "alert-language",
+          "sort": "targeted",
+          "query": "TITLE:\"negative self-instructions\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22negative+self-instructions%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:22+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G2",
+          "category": "alert-language",
+          "sort": "citation-count",
+          "query": "TITLE:\"ironic\" AND TITLE:\"motor\" sort_cited:y",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22ironic%22+AND+TITLE%3A%22motor%22+sort_cited%3Ay&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:23+00:00",
+          "hit_count": 2,
+          "returned_count": 2
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Normal hip and knee active range of motion\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Normal+hip+and+knee+active+range+of+motion%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:24+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Articular mobility in an African population\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Articular+mobility+in+an+African+population%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:25+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Reliability of goniometric measurements and visual estimates of knee range of motion\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Reliability+of+goniometric+measurements+and+visual+estimates+of+knee+range+of+motion%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:27+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Sticks and stones\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Sticks+and+stones%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:29+00:00",
+          "hit_count": 74,
+          "returned_count": 6
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"enduring impact of what clinicians say\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22enduring+impact+of+what+clinicians+say%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:30+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Optimizing performance through intrinsic motivation and attention for learning\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Optimizing+performance+through+intrinsic+motivation+and+attention+for+learning%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:31+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Augmented visual, auditory, haptic, and multimodal feedback in motor learning\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Augmented+visual%2C+auditory%2C+haptic%2C+and+multimodal+feedback+in+motor+learning%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:32+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"novel feedback techniques\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22novel+feedback+techniques%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:34+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        },
+        {
+          "gap": "G1/G2",
+          "category": "targeted-title",
+          "sort": "targeted",
+          "query": "TITLE:\"Electrogoniometric feedback\"",
+          "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=TITLE%3A%22Electrogoniometric+feedback%22&format=json&resultType=core&pageSize=6",
+          "retrieved_at": "2026-10-16T03:33:35+00:00",
+          "hit_count": 1,
+          "returned_count": 1
+        }
+      ]
+    }
   ]
 }

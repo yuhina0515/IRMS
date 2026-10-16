@@ -20,5 +20,7 @@
   {"id":"architecture","name":"Tauri、Rust 與非同步生命週期","question":"跨前後端、取消與資源釋放是否符合明確契約？","code_paths":["IRMS_App_Tauri/src/platform/irmsApi.ts","IRMS_App_Tauri/src/services/modules.ts","doc/MODULE_CONTRACT.md"]},
   {"id":"accessibility","name":"無障礙與資訊理解","question":"回饋能否由鍵盤、視覺與其他感知方式可靠理解？","code_paths":["IRMS_App_Tauri/src/views/DashboardView.tsx"]},
   {"id":"guidelines","name":"復健背景與研究用途指引","question":"用途、功能終點、專業監督與資料適用性如何定義？","code_paths":["README.md"]},
-  {"id":"datasets","name":"公開資料與可重現研究","question":"可用資料的硬體、標籤、族群與授權是否符合研究問題？","code_paths":["IRMS_App_Tauri/fixtures/vector-packets.json"]}
+  {"id":"datasets","name":"公開資料與可重現研究","question":"可用資料的硬體、標籤、族群與授權是否符合研究問題？","code_paths":["IRMS_App_Tauri/fixtures/vector-packets.json"]},
+  {"id":"hyperextension","name":"膝過伸與伸直範圍","question":"多少伸直屬生理範圍？負角警示門檻有哪些證據與量測限制？","code_paths":["IRMS_App_Tauri/src/services/movementMetric.ts"]},
+  {"id":"alert-language","name":"警示措辭與病人溝通","question":"即時警示與語音提示如何措辭才清楚、不責怪、不引發恐懼？","code_paths":["IRMS_App_Tauri/src/i18n/zh-Hant.ts","IRMS_App_Tauri/src/i18n/en.ts"]}
 ]

@@ -11818,6 +11818,1361 @@
         "White, Ian R",
         "Hróbjartsson, Asbjørn"
       ]
+    },
+    {
+      "id": "PMID-9580896",
+      "title": "Genu recurvatum syndrome.",
+      "authors": [
+        "Loudon JK",
+        "Goist HL",
+        "Loudon KL"
+      ],
+      "year": 1998,
+      "first_publication_date": "1998-05-01",
+      "journal": "The Journal of orthopaedic and sports physical therapy",
+      "volume": "27",
+      "issue": "5",
+      "pages": "361-367",
+      "doi": "10.2519/jospt.1998.27.5.361",
+      "pmid": "9580896",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9580896/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "review-or-commentary",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "clinical-context"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "臨床綜述把 genu recurvatum（膝反屈／過伸）操作定義為膝伸直超過 5°；描述可能的膝痛、伸直型步態及末端伸直的本體感覺控制不佳，並提出肌力不平衡矯正、本體感覺、步態與功能訓練，以及初期貼紮或護具的治療進程。",
+      "irms_application": "提供「過伸」術語與 5° 操作定義的出處；說明 5° 是靜態臨床描述的慣例，可作為 IRMS 討論起點，不是動態即時警示門檻。",
+      "limitations_zh": "敘述性綜述，非系統回顧；摘要未報告量測方法、盛行率或 5° 的實證來源；治療進程未經對照試驗；靜態被動伸直與步行中的動態過伸不同。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "df338169ca683c1d13497c8c1d35bc7138f5d0cb1e6da87aae558cb7120423cf"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/9580896",
+        "query": "EXT_ID:9580896 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A9580896+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:18.575096+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Loudon, J K",
+        "Goist, H L",
+        "Loudon, K L"
+      ]
+    },
+    {
+      "id": "PMID-1881956",
+      "title": "Normal hip and knee active range of motion: the relationship to age.",
+      "authors": [
+        "Roach KE",
+        "Miles TP"
+      ],
+      "year": 1991,
+      "first_publication_date": "1991-09-01",
+      "journal": "Physical therapy",
+      "volume": "71",
+      "issue": "9",
+      "pages": "656-665",
+      "doi": "10.1093/ptj/71.9.656",
+      "pmid": "1881956",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1881956/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "population-normative-cross-sectional",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "以 NHANES I 子樣本 1,683 名白人與黑人受試者的量角器資料建立髖、膝主動 ROM 常模；族群常模與教科書數值差距最多 18°；年輕與最老年齡組平均差多為 3–5°，作者認為至少到 74 歲，明顯的活動度喪失不應歸因老化。",
+      "irms_application": "說明「正常伸直」需依族群常模判讀，教科書單一數字可能偏差；IRMS 不宜假設每個人的 0° 就是生理伸直極限。",
+      "limitations_zh": "摘要未給膝伸直／過伸的平均值與分布，本庫未取得全文表格；主動 ROM、1970 年代美國樣本與量角器量測，不能直接轉為 IRMS 動態膝角門檻。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "8e3401f21332724ed63cb0b2d37fd8b9d84c908da0d8c20bbba76a049800a6c0"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/1881956",
+        "query": "EXT_ID:1881956 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A1881956+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:19.721826+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Roach, K E",
+        "Miles, T P"
+      ]
+    },
+    {
+      "id": "PMID-21070485",
+      "title": "Range of motion measurements: reference values and a database for comparison studies.",
+      "authors": [
+        "Soucie JM",
+        "Wang C",
+        "Forsyth A",
+        "Funk S",
+        "Denny M",
+        "Roach KE",
+        "Boone D",
+        "Hemophilia Treatment Center Network"
+      ],
+      "year": 2011,
+      "first_publication_date": "2010-11-11",
+      "journal": "Haemophilia : the official journal of the World Federation of Hemophilia",
+      "volume": "17",
+      "issue": "3",
+      "pages": "500-507",
+      "doi": "10.1111/j.1365-2516.2010.02399.x",
+      "pmid": "21070485",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21070485/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "healthy-normative-reference-study",
+      "publication_types": [
+        "Research Support, U.S. Gov't, P.H.S.",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "674 名 2–69 歲健康受試者由 9 位物理治療師以通用量角器雙側量測被動 ROM（含膝屈曲與伸直）；女性多數關節活動度較大，ROM 隨年齡下降，且多與常用常模值有顯著差異。",
+      "irms_application": "支持伸直範圍依性別與年齡而異；固定單一過伸門檻需考慮個人差異，可作為後續查找膝伸直常模數值的入口。",
+      "limitations_zh": "摘要未列膝伸直數值，本庫未取得全文表格，不能引用具體過伸度數；被動量測、美國健康樣本、量角器，與 IRMS 動態 IMU 量測不同。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "a9aed73358ab482574b87c0dd3daa2ee613dba8c4b33c6bcf4624a6d6a657dff"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/21070485",
+        "query": "EXT_ID:21070485 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A21070485+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:20.857400+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Soucie, J M",
+        "Wang, C",
+        "Forsyth, A",
+        "Funk, S",
+        "Denny, M",
+        "Roach, K E",
+        "Boone, D",
+        "Hemophilia Treatment Center Network"
+      ],
+      "corporate_authors": [
+        "Hemophilia Treatment Center Network"
+      ]
+    },
+    {
+      "id": "PMID-4751776",
+      "title": "Articular mobility in an African population.",
+      "authors": [
+        "Beighton P",
+        "Solomon L",
+        "Soskolne CL"
+      ],
+      "year": 1973,
+      "first_publication_date": "1973-09-01",
+      "journal": "Annals of the rheumatic diseases",
+      "volume": "32",
+      "issue": "5",
+      "pages": "413-418",
+      "doi": "10.1136/ard.32.5.413",
+      "pmid": "4751776",
+      "pmcid": "PMC1006136",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/4751776/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "population-joint-mobility-survey",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension"
+      ],
+      "priority": "supporting",
+      "review_level": "metadata-only",
+      "summary_zh": "Beighton 關節活動度評分的原始族群研究（南非族群）。本庫只以 Europe PMC MED 記錄確認標題、作者、年份、DOI 與 PMCID；Europe PMC 無摘要，PMC 掃描 PDF 本次取得遭攔截，原文未閱讀。",
+      "irms_application": "常被引用為「膝過伸超過 10° 計分」的來源；本庫目前僅以 Nikolajsen 2021 全文中 ≥10° 的納入條件間接佐證，原始評分條文尚未查核。",
+      "limitations_zh": "未閱讀原文：不得據此卡引用評分條文、角度或盛行率；需取得原文後再升級閱讀深度。族群與年代亦限制外推。",
+      "evidence_locator": "Europe PMC MED record (title/authors/year/DOI/PMCID only); no abstract in record; PMC PDF retrieval blocked 2026-10-16",
+      "verification": {
+        "status": "metadata-only-abstract-unavailable",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "93cf322fdbf79ee061dd779b697a582df01b4a985f9fb660614286244b0dc4a6",
+        "failed_retrieval": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1006136/ PDF returned an HTML interstitial; Europe PMC fullTextXML HTTP 500"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/4751776",
+        "query": "EXT_ID:4751776 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A4751776+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:21.977986+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Beighton, P",
+        "Solomon, L",
+        "Soskolne, C L"
+      ]
+    },
+    {
+      "id": "PMID-33573624",
+      "title": "No difference in knee muscle activation and kinematics during treadmill walking between adolescent girls with and without asymptomatic Generalised Joint Hypermobility.",
+      "authors": [
+        "Nikolajsen H",
+        "Juul-Kristensen B",
+        "Hendriksen PF",
+        "Jensen BR"
+      ],
+      "year": 2021,
+      "first_publication_date": "2021-02-11",
+      "journal": "BMC musculoskeletal disorders",
+      "volume": "22",
+      "issue": "1",
+      "pages": "170",
+      "doi": "10.1186/s12891-021-04018-w",
+      "pmid": "33573624",
+      "pmcid": "PMC7879627",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33573624/",
+      "open_access": true,
+      "source_type": "publication",
+      "study_type": "case-control-gait-study",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "gait"
+      ],
+      "priority": "core",
+      "review_level": "full-text-sections",
+      "summary_zh": "14–15 歲女孩：全身關節過動組（Beighton ≥6 且靜態站立時膝過伸 ≥10°）16 人與對照 10 人，跑步機步行時以電子量角器量膝角並記錄 sEMG；肌肉活化與共同收縮無差異，過動組步行時膝角反而略偏屈曲（作者角度慣例下平均 153° vs 156°）。",
+      "irms_application": "靜態或被動可過伸的人，步行時不一定出現動態過伸；IRMS 不應以靜態過伸能力當作危險判定，也要避免對生理性過伸者持續警示。",
+      "limitations_zh": "小樣本、只有無症狀青少女、跑步機情境；電子量角器的角度慣例與 IRMS 不同；只讀指定章節，未做品質評分。",
+      "evidence_locator": "Abstract; Methods (participants: Beighton ≥6 and static standing knee hyperextension ≥10°, Table 1); Results — Europe PMC fullTextXML PMC7879627",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API; Europe PMC fullTextXML section check",
+        "content_hash": "7cab11de1815530cc8b80ddf75a6053056ccedddd08af02d5b8238f137499991",
+        "full_text_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7879627/fullTextXML",
+        "full_text_sha256": "d4022b9a46e82781ad386205544593fef37a3f37e90887413fd3e66714e4593e"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/33573624",
+        "query": "EXT_ID:33573624 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A33573624+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:28:31.656583+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Nikolajsen, Helene",
+        "Juul-Kristensen, Birgit",
+        "Hendriksen, Peter Fjeldstad",
+        "Jensen, Bente Rona"
+      ]
+    },
+    {
+      "id": "PMID-29882693",
+      "title": "Physiologic Preoperative Knee Hyperextension Is a Predictor of Failure in an Anterior Cruciate Ligament Revision Cohort: A Report From the MARS Group.",
+      "authors": [
+        "MARS Group",
+        "Cooper DE",
+        "Dunn WR",
+        "Huston LJ",
+        "Haas AK",
+        "Spindler KP",
+        "Allen CR",
+        "Anderson AF",
+        "DeBerardino TM",
+        "Lantz BBA",
+        "Mann B",
+        "Stuart MJ",
+        "Albright JP",
+        "Amendola AN",
+        "Andrish JT",
+        "Annunziata CC",
+        "Arciero RA",
+        "Bach BR Jr",
+        "Baker CL 3rd",
+        "Bartolozzi AR",
+        "Baumgarten KM",
+        "Bechler JR",
+        "Berg JH",
+        "Bernas GA",
+        "Brockmeier SF",
+        "Brophy RH",
+        "Bush-Joseph CA",
+        "Butler V JB",
+        "Campbell JD",
+        "Carey JL",
+        "Carpenter JE",
+        "Cole BJ",
+        "Cooper JM",
+        "Cox CL",
+        "Creighton RA",
+        "Dahm DL",
+        "David TS",
+        "Flanigan DC",
+        "Frederick RW",
+        "Ganley TJ",
+        "Garofoli EA",
+        "Gatt CJ Jr",
+        "Gecha SR",
+        "Giffin JR",
+        "Hame SL",
+        "Hannafin JA",
+        "Harner CD",
+        "Harris NL Jr",
+        "Hechtman KS",
+        "Hershman EB",
+        "Hoellrich RG",
+        "Hosea TM",
+        "Johnson DC",
+        "Johnson TS",
+        "Jones MH",
+        "Kaeding CC",
+        "Kamath GV",
+        "Klootwyk TE",
+        "Levy BA",
+        "Ma CB",
+        "Maiers GP 2nd",
+        "Marx RG",
+        "Matava MJ",
+        "Mathien GM",
+        "McAllister DR",
+        "McCarty EC",
+        "McCormack RG",
+        "Miller BS",
+        "Nissen CW",
+        "O'Neill DF",
+        "Owens BD",
+        "Parker RD",
+        "Purnell ML",
+        "Ramappa AJ",
+        "Rauh MA",
+        "Rettig AC",
+        "Sekiya JK",
+        "Shea KG",
+        "Sherman OH",
+        "Slauterbeck JR",
+        "Smith MV",
+        "Spang JT",
+        "Svoboda SJ",
+        "Taft TN",
+        "Tenuta JJ",
+        "Tingstad EM",
+        "Vidal AF",
+        "Viskontas DG",
+        "White RA",
+        "Williams JS Jr",
+        "Wolcott ML",
+        "Wolf BR",
+        "York JJ",
+        "Wright RW"
+      ],
+      "year": 2018,
+      "first_publication_date": "2018-06-08",
+      "journal": "The American journal of sports medicine",
+      "volume": "46",
+      "issue": "12",
+      "pages": "2836-2841",
+      "doi": "10.1177/0363546518777732",
+      "pmid": "29882693",
+      "pmcid": "PMC6170681",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29882693/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "prospective-cohort",
+      "publication_types": [
+        "Clinical Trial",
+        "Research Support, Non-U.S. Gov't",
+        "research-article",
+        "Multicenter Study",
+        "Journal Article",
+        "Research Support, N.I.H., Extramural"
+      ],
+      "topics": [
+        "hyperextension",
+        "clinical-context"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "多中心 ACL 翻修前瞻世代 1,145 人（2 年追蹤率 91%）：術前被動生理性過伸 ≥5° 佔 33%；迴歸中 HE ≥5° 為移植物再斷裂的獨立預測因子（OR 2.12，95% CI 1.1–4.7），兩組失敗率為 3.2% 與 2.9%。",
+      "irms_application": "顯示 5° 在 ACL 文獻中是「術前、被動」的分組切點，與運動中的動態警示不同；也提醒 ACL 族群的過伸具有臨床意義，需由治療團隊設定目標。",
+      "limitations_zh": "翻修族群；摘要未描述量測工具與誤差；絕對失敗率差距小；切點是事前假設而非由量測誤差導出；不支持「動態超過 5° 即會受傷」。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "5c18d8a95fffa7bc91e450102078bf5976b79bd642306a5ee01d73741681338d"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/29882693",
+        "query": "EXT_ID:29882693 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A29882693+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:25.864895+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "MARS Group",
+        "Cooper, Daniel E",
+        "Dunn, Warren R",
+        "Huston, Laura J",
+        "Haas, Amanda K",
+        "Spindler, Kurt P",
+        "Allen, Christina R",
+        "Anderson, Allen F",
+        "DeBerardino, Thomas M",
+        "Lantz, Brett Brick A",
+        "Mann, Barton",
+        "Stuart, Michael J",
+        "Albright, John P",
+        "Amendola, Annunziato Ned",
+        "Andrish, Jack T",
+        "Annunziata, Christopher C",
+        "Arciero, Robert A",
+        "Bach, Bernard R",
+        "Baker, Champ L",
+        "Bartolozzi, Arthur R",
+        "Baumgarten, Keith M",
+        "Bechler, Jeffery R",
+        "Berg, Jeffrey H",
+        "Bernas, Geoffrey A",
+        "Brockmeier, Stephen F",
+        "Brophy, Robert H",
+        "Bush-Joseph, Charles A",
+        "Butler V, J Brad",
+        "Campbell, John D",
+        "Carey, James L",
+        "Carpenter, James E",
+        "Cole, Brian J",
+        "Cooper, Jonathan M",
+        "Cox, Charles L",
+        "Creighton, R Alexander",
+        "Dahm, Diane L",
+        "David, Tal S",
+        "Flanigan, David C",
+        "Frederick, Robert W",
+        "Ganley, Theodore J",
+        "Garofoli, Elizabeth A",
+        "Gatt, Charles J",
+        "Gecha, Steven R",
+        "Giffin, James Robert",
+        "Hame, Sharon L",
+        "Hannafin, Jo A",
+        "Harner, Christopher D",
+        "Harris, Norman Lindsay",
+        "Hechtman, Keith S",
+        "Hershman, Elliott B",
+        "Hoellrich, Rudolf G",
+        "Hosea, Timothy M",
+        "Johnson, David C",
+        "Johnson, Timothy S",
+        "Jones, Morgan H",
+        "Kaeding, Christopher C",
+        "Kamath, Ganesh V",
+        "Klootwyk, Thomas E",
+        "Levy, Bruce A",
+        "Ma, C Benjamin",
+        "Maiers, G Peter",
+        "Marx, Robert G",
+        "Matava, Matthew J",
+        "Mathien, Gregory M",
+        "McAllister, David R",
+        "McCarty, Eric C",
+        "McCormack, Robert G",
+        "Miller, Bruce S",
+        "Nissen, Carl W",
+        "O'Neill, Daniel F",
+        "Owens, Brett D",
+        "Parker, Richard D",
+        "Purnell, Mark L",
+        "Ramappa, Arun J",
+        "Rauh, Michael A",
+        "Rettig, Arthur C",
+        "Sekiya, Jon K",
+        "Shea, Kevin G",
+        "Sherman, Orrin H",
+        "Slauterbeck, James R",
+        "Smith, Matthew V",
+        "Spang, Jeffrey T",
+        "Svoboda, Steven J",
+        "Taft, Timothy N",
+        "Tenuta, Joachim J",
+        "Tingstad, Edwin M",
+        "Vidal, Armando F",
+        "Viskontas, Darius G",
+        "White, Richard A",
+        "Williams, James S",
+        "Wolcott, Michelle L",
+        "Wolf, Brian R",
+        "York, James J",
+        "Wright, Rick W"
+      ],
+      "corporate_authors": [
+        "MARS Group"
+      ]
+    },
+    {
+      "id": "PMID-34820464",
+      "title": "Knee Hyperextension Greater Than 5° Is a Risk Factor for Failure in ACL Reconstruction Using Hamstring Graft.",
+      "authors": [
+        "Guimarães TM",
+        "Giglio PN",
+        "Sobrado MF",
+        "Bonadio MB",
+        "Gobbi RG",
+        "Pécora JR",
+        "Helito CP"
+      ],
+      "year": 2021,
+      "first_publication_date": "2021-11-17",
+      "journal": "Orthopaedic journal of sports medicine",
+      "volume": "9",
+      "issue": "11",
+      "pages": "23259671211056325",
+      "doi": "10.1177/23259671211056325",
+      "pmid": "34820464",
+      "pmcid": "PMC8606942",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34820464/",
+      "open_access": true,
+      "source_type": "publication",
+      "study_type": "retrospective-matched-cohort",
+      "publication_types": [
+        "research-article",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "clinical-context"
+      ],
+      "priority": "core",
+      "review_level": "full-text-sections",
+      "summary_zh": "初次膝膕旁肌腱自體移植 ACL 重建：以麻醉下對側膝的被動過伸（量角器）分組，>5° 組 102 人與配對對照 102 人；移植物失敗 14.7% vs 2.9%，Lysholm 分數略低。討論指出文獻切點有 10°（Beighton）也有 5°、6°，並說明以護具把術後過伸限制在 5° 以下是否改善結果，目前沒有資料完全支持。",
+      "irms_application": "最直接說明 5° 的性質：被動、麻醉下、對側膝的手術風險分組，不是動態警示或傷害閾值；也記錄「限制術後過伸」缺乏支持資料。",
+      "limitations_zh": "回溯性、單中心、只含膕旁肌腱移植，組間移植物直徑不同；未報告量角器誤差；只讀指定章節，未做品質評分。",
+      "evidence_locator": "Abstract; Methods (passive contralateral hyperextension measured with goniometer under anesthesia, Figure 1); Discussion (5°/6°/10° cut-offs; no data for postoperative <5° restriction) — Europe PMC fullTextXML PMC8606942",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API; Europe PMC fullTextXML section check",
+        "content_hash": "93c60a0a103b522a6cbd520061273a6e145f554000beb10e0a13be3bee4908d5",
+        "full_text_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8606942/fullTextXML",
+        "full_text_sha256": "b7ccd02e7ec499cec403d487931d897d44c62901aa1a640dbf3ec5af3793c223"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/34820464",
+        "query": "EXT_ID:34820464 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A34820464+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:26.988956+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Guimarães, Tales Mollica",
+        "Giglio, Pedro Nogueira",
+        "Sobrado, Marcel Faraco",
+        "Bonadio, Marcelo Batista",
+        "Gobbi, Riccardo Gomes",
+        "Pécora, José Ricardo",
+        "Helito, Camilo Partezani"
+      ]
+    },
+    {
+      "id": "PMID-19059893",
+      "title": "Minimum 10-year results after anterior cruciate ligament reconstruction: how the loss of normal knee motion compounds other factors related to the development of osteoarthritis after surgery.",
+      "authors": [
+        "Shelbourne KD",
+        "Gray T"
+      ],
+      "year": 2009,
+      "first_publication_date": "2008-12-04",
+      "journal": "The American journal of sports medicine",
+      "volume": "37",
+      "issue": "3",
+      "pages": "471-480",
+      "doi": "10.1177/0363546508326709",
+      "pmid": "19059893",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/19059893/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "prospective-cohort",
+      "publication_types": [
+        "Research Support, Non-U.S. Gov't",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "clinical-context"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "ACL 重建後至少 10 年追蹤 502 人；「正常膝活動」定義為伸直（含過伸）與健側相差 2° 內、屈曲相差 5° 內；伸直不足（包括失去 3–5° 的過伸）與較差的主觀分數及放射學變化相關。",
+      "irms_application": "部分 ACL 術後方案的目標是恢復與健側對稱的過伸，而不是一律避免負角；固定 -5° 警示可能與治療目標衝突，需治療師依個人與健側設定。",
+      "limitations_zh": "單一外科團隊的術式與積極伸直復健方案；觀察性；摘要未描述量角方式；不能外推到一般族群、TKA 或中風。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "5f097d867edd87409ba3d6787deef89b3c2cbd86339799dd5769ba0f9f1b14e6"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/19059893",
+        "query": "EXT_ID:19059893 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A19059893+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:28.147842+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Shelbourne, K Donald",
+        "Gray, Tinker"
+      ]
+    },
+    {
+      "id": "PMID-22153947",
+      "title": "Function and quality of life in patients with recurvatum deformity after primary total knee arthroplasty: a review of our joint registry.",
+      "authors": [
+        "Siddiqui MM",
+        "Yeo SJ",
+        "Sivaiah P",
+        "Chia SL",
+        "Chin PL",
+        "Lo NN"
+      ],
+      "year": 2012,
+      "first_publication_date": "2011-12-09",
+      "journal": "The Journal of arthroplasty",
+      "volume": "27",
+      "issue": "6",
+      "pages": "1106-1110",
+      "doi": "10.1016/j.arth.2011.10.013",
+      "pmid": "22153947",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22153947/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "registry-cohort",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "clinical-context"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "2,587 例初次 TKA 的 2 年登錄追蹤：術後過伸分為 0°、1–5°、6–10°、>10°；1–5° 的功能分數與 0° 相近，>5° 的部分 SF-36 分項較差，且與內外側移位 >5 mm 的整體鬆弛相關。",
+      "irms_application": "TKA 族群中 >5° 的結構性過伸與較差功能有關，是 5° 量級的另一個靜態佐證；但它描述植入後的結構狀態，不是運動中的瞬間負角。",
+      "limitations_zh": "單一登錄、觀察性、靜態量測；摘要未報告量測工具誤差；不能證明動態警示可減少過伸或改善功能。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "98f52dc04e91bc06dbdc0053e10f6aad211fcc99b6615393695f2e48aeaa4d09"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/22153947",
+        "query": "EXT_ID:22153947 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A22153947+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:29.282537+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Siddiqui, Mohd Mashfiqul A",
+        "Yeo, Seng Jin",
+        "Sivaiah, Potla",
+        "Chia, Shi-Lu",
+        "Chin, Pak Lin",
+        "Lo, Ngai Nung"
+      ]
+    },
+    {
+      "id": "PMID-20153279",
+      "title": "Treatment of genu recurvatum in hemiparetic adult patients: a systematic literature review.",
+      "authors": [
+        "Bleyenheuft C",
+        "Bleyenheuft Y",
+        "Hanson P",
+        "Deltombe T"
+      ],
+      "year": 2010,
+      "first_publication_date": "2010-01-28",
+      "journal": "Annals of physical and rehabilitation medicine",
+      "volume": "53",
+      "issue": "3",
+      "pages": "189-199",
+      "doi": "10.1016/j.rehab.2010.01.001",
+      "pmid": "20153279",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/20153279/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "systematic-review",
+      "publication_types": [
+        "Systematic Review",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "feedback"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "偏癱成人膝過伸治療的系統文獻回顧，納入 9 篇：4 篇再訓練（功能性電刺激或電子量角器回饋）、2 篇骨科／神經外科、3 篇護具；結果皆屬正向但多有方法限制，作者依病因提出分類治療策略。",
+      "irms_application": "說明過伸的病因多樣（神經、結構、習慣），單一門檻與單一提示語不能適用所有族群；回饋屬可行的再訓練選項之一。",
+      "limitations_zh": "只有 9 篇小型研究且限偏癱族群；分類策略部分來自作者臨床經驗；未做統合分析。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "9a5aa1fa865521050230091ff10dc12b95bc1191c98ac09742e90eda05329493"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/20153279",
+        "query": "EXT_ID:20153279 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A20153279+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:30.398550+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Bleyenheuft, C",
+        "Bleyenheuft, Y",
+        "Hanson, P",
+        "Deltombe, T"
+      ]
+    },
+    {
+      "id": "PMID-1463378",
+      "title": "Electrogoniometric feedback: its effect on genu recurvatum in stroke.",
+      "authors": [
+        "Morris ME",
+        "Matyas TA",
+        "Bach TM",
+        "Goldie PA"
+      ],
+      "year": 1992,
+      "first_publication_date": "1992-12-01",
+      "journal": "Archives of physical medicine and rehabilitation",
+      "volume": "73",
+      "issue": "12",
+      "pages": "1147-1154",
+      "doi": "",
+      "pmid": "1463378",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1463378/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "controlled-trial",
+      "publication_types": [
+        "Research Support, Non-U.S. Gov't",
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "feedback"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "中風後膝過伸 26 人分為對照與實驗組，兩階段各 4 週：第一階段實驗組在物理治療外加電子量角器回饋，第二階段兩組都只接受物理治療；實驗組過伸減少較多，第二階段差異達顯著（U = 40，p = 0.011）。",
+      "irms_application": "以角度感測即時回饋改善過伸的早期對照研究，支持把過伸當作可回饋的目標。",
+      "limitations_zh": "小樣本、中風族群、1992 年設備；摘要未說明分派是否隨機，也未報告回饋門檻、提示形式或不良反應。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "33993ec9561490e283c101e3c8dcad071832be8a2b798a701f914500eedb5df0"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/1463378",
+        "query": "EXT_ID:1463378 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A1463378+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:37.772340+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Morris, M E",
+        "Matyas, T A",
+        "Bach, T M",
+        "Goldie, P A"
+      ]
+    },
+    {
+      "id": "PMID-22030469",
+      "title": "Efficacy of gait training with real-time biofeedback in correcting knee hyperextension patterns in young women.",
+      "authors": [
+        "Teran-Yengle P",
+        "Birkhofer R",
+        "Weber MA",
+        "Patton K",
+        "Thatcher E",
+        "Yack HJ"
+      ],
+      "year": 2011,
+      "first_publication_date": "2011-10-25",
+      "journal": "The Journal of orthopaedic and sports physical therapy",
+      "volume": "41",
+      "issue": "12",
+      "pages": "948-952",
+      "doi": "10.2519/jospt.2011.3660",
+      "pmid": "22030469",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22030469/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "single-cohort-intervention",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "feedback"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "10 名步行時膝過伸、無症狀的 18–39 歲女性接受 6 次跑步機即時運動學回饋訓練；訓練後與 1 個月後，1.3 m/s 地面步行的過伸控制改善。背景段落指出過伸與後關節囊、ACL 及前脛股關節的應力增加有關。",
+      "irms_application": "健康族群也可藉即時回饋減少步行過伸，支持 IRMS 回饋方向；背景中的應力說法屬作者引述，不是本研究的量測結果。",
+      "limitations_zh": "單組 10 人、無對照、實驗室動作捕捉回饋；摘要未給門檻、提示形式或角度數值。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "e45999b574789c10210f1abcd09c612f49617d73e6cf28766650877fa06b1d01"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/22030469",
+        "query": "EXT_ID:22030469 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A22030469+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:38.900941+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Teran-Yengle, Patricia",
+        "Birkhofer, Rebecca",
+        "Weber, Megan A",
+        "Patton, Kimberly",
+        "Thatcher, Erin",
+        "Yack, H John"
+      ]
+    },
+    {
+      "id": "PMID-1989012",
+      "title": "Reliability of goniometric measurements and visual estimates of knee range of motion obtained in a clinical setting.",
+      "authors": [
+        "Watkins MA",
+        "Riddle DL",
+        "Lamb RL",
+        "Personius WJ"
+      ],
+      "year": 1991,
+      "first_publication_date": "1991-02-01",
+      "journal": "Physical therapy",
+      "volume": "71",
+      "issue": "2",
+      "pages": "90-6; discussion 96-7",
+      "doi": "10.1093/ptj/71.2.90",
+      "pmid": "1989012",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1989012/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "clinical-reliability-study",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "hyperextension",
+        "validation"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "臨床環境 43 名患者，以量角器量測膝被動 ROM：同測者 ICC 伸直 .98、屈曲 .99；不同測者伸直 .86、屈曲 .90；目測與量角器的平行形式 ICC .82–.94；作者建議重複量測使用量角器。",
+      "irms_application": "即使是臨床量角器，跨測者在伸直端的一致性較低；近 0° 的幾度差異可能落在量測誤差內，支持以 IRMS 自身 SEM／MDC 決定警示門檻。",
+      "limitations_zh": "摘要只報 ICC，沒有以度為單位的 SEM；被動 ROM、患者族群；IRMS 是動態 IMU，誤差來源與量角器不同。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "e2d0ddb648206348abcb12d9d5d23722c89c93c7e8e4dd39d8b9dc4413371474"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/1989012",
+        "query": "EXT_ID:1989012 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A1989012+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:40.015782+00:00",
+        "gap": "G1"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Watkins, M A",
+        "Riddle, D L",
+        "Lamb, R L",
+        "Personius, W J"
+      ]
+    },
+    {
+      "id": "PMID-30067920",
+      "title": "Sticks and Stones: The Impact of Language in Musculoskeletal Rehabilitation.",
+      "authors": [
+        "Stewart M",
+        "Loftus S"
+      ],
+      "year": 2018,
+      "first_publication_date": "2018-07-01",
+      "journal": "The Journal of orthopaedic and sports physical therapy",
+      "volume": "48",
+      "issue": "7",
+      "pages": "519-522",
+      "doi": "10.2519/jospt.2018.0610",
+      "pmid": "30067920",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/30067920/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "review-or-commentary",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "human-factors"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "JOSPT 觀點文章：肌肉骨骼復健中使用的字詞可能幫助也可能傷害病人，常有隱藏影響；討論調整臨床語言的實務考量。",
+      "irms_application": "支持警示文字避免威脅、損傷、責備意味的詞彙，改用中性、可執行的描述。",
+      "limitations_zh": "觀點文章，非實證研究；摘要未列具體詞彙；英語臨床對話情境，不能直接證明裝置文字的效果。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "29996f1ca88ff8a34c660fba4af320815c026c9528a620708cd80fd4c09ddaff"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/30067920",
+        "query": "EXT_ID:30067920 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A30067920+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:41.161936+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Stewart, Michael",
+        "Loftus, Stephen"
+      ]
+    },
+    {
+      "id": "PMID-24218376",
+      "title": "The enduring impact of what clinicians say to people with low back pain.",
+      "authors": [
+        "Darlow B",
+        "Dowell A",
+        "Baxter GD",
+        "Mathieson F",
+        "Perry M",
+        "Dean S"
+      ],
+      "year": 2013,
+      "first_publication_date": "2013-11-01",
+      "journal": "Annals of family medicine",
+      "volume": "11",
+      "issue": "6",
+      "pages": "527-534",
+      "doi": "10.1370/afm.1518",
+      "pmid": "24218376",
+      "pmcid": "PMC3823723",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/24218376/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "qualitative-interview-study",
+      "publication_types": [
+        "Research Support, Non-U.S. Gov't",
+        "research-article",
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "human-factors"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "紐西蘭 23 名急性或慢性下背痛受訪者的質性研究：臨床人員的說法對信念影響最大且可持續多年；許多訊息被理解為「背需要保護」，造成警戒、擔憂、未遵從時的罪惡感或挫折；保證與建議則能提升信心。",
+      "irms_application": "提醒反覆的「保護、危險」提示可能使人過度警戒或自責；IRMS 的過伸警示應給可執行的動作，避免暗示受傷或怪罪。",
+      "limitations_zh": "下背痛、口語臨床互動、小樣本質性研究；不能直接推論裝置文字或語音的效果。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "ddd2f4c3f3e662c9ef96c3e7259b854cd538696b7177ec4657e5551112a4d537"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/24218376",
+        "query": "EXT_ID:24218376 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A24218376+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:42.311952+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Darlow, Ben",
+        "Dowell, Anthony",
+        "Baxter, G David",
+        "Mathieson, Fiona",
+        "Perry, Meredith",
+        "Dean, Sarah"
+      ]
+    },
+    {
+      "id": "PMID-27133031",
+      "title": "Enhance placebo, avoid nocebo: How contextual factors affect physiotherapy outcomes.",
+      "authors": [
+        "Testa M",
+        "Rossettini G"
+      ],
+      "year": 2016,
+      "first_publication_date": "2016-04-20",
+      "journal": "Manual therapy",
+      "volume": "24",
+      "issue": "",
+      "pages": "65-74",
+      "doi": "10.1016/j.math.2016.04.006",
+      "pmid": "27133031",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27133031/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "review-or-commentary",
+      "publication_types": [
+        "Review",
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "human-factors"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "回顧安慰劑與反安慰劑（nocebo）的神經生物學，將治療師、病人、雙方關係、治療特性與醫療環境列為影響結果的情境因素，建議主動管理以增強安慰劑並避免反安慰劑效應。",
+      "irms_application": "裝置訊息是治療情境的一部分；警示語調可能影響預期與症狀經驗，是避免恐懼語言的理論依據。",
+      "limitations_zh": "敘述性回顧；未直接研究裝置警示或文字措辭；效果量未擷取。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "ac99d5d31ffed643023e8494f4a246e39ec8d44915fa4953f0602ff1b2ad8a3a"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/27133031",
+        "query": "EXT_ID:27133031 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A27133031+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:43.428614+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Testa, Marco",
+        "Rossettini, Giacomo"
+      ]
+    },
+    {
+      "id": "PMID-26833314",
+      "title": "Optimizing performance through intrinsic motivation and attention for learning: The OPTIMAL theory of motor learning.",
+      "authors": [
+        "Wulf G",
+        "Lewthwaite R"
+      ],
+      "year": 2016,
+      "first_publication_date": "2016-10-01",
+      "journal": "Psychonomic bulletin & review",
+      "volume": "23",
+      "issue": "5",
+      "pages": "1382-1414",
+      "doi": "10.3758/s13423-015-0999-9",
+      "pmid": "26833314",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26833314/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "theory-review",
+      "publication_types": [
+        "Review",
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "feedback"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "OPTIMAL 動作學習理論：增強對表現的預期、支持學習者自主，以及把注意力放在動作效果的外在焦點，可透過強化目標與動作的連結促進表現與學習。",
+      "irms_application": "提示語可描述想要的動作結果（例如膝蓋保留一點彎度），並帶正向預期，而不是強調錯誤或內部肌肉動作。",
+      "limitations_zh": "理論回顧，證據多來自健康人與運動技能；未直接驗證於復健病人的過伸控制或中文提示語。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "e52ba6b5e43d08a9080c1e63f8d6d47d690670816a491844e3a2ed4bae1fc7f8"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/26833314",
+        "query": "EXT_ID:26833314 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A26833314+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:44.545089+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Wulf, Gabriele",
+        "Lewthwaite, Rebecca"
+      ]
+    },
+    {
+      "id": "PMID-23132605",
+      "title": "Augmented visual, auditory, haptic, and multimodal feedback in motor learning: a review.",
+      "authors": [
+        "Sigrist R",
+        "Rauter G",
+        "Riener R",
+        "Wolf P"
+      ],
+      "year": 2013,
+      "first_publication_date": "2013-02-01",
+      "journal": "Psychonomic bulletin & review",
+      "volume": "20",
+      "issue": "1",
+      "pages": "21-53",
+      "doi": "10.3758/s13423-012-0333-8",
+      "pmid": "23132605",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23132605/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "review-or-commentary",
+      "publication_types": [
+        "Review",
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "feedback"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "回顧視覺、聽覺、觸覺與多模態增強回饋在動作學習中的作用，討論各模態的優勢、挑戰與設計準則。",
+      "irms_application": "語音或聲音提示應短、可在動作中立即理解，並避免造成依賴；支持把過伸提示設計成短語音加文字。",
+      "limitations_zh": "多數證據來自健康人與實驗任務；未提供特定語言措辭建議；未擷取個別研究結果。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "f2d37748ed4b6f104a2c1327bcda6ed9fa0520f2ffc49393e1c674ca0b58b919"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/23132605",
+        "query": "EXT_ID:23132605 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A23132605+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:45.661522+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Sigrist, Roland",
+        "Rauter, Georg",
+        "Riener, Robert",
+        "Wolf, Peter"
+      ]
+    },
+    {
+      "id": "PMID-18819030",
+      "title": "Implicit overcompensation: the influence of negative self-instructions on performance of a self-paced motor task.",
+      "authors": [
+        "de la Peña D",
+        "Murray NP",
+        "Janelle CM"
+      ],
+      "year": 2008,
+      "first_publication_date": "2008-10-01",
+      "journal": "Journal of sports sciences",
+      "volume": "26",
+      "issue": "12",
+      "pages": "1323-1331",
+      "doi": "10.1080/02640410802155138",
+      "pmid": "18819030",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18819030/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "experimental-study",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "feedback"
+      ],
+      "priority": "core",
+      "review_level": "abstract",
+      "summary_zh": "兩個高爾夫推桿實驗：強調「不要推短」或「不要推長」的負向指示，使結果往相反方向過度補償，支持隱性過度補償假說，而非只在認知負荷下才出現的反諷效應。",
+      "irms_application": "「不要向後頂」這類負向指示，可能誘發往另一方向的過度修正；以正向目標語句描述想要的姿勢較合理（此為外推推論）。",
+      "limitations_zh": "健康人、推桿任務、自我指示；未研究膝關節、病人或裝置提示，外推到復健警示未經驗證。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "c66548b587e87116b39322896672b01513a4acf8678003e785b31650093b1a65"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/18819030",
+        "query": "EXT_ID:18819030 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A18819030+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:27:46.767689+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "de la Peña, Derek",
+        "Murray, Nicholas P",
+        "Janelle, Christopher M"
+      ]
+    },
+    {
+      "id": "PMID-25627151",
+      "title": "Optimization of the anterior cruciate ligament injury prevention paradigm: novel feedback techniques to enhance motor learning and reduce injury risk.",
+      "authors": [
+        "Benjaminse A",
+        "Gokeler A",
+        "Dowling AV",
+        "Faigenbaum A",
+        "Ford KR",
+        "Hewett TE",
+        "Onate JA",
+        "Otten B",
+        "Myer GD"
+      ],
+      "year": 2015,
+      "first_publication_date": "2015-01-27",
+      "journal": "The Journal of orthopaedic and sports physical therapy",
+      "volume": "45",
+      "issue": "3",
+      "pages": "170-182",
+      "doi": "10.2519/jospt.2015.4986",
+      "pmid": "25627151",
+      "pmcid": "",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/25627151/",
+      "open_access": false,
+      "source_type": "publication",
+      "study_type": "review-or-commentary",
+      "publication_types": [
+        "Journal Article"
+      ],
+      "topics": [
+        "alert-language",
+        "feedback"
+      ],
+      "priority": "supporting",
+      "review_level": "abstract",
+      "summary_zh": "ACL 傷害預防的臨床評論：傳統內在焦點指示可能不利於把練習的動作轉移到自動化運動；外在焦點指示與其他動作學習回饋技巧可能提升技能習得、保留與轉移。",
+      "irms_application": "膝關節族群的提示語可採外在焦點與動作效果描述；支持把「控制膝蓋」轉為具體、可感知的動作目標。",
+      "limitations_zh": "臨床評論，非試驗；以運動員傷害預防為主，未直接研究術後病人或過伸警示。",
+      "evidence_locator": "Abstract; metadata from Europe PMC MED record",
+      "verification": {
+        "status": "metadata-and-abstract-retrieved",
+        "checked_on": "2026-10-16",
+        "method": "Europe PMC core API",
+        "content_hash": "836eb903d58f75c2c3d4ef7c8b1648ab131511b564802d7d1435ebffee73194c"
+      },
+      "provenance": {
+        "provider": "Europe PMC",
+        "record_url": "https://europepmc.org/article/MED/25627151",
+        "query": "EXT_ID:25627151 AND SRC:MED",
+        "query_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID%3A25627151+AND+SRC%3AMED&format=json&resultType=core&pageSize=1",
+        "retrieved_at": "2026-10-16T03:30:43.122574+00:00",
+        "gap": "G2"
+      },
+      "rights_note": "Original summaries and bibliographic metadata only. Full text remains subject to the publisher license; open_access is an index flag, not a redistribution license.",
+      "bibtex_authors": [
+        "Benjaminse, Anne",
+        "Gokeler, Alli",
+        "Dowling, Ariel V",
+        "Faigenbaum, Avery",
+        "Ford, Kevin R",
+        "Hewett, Timothy E",
+        "Onate, James A",
+        "Otten, Bert",
+        "Myer, Gregory D"
+      ]
     }
   ],
   "project_snapshot": {

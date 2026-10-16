@@ -2,7 +2,7 @@
 
 哪種訊號與佩戴位置支持哪種步態事件及指標？
 
-本主題 14 筆交叉索引。
+本主題 15 筆交叉索引。
 
 ## 專案對照
 
@@ -12,6 +12,7 @@
 
 優先順序是與 IRMS 的關聯及閱讀價值，不是證據品質評分。
 
+- **PMID-33573624** [No difference in knee muscle activation and kinematics during treadmill walking between adolescent girls with and without asymptomatic Generalised Joint Hypermobility.](../sources/PMID-33573624.md) (2021；full-text-sections) — 14–15 歲女孩：全身關節過動組（Beighton ≥6 且靜態站立時膝過伸 ≥10°）16 人與對照 10 人，跑步機步行時以電子量角器量膝角並記錄 sEMG；肌肉活化與共同收縮無差異，過動組步行時膝角反而略偏屈曲（作者角度慣例下平均 153° vs 156°）。
 - **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](../sources/PMID-32393301.md) (2020；full-text-extracted) — 82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。
 - **PMID-37316858** [Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.](../sources/PMID-37316858.md) (2023；abstract) — 真實生活步態驗證顯示短步行段與慢速會降低性能，演算法選擇具有族群依賴。
 - **PMID-33924403** [Wearable Sensor-Based Real-Time Gait Detection: A Systematic Review.](../sources/PMID-33924403.md) (2021；abstract) — 即時步態事件回顧指出規則式方法常見，但病理步態實測與統一評估標準仍不足。

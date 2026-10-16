@@ -37,7 +37,7 @@ set('query', 'Bland'); assert.ok(elements.results.children.length > 0);
 set('query', 'no-result-irms-123456789'); count(0); assert.equal(elements.next.disabled, true);
 set('query', ''); set('topic', 'validation'); count(catalog.sources.filter(s => s.topics.includes('validation')).length);
 set('topic', ''); set('kind', 'dataset'); count(3);
-set('kind', ''); set('depth', 'metadata-only'); count(2);
+set('kind', ''); set('depth', 'metadata-only'); count(catalog.sources.filter(s => s.review_level === 'metadata-only').length);
 for (const article of elements.results.children) assert.match(article.children.find(e => e.tagName === 'details').children[2].textContent, /^限制：/);
 set('depth', 'full-text-extracted'); count(catalog.sources.filter(s => s.full_text_review).length);
 for (const article of elements.results.children) {

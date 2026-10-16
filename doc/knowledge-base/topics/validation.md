@@ -2,7 +2,7 @@
 
 如何區分一致性、信度、偏差、可偵測改變及療效？
 
-本主題 15 筆交叉索引。
+本主題 16 筆交叉索引。
 
 ## 專案對照
 
@@ -17,6 +17,7 @@
 - **PMID-27330520** [A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.](../sources/PMID-27330520.md) (2016；abstract) — ICC 必須依模型、單次或平均量測、絕對一致性或一致程度選擇，不能只報一個係數。
 - **PMID-26110027** [Understanding Bland Altman analysis.](../sources/PMID-26110027.md) (2015；full-text-extracted) — 高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。
 - **PMID-15705040** [Quantifying test-retest reliability using the intraclass correlation coefficient and the SEM.](../sources/PMID-15705040.md) (2005；abstract) — ICC 與 SEM 提供相對及絕對重測誤差的不同資訊，SEM 可用於個人分數與可偵測差異的解讀。
+- **PMID-1989012** [Reliability of goniometric measurements and visual estimates of knee range of motion obtained in a clinical setting.](../sources/PMID-1989012.md) (1991；abstract) — 臨床環境 43 名患者，以量角器量測膝被動 ROM：同測者 ICC 伸直 .98、屈曲 .99；不同測者伸直 .86、屈曲 .90；目測與量角器的平行形式 ICC .82–.94；作者建議重複量測使用量角器。
 - **PMID-33789826** [The PRISMA 2020 statement: An updated guideline for reporting systematic reviews.](../sources/PMID-33789826.md) (2021；abstract) — PRISMA 2020 提供系統性回顧報告清單與流程圖；使用清單不代表搜尋已完整或研究品質已足夠。
 - **PMID-29260445** [COSMIN Risk of Bias checklist for systematic reviews of Patient-Reported Outcome Measures.](../sources/PMID-29260445.md) (2018；abstract) — 這份 COSMIN 偏誤風險清單專為患者回報量測工具的系統性回顧，移用到感測器需要適用性論證。
 - **PMID-29435801** [COSMIN guideline for systematic reviews of patient-reported outcome measures.](../sources/PMID-29435801.md) (2018；abstract) — COSMIN 的患者回報工具回顧指引區分研究品質與工具本身的量測表現，不能直接當 IMU 品質量表。

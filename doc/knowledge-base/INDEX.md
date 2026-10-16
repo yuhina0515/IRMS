@@ -1,6 +1,6 @@
 # IRMS 來源總索引
 
-202 筆來源，22 個主題；快照 2026-10-03。主題間有交叉索引，同一來源只計一次。
+222 筆來源，24 個主題；快照 2026-10-03。主題間有交叉索引，同一來源只計一次。
 
 [使用說明](README.md) · [離線搜尋](index.html) · [引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md) · [核心全文精讀](FULL_TEXT_REVIEW.md)
 
@@ -110,6 +110,7 @@
 
 [主題導讀](topics/gait.md)：哪種訊號與佩戴位置支持哪種步態事件及指標？
 
+- **PMID-33573624** [No difference in knee muscle activation and kinematics during treadmill walking between adolescent girls with and without asymptomatic Generalised Joint Hypermobility.](sources/PMID-33573624.md) (2021；full-text-sections) — 14–15 歲女孩：全身關節過動組（Beighton ≥6 且靜態站立時膝過伸 ≥10°）16 人與對照 10 人，跑步機步行時以電子量角器量膝角並記錄 sEMG；肌肉活化與共同收縮無差異，過動組步行時膝角反而略偏屈曲（作者角度慣例下平均 153° vs 156°）。
 - **PMID-32393301** [Validity and reliability of wearable inertial sensors in healthy adult walking: a systematic review and meta-analysis.](sources/PMID-32393301.md) (2020；full-text-extracted) — 82 篇健康成人步態研究中，平均時空參數與變異性指標的證據不同；關節角未能統合。
 - **PMID-37316858** [Assessing real-world gait with digital technology? Validation, insights and recommendations from the Mobilise-D consortium.](sources/PMID-37316858.md) (2023；abstract) — 真實生活步態驗證顯示短步行段與慢速會降低性能，演算法選擇具有族群依賴。
 - **PMID-33924403** [Wearable Sensor-Based Real-Time Gait Detection: A Systematic Review.](sources/PMID-33924403.md) (2021；abstract) — 即時步態事件回顧指出規則式方法常見，但病理步態實測與統一評估標準仍不足。
@@ -131,6 +132,10 @@
 
 - **PMID-30669657** [Wearable Sensor-Based Exercise Biofeedback for Orthopaedic Rehabilitation: A Mixed Methods User Evaluation of a Prototype System.](sources/PMID-30669657.md) (2019；full-text-extracted) — 兩週使用性很好仍有計次與紀錄問題；SUS 分數不是量測精度或療效。
 - **PMID-30366919** [Clinician perceptions of a prototype wearable exercise biofeedback system for orthopaedic rehabilitation: a qualitative exploration.](sources/PMID-30366919.md) (2018；full-text-extracted) — 十位臨床人員對原型的看法可支持需求設計，不能證明客觀臨床效益。
+- **PMID-26833314** [Optimizing performance through intrinsic motivation and attention for learning: The OPTIMAL theory of motor learning.](sources/PMID-26833314.md) (2016；abstract) — OPTIMAL 動作學習理論：增強對表現的預期、支持學習者自主，以及把注意力放在動作效果的外在焦點，可透過強化目標與動作的連結促進表現與學習。
+- **PMID-22030469** [Efficacy of gait training with real-time biofeedback in correcting knee hyperextension patterns in young women.](sources/PMID-22030469.md) (2011；abstract) — 10 名步行時膝過伸、無症狀的 18–39 歲女性接受 6 次跑步機即時運動學回饋訓練；訓練後與 1 個月後，1.3 m/s 地面步行的過伸控制改善。背景段落指出過伸與後關節囊、ACL 及前脛股關節的應力增加有關。
+- **PMID-18819030** [Implicit overcompensation: the influence of negative self-instructions on performance of a self-paced motor task.](sources/PMID-18819030.md) (2008；abstract) — 兩個高爾夫推桿實驗：強調「不要推短」或「不要推長」的負向指示，使結果往相反方向過度補償，支持隱性過度補償假說，而非只在認知負荷下才出現的反諷效應。
+- **PMID-1463378** [Electrogoniometric feedback: its effect on genu recurvatum in stroke.](sources/PMID-1463378.md) (1992；abstract) — 中風後膝過伸 26 人分為對照與實驗組，兩階段各 4 週：第一階段實驗組在物理治療外加電子量角器回饋，第二階段兩組都只接受物理治療；實驗組過伸減少較多，第二階段差異達顯著（U = 40，p = 0.011）。
 - **PMID-33859607** [Biofeedback for Post-stroke Gait Retraining: A Review of Current Evidence and Future Research Directions in the Context of Emerging Technologies.](sources/PMID-33859607.md) (2021；abstract) — 中風步態回饋回顧說明穿戴與遠距的可能用途，仍需要更深入研究確認介入效果。
 - **PMID-34063355** [Wearable Devices for Biofeedback Rehabilitation: A Systematic Review and Meta-Analysis to Design Application Rules and Estimate the Effectiveness on Balance and Gait Outcomes in Neurological Diseases.](sources/PMID-34063355.md) (2021；full-text-extracted) — 神經疾病的穿戴回饋有部分平衡改善訊號，但感測器與療程異質，不能外推為 IRMS 膝部療效。
 - **PMID-32183338** [Biofeedback Systems for Gait Rehabilitation of Individuals with Lower-Limb Amputation: A Systematic Review.](sources/PMID-32183338.md) (2020；abstract) — 下肢截肢回饋回顧討論早期復健、使用性與訓練保留問題，適用族群有界限。
@@ -139,6 +144,9 @@
 - **PMID-30111337** [Validation of wearable visual feedback for retraining foot progression angle using inertial sensors and an augmented reality headset.](sources/PMID-30111337.md) (2018；abstract) — 足進展角的 IMU 加擴增實境視覺回饋可行，提供從量測到可理解回饋的案例。
 - **PMID-27782290** [Technology in Rehabilitation: Evaluating the Single Leg Squat Exercise with Wearable Inertial Measurement Units.](sources/PMID-27782290.md) (2017；abstract) — 單腳蹲的 IMU 分類區分可接受與偏差動作，示範品質標籤與分類性能評估。
 - **PMID-27965005** [Wearable Sensor-Based Biofeedback Training for Balance and Gait in Parkinson Disease: A Pilot Randomized Controlled Trial.](sources/PMID-27965005.md) (2017；abstract) — 巴金森氏癥回饋訓練的小型隨機試驗在部分平衡指標有改善，其他結果未見組間差異。
+- **PMID-25627151** [Optimization of the anterior cruciate ligament injury prevention paradigm: novel feedback techniques to enhance motor learning and reduce injury risk.](sources/PMID-25627151.md) (2015；abstract) — ACL 傷害預防的臨床評論：傳統內在焦點指示可能不利於把練習的動作轉移到自動化運動；外在焦點指示與其他動作學習回饋技巧可能提升技能習得、保留與轉移。
+- **PMID-23132605** [Augmented visual, auditory, haptic, and multimodal feedback in motor learning: a review.](sources/PMID-23132605.md) (2013；abstract) — 回顧視覺、聽覺、觸覺與多模態增強回饋在動作學習中的作用，討論各模態的優勢、挑戰與設計準則。
+- **PMID-20153279** [Treatment of genu recurvatum in hemiparetic adult patients: a systematic literature review.](sources/PMID-20153279.md) (2010；abstract) — 偏癱成人膝過伸治療的系統文獻回顧，納入 9 篇：4 篇再訓練（功能性電刺激或電子量角器回饋）、2 篇骨科／神經外科、3 篇護具；結果皆屬正向但多有方法限制，作者依病因提出分類治療策略。
 
 ## 居家與遠距復健
 
@@ -167,6 +175,10 @@
 
 [主題導讀](topics/clinical-context.md)：ROM、功能、癥狀與負荷分別衡量什麼？
 
+- **PMID-34820464** [Knee Hyperextension Greater Than 5° Is a Risk Factor for Failure in ACL Reconstruction Using Hamstring Graft.](sources/PMID-34820464.md) (2021；full-text-sections) — 初次膝膕旁肌腱自體移植 ACL 重建：以麻醉下對側膝的被動過伸（量角器）分組，>5° 組 102 人與配對對照 102 人；移植物失敗 14.7% vs 2.9%，Lysholm 分數略低。討論指出文獻切點有 10°（Beighton）也有 5°、6°，並說明以護具把術後過伸限制在 5° 以下是否改善結果，目前沒有資料完全支持。
+- **PMID-29882693** [Physiologic Preoperative Knee Hyperextension Is a Predictor of Failure in an Anterior Cruciate Ligament Revision Cohort: A Report From the MARS Group.](sources/PMID-29882693.md) (2018；abstract) — 多中心 ACL 翻修前瞻世代 1,145 人（2 年追蹤率 91%）：術前被動生理性過伸 ≥5° 佔 33%；迴歸中 HE ≥5° 為移植物再斷裂的獨立預測因子（OR 2.12，95% CI 1.1–4.7），兩組失敗率為 3.2% 與 2.9%。
+- **PMID-19059893** [Minimum 10-year results after anterior cruciate ligament reconstruction: how the loss of normal knee motion compounds other factors related to the development of osteoarthritis after surgery.](sources/PMID-19059893.md) (2009；abstract) — ACL 重建後至少 10 年追蹤 502 人；「正常膝活動」定義為伸直（含過伸）與健側相差 2° 內、屈曲相差 5° 內；伸直不足（包括失去 3–5° 的過伸）與較差的主觀分數及放射學變化相關。
+- **PMID-9580896** [Genu recurvatum syndrome.](sources/PMID-9580896.md) (1998；abstract) — 臨床綜述把 genu recurvatum（膝反屈／過伸）操作定義為膝伸直超過 5°；描述可能的膝痛、伸直型步態及末端伸直的本體感覺控制不佳，並提出肌力不平衡矯正、本體感覺、步態與功能訓練，以及初期貼紮或護具的治療進程。
 - **PMID-42391637** [Sensor-Based Monitoring of Knee Osteoarthritis Symptoms in Free-Living Settings: Scoping Review.](sources/PMID-42391637.md) (2026；abstract) — 自由生活膝骨關節炎感測研究偏重活動與生物力學，主觀癥狀與主動回饋整合仍有缺口。
 - **PMID-41125612** [A Dataset of Clinical Gait Signals with Wearable Sensors from Healthy, Neurological, and Orthopedic Cohorts.](sources/PMID-41125612.md) (2025；abstract) — 臨床步態資料涵蓋健康、神經與骨科群體並提供臨床評分，可用於跨族群演算法研究。
 - **PMID-36099732** [Objective gait assessment in individuals with knee osteoarthritis using inertial sensors: A systematic review and meta-analysis.](sources/PMID-36099732.md) (2022；abstract) — 膝骨關節炎的時空步態參數較有支持，特定膝或軀幹運動適應的證據仍不足。
@@ -179,6 +191,7 @@
 - **PMID-27371547** [Validation of Quantitative Measures of Rotatory Knee Laxity.](sources/PMID-27371547.md) (2016；abstract) — pivot-shift 的慣性與影像方法可區分誘發測試分級，不能據此由日常膝角診斷 ACL 損傷。
 - **PMID-25886558** [Gait assessment as a functional outcome measure in total knee arthroplasty: a cross-sectional study.](sources/PMID-25886558.md) (2015；abstract) — 術後步態功能可能與其他改善不同步，支持採多指標追蹤，不能只以單一 ROM 判定恢復。
 - **PMID-26032657** [Patient-reported outcome measures versus inertial performance-based outcome measures: A prospective study in patients undergoing primary total knee arthroplasty.](sources/PMID-26032657.md) (2015；abstract) — 患者回報與慣性功能表現量測可互補，兩類結果衡量的功能面向並不完全相同。
+- **PMID-22153947** [Function and quality of life in patients with recurvatum deformity after primary total knee arthroplasty: a review of our joint registry.](sources/PMID-22153947.md) (2012；abstract) — 2,587 例初次 TKA 的 2 年登錄追蹤：術後過伸分為 0°、1–5°、6–10°、>10°；1–5° 的功能分數與 0° 相近，>5° 的部分 SF-36 分項較差，且與內外側移位 >5 mm 的整體鬆弛相關。
 - **PMID-22459239** [Inertial sensor-based feedback can reduce key risk metrics for anterior cruciate ligament injury during jump landings.](sources/PMID-22459239.md) (2012；abstract) — 即時慣性回饋訓練改變部分 ACL 風險相關動作指標；風險指標改善不等同傷害發生率降低。
 - **PMID-23110821** [Inertial sensor motion analysis of gait, sit-stand transfers and step-up transfers: differentiating knee patients from healthy controls.](sources/PMID-23110821.md) (2012；abstract) — 步行、坐站與階梯轉移的慣性測試可補充完成時間，提供多任務功能評估思路。
 
@@ -200,12 +213,15 @@
 
 [主題導讀](topics/human-factors.md)：使用者能否可靠佩戴、校準並理解回饋與報表？
 
+- **PMID-30067920** [Sticks and Stones: The Impact of Language in Musculoskeletal Rehabilitation.](sources/PMID-30067920.md) (2018；abstract) — JOSPT 觀點文章：肌肉骨骼復健中使用的字詞可能幫助也可能傷害病人，常有隱藏影響；討論調整臨床語言的實務考量。
+- **PMID-24218376** [The enduring impact of what clinicians say to people with low back pain.](sources/PMID-24218376.md) (2013；abstract) — 紐西蘭 23 名急性或慢性下背痛受訪者的質性研究：臨床人員的說法對信念影響最大且可持續多年；許多訊息被理解為「背需要保護」，造成警戒、擔憂、未遵從時的罪惡感或挫折；保證與建議則能提升信心。
 - **PMID-34328803** [The use of wearable sensors to assess and treat the upper extremity after stroke: a scoping review.](sources/PMID-34328803.md) (2022；abstract) — 中風上肢穿戴評估與治療範疇回顧區分動作、活動限制與真實生活使用。
 - **PMID-32326957** [Kinect and wearable inertial sensors for motor rehabilitation programs at home: state of the art and an experimental comparison.](sources/PMID-32326957.md) (2020；abstract) — 居家 Kinect 與 IMU 的實驗比較提醒操作指引、系統條件及結果解讀影響實際用途。
 - **PMID-28714112** [Wearables in epilepsy and Parkinson's disease-A focus group study.](sources/PMID-28714112.md) (2018；abstract) — 焦點團體反映使用者對資料完整性、效益與有效性的期待差異，支持早期共同參與設計。
 - **PMID-29138050** [Systematic Review on the Effects of Serious Games and Wearable Technology Used in Rehabilitation of Patients With Traumatic Bone and Soft Tissue Injuries.](sources/PMID-29138050.md) (2018；abstract) — 遊戲化與穿戴在骨與軟組織傷害復健的研究異質性高，尚需更完整有效性與成本評估。
 - **PMID-28628594** [Telehealth, Wearable Sensors, and the Internet: Will They Improve Stroke Outcomes Through Increased Intensity of Therapy, Motivation, and Adherence to Rehabilitation Programs?](sources/PMID-28628594.md) (2017；abstract) — 遠距加穿戴的中風復健實務文章提出高強度居家練習構想，屬於建議而非 IRMS 療效證據。
 - **PMID-28631139** [A Systematic Review of Wearable Patient Monitoring Systems - Current Challenges and Opportunities for Clinical Adoption.](sources/PMID-28631139.md) (2017；abstract) — 穿戴患者監測的採用障礙包括技術與接受度，實際部署需要超越感測精度的考量。
+- **PMID-27133031** [Enhance placebo, avoid nocebo: How contextual factors affect physiotherapy outcomes.](sources/PMID-27133031.md) (2016；abstract) — 回顧安慰劑與反安慰劑（nocebo）的神經生物學，將治療師、病人、雙方關係、治療特性與醫療環境列為影響結果的情境因素，建議主動管理以增強安慰劑並避免反安慰劑效應。
 - **PMID-27608301** [Behavioral self-management strategies for practice and exercise should be included in neurologic rehabilitation trials and care.](sources/PMID-27608301.md) (2016；abstract) — 神經復健自我管理評論強調動機、信心與家庭練習安排，提示依從性不能只靠提醒功能。
 
 ## 量測統計與研究報告
@@ -217,6 +233,7 @@
 - **PMID-27330520** [A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research.](sources/PMID-27330520.md) (2016；abstract) — ICC 必須依模型、單次或平均量測、絕對一致性或一致程度選擇，不能只報一個係數。
 - **PMID-26110027** [Understanding Bland Altman analysis.](sources/PMID-26110027.md) (2015；full-text-extracted) — 高度相關仍可能有明顯偏移與很寬的 LoA；容許差異需按用途事前定義。
 - **PMID-15705040** [Quantifying test-retest reliability using the intraclass correlation coefficient and the SEM.](sources/PMID-15705040.md) (2005；abstract) — ICC 與 SEM 提供相對及絕對重測誤差的不同資訊，SEM 可用於個人分數與可偵測差異的解讀。
+- **PMID-1989012** [Reliability of goniometric measurements and visual estimates of knee range of motion obtained in a clinical setting.](sources/PMID-1989012.md) (1991；abstract) — 臨床環境 43 名患者，以量角器量測膝被動 ROM：同測者 ICC 伸直 .98、屈曲 .99；不同測者伸直 .86、屈曲 .90；目測與量角器的平行形式 ICC .82–.94；作者建議重複量測使用量角器。
 - **PMID-33789826** [The PRISMA 2020 statement: An updated guideline for reporting systematic reviews.](sources/PMID-33789826.md) (2021；abstract) — PRISMA 2020 提供系統性回顧報告清單與流程圖；使用清單不代表搜尋已完整或研究品質已足夠。
 - **PMID-29260445** [COSMIN Risk of Bias checklist for systematic reviews of Patient-Reported Outcome Measures.](sources/PMID-29260445.md) (2018；abstract) — 這份 COSMIN 偏誤風險清單專為患者回報量測工具的系統性回顧，移用到感測器需要適用性論證。
 - **PMID-29435801** [COSMIN guideline for systematic reviews of patient-reported outcome measures.](sources/PMID-29435801.md) (2018；abstract) — COSMIN 的患者回報工具回顧指引區分研究品質與工具本身的量測表現，不能直接當 IMU 品質量表。
@@ -318,3 +335,33 @@
 - **DOC-UCI-HAR** [Human Activity Recognition Using Smartphones](sources/DOC-UCI-HAR.md) (持續文件；primary-page-excerpt) — 手機日常活動資料可用於基礎辨識流程，輸入位置與標籤不等同雙肢段膝部復健。
 - **DOC-UCI-MHEALTH** [MHEALTH Dataset](sources/DOC-UCI-MHEALTH.md) (持續文件；primary-page-excerpt) — 多位置生理與動作感測資料可用於活動辨識，下載前需核對通道、位置與授權。
 - **DOC-UCI-PAMAP2** [PAMAP2 Physical Activity Monitoring](sources/DOC-UCI-PAMAP2.md) (持續文件；primary-page-excerpt) — 多感測器活動資料適合特徵與分割研究，不能當 IRMS 關節角參考或療效資料。
+
+## 膝過伸與伸直範圍
+
+[主題導讀](topics/hyperextension.md)：多少伸直屬生理範圍？負角警示門檻有哪些證據與量測限制？
+
+- **PMID-33573624** [No difference in knee muscle activation and kinematics during treadmill walking between adolescent girls with and without asymptomatic Generalised Joint Hypermobility.](sources/PMID-33573624.md) (2021；full-text-sections) — 14–15 歲女孩：全身關節過動組（Beighton ≥6 且靜態站立時膝過伸 ≥10°）16 人與對照 10 人，跑步機步行時以電子量角器量膝角並記錄 sEMG；肌肉活化與共同收縮無差異，過動組步行時膝角反而略偏屈曲（作者角度慣例下平均 153° vs 156°）。
+- **PMID-34820464** [Knee Hyperextension Greater Than 5° Is a Risk Factor for Failure in ACL Reconstruction Using Hamstring Graft.](sources/PMID-34820464.md) (2021；full-text-sections) — 初次膝膕旁肌腱自體移植 ACL 重建：以麻醉下對側膝的被動過伸（量角器）分組，>5° 組 102 人與配對對照 102 人；移植物失敗 14.7% vs 2.9%，Lysholm 分數略低。討論指出文獻切點有 10°（Beighton）也有 5°、6°，並說明以護具把術後過伸限制在 5° 以下是否改善結果，目前沒有資料完全支持。
+- **PMID-29882693** [Physiologic Preoperative Knee Hyperextension Is a Predictor of Failure in an Anterior Cruciate Ligament Revision Cohort: A Report From the MARS Group.](sources/PMID-29882693.md) (2018；abstract) — 多中心 ACL 翻修前瞻世代 1,145 人（2 年追蹤率 91%）：術前被動生理性過伸 ≥5° 佔 33%；迴歸中 HE ≥5° 為移植物再斷裂的獨立預測因子（OR 2.12，95% CI 1.1–4.7），兩組失敗率為 3.2% 與 2.9%。
+- **PMID-22030469** [Efficacy of gait training with real-time biofeedback in correcting knee hyperextension patterns in young women.](sources/PMID-22030469.md) (2011；abstract) — 10 名步行時膝過伸、無症狀的 18–39 歲女性接受 6 次跑步機即時運動學回饋訓練；訓練後與 1 個月後，1.3 m/s 地面步行的過伸控制改善。背景段落指出過伸與後關節囊、ACL 及前脛股關節的應力增加有關。
+- **PMID-19059893** [Minimum 10-year results after anterior cruciate ligament reconstruction: how the loss of normal knee motion compounds other factors related to the development of osteoarthritis after surgery.](sources/PMID-19059893.md) (2009；abstract) — ACL 重建後至少 10 年追蹤 502 人；「正常膝活動」定義為伸直（含過伸）與健側相差 2° 內、屈曲相差 5° 內；伸直不足（包括失去 3–5° 的過伸）與較差的主觀分數及放射學變化相關。
+- **PMID-9580896** [Genu recurvatum syndrome.](sources/PMID-9580896.md) (1998；abstract) — 臨床綜述把 genu recurvatum（膝反屈／過伸）操作定義為膝伸直超過 5°；描述可能的膝痛、伸直型步態及末端伸直的本體感覺控制不佳，並提出肌力不平衡矯正、本體感覺、步態與功能訓練，以及初期貼紮或護具的治療進程。
+- **PMID-1463378** [Electrogoniometric feedback: its effect on genu recurvatum in stroke.](sources/PMID-1463378.md) (1992；abstract) — 中風後膝過伸 26 人分為對照與實驗組，兩階段各 4 週：第一階段實驗組在物理治療外加電子量角器回饋，第二階段兩組都只接受物理治療；實驗組過伸減少較多，第二階段差異達顯著（U = 40，p = 0.011）。
+- **PMID-1989012** [Reliability of goniometric measurements and visual estimates of knee range of motion obtained in a clinical setting.](sources/PMID-1989012.md) (1991；abstract) — 臨床環境 43 名患者，以量角器量測膝被動 ROM：同測者 ICC 伸直 .98、屈曲 .99；不同測者伸直 .86、屈曲 .90；目測與量角器的平行形式 ICC .82–.94；作者建議重複量測使用量角器。
+- **PMID-22153947** [Function and quality of life in patients with recurvatum deformity after primary total knee arthroplasty: a review of our joint registry.](sources/PMID-22153947.md) (2012；abstract) — 2,587 例初次 TKA 的 2 年登錄追蹤：術後過伸分為 0°、1–5°、6–10°、>10°；1–5° 的功能分數與 0° 相近，>5° 的部分 SF-36 分項較差，且與內外側移位 >5 mm 的整體鬆弛相關。
+- **PMID-21070485** [Range of motion measurements: reference values and a database for comparison studies.](sources/PMID-21070485.md) (2011；abstract) — 674 名 2–69 歲健康受試者由 9 位物理治療師以通用量角器雙側量測被動 ROM（含膝屈曲與伸直）；女性多數關節活動度較大，ROM 隨年齡下降，且多與常用常模值有顯著差異。
+- **PMID-20153279** [Treatment of genu recurvatum in hemiparetic adult patients: a systematic literature review.](sources/PMID-20153279.md) (2010；abstract) — 偏癱成人膝過伸治療的系統文獻回顧，納入 9 篇：4 篇再訓練（功能性電刺激或電子量角器回饋）、2 篇骨科／神經外科、3 篇護具；結果皆屬正向但多有方法限制，作者依病因提出分類治療策略。
+- **PMID-1881956** [Normal hip and knee active range of motion: the relationship to age.](sources/PMID-1881956.md) (1991；abstract) — 以 NHANES I 子樣本 1,683 名白人與黑人受試者的量角器資料建立髖、膝主動 ROM 常模；族群常模與教科書數值差距最多 18°；年輕與最老年齡組平均差多為 3–5°，作者認為至少到 74 歲，明顯的活動度喪失不應歸因老化。
+- **PMID-4751776** [Articular mobility in an African population.](sources/PMID-4751776.md) (1973；metadata-only) — Beighton 關節活動度評分的原始族群研究（南非族群）。本庫只以 Europe PMC MED 記錄確認標題、作者、年份、DOI 與 PMCID；Europe PMC 無摘要，PMC 掃描 PDF 本次取得遭攔截，原文未閱讀。
+
+## 警示措辭與病人溝通
+
+[主題導讀](topics/alert-language.md)：即時警示與語音提示如何措辭才清楚、不責怪、不引發恐懼？
+
+- **PMID-30067920** [Sticks and Stones: The Impact of Language in Musculoskeletal Rehabilitation.](sources/PMID-30067920.md) (2018；abstract) — JOSPT 觀點文章：肌肉骨骼復健中使用的字詞可能幫助也可能傷害病人，常有隱藏影響；討論調整臨床語言的實務考量。
+- **PMID-26833314** [Optimizing performance through intrinsic motivation and attention for learning: The OPTIMAL theory of motor learning.](sources/PMID-26833314.md) (2016；abstract) — OPTIMAL 動作學習理論：增強對表現的預期、支持學習者自主，以及把注意力放在動作效果的外在焦點，可透過強化目標與動作的連結促進表現與學習。
+- **PMID-24218376** [The enduring impact of what clinicians say to people with low back pain.](sources/PMID-24218376.md) (2013；abstract) — 紐西蘭 23 名急性或慢性下背痛受訪者的質性研究：臨床人員的說法對信念影響最大且可持續多年；許多訊息被理解為「背需要保護」，造成警戒、擔憂、未遵從時的罪惡感或挫折；保證與建議則能提升信心。
+- **PMID-18819030** [Implicit overcompensation: the influence of negative self-instructions on performance of a self-paced motor task.](sources/PMID-18819030.md) (2008；abstract) — 兩個高爾夫推桿實驗：強調「不要推短」或「不要推長」的負向指示，使結果往相反方向過度補償，支持隱性過度補償假說，而非只在認知負荷下才出現的反諷效應。
+- **PMID-27133031** [Enhance placebo, avoid nocebo: How contextual factors affect physiotherapy outcomes.](sources/PMID-27133031.md) (2016；abstract) — 回顧安慰劑與反安慰劑（nocebo）的神經生物學，將治療師、病人、雙方關係、治療特性與醫療環境列為影響結果的情境因素，建議主動管理以增強安慰劑並避免反安慰劑效應。
+- **PMID-25627151** [Optimization of the anterior cruciate ligament injury prevention paradigm: novel feedback techniques to enhance motor learning and reduce injury risk.](sources/PMID-25627151.md) (2015；abstract) — ACL 傷害預防的臨床評論：傳統內在焦點指示可能不利於把練習的動作轉移到自動化運動；外在焦點指示與其他動作學習回饋技巧可能提升技能習得、保留與轉移。
+- **PMID-23132605** [Augmented visual, auditory, haptic, and multimodal feedback in motor learning: a review.](sources/PMID-23132605.md) (2013；abstract) — 回顧視覺、聽覺、觸覺與多模態增強回饋在動作學習中的作用，討論各模態的優勢、挑戰與設計準則。
