@@ -13,7 +13,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 |---|---|
 | [[README\|專案總覽]] | Repo 頂層說明 |
 | [[doc/README\|系統規格]] | 硬體腳位、BLE 協定、韌體/App 架構 |
-| [專業知識與文獻資料庫](knowledge-base/README.md) | 202 筆來源、22 個主題、12 篇導讀，含離線搜尋與引用匯出 |
+| [專業知識與文獻資料庫](knowledge-base/README.md) | 222 筆來源、24 個主題、13 篇導讀，含離線搜尋與引用匯出 |
 | [[PROJECT_STATUS\|開發進度]] | 各階段完成狀況與已知待驗證項目 |
 | [[OPTIMIZATION\|優化待辦]] | 待改進項目清單 |
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
@@ -22,6 +22,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-16 hyperextension and alert-wording evidence** ([Log](coding%20log/log_20261016_hyperextension_and_alert_wording_evidence.md)): gaps G1/G2 recorded; 20 Europe PMC-verified sources (222 total), 24 topics, C26-C30 and guide 13. The literature uses 5° only as a static or passive cut-off, so there is no evidence base for a fixed dynamic -5° alarm. Candidate prompts are expert reasoning pending V11; app threshold and strings are unchanged.
 - **2026-10-06 Zotero portable import acceptance** ([Log](coding%20log/log_20261006_zotero_portable_import_acceptance.md)): official signed Zotero 10.0.5 actually imported 202 BibTeX and 202 RIS records in separate temporary libraries; saved fields/integrity checked. Export round trip and browser/keyboard acceptance remain open due to UI control and file URL restrictions.
 - **2026-10-06 second full-text batch** ([Log](coding%20log/log_20261006_second_batch_and_bench_protocol.md)): ten further located extractions, 24 total full texts within 202 sources; first-batch appraisal scope stays explicit. V01/V02 data requirements and human-reference plan prepared, but actual browser/Zotero and hardware acceptance remain open.
 - **2026-10-06 evidence audit and mapping** ([Log](coding%20log/log_20261006_evidence_audit_and_claim_mapping.md)): four primary-source discrepancy audits, 25 claims/all 12 validation activities and 14 located single-reviewer appraisals. Claude CAL-03 hardware evidence reconciled; saved raw trace replayed. Browser/Zotero and V01/V02 acceptance remain open.
