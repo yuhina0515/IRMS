@@ -1,12 +1,14 @@
 ---
 tags: [irms, knowledge, literature, moc]
 date: 2026-10-03
-summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable citations and offline search."
+summary: "IRMS reference library: 222 sources, 24 topics, 13 guides, traceable citations and offline search."
 ---
 
 # IRMS 專業知識與文獻資料庫
 
-本資料庫提供 IRMS 的研究背景、工程依據與待驗證問題：**202 筆來源、22 個主題、12 篇專業導讀**，包含 157 篇研究／方法期刊來源、1 份作者技術報告、41 份技術／官方指引及 3 個資料集入口。快照日為 **2026-10-03**。同一來源跨主題只計一次。
+本資料庫提供 IRMS 的研究背景、工程依據與待驗證問題：**222 筆來源、24 個主題、13 篇專業導讀**，包含 177 篇研究／方法期刊來源、1 份作者技術報告、41 份技術／官方指引及 3 個資料集入口。快照日為 **2026-10-03**。同一來源跨主題只計一次。
+
+**2026-10-16 缺口補充**：針對帶符號膝角的過伸警示，記錄 [缺口 G1／G2](MAINTENANCE.md#已知證據缺口)，新增 20 筆經 Europe PMC 書目核對的來源、2 個主題、C26–C30 主張，以及 [導讀 13](guides/13-hyperextension-and-alert-wording.md)。結論：文獻中的 5° 只用於靜態或被動情境，沒有研究支持把固定 5° 當作動態警示門檻；候選提示語屬專家推論，需另行測試。
 
 **2026-10-04 升級：14 篇核心全文精讀**，補上族群、樣本、設備、方法、結果、限制及章節／表格定位，並接入所有檢索格式。[精讀比較與入口](FULL_TEXT_REVIEW.md)
 
@@ -14,7 +16,7 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 第二批另完成 **10 篇全文摘錄，合計 24 篇**，涵蓋佩戴偏移、機械已知角、跨操作者重戴、骨關節炎及異質步態障礙。[第二批選編與限制](BATCH2_REVIEW.md)；逐項品質評讀仍只涵蓋第一批 14 篇。
 
-[14 篇逐項品質與外推域評讀](QUALITY_APPRAISAL.md) 區分 JBI 歷史清單與自訂工程檢查，非獨立雙人審查。[Zotero 官方免安裝版實際結果](ACCEPTANCE_RESULTS.md)：BibTeX／RIS 各匯入 202 筆並核對保存欄位；回匯出與 [瀏覽器驗收](ACCEPTANCE_CHECKLIST.md) 仍待完成。
+[14 篇逐項品質與外推域評讀](QUALITY_APPRAISAL.md) 區分 JBI 歷史清單與自訂工程檢查，非獨立雙人審查。[Zotero 官方免安裝版實際結果](ACCEPTANCE_RESULTS.md)：BibTeX／RIS 各匯入當時的 202 筆並核對保存欄位，2026-10-16 新增的 20 筆尚未重新匯入；回匯出與 [瀏覽器驗收](ACCEPTANCE_CHECKLIST.md) 仍待完成。
 
 每筆都有書目／原始入口、繁體中文重點、IRMS 用途、適用限制、閱讀深度與查核狀態。這是經主題篩選的參考庫，未完成全文系統性回顧或逐篇偏誤風險評估；引用文獻不能直接證明 IRMS 的準確度、診斷能力或復健療效。
 
@@ -22,7 +24,7 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 開啟 [離線搜尋 index.html](index.html)，以中文／英文、作者、DOI 或來源 ID 搜尋，並篩選主題、來源類型、閱讀深度及優先閱讀。此單一 HTML 自帶資料，直接以瀏覽器開啟即可，不需要伺服器、API 金鑰或安裝套件。
 
-在 Obsidian、GitHub 或文字編輯器，從 [完整來源索引](INDEX.md)、[22 個主題](data/topics.json) 或下方導讀開始。報告引用可使用 [BibTeX](references.bib) 或 [RIS](references.ris) 匯入 Zotero 等書目工具；正式使用數值與詳細實驗設定前，仍需核對原文。
+在 Obsidian、GitHub 或文字編輯器，從 [完整來源索引](INDEX.md)、[24 個主題](data/topics.json) 或下方導讀開始。報告引用可使用 [BibTeX](references.bib) 或 [RIS](references.ris) 匯入 Zotero 等書目工具；正式使用數值與詳細實驗設定前，仍需核對原文。
 
 | 目的 | 入口 |
 |---|---|
@@ -31,7 +33,8 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 | 理解可量到的角度 | [量測模型](guides/01-measurement-model.md)、[佩戴校準](guides/02-calibration.md) |
 | 處理誤差與精度論述 | [濾波延遲](guides/03-signal-fusion.md)、[統計驗證](guides/04-validation-statistics.md) |
 | 支持開發與硬體驗收 | [專案程式對照](IRMS_MAPPING.md)、[驗證計畫](VALIDATION_PLAN.md) |
-| 寫出有界限的文獻主張 | [25 項引用主張表](CLAIMS.md) |
+| 寫出有界限的文獻主張 | [30 項引用主張表](CLAIMS.md) |
+| 設定過伸警示與提示語 | [過伸與措辭導讀](guides/13-hyperextension-and-alert-wording.md)、[已知缺口](MAINTENANCE.md#已知證據缺口) |
 | 給 AI／工具檢索 | [檢索規則](ASSISTANT_GUIDE.md)、[資料結構](SCHEMA.md)、[retrieval.jsonl](data/retrieval.jsonl) |
 | 維護與擴充 | [來源方法](SOURCE_METHOD.md)、[維護流程](MAINTENANCE.md) |
 
@@ -49,6 +52,7 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 10. [資料保存、缺失與可重現分析](guides/10-data-and-reproducibility.md)
 11. [權限、更新與模組生命週期](guides/11-security-and-lifecycle.md)
 12. [使用性、研究設計與部署](guides/12-usability-and-study-design.md)
+13. [膝過伸、警示門檻與提示措辭](guides/13-hyperextension-and-alert-wording.md)
 
 [專業術語表](GLOSSARY.md) 提供 60 個詞彙的中英文、用途及容易混淆之處。導讀中的工程公式、建議與待驗證計畫，是本庫的整理與推論；文獻結論則連到來源卡。
 
@@ -58,13 +62,13 @@ summary: "IRMS reference library: 202 sources, 22 topics, 12 guides, traceable c
 
 | 標記 | 本庫意義 | 本次筆數 |
 |---|---|---:|
-| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 133 |
+| `abstract` | 取得書目與摘要，導讀依摘要相關內容整理；未完成全文擷取 | 150 |
 | `full-text-extracted` | 全文方法、結果、表格與限制的結構化單人摘錄，未做正式偏誤評分 | 24 |
-| `full-text-sections` | 檢查原文指定章節，仍非完整系統性審查 | 1 |
+| `full-text-sections` | 檢查原文指定章節，仍非完整系統性審查 | 3 |
 | `primary-page-excerpt` | 檢查官方頁面標題與相關內容／文件身分 | 42 |
-| `metadata-only` | 官方目錄確認文件，但直接原文未取得 | 2 |
+| `metadata-only` | 官方目錄或書目記錄確認文件，但原文未取得 | 3 |
 
-兩筆 `metadata-only` 是 TDK 的 MPU6050 規格與暫存器文件：官方目錄可確認名稱，直接 PDF 本次遭阻擋或重新導向。已保留追溯與限制，沒有把它們列為已閱讀全文。其他技術文件的 HTTP 成功也只表示本次可取得，不代表 IRMS 相容性或性能已驗證。
+三筆 `metadata-only` 中，兩筆是 TDK 的 MPU6050 規格與暫存器文件：官方目錄可確認名稱，直接 PDF 本次遭阻擋或重新導向。另一筆是 Beighton 1973：Europe PMC 書目可確認身分，但沒有摘要，PMC 掃描 PDF 取得遭攔截。已保留追溯與限制，沒有把它們列為已閱讀全文。其他技術文件的 HTTP 成功也只表示本次可取得，不代表 IRMS 相容性或性能已驗證。
 
 書目由 Europe PMC 的 MED 記錄取得，VQF 另核對作者機構及 Crossref。PubMed／DOI 網頁本身可能對不同工具限流或攔截；本庫區分 API 書目驗證與連結可取得狀態。[機器可讀統計](data/stats.json)、[官方連結查核](data/link-checks.json)
 

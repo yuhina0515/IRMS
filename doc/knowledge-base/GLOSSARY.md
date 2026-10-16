@@ -1,6 +1,6 @@
 # 專業術語表
 
-60 個詞彙的工作定義，用於本庫與 IRMS 討論。定義是導讀，非另立臨床標準；細節見對應章節與原始來源。
+63 個詞彙的工作定義，用於本庫與 IRMS 討論。定義是導讀，非另立臨床標準；細節見對應章節與原始來源。
 
 | # | English | 中文與工作定義 | 容易混淆之處 |
 |---|---|---|---|
@@ -64,5 +64,8 @@
 | 58 | Ed25519 | EdDSA 的簽章方案 | 簽章證明來源完整，不證明功能正確 |
 | 59 | Data leakage | 資料洩漏，測試資訊進入訓練或調參 | 重疊視窗與同受試者常造成問題 |
 | 60 | Reproducibility | 可重現性，依資料、設定與流程重建結果 | 可重跑不等於結果正確或可泛化 |
+| 61 | Genu recurvatum | 膝反屈／膝過伸，伸直超過 0°；臨床常以超過 5° 或 10° 為操作定義 | 靜態或被動切點不是動態警示門檻 |
+| 62 | Nocebo | 反安慰劑效應，負面預期或情境使症狀與結果變差 | 不是指治療本身有害 |
+| 63 | External focus | 外在注意焦點，注意動作造成的效果而非身體部位 | 證據多來自健康人與運動技能 |
 
-延伸：[量測模型](guides/01-measurement-model.md)、[統計](guides/04-validation-statistics.md)、[BLE](guides/09-ble-and-timing.md)、[資料](guides/10-data-and-reproducibility.md)。
+延伸：[過伸與措辭](guides/13-hyperextension-and-alert-wording.md)、[量測模型](guides/01-measurement-model.md)、[統計](guides/04-validation-statistics.md)、[BLE](guides/09-ble-and-timing.md)、[資料](guides/10-data-and-reproducibility.md)。

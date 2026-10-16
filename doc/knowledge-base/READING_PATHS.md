@@ -24,6 +24,10 @@
 
 閱讀 [辨識導讀](guides/05-gait-and-recognition.md)、[居家運動與非運動資料](sources/PMID-37051835.md)、[計次比較](sources/PMID-32854288.md)、[GAITEX](sources/PMID-41469404.md)、[DIODEM](sources/PMID-40702014.md)。按受試者／試次分割，再依 [模組契約](../MODULE_CONTRACT.md) 設計生命週期。
 
+## 設定過伸警示與提示語
+
+先讀 [過伸與措辭導讀](guides/13-hyperextension-and-alert-wording.md) 及 [缺口 G1／G2](MAINTENANCE.md#已知證據缺口)，再讀 [5° 切點的來源](sources/PMID-34820464.md)、[ACL 術後恢復過伸](sources/PMID-19059893.md)、[靜態與動態過伸](sources/PMID-33573624.md)、[伸直端量測信度](sources/PMID-1989012.md)、[負向指示的過度補償](sources/PMID-18819030.md)、[臨床用語的長期影響](sources/PMID-24218376.md)。門檻要先取得 V01／V02 的負角誤差與 SEM；提示語要先完成 V11 理解度測試，再寫入預設值。
+
 ## 支持可靠硬體與資料鏈
 
 閱讀 [硬體](guides/08-hardware-and-firmware.md)、[BLE](guides/09-ble-and-timing.md)、[數據](guides/10-data-and-reproducibility.md)、[生命週期與安全](guides/11-security-and-lifecycle.md)。官方文件按使用中的晶片、平臺與版本核對；參考 stable／latest 不等於已升級依賴。

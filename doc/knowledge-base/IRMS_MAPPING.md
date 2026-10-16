@@ -14,6 +14,7 @@
 | 資料庫 | [db.rs](../../IRMS_App_Tauri/src-tauri/src/db.rs)、[migrations.rs](../../IRMS_App_Tauri/src-tauri/src/migrations.rs) | WAL／外鍵、交易與歷史資料 |
 | 模組 | [MODULE_CONTRACT.md](../MODULE_CONTRACT.md)、[modules.ts](../../IRMS_App_Tauri/src/services/modules.ts) | 研究功能需保持獨立操作頁與取消清理 |
 | OTA／更新 | [firmware.rs](../../IRMS_App_Tauri/src-tauri/src/firmware.rs)、[firmware_update.rs](../../IRMS_App_Tauri/src-tauri/src/firmware_update.rs) | 程序階段、簽章及裝置版本確認 |
+| 過伸警示 | `feat/unified-calibration` commit `3c1c57d`（不在本快照）：`movementMetric.ts` 的 `HYPEREXTENSION_TOLERANCE_DEG = 5`（帶符號膝角低於 -5° 時警示）；`i18n/zh-Hant.ts`、`en.ts` 的過伸文字與語音。本快照只有 [movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts)、[zh-Hant.ts](../../IRMS_App_Tauri/src/i18n/zh-Hant.ts) 的舊版 | 5° 沒有動態警示的文獻依據；門檻需 V01／V02 誤差資料，語句需 V11 測試。見 [導讀 13](guides/13-hyperextension-and-alert-wording.md)、C26–C30（2026-10-16 查核） |
 | 遙測 | [telemetry.rs](../../IRMS_App_Tauri/src-tauri/src/telemetry.rs) | 背景傳送與資料品質事件；未核對實際伺服器 |
 | 韌體 | [config.h](https://github.com/yuhina0515/IRMS-Firmware/blob/15c5c709ba12603454449a2311faf3489ac7f96e/IRMS_Sensor/config.h)、[imu.h](https://github.com/yuhina0515/IRMS-Firmware/blob/15c5c709ba12603454449a2311faf3489ac7f96e/IRMS_Sensor/imu.h) | 設定感測 50 Hz、推播 25 Hz、互補權重 0.85，實際時序仍需測 |
 
