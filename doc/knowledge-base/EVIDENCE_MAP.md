@@ -2,7 +2,9 @@
 
 查核：2026-10-06；App 快照 `af65daa2c4eb29b2e296c2023caf07d0e4b4a9e1`。
 
-25 主張與 12 驗證活動全部對照。閱讀深度逐筆保留；工程推論和待驗證要求不是 IRMS 已有的性能結果。
+補充 2026-10-16（C26–C30）：依缺口 G1／G2 新增，來源閱讀深度以摘要或指定章節為主；過伸常數位於 feat/unified-calibration 3c1c57d，不在 App 快照 af65daa。
+
+30 主張與 12 驗證活動全部對照。閱讀深度逐筆保留；工程推論和待驗證要求不是 IRMS 已有的性能結果。
 
 [引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md) · [數值查核](EVIDENCE_RECONCILIATION.md) · [資料](data/evidence-map.json)
 
@@ -370,3 +372,85 @@
 **完成所需證據**：研究問題、主要終點、樣本依據、分析方案與完整試驗紀錄。
 
 **驗證活動**：V05、V11、V12（[工作表](VALIDATION_PLAN.md)）。
+
+## C26 — 膝過伸常以靜態或被動伸直角定義，文獻切點有 5°、6° 與 10° 等不同慣例
+
+**來源與實際閱讀位置**
+
+- [PMID-9580896](sources/PMID-9580896.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-34820464](sources/PMID-34820464.md)：Abstract; Methods (passive contralateral hyperextension measured with goniometer under anesthesia, Figure 1); Discussion (5°/6°/10° cut-offs; no data for postoperative <5° restriction) — Europe PMC fullTextXML PMC8606942；`full-text-sections`。
+- [PMID-29882693](sources/PMID-29882693.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-33573624](sources/PMID-33573624.md)：Abstract; Methods (participants: Beighton ≥6 and static standing knee hyperextension ≥10°, Table 1); Results — Europe PMC fullTextXML PMC7879627；`full-text-sections`。
+
+**實作對照**：[IRMS_App_Tauri/src/services/movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts)
+
+**尚缺**：文獻切點來自被動、麻醉下或靜態站立量測；IRMS 的 -5° 是動態、相對校準零點的帶符號角（feat/unified-calibration 3c1c57d 的 HYPEREXTENSION_TOLERANCE_DEG，不在 af65daa 快照），兩者不能互換。
+
+**完成所需證據**：同一受試者的被動量角器伸直、靜態站立與動態 IRMS 帶符號角比較；分開報告各情境的偏差與一致性界限。
+
+**驗證活動**：V01、V05（[工作表](VALIDATION_PLAN.md)）。
+
+## C27 — ACL 重建族群中，術前被動過伸 ≥5° 與移植物失敗相關；但限制術後過伸的效果缺乏資料，且部分方案以恢復對稱過伸為目標
+
+**來源與實際閱讀位置**
+
+- [PMID-29882693](sources/PMID-29882693.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-34820464](sources/PMID-34820464.md)：Abstract; Methods (passive contralateral hyperextension measured with goniometer under anesthesia, Figure 1); Discussion (5°/6°/10° cut-offs; no data for postoperative <5° restriction) — Europe PMC fullTextXML PMC8606942；`full-text-sections`。
+- [PMID-19059893](sources/PMID-19059893.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+
+**實作對照**：[IRMS_App_Tauri/src/services/movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts)
+
+**尚缺**：這些是手術風險分組或伸直恢復目標，不是即時警示的研究；沒有證據顯示動態負角警示能降低再斷裂或改善功能。固定預設值可能與 ACL 術後恢復健側對稱過伸的目標衝突。
+
+**完成所需證據**：治療師可設定或關閉的個人門檻（可依健側伸直），並記錄設定來源；介入效果需另行比較試驗。
+
+**驗證活動**：V05、V12（[工作表](VALIDATION_PLAN.md)）。
+
+## C28 — 角度回饋可在小型研究中減少中風或健康女性的過伸步態
+
+**來源與實際閱讀位置**
+
+- [PMID-1463378](sources/PMID-1463378.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-22030469](sources/PMID-22030469.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-20153279](sources/PMID-20153279.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+
+**實作對照**：[IRMS_App_Tauri/src/services/movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts) · [IRMS_App_Tauri/src/services/triggerEngine.ts](../../IRMS_App_Tauri/src/services/triggerEngine.ts)
+
+**尚缺**：研究樣本小、設備與回饋形式不同，未報告門檻、提示語或誤報；IRMS 的過伸警示尚無任何效果或誤報資料。
+
+**完成所需證據**：邊界附近的誤報／漏報率、遲滯與停留時間設定，以及回饋撤除後的保留測試。
+
+**驗證活動**：V08、V12（[工作表](VALIDATION_PLAN.md)）。
+
+## C29 — 臨床語言與指令措辭會影響病人的信念、預期與動作；負向「不要」指示可能造成反向過度補償
+
+**來源與實際閱讀位置**
+
+- [PMID-24218376](sources/PMID-24218376.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-30067920](sources/PMID-30067920.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-27133031](sources/PMID-27133031.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-18819030](sources/PMID-18819030.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-26833314](sources/PMID-26833314.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+
+**實作對照**：[IRMS_App_Tauri/src/i18n/zh-Hant.ts](../../IRMS_App_Tauri/src/i18n/zh-Hant.ts) · [IRMS_App_Tauri/src/i18n/en.ts](../../IRMS_App_Tauri/src/i18n/en.ts)
+
+**尚缺**：證據來自下背痛口語互動、觀點文章、理論回顧與健康人推桿實驗；沒有研究直接比較膝過伸警示語句，也沒有中文語音提示研究。導讀 13 的候選語句是專家推論。
+
+**完成所需證據**：目標使用者（含 TKA／ACL 術後與生理性過伸者）對候選語句的理解、正確動作反應、焦慮與信任評估，中英文分開。
+
+**驗證活動**：V11（[工作表](VALIDATION_PLAN.md)）。
+
+## C30 — 膝伸直端的量測有可觀的跨測者誤差，0° 附近數度差異可能落在量測誤差內
+
+**來源與實際閱讀位置**
+
+- [PMID-1989012](sources/PMID-1989012.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+- [PMID-15705040](sources/PMID-15705040.md)：Abstract; metadata from Europe PMC MED record；`abstract`。
+
+**實作對照**：[IRMS_App_Tauri/src/services/movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts)
+
+**尚缺**：Watkins 只報 ICC 而無以度為單位的 SEM；IRMS 尚無 0° 與負角附近的已知角誤差、重戴 SEM 或 MDC95，因此不能判斷 5° 是否高於自身雜訊。
+
+**完成所需證據**：機械平臺含負角（例如 -10° 至 +10°）的已知角誤差，以及重戴／跨日 SEM 與 MDC95；據此推導最小可用門檻與誤報率。
+
+**驗證活動**：V01、V02（[工作表](VALIDATION_PLAN.md)）。

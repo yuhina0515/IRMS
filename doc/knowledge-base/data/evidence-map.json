@@ -2,7 +2,7 @@
   "schema_version": 1,
   "checked_on": "2026-10-06",
   "app_commit": "af65daa2c4eb29b2e296c2023caf07d0e4b4a9e1",
-  "scope": "25 claims mapped to located references, pinned code and all 12 validation activities; no product performance inferred.",
+  "scope": "30 claims mapped to located references, pinned code and all 12 validation activities; no product performance inferred. C26-C30 added 2026-10-16 for gaps G1/G2.",
   "claims": [
     {
       "id": "C01",
@@ -612,6 +612,179 @@
         "V12"
       ],
       "status": "requires-IRMS-evidence"
+    },
+    {
+      "id": "C26",
+      "claim": "膝過伸常以靜態或被動伸直角定義，文獻切點有 5°、6° 與 10° 等不同慣例",
+      "evidence": [
+        {
+          "source_id": "PMID-9580896",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-34820464",
+          "locator": "Abstract; Methods (passive contralateral hyperextension measured with goniometer under anesthesia, Figure 1); Discussion (5°/6°/10° cut-offs; no data for postoperative <5° restriction) — Europe PMC fullTextXML PMC8606942",
+          "review_level": "full-text-sections"
+        },
+        {
+          "source_id": "PMID-29882693",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-33573624",
+          "locator": "Abstract; Methods (participants: Beighton ≥6 and static standing knee hyperextension ≥10°, Table 1); Results — Europe PMC fullTextXML PMC7879627",
+          "review_level": "full-text-sections"
+        }
+      ],
+      "app_paths": [
+        "IRMS_App_Tauri/src/services/movementMetric.ts"
+      ],
+      "gap": "文獻切點來自被動、麻醉下或靜態站立量測；IRMS 的 -5° 是動態、相對校準零點的帶符號角（feat/unified-calibration 3c1c57d 的 HYPEREXTENSION_TOLERANCE_DEG，不在 af65daa 快照），兩者不能互換。",
+      "acceptance_evidence": "同一受試者的被動量角器伸直、靜態站立與動態 IRMS 帶符號角比較；分開報告各情境的偏差與一致性界限。",
+      "validation_ids": [
+        "V01",
+        "V05"
+      ],
+      "status": "requires-IRMS-evidence"
+    },
+    {
+      "id": "C27",
+      "claim": "ACL 重建族群中，術前被動過伸 ≥5° 與移植物失敗相關；但限制術後過伸的效果缺乏資料，且部分方案以恢復對稱過伸為目標",
+      "evidence": [
+        {
+          "source_id": "PMID-29882693",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-34820464",
+          "locator": "Abstract; Methods (passive contralateral hyperextension measured with goniometer under anesthesia, Figure 1); Discussion (5°/6°/10° cut-offs; no data for postoperative <5° restriction) — Europe PMC fullTextXML PMC8606942",
+          "review_level": "full-text-sections"
+        },
+        {
+          "source_id": "PMID-19059893",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        }
+      ],
+      "app_paths": [
+        "IRMS_App_Tauri/src/services/movementMetric.ts"
+      ],
+      "gap": "這些是手術風險分組或伸直恢復目標，不是即時警示的研究；沒有證據顯示動態負角警示能降低再斷裂或改善功能。固定預設值可能與 ACL 術後恢復健側對稱過伸的目標衝突。",
+      "acceptance_evidence": "治療師可設定或關閉的個人門檻（可依健側伸直），並記錄設定來源；介入效果需另行比較試驗。",
+      "validation_ids": [
+        "V05",
+        "V12"
+      ],
+      "status": "requires-IRMS-evidence"
+    },
+    {
+      "id": "C28",
+      "claim": "角度回饋可在小型研究中減少中風或健康女性的過伸步態",
+      "evidence": [
+        {
+          "source_id": "PMID-1463378",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-22030469",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-20153279",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        }
+      ],
+      "app_paths": [
+        "IRMS_App_Tauri/src/services/movementMetric.ts",
+        "IRMS_App_Tauri/src/services/triggerEngine.ts"
+      ],
+      "gap": "研究樣本小、設備與回饋形式不同，未報告門檻、提示語或誤報；IRMS 的過伸警示尚無任何效果或誤報資料。",
+      "acceptance_evidence": "邊界附近的誤報／漏報率、遲滯與停留時間設定，以及回饋撤除後的保留測試。",
+      "validation_ids": [
+        "V08",
+        "V12"
+      ],
+      "status": "requires-IRMS-evidence"
+    },
+    {
+      "id": "C29",
+      "claim": "臨床語言與指令措辭會影響病人的信念、預期與動作；負向「不要」指示可能造成反向過度補償",
+      "evidence": [
+        {
+          "source_id": "PMID-24218376",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-30067920",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-27133031",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-18819030",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-26833314",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        }
+      ],
+      "app_paths": [
+        "IRMS_App_Tauri/src/i18n/zh-Hant.ts",
+        "IRMS_App_Tauri/src/i18n/en.ts"
+      ],
+      "gap": "證據來自下背痛口語互動、觀點文章、理論回顧與健康人推桿實驗；沒有研究直接比較膝過伸警示語句，也沒有中文語音提示研究。導讀 13 的候選語句是專家推論。",
+      "acceptance_evidence": "目標使用者（含 TKA／ACL 術後與生理性過伸者）對候選語句的理解、正確動作反應、焦慮與信任評估，中英文分開。",
+      "validation_ids": [
+        "V11"
+      ],
+      "status": "requires-IRMS-evidence"
+    },
+    {
+      "id": "C30",
+      "claim": "膝伸直端的量測有可觀的跨測者誤差，0° 附近數度差異可能落在量測誤差內",
+      "evidence": [
+        {
+          "source_id": "PMID-1989012",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        },
+        {
+          "source_id": "PMID-15705040",
+          "locator": "Abstract; metadata from Europe PMC MED record",
+          "review_level": "abstract"
+        }
+      ],
+      "app_paths": [
+        "IRMS_App_Tauri/src/services/movementMetric.ts"
+      ],
+      "gap": "Watkins 只報 ICC 而無以度為單位的 SEM；IRMS 尚無 0° 與負角附近的已知角誤差、重戴 SEM 或 MDC95，因此不能判斷 5° 是否高於自身雜訊。",
+      "acceptance_evidence": "機械平臺含負角（例如 -10° 至 +10°）的已知角誤差，以及重戴／跨日 SEM 與 MDC95；據此推導最小可用門檻與誤報率。",
+      "validation_ids": [
+        "V01",
+        "V02"
+      ],
+      "status": "requires-IRMS-evidence"
+    }
+  ],
+  "supplements": [
+    {
+      "checked_on": "2026-10-16",
+      "claims": "C26–C30",
+      "note": "依缺口 G1／G2 新增，來源閱讀深度以摘要或指定章節為主；過伸常數位於 feat/unified-calibration 3c1c57d，不在 App 快照 af65daa。"
     }
   ]
 }

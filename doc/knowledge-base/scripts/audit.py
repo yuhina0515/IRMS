@@ -21,7 +21,7 @@ def load_audits(root, catalog):
         sources[sid]['evidence_reconciliation'] = dict(c, checked_on=audit['checked_on'])
     mapping = json.loads((root / 'data/evidence-map.json').read_text(encoding='utf-8'))
     claim_ids = [c['id'] for c in mapping['claims']]
-    if set(claim_ids) != {f'C{i:02}' for i in range(1, 26)} or len(claim_ids) != 25:
+    if len(claim_ids) < 25 or set(claim_ids) != {f'C{i:02}' for i in range(1, len(claim_ids) + 1)}:
         raise ValueError('Claim map identity mismatch')
     validation_ids = {f'V{i:02}' for i in range(1, 13)}
     used = set()
@@ -60,8 +60,10 @@ def load_audits(root, catalog):
 
 def render_mapping(root, mapping, write):
     """產生主張、全文定位、實作差距與完成證據矩陣。"""
-    lines = ['# IRMS 主張與全文證據對照', '', f'查核：{mapping["checked_on"]}；App 快照 `{mapping["app_commit"]}`。', '',
-             '25 主張與 12 驗證活動全部對照。閱讀深度逐筆保留；工程推論和待驗證要求不是 IRMS 已有的性能結果。', '',
+    lines = ['# IRMS 主張與全文證據對照', '', f'查核：{mapping["checked_on"]}；App 快照 `{mapping["app_commit"]}`。', '']
+    for note in mapping.get('supplements', []):
+        lines += [f'補充 {note["checked_on"]}（{note["claims"]}）：{note["note"]}', '']
+    lines += [f'{len(mapping["claims"])} 主張與 12 驗證活動全部對照。閱讀深度逐筆保留；工程推論和待驗證要求不是 IRMS 已有的性能結果。', '',
              '[引用主張](CLAIMS.md) · [驗證計畫](VALIDATION_PLAN.md) · [數值查核](EVIDENCE_RECONCILIATION.md) · [資料](data/evidence-map.json)', '']
     for c in mapping['claims']:
         lines += ['## ' + c['id'] + ' — ' + c['claim'], '', '**來源與實際閱讀位置**', '']
