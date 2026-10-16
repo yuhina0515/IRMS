@@ -31,10 +31,9 @@ Branch `feat/unified-calibration`, cut from `fix/ota-truncated-link-flow-control
 - One device is one patient. B's floor-bias correction was removed. Mobility peaks only suggest comfort angles: no code writes a comfort angle from a peak, so this holds by construction.
 
 ## For owner review: hyperextension
-- Tolerance `HYPEREXTENSION_TOLERANCE_DEG = 5` in `services/movementMetric.ts` (proposed value, not clinically validated). Below -5 deg signed knee the alarm fires.
-- zh-Hant banner: `⚠ 膝蓋過度伸直 {deg}°,請放鬆,不要向後頂`; voice: `膝蓋過度伸直,請放鬆`.
-- en banner: `⚠ Knee hyperextended {deg}°. Relax it, do not push backward`; voice: `Knee hyperextended, relax it`.
-- Question: is 5 deg right, and is "do not push backward" acceptable wording for patients with a naturally hyperextended knee?
+- Tolerance `HYPEREXTENSION_TOLERANCE_DEG = 5` in `services/movementMetric.ts` is a provisional default: the knowledge base (guide 13) found no evidence for a fixed dynamic threshold. It must be set from the bench measurement error (SEM / MDC95, validation items V01/V02). Below -5 deg signed knee the alarm fires.
+- Wording changed per KB guide 13 (no negative command, no degree numbers spoken). zh-Hant banner: `⚠ 膝蓋往後伸多了 {deg}°,稍微彎回來就好`; voice: `膝蓋稍微彎一點`. en banner: `Knee extended past straight {deg}°. Bend it back slightly`; voice: `Bend your knee slightly`.
+- Open: the comprehension test (V11) of this wording with patients, including those with a naturally hyperextended knee, has not been run.
 
 ## The flow (S6)
 - `services/calibrationFlow.ts` is the pure state machine (presets, skip rules, re-capture clears movements, solve and evaluate, quick re-zero, mobility record). `services/calibrationRuntime.ts` holds the IO (stored profile lookup, still sampling, wearing check). `components/CalibrationFlow.tsx` is the UI.

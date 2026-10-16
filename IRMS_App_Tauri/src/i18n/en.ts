@@ -7,7 +7,7 @@ import type { Messages } from './zh-Hant'
 export const en = {
   clinical: {
     overLimit: (p: { deg: string }) => `⚠ ${p.deg}° past your limit range. Lower your leg now`,
-    hyperextension: (p: { deg: string }) => `⚠ Knee hyperextended ${p.deg}°. Relax it, do not push backward`,
+    hyperextension: (p: { deg: string }) => `Knee extended past straight ${p.deg}°. Bend it back slightly`,
     straightenKnee: (p: { deg: string }) => `Straighten your knee ${p.deg}° more`,
     metric: {
       kneeAngle: 'Knee joint angle',
@@ -139,7 +139,7 @@ export const en = {
     rep: (p: { n: number }) => `Rep ${p.n} complete`,
     hold: 'Hold',
     overLimit: 'Beyond your limit angle, ease off slowly',
-    hyperextension: 'Knee hyperextended, relax it',
+    hyperextension: 'Bend your knee slightly',
     sessionEnd: (p: { n: number }) => `Session finished, ${p.n} ${p.n === 1 ? 'rep' : 'reps'}`,
     connectionLost: 'Connection lost, session ended'
   },

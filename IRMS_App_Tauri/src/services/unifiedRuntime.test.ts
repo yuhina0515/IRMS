@@ -148,8 +148,8 @@ describe('hyperextension safety path', () => {
     const sample = computeMetricSample(anglesOf(-8), 'joint_angle', 10)
     const g = computeGuidance(sample, computeMetricZone(JOINT), 'holding', 50, 1000, { comfort: 100, limit: 110 })
     expect(g).toEqual({ kind: 'hyperextension', deg: 8 })
-    expect(guidanceText(g, metricInfo('joint_angle'), 'zh-Hant')).toBe('⚠ 膝蓋過度伸直 8.0°,請放鬆,不要向後頂')
-    expect(guidanceText(g, metricInfo('joint_angle'), 'en')).toBe('⚠ Knee hyperextended 8.0°. Relax it, do not push backward')
+    expect(guidanceText(g, metricInfo('joint_angle'), 'zh-Hant')).toBe('⚠ 膝蓋往後伸多了 8.0°,稍微彎回來就好')
+    expect(guidanceText(g, metricInfo('joint_angle'), 'en')).toBe('Knee extended past straight 8.0°. Bend it back slightly')
   })
 })
 
