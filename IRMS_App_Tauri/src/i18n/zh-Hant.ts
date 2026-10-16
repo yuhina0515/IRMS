@@ -70,7 +70,7 @@ export const zhHant = {
       overLimitTitle: '超出極限範圍,請停止加深',
       overLimitSub: (p: { knee: string; limit: string }) => `膝角 ${p.knee}° · 你的極限範圍 ${p.limit}°`,
       hyperTitle: '膝蓋稍微彎一點',
-      hyperSub: (p: { deg: string }) => `膝蓋往後頂了 ${p.deg}°。把腿放鬆,不要用力向後壓`,
+      hyperSub: (p: { deg: string }) => `膝蓋往後伸多了 ${p.deg}°。稍微彎回來就好,不用往後壓`,
       holding: '很好,保持這個位置',
       holdingSub: (p: { sec: string }) => `已進入目標區間,保持滿 ${p.sec} 秒`,
       restPending: '已完成,請回到起始位',
@@ -163,7 +163,7 @@ export const zhHant = {
     rep: (p: { n: number }) => `第 ${p.n} 下完成`,
     hold: '保持',
     overLimit: '超過極限角度,請慢慢放鬆',
-    hyperextension: '膝蓋過度伸直,請放鬆',
+    hyperextension: '膝蓋稍微彎一點',
     sessionEnd: (p: { n: number }) => `療程結束,共完成 ${p.n} 下`,
     connectionLost: '連線中斷,療程已結束'
   },
