@@ -42,7 +42,13 @@ export function firmwareUpdateBusy(status: AutoUpdateStatus): boolean {
 }
 
 export interface AutoUpdateDeps {
-  state(): { connected: boolean; simulated: boolean; sessionRunning: boolean; hardwareError: boolean }
+  state(): {
+    connected: boolean
+    simulated: boolean
+    sessionRunning: boolean
+    hardwareError: boolean
+    linkTruncated?: boolean
+  }
   readDeviceVersion(): Promise<string | null>
   checkLatest(): Promise<FirmwareRelease>
   isNewer(device: string | null, latest: string): Promise<boolean>
@@ -75,6 +81,10 @@ export function createFirmwareAutoUpdater(deps: AutoUpdateDeps): { run(): Promis
       let deviceVersion: string | null = null
       let latest: string | undefined
       try {
+        if (deps.state().linkTruncated) {
+          deps.report({ phase: 'deferred', message: getT().firmware.deferredTruncatedLink })
+          return
+        }
         deps.report({ phase: 'checking' })
         const release = await deps.checkLatest()
         latest = release.version

@@ -61,6 +61,7 @@ const SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
+  voiceEnabled: true
 }
 
 describe('computeCaptureStats', () => {
@@ -429,6 +430,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
     expect(calibrationDrift(buildCalibrationSnapshot(SETTINGS), SETTINGS)).toEqual([])
   })
 
+  it('向量欄位從 JSON 讀回(新物件)後不算漂移', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 0, y: 1, z: 0 },
+      distalZeroAccel: { x: 0.1, y: 0.2, z: 0.97 }
+    }
+    const roundTripped = JSON.parse(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(roundTripped, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 0, y: 0, z: 1 } }
+    expect(calibrationDrift(roundTripped, moved)).toEqual(['proximalHingeAxis'])
+  })
+
   it('列出所有不一致的欄位', () => {
     const snapshot = buildCalibrationSnapshot(SETTINGS)
     const now: Settings = { ...SETTINGS, distalInvert: true, proximalZeroRaw: 4 }
@@ -450,6 +463,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
       distalRollVerified: true
     }
     expect(calibrationDrift(snapshot, recalibrated)).toEqual([])
+  })
+
+  it('vector fields compare by value after a JSON round trip, and still detect a change', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 1, y: 0, z: 0 },
+      proximalZeroAccel: { x: 0, y: 0.6, z: 0.8 }
+    }
+    const stored = parseCalibrationSnapshot(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(stored, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 1, y: 0.1, z: 0 } }
+    expect(calibrationDrift(stored, moved)).toEqual(['proximalHingeAxis'])
   })
 
   it('每一個會改變算式的欄位單獨改動都偵測得到', () => {

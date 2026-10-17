@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# btleplug droidplug and jni-utils are resolved by name from Rust via JNI.
+-keep class com.nonpolynomial.btleplug.** { *; }
+-keep class io.github.gedgygedgy.rust.** { *; }

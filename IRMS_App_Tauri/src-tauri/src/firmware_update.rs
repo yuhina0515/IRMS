@@ -120,7 +120,7 @@ pub(crate) fn client() -> Result<reqwest::Client, String> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
-    reqwest::Client::builder()
+    crate::telemetry::with_platform_roots(reqwest::Client::builder())
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| format!("HTTP client init failed: {e}"))

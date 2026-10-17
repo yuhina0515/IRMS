@@ -32,9 +32,10 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 import { useStore, type Settings } from '../store/useStore'
 import { bluetoothService } from './bluetooth'
-import { ALARM_SILENCE_MS, sessionController } from './sessionController'
+import { ALARM_SILENCE_MS, ALARM_VOICE_REPEAT_MS, sessionController } from './sessionController'
 import { ERR_PACKET, encodeAnglePacket, truncateTo } from './simulation/encode'
 import { poseForKnee } from './simulation/kinematics'
+import { resetVoiceStateForTests } from './voice'
 import { REFERENCE_ACTION } from './simulation/scenarios'
 
 const COMM_PERIOD_MS = 40
@@ -170,6 +171,81 @@ afterEach(async () => {
   sendSpy.mockRestore()
   stub.uninstall()
   vi.useRealTimers()
+})
+
+describe('開始/結束的重入防護', () => {
+  it('連點開始只建立一場 Session', async () => {
+    await Promise.all([sessionController.startSession(), sessionController.startSession()])
+    expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('同時結束兩次只寫入一次 sessions.end,且只有一個呼叫回報 true', async () => {
+    await sessionController.startSession()
+    const results = await Promise.all([sessionController.endSession(), sessionController.endSession()])
+    expect(stub.sessions.end).toHaveBeenCalledTimes(1)
+    expect(results.filter(Boolean)).toHaveLength(1)
+  })
+})
+
+describe('語音提示', () => {
+  let spoken: string[]
+
+  beforeEach(() => {
+    spoken = []
+    resetVoiceStateForTests()
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        lang = ''
+        constructor(public text: string) {}
+      }
+    )
+    vi.stubGlobal('speechSynthesis', { speak: (u: { text: string }) => spoken.push(u.text), cancel: () => {} })
+    useStore.setState({ settings: { ...useStore.getState().settings, voiceEnabled: true, language: 'en' } })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('開始與結束各報讀一次,結束時帶入完成次數', async () => {
+    await sessionController.startSession()
+    expect(spoken).toEqual(['Session started'])
+    await sessionController.endSession()
+    expect(spoken).toEqual(['Session started', 'Session finished, 0 reps'])
+  })
+
+  it('超限時報讀警告,持續超限每 8 秒才再提醒一次', async () => {
+    await sessionController.startSession()
+    spoken.length = 0
+    feed(OVER_LIMIT, 25)
+    const warnings = () => spoken.filter((t) => t.startsWith('Beyond your limit'))
+    expect(warnings()).toHaveLength(1)
+
+    feed(OVER_LIMIT, 25)
+    expect(warnings()).toHaveLength(1)
+
+    vi.advanceTimersByTime(ALARM_VOICE_REPEAT_MS)
+    feed(OVER_LIMIT, 5)
+    expect(warnings()).toHaveLength(2)
+  })
+
+  it('關閉語音提示後完全不出聲', async () => {
+    useStore.setState({ settings: { ...useStore.getState().settings, voiceEnabled: false } })
+    await sessionController.startSession()
+    feed(OVER_LIMIT, 25)
+    await sessionController.endSession()
+    expect(spoken).toEqual([])
+  })
+
+  it('斷線收尾只報讀斷線,不再報讀療程結束', async () => {
+    await sessionController.startSession()
+    spoken.length = 0
+    useStore.getState().setConnection(false, null)
+    bluetoothService.onConnectionLost?.()
+    await vi.advanceTimersByTimeAsync(10)
+    expect(spoken).toEqual(['Connection lost, session ended'])
+  })
 })
 
 // ─────────────────────────────────────────────────────────────

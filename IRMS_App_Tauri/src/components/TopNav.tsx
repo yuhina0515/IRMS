@@ -2,10 +2,12 @@
 // UI v3 top navigation: brand, four text tabs, device status + connect. Replaces the
 // beta8 command rail + command bar (PROPOSAL §2: horizontal navigation gives the pose stage
 // the width the rail used to take).
+import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
 import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useToolModules } from '../views/ToolsView'
 import logoIcon from '../assets/logo-icon-only.png'
 import { connectionStatusText, useT } from '../i18n'
@@ -22,22 +24,37 @@ export function TopNav(): JSX.Element {
   const connectionStatus = useStore((s) => s.connectionStatus)
   const reconnect = useStore((s) => s.reconnect)
   const m = useT()
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEscapeKey(menuOpen ? () => setMenuOpen(false) : null)
 
   useGlobalShortcut({ key: 'k' }, demoMode ? null : () => void bluetoothService.connect())
 
   return (
     <header className="v3-topnav">
+      <button
+        type="button"
+        className="v3-nav-menu"
+        aria-label={m.nav.menuAria}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((o) => !o)}
+      >
+        ☰
+      </button>
+      {menuOpen && <div className="v3-nav-scrim" onClick={() => setMenuOpen(false)} />}
       <div className="v3-brand" aria-label="IRMS">
         <img src={logoIcon} alt="" />
         IRMS
       </div>
-      <nav className="v3-tabs" aria-label={m.nav.ariaLabel}>
+      <nav className={`v3-tabs${menuOpen ? ' is-open' : ''}`} aria-label={m.nav.ariaLabel}>
         {NAV_ITEMS.filter((id) => id !== 'tools' || hasTools || view === 'tools').map((id) => (
           <button
             key={id}
             className="v3-tab"
             aria-current={view === id ? 'page' : undefined}
-            onClick={() => setView(id)}
+            onClick={() => {
+              setView(id)
+              setMenuOpen(false)
+            }}
           >
             {m.nav[id]}
           </button>

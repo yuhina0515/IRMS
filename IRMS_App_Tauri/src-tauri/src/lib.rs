@@ -22,8 +22,47 @@ use splash::SplashReadyState;
 use std::sync::Mutex;
 use tauri::Manager;
 
+#[cfg(target_os = "android")]
+static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
+
+/// btleplug calls into Java from whatever thread polls its futures; a thread that is not attached to
+/// the JVM fails with ThreadDetached, so every runtime thread must attach itself when it starts.
+#[cfg(target_os = "android")]
+fn install_jvm_attached_runtime() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_start(|| {
+            if let Some(vm) = JVM.get() {
+                let _ = vm.attach_current_thread_permanently();
+            }
+        })
+        .build()
+        .expect("tokio runtime");
+    tauri::async_runtime::set(runtime.handle().clone());
+    std::mem::forget(runtime);
+}
+
+/// btleplug (droidplug) keeps global JNI class references; they must be resolved while the app's
+/// class loader is current, i.e. here, before any Rust thread touches Bluetooth.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn JNI_OnLoad(
+    vm: jni::JavaVM,
+    _reserved: *const std::ffi::c_void,
+) -> jni::sys::jint {
+    let env = vm.get_env().expect("JNI_OnLoad: no JNIEnv");
+    // SAFETY: the pointer comes from the live JavaVM the runtime handed us; JavaVM is a process-wide handle.
+    let _ = JVM.set(unsafe { jni::JavaVM::from_raw(vm.get_java_vm_pointer()) }.expect("JavaVM"));
+    jni_utils::init(&env).expect("jni-utils init failed");
+    btleplug::platform::init(&env).expect("btleplug init failed");
+    jni::JNIVersion::V6.into()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "android")]
+    install_jvm_attached_runtime();
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
 
@@ -92,6 +131,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             splash::splash_ready,
             update::update_check,
+            update::android_update_check,
             ble::ble_connect,
             ble::ble_disconnect,
             ble::ble_send_command,
@@ -110,6 +150,9 @@ pub fn run() {
             commands::angle_ranges_list,
             commands::angle_ranges_add,
             commands::angle_ranges_delete,
+            commands::mobility_list,
+            commands::mobility_add,
+            commands::mobility_delete,
             commands::actions_list,
             commands::actions_create,
             commands::actions_update,

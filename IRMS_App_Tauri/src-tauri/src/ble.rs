@@ -20,8 +20,9 @@ use futures::StreamExt;
 use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager as _, State};
 use tokio::sync::{broadcast, Mutex};
 use uuid::Uuid;
 
@@ -36,6 +37,26 @@ pub struct BleState {
     /// notification listener — mirrors bluetooth.ts's waitForOtaStatus().
     ota_status_tx: broadcast::Sender<String>,
     ota_update_lock: Mutex<()>,
+    /// Identifies the live connection. A notification listener that outlives its connection
+    /// (manual disconnect, or a newer connect) sees a different value and must stay silent;
+    /// otherwise its late "stream ended" would clear or report the newer connection as down.
+    generation: AtomicU64,
+}
+
+impl BleState {
+    /// Starts a new connection epoch and returns its id.
+    fn begin_connection(&self) -> u64 {
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Invalidates the current epoch (no listener is current afterwards).
+    fn invalidate_connection(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
 }
 
 impl Default for BleState {
@@ -45,6 +66,7 @@ impl Default for BleState {
             peripheral: Mutex::new(None),
             ota_status_tx,
             ota_update_lock: Mutex::new(()),
+            generation: AtomicU64::new(0),
         }
     }
 }
@@ -99,9 +121,19 @@ fn uuid(s: &str) -> Uuid {
     Uuid::from_str(s).unwrap_or_else(|e| panic!("invalid protocol UUID constant {s:?}: {e}"))
 }
 
+fn error_chain(e: &dyn std::error::Error) -> String {
+    let mut out = format!("{e} [{e:?}]");
+    let mut src = e.source();
+    while let Some(s) = src {
+        out.push_str(&format!(": {s}"));
+        src = s.source();
+    }
+    out
+}
+
 async fn find_adapter() -> Result<Adapter, String> {
-    let manager = Manager::new().await.map_err(|e| e.to_string())?;
-    let adapters = manager.adapters().await.map_err(|e| e.to_string())?;
+    let manager = Manager::new().await.map_err(|e| error_chain(&e))?;
+    let adapters = manager.adapters().await.map_err(|e| error_chain(&e))?;
     adapters
         .into_iter()
         .next()
@@ -117,11 +149,11 @@ async fn scan_for_device(adapter: &Adapter) -> Result<Peripheral, String> {
     adapter
         .start_scan(ScanFilter::default())
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
     let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
     let found = loop {
-        let peripherals = adapter.peripherals().await.map_err(|e| e.to_string())?;
+        let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
         let mut hit = None;
         for p in peripherals {
             if let Ok(Some(props)) = p.properties().await {
@@ -155,6 +187,7 @@ fn spawn_notification_listener(
     app: AppHandle,
     peripheral: Peripheral,
     ota_status_tx: broadcast::Sender<String>,
+    generation: u64,
 ) {
     tauri::async_runtime::spawn(async move {
         let mut stream = match peripheral.notifications().await {
@@ -181,6 +214,12 @@ fn spawn_notification_listener(
                 // Raw wire text, not the parsed form: offline replay/re-parsing (calibration,
                 // protocol changes) needs exactly what the device sent.
                 telemetry::record(&app, "packet", json!({ "raw": text.trim() }));
+                // Opt-in raw motion packet (firmware CMD:RAW_ON): forwarded as text and parsed in
+                // the frontend; it must never reach the angle parser, which would call it malformed.
+                if text.trim_start().starts_with("G:") {
+                    let _ = app.emit("ble:raw", text.trim());
+                    continue;
+                }
                 let parsed: ParsedPacket = protocol::parse_angle_packet(&text);
                 let _ = app.emit("ble:packet", &parsed);
             } else if notification.uuid == ota_status_uuid {
@@ -189,7 +228,15 @@ fn spawn_notification_listener(
                 let _ = ota_status_tx.send(text);
             }
         }
-        // Stream ended — device disconnected. Web Bluetooth's gattserverdisconnected has a
+        // A manual disconnect or a newer connect already owns the UI state; stay silent.
+        let state = app.state::<BleState>();
+        if !state.is_current(generation) {
+            return;
+        }
+        // Stream ended — device disconnected. Drop the dead handle so later commands report
+        // "not connected" instead of writing to a stale peripheral.
+        *state.peripheral.lock().await = None;
+        // Web Bluetooth's gattserverdisconnected has a
         // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
         // stream) that a full reconnect-loop port should listen to separately; this skeleton
         // only reports the notification stream closing, not full reconnect orchestration.
@@ -227,14 +274,51 @@ pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<S
 }
 
 async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
+    // A second connect while one is live would leave two listeners on two handles; retire the
+    // old connection first so exactly one listener and one peripheral exist.
+    if let Some(old) = state.peripheral.lock().await.take() {
+        state.invalidate_connection();
+        let _ = old.disconnect().await;
+    }
+
     let adapter = find_adapter().await?;
     let peripheral = scan_for_device(&adapter).await?;
 
-    peripheral.connect().await.map_err(|e| e.to_string())?;
+    peripheral.connect().await.map_err(|e| error_chain(&e))?;
+    // Everything after the OS-level connect must release it on failure; otherwise the device
+    // stays connected at the OS level while we report failure, and the next scan cannot see it.
+    match setup_connection(&peripheral).await {
+        Ok(name) => {
+            let generation = state.begin_connection();
+            spawn_notification_listener(
+                app.clone(),
+                peripheral.clone(),
+                state.ota_status_tx.clone(),
+                generation,
+            );
+            *state.peripheral.lock().await = Some(peripheral);
+
+            let _ = app.emit(
+                "ble:connection",
+                ConnectionEvent {
+                    connected: true,
+                    device_name: Some(name.clone()),
+                },
+            );
+            Ok(name)
+        }
+        Err(err) => {
+            let _ = peripheral.disconnect().await;
+            Err(err)
+        }
+    }
+}
+
+async fn setup_connection(peripheral: &Peripheral) -> Result<String, String> {
     peripheral
         .discover_services()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
     let angle_char = peripheral
         .characteristics()
@@ -244,31 +328,21 @@ async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
     peripheral
         .subscribe(&angle_char)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| error_chain(&e))?;
 
-    let name = peripheral
+    Ok(peripheral
         .properties()
         .await
         .ok()
         .flatten()
         .and_then(|p| p.local_name)
-        .unwrap_or_else(|| "IRMS Device".to_string());
-
-    spawn_notification_listener(app.clone(), peripheral.clone(), state.ota_status_tx.clone());
-    *state.peripheral.lock().await = Some(peripheral);
-
-    let _ = app.emit(
-        "ble:connection",
-        ConnectionEvent {
-            connected: true,
-            device_name: Some(name.clone()),
-        },
-    );
-    Ok(name)
+        .unwrap_or_else(|| "IRMS Device".to_string()))
 }
 
 #[tauri::command]
 pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Result<(), String> {
+    // Retire the listener first so its late stream-end cannot report a second "disconnected".
+    state.invalidate_connection();
     let mut guard = state.peripheral.lock().await;
     let result = if let Some(p) = guard.take() {
         p.disconnect().await.map_err(|e| e.to_string())
@@ -338,9 +412,17 @@ pub async fn ble_get_firmware_version(
         return Ok(None);
     };
     match peripheral.read(&fw_char).await {
-        Ok(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).to_string())),
+        Ok(bytes) => Ok(clean_firmware_version(&bytes)),
         Err(_) => Ok(None),
     }
+}
+
+/// The firmware version characteristic is a fixed-size buffer on the device; trailing NULs or
+/// whitespace would break the exact string comparison against the release manifest.
+fn clean_firmware_version(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let trimmed = text.trim_matches(|c: char| c == ' ' || c.is_whitespace());
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 /// Subscribe before polling the BLE write: a notification can arrive before its ACK.
@@ -373,11 +455,68 @@ async fn send_and_wait_for_ota_status(
     .map_err(|_| "OTA status timeout".to_string())?
 }
 
+/// Unconfirmed-byte ceiling for the OTA transfer. Firmware acks every 4 KB with OTA:PROGRESS, so
+/// this keeps at most four acks of data in flight.
+const OTA_WINDOW_BYTES: usize = 16 * 1024;
+/// How long the sender waits for the device to confirm anything before declaring the link stalled.
+const OTA_STALL_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn parse_ota_progress(text: &str) -> Option<usize> {
+    text.strip_prefix("OTA:PROGRESS:")?.parse().ok()
+}
+
+fn absorb_ota_status(text: &str, confirmed: &mut usize) -> Result<(), String> {
+    if let Some(n) = parse_ota_progress(text) {
+        *confirmed = (*confirmed).max(n);
+    } else if text.starts_with("OTA:ERROR:") {
+        return Err(describe_ota_error(text));
+    } else if text == "OTA:ABORTED" {
+        return Err("OTA update aborted".to_string());
+    }
+    Ok(())
+}
+
+/// Write-Without-Response has no ack, so a link that silently drops bytes (e.g. MTU stuck at 23,
+/// where a 125-byte chunk arrives as 20 bytes) would otherwise "succeed" until the device gives
+/// up. Block while too much is unconfirmed and fail fast when the device stops confirming.
+async fn wait_for_ota_window(
+    rx: &mut broadcast::Receiver<String>,
+    sent: usize,
+    confirmed: &mut usize,
+    window: usize,
+    stall: Duration,
+) -> Result<(), String> {
+    use broadcast::error::{RecvError, TryRecvError};
+    loop {
+        loop {
+            match rx.try_recv() {
+                Ok(text) => absorb_ota_status(&text, confirmed)?,
+                Err(TryRecvError::Lagged(_)) => continue,
+                Err(_) => break,
+            }
+        }
+        if sent.saturating_sub(*confirmed) < window {
+            return Ok(());
+        }
+        match tokio::time::timeout(stall, rx.recv()).await {
+            Ok(Ok(text)) => absorb_ota_status(&text, confirmed)?,
+            Ok(Err(RecvError::Lagged(_))) => {}
+            Ok(Err(RecvError::Closed)) => return Err("OTA status channel closed".to_string()),
+            Err(_) => {
+                return Err(format!(
+                    "裝置沒有確認收到資料(已送出 {sent} bytes,僅確認 {confirmed} bytes),                     疑似藍牙連線 MTU 過小或傳輸過載,更新已中止"
+                ))
+            }
+        }
+    }
+}
+
 fn describe_ota_error(status_text: &str) -> String {
     let code = status_text
         .strip_prefix("OTA:ERROR:")
         .unwrap_or(status_text);
     match code {
+        "MTU_TOO_SMALL" => "藍牙連線 MTU 過小(裝置要求 128),韌體分塊會被截斷;請斷線後重新連線,仍無法改善時請改用其他藍牙配接器".to_string(),
         "NO_SPACE" => "裝置回報空間不足,無法開始寫入新韌體".to_string(),
         "BAD_START" => "啟動參數格式錯誤(App 端 bug,不應該發生)".to_string(),
         "ALREADY_RUNNING" => "裝置已有進行中的更新,請先等待或中止".to_string(),
@@ -447,6 +586,8 @@ pub async fn ble_perform_ota_update(
     });
 
     let mut offset = 0;
+    let mut confirmed = 0usize;
+    let mut progress_rx = state.ota_status_tx.subscribe();
     let result: Result<String, String> = async {
         let start_cmd = format!("OTA:START:{total}:{md5}");
         send_and_wait_for_ota_status(
@@ -467,6 +608,14 @@ pub async fn ble_perform_ota_update(
         while offset < total {
             let end = (offset + OTA_CHUNK_SIZE).min(total);
             let chunk = &data[offset..end];
+            wait_for_ota_window(
+                &mut progress_rx,
+                offset,
+                &mut confirmed,
+                OTA_WINDOW_BYTES,
+                OTA_STALL_TIMEOUT,
+            )
+            .await?;
             {
                 let guard = state.peripheral.lock().await;
                 let peripheral = guard.as_ref().ok_or("裝置未連線")?;
@@ -548,6 +697,110 @@ pub async fn ble_abort_ota(state: State<'_, BleState>) -> Result<(), String> {
 mod ota_tests {
     use super::*;
 
+    #[test]
+    fn firmware_version_drops_trailing_nul_and_whitespace() {
+        assert_eq!(
+            clean_firmware_version(b"1.4.2   "),
+            Some("1.4.2".to_string())
+        );
+        assert_eq!(
+            clean_firmware_version(
+                b" 1.4.2
+"
+            ),
+            Some("1.4.2".to_string())
+        );
+        assert_eq!(clean_firmware_version(b"  "), None);
+        assert_eq!(clean_firmware_version(b""), None);
+    }
+
+    #[test]
+    fn stale_listener_is_not_current_after_disconnect_or_reconnect() {
+        let state = BleState::default();
+        let first = state.begin_connection();
+        assert!(state.is_current(first));
+
+        state.invalidate_connection();
+        assert!(!state.is_current(first));
+
+        let second = state.begin_connection();
+        assert!(state.is_current(second));
+        assert!(!state.is_current(first));
+    }
+
+    #[test]
+    fn parses_only_progress_statuses() {
+        assert_eq!(parse_ota_progress("OTA:PROGRESS:4100"), Some(4100));
+        assert_eq!(parse_ota_progress("OTA:READY"), None);
+        assert_eq!(parse_ota_progress("OTA:PROGRESS:x"), None);
+    }
+
+    #[tokio::test]
+    async fn window_opens_without_waiting_when_little_is_in_flight() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        wait_for_ota_window(
+            &mut rx,
+            1000,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap();
+        drop(tx);
+    }
+
+    #[tokio::test]
+    async fn full_window_reopens_when_device_confirms_progress() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        tx.send("OTA:PROGRESS:4100".into()).unwrap();
+        wait_for_ota_window(
+            &mut rx,
+            8200,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(50),
+        )
+        .await
+        .unwrap();
+        assert_eq!(confirmed, 4100);
+    }
+
+    #[tokio::test]
+    async fn stalled_device_fails_fast_instead_of_streaming_into_the_void() {
+        let (_tx, mut rx) = broadcast::channel::<String>(32);
+        let mut confirmed = 0;
+        let err = wait_for_ota_window(
+            &mut rx,
+            9000,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("MTU"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn device_error_during_transfer_is_surfaced() {
+        let (tx, mut rx) = broadcast::channel(32);
+        let mut confirmed = 0;
+        tx.send("OTA:ERROR:WRITE_FAIL".into()).unwrap();
+        let err = wait_for_ota_window(
+            &mut rx,
+            100,
+            &mut confirmed,
+            8192,
+            Duration::from_millis(20),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(err, describe_ota_error("OTA:ERROR:WRITE_FAIL"));
+    }
+
     #[tokio::test]
     async fn captures_reply_before_write_ack() {
         for reply in ["OTA:READY", "OTA:DONE"] {
@@ -584,6 +837,13 @@ mod ota_tests {
             result.unwrap_err(),
             describe_ota_error("OTA:ERROR:ALREADY_RUNNING")
         );
+    }
+
+    #[test]
+    fn mtu_too_small_has_actionable_hint() {
+        let msg = describe_ota_error("OTA:ERROR:MTU_TOO_SMALL");
+        assert!(msg.contains("MTU"));
+        assert!(!msg.contains("裝置回報錯誤"));
     }
 
     #[tokio::test]

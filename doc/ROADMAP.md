@@ -6,7 +6,7 @@ description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-27 
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
 
-> **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。
+> **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。iOS 開發自 2026-10-15 起暫停(分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程保留、未合併);Android 維持原狀。
 
 > **相關文件**:[[HOME|導覽首頁]] · [[OPTIMIZATION|優化待辦(細項)]] · [[log_20260703_architecture_audit_fixes|審查修復日誌]]
 > 本文件負責「決策與階段順序」;逐項細目仍以 [[OPTIMIZATION]] 為活清單。
@@ -48,10 +48,12 @@ elbow/shoulder 沿用 thigh/shin 命名與軸向。泛化時**先改共享型別
 
 ### D4|DB Schema 版本化
 
-引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 8 版)。
+引入 `PRAGMA user_version` 遞增式 migration(已實作,目前 9 版)。
 Phase 2 建立機制,Phase 4 的評分欄位(`sessions.qualityScore`)是第一個消費者。
 
-### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01)
+### D5|行動裝置部署:React Native + react-native-ble-plx,獨立 UI 層(2026-09-01,已被 Tauri mobile 取代)
+
+> **現況(2026-10-15)**:本決策為歷史紀錄,**已不是現行方向**。行動版改走 Tauri mobile,沿用桌面版程式碼:Android 已有 sideload APK(`v1.2.0-beta.21` 起,見 [[log_20261001_android_apk_beta21]],真機 BLE 未驗證)。**iOS 自 2026-10-15 起暫停開發**,不是「進行中」也不是「下一步」;既有成果僅有分支 `feat/ios-unsigned-ipa` 上的未簽章 IPA 工作流程(GitHub Actions macOS runner),尚未合併,真機安裝/BLE/啟動皆未驗證。Android 維持原狀。下文為當時的決策內容,原樣保留。
 
 **背景**:桌面版 UI 重建(Phase 1–3,見 [[UI_REDESIGN]])進行中時,使用者提出要準備
 Android/iOS 部署。查證後確認一個決定技術路線的硬限制:**iOS 的 Safari/WebKit 完全不支援
@@ -104,8 +106,8 @@ Electron 還是 Tauri 都不影響這個決定。這個遷移的真正理由是�
 > 🖥 = 無需硬體即可完成 · 📡 = 需 ESP32 實機
 
 ### Phase 0|驗證與安全收尾(本週,P0)
-- [x] 📡 燒錄韌體 + 桌上旋轉記錄 → **[#2](https://github.com/yuhina0515/IRMS/issues/2) 已於 2026-08-28 完成並關閉**
-- [→] 📡 完整實機 E2E → **[#3](https://github.com/yuhina0515/IRMS/issues/3)**(阻塞已解除,硬體阻塞項不再佔用桌面 backlog)
+- [x] 📡 燒錄韌體 + 桌上旋轉記錄 → **#2(舊儲存庫 issue,已封存) 已於 2026-08-28 完成並關閉**
+- [→] 📡 完整實機 E2E → **#3(舊儲存庫 issue,已封存)**(阻塞已解除,硬體阻塞項不再佔用桌面 backlog)
 - [x] 🖥 **ERR 時主動關回饋**:收到 `ERR:` 即下發 `LED_OFF`+`ALARM_OFF`,防蜂鳴器卡死(2026-07-03)
 - [x] 🖥 **斷線 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝(2026-07-03)
 
@@ -117,7 +119,7 @@ Electron 還是 Tauri 都不影響這個決定。這個遷移的真正理由是�
 - [x] 🖥 導入 **Vitest**:`triggerEngine`(狀態機邊界:進出區間/維持/休息/超限)、
       `parseAnglePacket`(6軸/舊格式/ERR/malformed)、`applyCalibration`、`reconcileSelection`
       (2026-07-03,22 tests;`npm run ci` = typecheck+test+build)。
-      此後逐批擴充,**2026-08-27 現況為 281 tests / 25 files**(雙 project:node 純邏輯 + dom 元件)
+      此後逐批擴充,**2026-08-27 現況為 281 tests / 25 files(2026-10-01 為 463 tests / 50 files)**(雙 project:node 純邏輯 + dom 元件)
 - [ ] 🖥 ESLint + Prettier;`npm run ci` = lint + typecheck + test + build(2026-08-01 會議明確延後)
 - [x] 🖥 **判定路徑的元件測試**(2026-08-03 裁定順位,只鎖臨床輸出面)。
       2026-08-07 的快速歸零缺陷正是死在這個缺口:純函式層全綠,但把值寫進 settings 的
@@ -149,8 +151,7 @@ Electron 還是 Tauri 都不影響這個決定。這個遷移的真正理由是�
 - [x] 🖥 外觀風格設定檔系統:已於 2026-08-31 完成——雙主題重構為 `styles/profiles/`
       底下的兩個自足設定檔,Settings 可選固定風格覆蓋系統深淺色(見
       [[log_20260831_style_profile_system|日誌]])
-- [x] 🖥 i18n(繁中/EN;2026-10-01 已上線 P1,Rust/模組字串待 P2/P3),目前介面中英混用(依專案規則 #2 明確延後;
-      2026-08-27 使用者再次裁定不納入)
+- [x] 🖥 i18n(繁中/EN;2026-10-01 已上線 P1,Rust/模組字串待 P2/P3),(當時曾依專案規則 #2 延後、2026-08-27 再次裁定不納入;其後改變主意,已於 beta.19 上線)
 
 ### Phase 5|泛化與發布
 - [ ] 🖥 多關節泛化(依 D3 順序:型別 → migration → UI → 判定)
@@ -183,12 +184,12 @@ Phase 0 的兩個 🖥 項與 Phase 1、2 **不依賴硬體**,裝置未回歸前
 1. **判定正確性批次** — ✅ 完成(2026-08-01):rest 不變式、wrap-safe 角度數學、
    警報三修、參數鉗制、統一 reset、ErrorOverlay 逃生出口
 2. **📡 桌面燒錄 + 實機 E2E** — 移至 GitHub issues
-   [#2](https://github.com/yuhina0515/IRMS/issues/2)(燒錄 + ±180° 旋轉記錄)與
-   [#3](https://github.com/yuhina0515/IRMS/issues/3)(完整 E2E)。硬體阻塞項一律走 issue,
+   #2(舊儲存庫 issue,已封存)(燒錄 + ±180° 旋轉記錄)與
+   #3(舊儲存庫 issue,已封存)(完整 E2E)。硬體阻塞項一律走 issue,
    不再列在這份文件裡卡住桌面 backlog
 3. **migration runner + session 收尾 + ErrorBoundary** — ✅ 完成(2026-08-01)
 
-**校準快照 migration**:移至 [#4](https://github.com/yuhina0515/IRMS/issues/4)——
+**校準快照 migration**:移至 #4(舊儲存庫 issue,已封存)——
 schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。#4 已於 2026-08-22 完成關閉。
 
 > **慣例**:需要實機/硬體的工作一律開 GitHub issue,不寫進 ROADMAP。
@@ -268,5 +269,5 @@ schema 形狀需先看過真實感測資料才能定案,故與 #2 綁定。#4 �
 四(§4)之後隨即目視驗收整條示範模式路徑,示範模式的四個讀取面標記(徽章/橫幅/
 CSV 表頭/CSV 檔名)取得實機截圖證據。173 → **281 tests / 25 files**,`npm run ci` 全綠。
 
-**桌面端目前無已知的、合理的、非延後項的剩餘工作。** 下一個有價值的動作是拿到裝置,
+**桌面端目前無已知的、合理的、非延後項的剩餘工作(校準 B 與 `G:` 串流的實機驗證除外,待 Harold 測試)。** 下一個有價值的動作是拿到裝置,
 跑 Stage 1 日誌記載的那份 ~30 分鐘固定驗證腳本。

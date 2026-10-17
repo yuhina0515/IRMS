@@ -132,6 +132,29 @@ pub fn angle_ranges_add(
 }
 
 #[tauri::command]
+pub fn mobility_list(
+    state: tauri::State<DbState>,
+) -> Result<Vec<crate::types::MobilityRecordRow>, String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::list(&conn).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn mobility_add(
+    state: tauri::State<DbState>,
+    input: crate::types::MobilityRecordInput,
+) -> Result<crate::types::MobilityRecordRow, String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::add(&conn, &input).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn mobility_delete(state: tauri::State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_db(&state)?;
+    crate::db::mobility_repo::delete(&conn, id).map_err(to_err)
+}
+
+#[tauri::command]
 pub fn angle_ranges_delete(state: tauri::State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_db(&state)?;
     angle_ranges_repo::delete(&conn, id).map_err(to_err)
@@ -139,7 +162,34 @@ pub fn angle_ranges_delete(state: tauri::State<DbState>, id: i64) -> Result<(), 
 
 #[tauri::command]
 pub fn export_write_text(path: String, contents: String) -> Result<(), String> {
+    validate_export_target(&path, contents.len())?;
     std::fs::write(&path, contents).map_err(|e| format!("write {path}: {e}"))
+}
+
+/// RISK-FIX (2026-10-10): the only caller exports CSV after a native save dialog, so the command
+/// accepts nothing else: a `.csv` file in an existing directory, bounded in size. This stops a
+/// compromised WebView from using it to overwrite arbitrary files (configs, executables).
+const MAX_EXPORT_BYTES: usize = 256 * 1024 * 1024;
+
+fn validate_export_target(path: &str, len: usize) -> Result<(), String> {
+    let p = std::path::Path::new(path);
+    let is_csv = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+    if path.is_empty() || !p.is_absolute() || !is_csv {
+        return Err("export path must be an absolute .csv file path".to_string());
+    }
+    if len > MAX_EXPORT_BYTES {
+        return Err("export is too large".to_string());
+    }
+    if p.is_dir() {
+        return Err("export path is a directory".to_string());
+    }
+    match p.parent() {
+        Some(dir) if dir.is_dir() => Ok(()),
+        _ => Err("export directory does not exist".to_string()),
+    }
 }
 
 #[tauri::command]
@@ -161,6 +211,20 @@ pub fn data_append_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_target_accepts_only_absolute_csv_in_existing_dir() {
+        let dir = std::env::temp_dir();
+        let ok = dir.join("irms_export_ok.CSV");
+        assert!(validate_export_target(ok.to_str().unwrap(), 10).is_ok());
+        assert!(validate_export_target("", 10).is_err());
+        assert!(validate_export_target("relative.csv", 10).is_err());
+        let exe = dir.join("evil.exe");
+        assert!(validate_export_target(exe.to_str().unwrap(), 10).is_err());
+        let missing = dir.join("no_such_dir_irms").join("a.csv");
+        assert!(validate_export_target(missing.to_str().unwrap(), 10).is_err());
+        assert!(validate_export_target(ok.to_str().unwrap(), MAX_EXPORT_BYTES + 1).is_err());
+    }
     use std::sync::Arc;
 
     #[test]

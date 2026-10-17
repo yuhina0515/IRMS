@@ -12,7 +12,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { parseAnglePacket, type LiveAngles, type ParsedPacket } from '@shared/protocol'
+import { parseAnglePacket, parseRawPacket, type LiveAngles, type ParsedPacket, type RawMotion } from '@shared/protocol'
 import { DEFAULT_SETTINGS, applyCalibration, useStore } from '../store/useStore'
 import { AngleSmoother } from './smoothing'
 import { getT } from '../i18n'
@@ -48,6 +48,8 @@ export class BluetoothService {
   /** 已就本次連線回報過截斷,避免 25Hz 的資料流把同一件事洗滿日誌 */
   private truncationReported = false
   private smoother = new AngleSmoother()
+  /** 校正 B 訂閱的原始運動封包(`G:`);只有 enableRawStream(true) 之後韌體才會送。 */
+  private rawListeners = new Set<(m: RawMotion) => void>()
   /** 模擬鏈路(Demo 模式)進行中——沒有真實 GATT,封包由 simulator 餵進 ingest() */
   private simulated = false
   private listenersReady: Promise<void>
@@ -80,6 +82,12 @@ export class BluetoothService {
   private async registerEventListeners(): Promise<void> {
     await listen<ConnectionEventPayload>('ble:connection', (event) => {
       const { connected, deviceName } = event.payload
+      if (connected && this.manualDisconnect) {
+        // 重連迴圈中的 ble_connect 在使用者按下斷線之後才成功:UI 已是斷線意圖,
+        // 若照單全收會顯示已連線、封包卻全被丟棄。直接把剛建立的鏈路關掉。
+        void invoke('ble_disconnect').catch(() => {})
+        return
+      }
       this.connected = connected
       if (connected) {
         useStore.getState().setConnection(true, deviceName ?? 'IRMS Device')
@@ -97,6 +105,8 @@ export class BluetoothService {
         }
       }
     })
+
+    await listen<string>('ble:raw', (event) => this.ingestRaw(event.payload))
 
     await listen<ParsedPacket>('ble:packet', (event) => {
       // Tauri dev 的前端 HMR 會重建這個 service/store，但 Rust BLE singleton 與既有
@@ -287,6 +297,23 @@ export class BluetoothService {
     this.onAnglesReceived?.(angles)
   }
 
+  /** 原始運動封包注入口(真實鏈路經 'ble:raw',模擬/測試直接餵字串);壞封包靜默丟棄。 */
+  ingestRaw(text: string): void {
+    const motion = parseRawPacket(text)
+    if (motion) this.rawListeners.forEach((fn) => fn(motion))
+  }
+
+  /** 訂閱原始運動串流;回傳取消訂閱函式。 */
+  onRawMotion(fn: (m: RawMotion) => void): () => void {
+    this.rawListeners.add(fn)
+    return () => this.rawListeners.delete(fn)
+  }
+
+  /** 要求韌體開/關 `G:` 串流(韌體 >= 1.0.1-beta.2;舊韌體會忽略指令,所以不會有封包)。 */
+  async enableRawStream(on: boolean): Promise<void> {
+    await this.send(on ? 'CMD:RAW_ON' : 'CMD:RAW_OFF')
+  }
+
   /** 下發指令字串(CMD:...)。未連線則靜默忽略,由 ble_send_command 本身處理 */
   async send(command: string): Promise<void> {
     if (this.simulated) {
@@ -326,6 +353,8 @@ export class BluetoothService {
   ): Promise<{ ok: boolean; message: string }> {
     if (this.simulated) return { ok: false, message: getT().settings.firmware.demoNoFirmware }
     if (!this.connected) return { ok: false, message: getT().settings.firmware.deviceNotConnected }
+    // MTU 停在預設 23 時,125 bytes 的 OTA 分塊只有 20 bytes 會抵達裝置,傳完必然失敗。
+    if (this.truncationReported) return { ok: false, message: getT().settings.firmware.linkTruncated }
 
     // 用可變物件而非單純 let 變數存放最後一個 phase:TS 的控制流分析看不到
     // listen() 回呼(非同步、之後才觸發)裡的賦值,若用 let 會把型別窄化死在

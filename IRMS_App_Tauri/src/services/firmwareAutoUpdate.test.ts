@@ -32,6 +32,14 @@ describe('firmware auto-update', () => {
     expect(reports.find((r) => r.percent === 50)).toBeTruthy()
   })
 
+  it('defers on a truncated BLE link and never touches the network', async () => {
+    const { updater, reports, deps } = setup({}, { linkTruncated: true })
+    await updater.run()
+    expect(phases(reports)).toEqual(['deferred'])
+    expect(deps.checkLatest).not.toHaveBeenCalled()
+    expect(deps.flash).not.toHaveBeenCalled()
+  })
+
   it('defers during a session and never touches the network', async () => {
     const { updater, reports, deps } = setup({}, { sessionRunning: true })
     await updater.run()

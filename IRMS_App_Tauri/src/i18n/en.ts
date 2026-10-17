@@ -131,6 +131,15 @@ export const en = {
       'Firmware cannot be updated during a session: writing flash briefly stalls sensor sampling and feedback, which is not safe while the patient is wearing the device. End the session first.'
   },
 
+  voice: {
+    sessionStart: 'Session started',
+    rep: (p: { n: number }) => `Rep ${p.n} complete`,
+    hold: 'Hold',
+    overLimit: 'Beyond your limit angle, ease off slowly',
+    sessionEnd: (p: { n: number }) => `Session finished, ${p.n} ${p.n === 1 ? 'rep' : 'reps'}`,
+    connectionLost: 'Connection lost, session ended'
+  },
+
   guidance: {
     noData: 'Waiting for sensor data…',
     raise: (p: { verb: string; deg: string }) => `${p.verb} ${p.deg}° more`,
@@ -155,6 +164,7 @@ export const en = {
     alreadyFailed: (p: { version: string }) =>
       `Automatic update to ${p.version} already failed once. Update manually in Settings`,
     deferredStateChanged: 'State changed; firmware update postponed',
+    deferredTruncatedLink: 'BLE link is truncated (MTU too small); firmware update postponed. Reconnect the device to retry',
     done: (p: { version: string }) => `Device firmware updated to ${p.version}. The device is restarting`,
     deviceStateChanged: 'Device state changed; update postponed',
     updatingToast: (p: { version: string }) =>
@@ -201,6 +211,7 @@ export const en = {
 
   nav: {
     ariaLabel: 'Main navigation',
+    menuAria: 'Open main menu',
     dashboard: 'Live',
     actions: 'Exercises',
     history: 'History',
@@ -237,7 +248,9 @@ export const en = {
     ready: (p: { version: string }) => `Version ${p.version} is downloaded. Restart to apply it`,
     sessionNote: ' (session in progress; restart after it ends)',
     restartBlocked: 'You cannot restart during a session. This button becomes available once the session ends',
-    restartNow: 'Restart now'
+    restartNow: 'Restart now',
+    apkReady: (p: { version: string }) => `Version ${p.version} is available. Download the APK and install it over this app`,
+    apkDownload: 'Download'
   },
 
   pose: {
@@ -486,6 +499,111 @@ export const en = {
     apply: 'Apply'
   },
 
+  mobility: {
+    title: 'Range of motion',
+    intro: 'Wear the sensors as usual, **clothing is fine**. You do not need to stand straight: pick any relaxed pose as your starting point, then do a few movements, each slowly to the **largest angle you can hold steadily**. The largest angles add up to your "total mobility", tracked over time.',
+    painNote: '**Only go as far as is safe.** Stop at any pain, dizziness or discomfort; use the angle you can comfortably hold right now.',
+    movementsLabel: 'Movements to measure',
+    movementNames: {
+      kneeFlexion: 'Knee bend',
+      hipFlexion: 'Hip flexion (thigh forward)',
+      hipExtension: 'Hip extension (thigh back)',
+      hipAbduction: 'Hip abduction (thigh out to the side)'
+    },
+    movementDesc: {
+      kneeFlexion: 'Sitting or standing, keep the thigh still and slowly bend the lower leg back as far as you can. Hold about 2 seconds, then lower slowly.',
+      hipFlexion: 'Stand steady without rocking your trunk. Slowly lift the thigh forward as high as you can, hold about 2 seconds, then lower slowly.',
+      hipExtension: 'Stand steady, holding a support, trunk upright. Slowly swing the thigh back as far as you can, hold about 2 seconds, then return slowly.',
+      hipAbduction: 'Stand steady, holding a support, trunk upright. Slowly open the thigh out to the side as far as you can, hold about 2 seconds, then return slowly.'
+    },
+    hipCaveat: 'Hip movements use one sensor on the thigh, so the value is the **thigh tilt from your starting pose**, not a clinical joint angle. Trunk sway affects it, and sideways movement is usually less accurate than forward/back.',
+    sideHint: 'Choose the leg the sensors are worn on.',
+    neutralTitle: 'Starting pose',
+    neutralDesc: 'Relax; there is no need to stand straight. Hold any comfortable pose still. After you press start there is a 3 second countdown, then stay still for 2 seconds.',
+    progress: (p: { n: string; total: string }) => `Step ${p.n} / ${p.total}`,
+    capture: 'Start (3 s countdown)',
+    recording: 'Recording…',
+    moveNow: 'Move slowly now, then hold at your largest angle.',
+    noData: 'Not enough sensor data. Check the connection and try again.',
+    errors: {
+      invalidInput: 'The sensor data was invalid, please try again.',
+      sweepTooSmall: 'The movement was too small. Go a little further, within a safe range.',
+      sweepNotPlanar: 'The movement strayed from one plane. Move slowly in one direction.',
+      neutralOffPlane: 'The starting pose does not match this direction of this movement. Measure the starting pose again.',
+      referenceMoved: 'The fixed segment (thigh) moved. Keep it still and move only the lower leg.',
+      noHold: 'No steady hold was detected. Pause at your largest angle for about 2 seconds.',
+      peakTooSmall: 'The held angle was too small. Go a little further, within a safe range.',
+      implausible: 'The angle is outside the plausible range. Check whether a sensor slipped and try again.'
+    },
+    retry: 'Redo this movement',
+    skip: 'Skip this movement',
+    resultTitle: 'This result',
+    resultLine: (p: { name: string; peak: string }) => `${p.name}: ${p.peak}°`,
+    total: (p: { total: string }) => `Total mobility ${p.total}°`,
+    incomplete: 'A movement was skipped, so the total covers only the completed set and is compared only with records of the same set.',
+    save: 'Save record',
+    saved: 'Mobility record saved',
+    saveFailed: 'Saving failed, please try again.',
+    viewTitle: 'Mobility trend',
+    noRecords: 'No records yet. After a range-of-motion measurement, long-term changes appear here.',
+    startMeasure: 'Start measuring',
+    compareNote: 'Only records with the same movement set are compared.',
+    setLabel: (p: { names: string }) => `Movements: ${p.names}`,
+    best: (p: { total: string }) => `Best ${p.total}°`,
+    latest: (p: { total: string }) => `Latest ${p.total}°`
+  },
+
+  calibrationB: {
+    title: 'Calibration B',
+    beta: 'beta',
+    intro: 'Wear the sensors as you normally would, **over clothing is fine**. Hold four resting poses, then two simple leg movements. The wizard uses gravity (and the gyroscope when available) to work out how each sensor sits.',
+    sideHint: 'Choose the leg the sensors are worn on.',
+    rawChecking: 'Checking for the raw motion stream…',
+    rawOn: 'Raw motion stream detected: floor stage and gyroscope will be used.',
+    rawOff: 'No raw motion stream (older sensor firmware). Calibration continues with gravity only.',
+    progress: (p: { n: string; total: string }) => `Step ${p.n} / ${p.total}`,
+    capture: 'Capture (3 s countdown)',
+    recording: 'Recording…',
+    noData: 'Not enough sensor data. Check the connection and try again.',
+    noRaw: 'No raw motion data received. Check the sensor firmware and try again.',
+    floorTitle: 'Floor stage',
+    faceDesc: (p: { face: string }) => `Lay the **sensor pair** on a flat surface with the **${p.face}** side up and hold still.`,
+    skipFloor: 'Skip floor stage',
+    faces: { '+x': '+X', '-x': '-X', '+y': '+Y', '-y': '-Y', '+z': '+Z', '-z': '-Z' },
+    poses: {
+      standing: { title: 'Pose: standing', desc: 'Stand **upright and relaxed**, legs straight, and hold still.' },
+      seated: { title: 'Pose: seated', desc: 'Sit with **thighs level** and lower legs hanging straight down. Hold still.' },
+      supine: { title: 'Pose: lying on the back', desc: 'Lie **flat on your back**, legs straight. Hold still.' },
+      prone: { title: 'Pose: lying on the front', desc: 'Lie **flat on your front**, legs straight. Hold still.' },
+      sideLying: { title: 'Pose: lying on the side', desc: 'Lie on the **side the sensors are on**, legs straight. Hold still.' }
+    },
+    sweepTitle: (p: { limb: string }) => `Movement: ${p.limb}`,
+    sweeps: {
+      thigh: 'Standing, **raise the thigh forward** and lower it again, slowly, a few times over 6 s.',
+      shin: 'Standing, **kick the heel backward** (bend the knee) and lower it again, slowly, a few times over 6 s.'
+    },
+    gyroMissing: 'Gyroscope data is not available, so only gravity is used for this movement.',
+    resultTitle: 'Result',
+    resultLine: (p: { limb: string; confidence: string; rms: string; gyro: string }) =>
+      `${p.limb}: confidence ${p.confidence}, residual ${p.rms}°, ${p.gyro}.`,
+    confidence: { high: 'high', medium: 'medium', low: 'low' },
+    gyroUsed: 'gyroscope used',
+    gyroNotUsed: 'gravity only',
+    rejected: (p: { poses: string }) => `Ignored poses: ${p.poses}.`,
+    failed: (p: { limb: string; reason: string }) => `Could not calibrate the ${p.limb}: ${p.reason}`,
+    unverified: 'This is a **beta**. Check that the displayed angle rises when you raise the leg after applying.',
+    errors: {
+      invalidInput: 'invalid data',
+      signAmbiguous: 'the movement direction is ambiguous',
+      underdetermined: 'not enough different poses',
+      inconsistent: 'the poses disagree with each other',
+      sweepTooSmall: 'the movement was too small',
+      sweepNotPlanar: 'the movement was not a clean forward-back swing',
+      gyroDisagrees: 'gyroscope disagrees with gravity, gyroscope ignored',
+      gyroWeak: 'gyroscope signal too weak, gyroscope ignored'
+    }
+  },
+
   settings: {
     title: 'Settings',
     subtitle: 'Device setup and data choices each have their own place.',
@@ -541,7 +659,9 @@ export const en = {
       pose2d: '2D side (recommended)',
       poseHint: '2D shows only flexion/extension in the detection plane. 3D lateral angles are unvalidated and show direction only.',
       maxChartPoints: 'Max live chart points',
-      flushInterval: 'Data write interval (s)'
+      flushInterval: 'Data write interval (s)',
+      voice: 'Voice prompts',
+      voiceHint: 'Speaks rep counts, hold cues and over-limit warnings during a session.'
     },
     autoPhase: {
       idle: 'Checks automatically once a device connects',
@@ -562,6 +682,7 @@ export const en = {
       available: (p: { version: string }) => `Found version ${p.version}; preparing to download…`,
       downloading: (p: { pct: number }) => `Downloading… ${p.pct}%`,
       downloaded: (p: { version: string }) => `Version ${p.version} downloaded. Use the banner below to restart and apply it`,
+      apkAvailable: (p: { version: string }) => `Version ${p.version} is available. Use the banner below to download the APK`,
       notAvailable: 'You have the latest version',
       error: (p: { message: string }) => `Check failed: ${p.message}`
     },
@@ -569,6 +690,8 @@ export const en = {
       heading: 'Software update',
       intro:
         'New versions download in the background without an installer. When a download finishes, a prompt appears at the bottom; restart to apply it (or just close the app and it applies on the next start).',
+      introAndroid:
+        'Android cannot update itself. When a new version is found, a banner appears at the bottom; tap it to download the APK, then open the file to install it over the current app. Your data is kept.',
       currentVersion: (p: { version: string }) => `Current version: ${p.version}`,
       downloadedWaiting: 'Downloaded, waiting to apply',
       processing: 'Updating…',
@@ -584,6 +707,7 @@ export const en = {
       needDevice: 'Connect a real device from the top bar first',
       demoNoFirmware: 'Demo mode has no real device, so firmware cannot be updated',
       deviceNotConnected: 'Device not connected',
+      linkTruncated: 'BLE link is truncated (MTU too small), so firmware chunks would be cut off. Disconnect, reconnect, and try again',
       readFailedOld: 'Read failed; the device may have old firmware without OTA support',
       readFileFailed: (p: { message: string }) => `Could not read firmware: ${p.message}`,
       emptyFile: 'The selected file is empty. Choose a .bin file again',

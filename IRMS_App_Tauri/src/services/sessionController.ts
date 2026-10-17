@@ -10,6 +10,8 @@ import { clampTriggerParams } from '@shared/validation'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from './bluetooth'
+import { getT } from '../i18n'
+import { speak } from './voice'
 import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
 import { logTelemetry } from './telemetry'
@@ -27,6 +29,8 @@ const UI_SYNC_MS = 80
  * 但超限本身是安全訊號,不該被一鍵永久關掉。時間到之後若仍超限會自動重新鳴響。
  */
 export const ALARM_SILENCE_MS = 30_000
+/** 持續超限時,語音警示的重複間隔(ms) */
+export const ALARM_VOICE_REPEAT_MS = 8000
 
 class SessionController {
   private engine: TriggerEngine
@@ -43,6 +47,10 @@ class SessionController {
   private wantAlarm = false
   /** 手動靜音的到期時間戳;0 = 未靜音 */
   private alarmSilencedUntil = 0
+  /** 上次報讀超限語音的時間;0 = 尚未報讀(警報解除即歸零,下次超限立刻報讀) */
+  private lastAlarmSpokenAt = 0
+  /** 結束原因:斷線收尾時不重複報讀「療程結束」,只報讀斷線 */
+  private endedByConnectionLoss = false
 
   // UI 同步節流:angles + holdProgress 合併為單一 set(一次重繪)
   private uiSync = createTrailingThrottle<{ angles: LiveAngles; hold: number | null }>(
@@ -57,6 +65,7 @@ class SessionController {
       onZoneEnter: () => {
         useStore.getState().patchSession({ inZone: true })
         this.sendLed('on')
+        if (useStore.getState().session.running) speak(getT().voice.hold)
       },
       onZoneExit: () => {
         useStore.getState().patchSession({ inZone: false })
@@ -87,6 +96,7 @@ class SessionController {
         const reps = session.reps + 1
         useStore.getState().patchSession({ reps, holdProgress: 100, inZone: false })
         void bluetoothService.send(BleCommand.GOAL)
+        speak(getT().voice.rep({ n: reps }))
         // 立刻持久化計數:關窗/強殺不會跑到 endSession,若只在結束時寫一次,
         // 一場真實的 12 下 Session 會永遠以 0 reps 留在歷史裡
         if (session.id != null) {
@@ -180,6 +190,16 @@ class SessionController {
     if (session.alarmActive !== active) {
       useStore.getState().patchSession({ alarmActive: active })
     }
+    // 語音警示:轉為超限當下立刻報讀,持續超限則每 ALARM_VOICE_REPEAT_MS 再提醒一次
+    if (active) {
+      const now = Date.now()
+      if (now - this.lastAlarmSpokenAt >= ALARM_VOICE_REPEAT_MS) {
+        this.lastAlarmSpokenAt = now
+        speak(getT().voice.overLimit, 'safety')
+      }
+    } else {
+      this.lastAlarmSpokenAt = 0
+    }
     this.sendAlarm(active ? 'on' : 'off')
   }
 
@@ -208,7 +228,13 @@ class SessionController {
     const { session } = useStore.getState()
     if (!session.running) return
     useStore.getState().log('Connection lost — auto-ending session to preserve buffered data.')
-    await this.endSession()
+    this.endedByConnectionLoss = true
+    try {
+      const ended = await this.endSession()
+      if (ended) speak(getT().voice.connectionLost)
+    } finally {
+      this.endedByConnectionLoss = false
+    }
   }
 
   /** 由 bluetoothService 推入的每筆即時角度 */
@@ -253,7 +279,22 @@ class SessionController {
     return currentTriggerConfig()
   }
 
+  /** 開始/結束的重入防護:兩者都要 await,session.id/running 要等 await 之後才變 */
+  private starting = false
+  private ending = false
+
   async startSession(): Promise<void> {
+    const state = useStore.getState()
+    if (this.starting || this.ending || state.session.running || state.session.id != null) return
+    this.starting = true
+    try {
+      await this.doStartSession()
+    } finally {
+      this.starting = false
+    }
+  }
+
+  private async doStartSession(): Promise<void> {
     const state = useStore.getState()
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
@@ -310,6 +351,7 @@ class SessionController {
       })
 
       this.startTimers()
+      speak(getT().voice.sessionStart)
       logTelemetry('session_start', {
         sessionId,
         actionId: action?.id ?? null,
@@ -336,13 +378,24 @@ class SessionController {
     // 計時器一律停掉:早退時若跳過,一場已經結束的 Session 的時鐘會繼續跑
     this.stopTimers()
     const { session } = useStore.getState()
-    if (session.id == null) return false
+    if (session.id == null || this.ending) return false
+    this.ending = true
+    try {
+      return await this.doEndSession(session, session.id)
+    } finally {
+      this.ending = false
+    }
+  }
 
+  private async doEndSession(
+    session: ReturnType<typeof useStore.getState>['session'],
+    sessionId: number
+  ): Promise<boolean> {
     await this.flush()
 
     let endError: string | null = null
     try {
-      await irms.sessions.end(session.id, session.reps)
+      await irms.sessions.end(sessionId, session.reps)
       useStore.getState().log(`Ended session #${session.id}. Reps: ${session.reps}.`)
     } catch (err) {
       endError = (err as Error).message
@@ -361,10 +414,12 @@ class SessionController {
     this.sendAlarm('off')
     this.resetFeedbackState()
     useStore.getState().resetSession()
+    if (!this.endedByConnectionLoss) speak(getT().voice.sessionEnd({ n: session.reps }))
     return true
   }
 
   private startTimers(): void {
+    this.stopTimers()
     const flushMs = Math.max(1, useStore.getState().settings.flushIntervalSec) * 1000
     this.flushTimer = setInterval(() => void this.flush(), flushMs)
     this.clockTimer = setInterval(() => {

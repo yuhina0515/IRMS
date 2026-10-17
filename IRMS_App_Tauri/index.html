@@ -2,7 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Phones render this desktop-density layout too large at native size (the WebView ignores a
+      // wider viewport), so scale the whole page down on Android phones.
+      if (/Android/.test(navigator.userAgent) && Math.min(screen.width, screen.height) < 600) {
+        document.documentElement.style.zoom = '0.82';
+        document.documentElement.classList.add('android-phone');
+      }
+    </script>
     <title>IRMS Dashboard</title>
   </head>
 

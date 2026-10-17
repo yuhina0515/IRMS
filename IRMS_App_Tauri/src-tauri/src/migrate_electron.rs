@@ -82,10 +82,29 @@ fn migrate_from(
     if !source_dir.join(DB_FILENAME).exists() {
         return Ok(false);
     }
-    copy_database(source_dir, tauri_db_path)?;
-    verify_migrated_database(tauri_db_path)?;
-    fs::remove_dir_all(source_dir)?;
+    // A failed copy or failed verification must not leave a half-written DB behind: the next
+    // launch would see it, skip migration, and either fail to open it or lose WAL-only rows.
+    if let Err(err) = copy_database(source_dir, tauri_db_path)
+        .map_err(Box::<dyn std::error::Error>::from)
+        .and_then(|()| verify_migrated_database(tauri_db_path))
+    {
+        remove_copied_database(tauri_db_path);
+        return Err(err);
+    }
+    // The import itself succeeded; a locked source folder (Electron still running) is not a
+    // reason to report failure.
+    if let Err(err) = fs::remove_dir_all(source_dir) {
+        eprintln!("[migrate] imported data but could not delete the old Electron folder: {err}");
+    }
     Ok(true)
+}
+
+fn remove_copied_database(tauri_db_path: &Path) {
+    for suffix in ["", "-wal", "-shm"] {
+        let mut name = tauri_db_path.as_os_str().to_os_string();
+        name.push(suffix);
+        let _ = fs::remove_file(PathBuf::from(name));
+    }
 }
 
 #[cfg(test)]
@@ -190,6 +209,10 @@ mod tests {
         assert!(
             source.exists(),
             "source must survive when verification fails — this is the whole safety point"
+        );
+        assert!(
+            !dest_db.exists(),
+            "the bad copy must be removed so the next launch can retry"
         );
 
         fs::remove_dir_all(&source).ok();

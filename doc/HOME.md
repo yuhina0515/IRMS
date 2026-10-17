@@ -16,13 +16,22 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[PROJECT_STATUS\|開發進度]] | 各階段完成狀況與已知待驗證項目 |
 | [[OPTIMIZATION\|優化待辦]] | 待改進項目清單 |
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
-| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Electron 三進程互動圖 |
-| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D4) 與 Phase 0–5 開發路線圖 |
+| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Tauri 原生層/前端互動圖 |
+| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。
+- **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
+- **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。
+- **2026-10-09 主動稽核** ([[log_20261009_proactive_audit|Log]]): 修正已驗證 bug(migration 清理、downsample、telemetry、trigger、session、BLE)。
+- **2026-10-04 beta.24 發版** ([[log_20261004_beta24_release|Log]]): 含校準 C 活動度紀錄([[log_20261003_calibration_c_mobility|Log]])與 beta.23 抽屜選單([[log_20261003_drawer_menus_beta23|Log]])。
+
+- **2026-10-01 校準 B(beta)+ 韌體 `G:` 原始串流** ([[log_20261001_calibration_b_beta_and_raw_stream|Log]]): 重力平面 + 陀螺儀樞軸 + 六面地面階段的新校準流程(設定頁「校準 B (beta)」),韌體 1.0.1-beta.2 新增 opt-in `G:` 封包(`CMD:RAW_ON`)。僅合成資料與單元測試驗證,**實機待 Harold 測試並以遙測回傳**。
+- **2026-10-17 beta.25 發版** ([[log_20261017_beta25_release|Log]]): OTA 截斷連線防護與稽核修正;統一校準不在內,待 Harold 實測。
+- **2026-10-06 OTA on truncated link** ([[log_20261006_ota_truncated_link|Log]]): run f86c2579 failed because MTU stayed 23; app now blocks OTA on truncated links and fails fast on unacked transfers. Firmware untouched; hardware retest pending.
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.
-- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. PR #21, not pushed.
+- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. Shipped in beta.19.
 
 - **2026-09-30 adaptive workbench UI** ([[log_20260930_adaptive_workbench|Log]]): clinical palette and responsive inner-scroll regions; 410 frontend tests passed. Full CI invocation, visual acceptance and Git delivery have environment restrictions; see log.
 
@@ -40,7 +49,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-09-26 v3 review + PR stack** ([[log_20260926_v3_review_guidance_fix_pr_stack|Log]]):
   v2 rebuild (#10) closed in favour of GPT v3 (#12); ported the guidance negative "lower by" fix
   into v3 (`fcb9018`). Codex's modules/updater/dropdown work opened as draft #14 on top of the OTA
-  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 still lacks i18n and Windows DPI checks.
+  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 lacked i18n and Windows DPI checks at that time (i18n shipped in beta.19).
 - **2026-09-25 real-device session → beta.12/13, auto delivery, UI v3** ([[log_20260925_realdevice_fixes_autopush_ui_v3|Log]]):
   telemetry-driven fixes (manual disconnect no longer auto-reconnects; knee now hinge-frame
   thigh−shin — CAL-03 A/B done on real data), beta.13 released. Firmware moved to
@@ -586,6 +595,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   UI 層與桌面版 Electron+Tailwind 各自獨立(商業邏輯層 `services/` 純函式兩邊共用不受影響)。
   **手機作業排在桌面版 Phase 4 完成之後**才開始(Task #10 佔位追蹤,目前阻塞中)。純決策,
   無程式碼變更
+  (註:此 React Native 決策後來被 Tauri mobile 取代,見 [[ROADMAP#D5|ROADMAP D5]];iOS 自 2026-10-15 暫停)
 - **2026-09-02 UI 重建 Phase 4(一):基礎元件層 + 新導覽**
   ([[log_20260902_ui_redesign_phase4_foundation_and_nav|日誌]]):`tailwind.css` 新增
   `@layer components`,把舊 `global.css` 的 class 詞彙(panel/glass/btn/field/dialog/
@@ -753,7 +763,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `electron-builder --publish` 自動產生的 `latest.yml`,三種檔名規則(本地/GitHub/
   yml 內宣告)還互不一致——刪掉重來,改用 `electron-builder --publish always` 正確
   發布。最終隔離啟動打包後的 exe 拿到正確的 `not-available` 結果(目前就是最新版),
-  證實整條檢查/比對流程真的能動。**連帶更正了 [[irms-project-conventions]] 的 beta
+  證實整條檢查/比對流程真的能動。**連帶更正了 irms-project-conventions 的 beta
   發版慣例**:往後一律要用 `electron-builder --publish`,不能再手動拼湊。
 - **2026-09-05 Dashboard 改用 Container Query 自適應版面(依 Gemini 04 號簡報)**
   ([[log_20260905_dashboard_container_query_adaptive_layout|完整日誌]]):針對「換更小
@@ -819,10 +829,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   隔離 profile 快速煙霧測試通過(auto-update 正確判定「已是最新版」)。**OTA 硬體
   驗證(B4/D1/D2)仍待 Harold**,release notes 已註明,本次沒有任何 OTA 相關程式碼
   變動。
-- **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
+- **📡 硬體工作已移至 GitHub issues**:#2(舊儲存庫 issue,已封存)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
-  [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
-  [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration 已於 2026-08-22 完成關閉。
+  #3(舊儲存庫 issue,已封存) 實機 E2E——阻塞已解除,待進行。
+  #4(舊儲存庫 issue,已封存) 校準快照 migration 已於 2026-08-22 完成關閉。
   **慣例:需要實機的工作一律開 issue,不寫進 ROADMAP**
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **已於 2026-08-07 燒錄**,
   BLE 實機連線與校準精靈都在真裝置上跑過(2026-08-12 更正);**2026-08-28 重新燒錄現行版本

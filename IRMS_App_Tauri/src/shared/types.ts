@@ -84,6 +84,22 @@ export interface AngleRangeInput {
   note: string | null
 }
 
+/** 活動度總和紀錄(migration 9);detail 是 App 組出的 JSON,資料庫不解讀 */
+export interface MobilityRecordRow {
+  id: number
+  measuredAt: string
+  /** 動作組合 id(排序後以 + 連接),趨勢只比較相同組合 */
+  movementSet: string
+  totalDeg: number
+  detail: string
+}
+
+export interface MobilityRecordInput {
+  movementSet: string
+  totalDeg: number
+  detail: string
+}
+
 /** 建立/更新動作的輸入(無 id) */
 export type CustomActionInput = Omit<CustomAction, 'id'>
 
@@ -262,6 +278,7 @@ export type UpdateStatus =
   | { state: 'not-available' }
   | { state: 'downloading'; percent: number }
   | { state: 'downloaded'; version: string }
+  | { state: 'apk-available'; version: string }
   | { state: 'error'; message: string }
 
 /**
@@ -286,6 +303,11 @@ export interface IrmsApi {
   angleRanges: {
     list(): Promise<AngleRangeRecord[]>
     add(input: AngleRangeInput): Promise<AngleRangeRecord>
+    remove(id: number): Promise<void>
+  }
+  mobility: {
+    list(): Promise<MobilityRecordRow[]>
+    add(input: MobilityRecordInput): Promise<MobilityRecordRow>
     remove(id: number): Promise<void>
   }
   data: {
@@ -330,6 +352,8 @@ export interface IrmsApi {
     checkNow(): Promise<void>
     /** 已下載完成時呼叫——結束目前 App 並安裝新版,安裝完成後自動重開 */
     restartNow(): Promise<void>
+    /** Android 無法自行安裝:開啟新版 APK 的下載頁,由系統下載後手動安裝 */
+    openApkDownload(): Promise<void>
     /** 是否接收 beta 版推播(對應 autoUpdater.allowPrerelease);啟動時與每次切換都會呼叫 */
     setAllowPrerelease(allow: boolean): Promise<void>
     /** 訂閱更新生命週期狀態,回傳取消訂閱函式 */

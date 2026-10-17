@@ -164,6 +164,24 @@ fn migration_8(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_9(conn: &Connection) -> rusqlite::Result<()> {
+    // Strategy C (2026-10-03): long-term range-of-motion record. totalDeg is the sum of the held
+    // peaks of one movement set (movementSet = sorted ids joined by '+'), so trends only compare
+    // like with like. `detail` is the opaque JSON the app builds (per-movement peaks, neutral
+    // vectors, hinge axes); the database never interprets it.
+    conn.execute_batch(
+        "
+        CREATE TABLE mobility_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            measuredAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            movementSet TEXT NOT NULL CHECK (length(movementSet) > 0),
+            totalDeg REAL NOT NULL CHECK (totalDeg >= 0 AND totalDeg <= 1000),
+            detail TEXT NOT NULL DEFAULT '{}'
+        );
+        ",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -204,6 +222,11 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 8,
         name: "personal angle range records; sessions snapshot comfort/limit angles",
         up: migration_8,
+    },
+    Migration {
+        version: 9,
+        name: "mobility records (strategy C long-term range-of-motion total)",
+        up: migration_9,
     },
 ];
 
@@ -542,7 +565,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8]
+                vec![7, 8, 9]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();
