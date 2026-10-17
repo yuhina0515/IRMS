@@ -28,6 +28,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-10-04 beta.24 發版** ([[log_20261004_beta24_release|Log]]): 含校準 C 活動度紀錄([[log_20261003_calibration_c_mobility|Log]])與 beta.23 抽屜選單([[log_20261003_drawer_menus_beta23|Log]])。
 
 - **2026-10-01 校準 B(beta)+ 韌體 `G:` 原始串流** ([[log_20261001_calibration_b_beta_and_raw_stream|Log]]): 重力平面 + 陀螺儀樞軸 + 六面地面階段的新校準流程(設定頁「校準 B (beta)」),韌體 1.0.1-beta.2 新增 opt-in `G:` 封包(`CMD:RAW_ON`)。僅合成資料與單元測試驗證,**實機待 Harold 測試並以遙測回傳**。
+- **2026-10-17 beta.25 發版** ([[log_20261017_beta25_release|Log]]): OTA 截斷連線防護與稽核修正;統一校準不在內,待 Harold 實測。
 - **2026-10-06 OTA on truncated link** ([[log_20261006_ota_truncated_link|Log]]): run f86c2579 failed because MTU stayed 23; app now blocks OTA on truncated links and fails fast on unacked transfers. Firmware untouched; hardware retest pending.
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.
 - **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. Shipped in beta.19.
