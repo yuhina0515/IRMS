@@ -1,0 +1,23 @@
+{
+  "source_count": 202,
+  "topic_count": 22,
+  "snapshot_date": "2026-10-03",
+  "source_types": {
+    "publication": 157,
+    "technical-document": 35,
+    "guidance": 6,
+    "dataset": 3,
+    "technical-report": 1
+  },
+  "review_levels": {
+    "full-text-extracted": 24,
+    "abstract": 133,
+    "metadata-only": 2,
+    "primary-page-excerpt": 42,
+    "full-text-sections": 1
+  },
+  "doi_count": 157,
+  "core_count": 29,
+  "full_text_review_count": 24,
+  "review_update_date": "2026-10-06"
+}

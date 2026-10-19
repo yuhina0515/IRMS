@@ -1,0 +1,250 @@
+{
+  "snapshot_date": "2026-10-03",
+  "selection": "Editorial selection by IRMS relevance, source identity, date, duplicates and available abstract; not a systematic review.",
+  "candidate_records_returned": 576,
+  "queries": [
+    {
+      "category": "anatomy",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"joint coordinate system\" AND (TITLE_ABS:\"knee\" OR TITLE_ABS:\"ISB\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22joint+coordinate+system%22+AND+%28TITLE_ABS%3A%22knee%22+OR+TITLE_ABS%3A%22ISB%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:27.379581+00:00",
+      "hit_count": 41,
+      "returned_count": 22
+    },
+    {
+      "category": "artifact",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"soft tissue\" OR TITLE_ABS:\"sensor placement\" OR TITLE_ABS:\"repeatability\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22soft+tissue%22+OR+TITLE_ABS%3A%22sensor+placement%22+OR+TITLE_ABS%3A%22repeatability%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:17.844131+00:00",
+      "hit_count": 250,
+      "returned_count": 22
+    },
+    {
+      "category": "calibration",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"sensor-to-segment\" OR TITLE_ABS:\"functional calibration\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22sensor-to-segment%22+OR+TITLE_ABS%3A%22functional+calibration%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:10.519462+00:00",
+      "hit_count": 38,
+      "returned_count": 22
+    },
+    {
+      "category": "exercise",
+      "sort": "citation-count",
+      "query": "((TITLE_ABS:\"inertial\" OR TITLE_ABS:\"wearable\") AND TITLE_ABS:\"rehabilitation\" AND (TITLE_ABS:\"exercise recognition\" OR TITLE_ABS:\"exercise classification\" OR TITLE_ABS:\"movement quality\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28%28TITLE_ABS%3A%22inertial%22+OR+TITLE_ABS%3A%22wearable%22%29+AND+TITLE_ABS%3A%22rehabilitation%22+AND+%28TITLE_ABS%3A%22exercise+recognition%22+OR+TITLE_ABS%3A%22exercise+classification%22+OR+TITLE_ABS%3A%22movement+quality%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:23.687632+00:00",
+      "hit_count": 18,
+      "returned_count": 18
+    },
+    {
+      "category": "feedback",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"wearable\" AND TITLE_ABS:\"biofeedback\" AND (TITLE_ABS:\"rehabilitation\" OR TITLE_ABS:\"knee\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22wearable%22+AND+TITLE_ABS%3A%22biofeedback%22+AND+%28TITLE_ABS%3A%22rehabilitation%22+OR+TITLE_ABS%3A%22knee%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:20.274503+00:00",
+      "hit_count": 77,
+      "returned_count": 22
+    },
+    {
+      "category": "fusion",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"sensor fusion\" OR TITLE_ABS:\"orientation estimation\") AND (TITLE_ABS:\"human\" OR TITLE_ABS:\"wearable\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22sensor+fusion%22+OR+TITLE_ABS%3A%22orientation+estimation%22%29+AND+%28TITLE_ABS%3A%22human%22+OR+TITLE_ABS%3A%22wearable%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:15.303742+00:00",
+      "hit_count": 107,
+      "returned_count": 22
+    },
+    {
+      "category": "gait",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND TITLE_ABS:\"gait\" AND (TITLE_ABS:\"systematic review\" OR TITLE_ABS:\"validation\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+TITLE_ABS%3A%22gait%22+AND+%28TITLE_ABS%3A%22systematic+review%22+OR+TITLE_ABS%3A%22validation%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:18.128646+00:00",
+      "hit_count": 245,
+      "returned_count": 22
+    },
+    {
+      "category": "hinge",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"hinge\" OR TITLE_ABS:\"magnetometer-free\" OR TITLE_ABS:\"joint axis\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22hinge%22+OR+TITLE_ABS%3A%22magnetometer-free%22+OR+TITLE_ABS%3A%22joint+axis%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:15.400678+00:00",
+      "hit_count": 54,
+      "returned_count": 22
+    },
+    {
+      "category": "kinematics",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND TITLE_ABS:\"lower limb\" AND (TITLE_ABS:\"validity\" OR TITLE_ABS:\"review\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+TITLE_ABS%3A%22lower+limb%22+AND+%28TITLE_ABS%3A%22validity%22+OR+TITLE_ABS%3A%22review%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:10.514453+00:00",
+      "hit_count": 48,
+      "returned_count": 22
+    },
+    {
+      "category": "knee",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"knee osteoarthritis\" OR TITLE_ABS:\"knee arthroplasty\" OR TITLE_ABS:\"anterior cruciate\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22knee+osteoarthritis%22+OR+TITLE_ABS%3A%22knee+arthroplasty%22+OR+TITLE_ABS%3A%22anterior+cruciate%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:22.684388+00:00",
+      "hit_count": 177,
+      "returned_count": 22
+    },
+    {
+      "category": "measurement",
+      "sort": "citation-count",
+      "query": "(TITLE:\"Bland\" OR TITLE:\"intraclass correlation\" OR TITLE:\"minimal detectable change\" OR TITLE:\"COSMIN\" OR TITLE:\"PRISMA 2020\" OR TITLE:\"CONSORT 2010\") AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE%3A%22Bland%22+OR+TITLE%3A%22intraclass+correlation%22+OR+TITLE%3A%22minimal+detectable+change%22+OR+TITLE%3A%22COSMIN%22+OR+TITLE%3A%22PRISMA+2020%22+OR+TITLE%3A%22CONSORT+2010%22%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:25.961910+00:00",
+      "hit_count": 953,
+      "returned_count": 22
+    },
+    {
+      "category": "remote",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"telerehabilitation\" AND (TITLE_ABS:\"knee\" OR TITLE_ABS:\"arthroplasty\") AND (TITLE_ABS:\"randomized\" OR TITLE_ABS:\"review\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22telerehabilitation%22+AND+%28TITLE_ABS%3A%22knee%22+OR+TITLE_ABS%3A%22arthroplasty%22%29+AND+%28TITLE_ABS%3A%22randomized%22+OR+TITLE_ABS%3A%22review%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:20.592618+00:00",
+      "hit_count": 78,
+      "returned_count": 22
+    },
+    {
+      "category": "usability",
+      "sort": "citation-count",
+      "query": "(TITLE_ABS:\"wearable\" AND TITLE_ABS:\"rehabilitation\" AND (TITLE_ABS:\"usability\" OR TITLE_ABS:\"acceptability\" OR TITLE_ABS:\"adherence\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2024-12-31] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\" sort_cited:y",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22wearable%22+AND+TITLE_ABS%3A%22rehabilitation%22+AND+%28TITLE_ABS%3A%22usability%22+OR+TITLE_ABS%3A%22acceptability%22+OR+TITLE_ABS%3A%22adherence%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2024-12-31%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22+sort_cited%3Ay&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:14:25.308790+00:00",
+      "hit_count": 173,
+      "returned_count": 22
+    },
+    {
+      "category": "anatomy",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"joint coordinate system\" AND (TITLE_ABS:\"knee\" OR TITLE_ABS:\"ISB\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22joint+coordinate+system%22+AND+%28TITLE_ABS%3A%22knee%22+OR+TITLE_ABS%3A%22ISB%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:43.256830+00:00",
+      "hit_count": 43,
+      "returned_count": 22
+    },
+    {
+      "category": "artifact",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"soft tissue\" OR TITLE_ABS:\"sensor placement\" OR TITLE_ABS:\"repeatability\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22soft+tissue%22+OR+TITLE_ABS%3A%22sensor+placement%22+OR+TITLE_ABS%3A%22repeatability%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:29.376606+00:00",
+      "hit_count": 321,
+      "returned_count": 22
+    },
+    {
+      "category": "calibration",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"sensor-to-segment\" OR (TITLE_ABS:\"inertial\" AND TITLE_ABS:\"functional calibration\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22sensor-to-segment%22+OR+%28TITLE_ABS%3A%22inertial%22+AND+TITLE_ABS%3A%22functional+calibration%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:25.207625+00:00",
+      "hit_count": 62,
+      "returned_count": 22
+    },
+    {
+      "category": "exercise",
+      "sort": "default-relevance",
+      "query": "((TITLE_ABS:\"inertial\" OR TITLE_ABS:\"wearable\") AND TITLE_ABS:\"rehabilitation\" AND (TITLE_ABS:\"exercise recognition\" OR TITLE_ABS:\"exercise classification\" OR TITLE_ABS:\"movement quality\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28%28TITLE_ABS%3A%22inertial%22+OR+TITLE_ABS%3A%22wearable%22%29+AND+TITLE_ABS%3A%22rehabilitation%22+AND+%28TITLE_ABS%3A%22exercise+recognition%22+OR+TITLE_ABS%3A%22exercise+classification%22+OR+TITLE_ABS%3A%22movement+quality%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:38.456650+00:00",
+      "hit_count": 37,
+      "returned_count": 22
+    },
+    {
+      "category": "feedback",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"wearable\" AND TITLE_ABS:\"biofeedback\" AND (TITLE_ABS:\"rehabilitation\" OR TITLE_ABS:\"knee\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22wearable%22+AND+TITLE_ABS%3A%22biofeedback%22+AND+%28TITLE_ABS%3A%22rehabilitation%22+OR+TITLE_ABS%3A%22knee%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:34.939146+00:00",
+      "hit_count": 114,
+      "returned_count": 22
+    },
+    {
+      "category": "fusion",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"sensor fusion\" OR TITLE_ABS:\"orientation estimation\") AND (TITLE_ABS:\"human\" OR TITLE_ABS:\"wearable\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22sensor+fusion%22+OR+TITLE_ABS%3A%22orientation+estimation%22%29+AND+%28TITLE_ABS%3A%22human%22+OR+TITLE_ABS%3A%22wearable%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:27.460188+00:00",
+      "hit_count": 136,
+      "returned_count": 22
+    },
+    {
+      "category": "gait",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND TITLE_ABS:\"gait\" AND (TITLE_ABS:\"systematic review\" OR TITLE_ABS:\"validation\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+TITLE_ABS%3A%22gait%22+AND+%28TITLE_ABS%3A%22systematic+review%22+OR+TITLE_ABS%3A%22validation%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:29.834296+00:00",
+      "hit_count": 378,
+      "returned_count": 22
+    },
+    {
+      "category": "hinge",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"hinge\" OR TITLE_ABS:\"magnetometer-free\" OR TITLE_ABS:\"joint axis\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22hinge%22+OR+TITLE_ABS%3A%22magnetometer-free%22+OR+TITLE_ABS%3A%22joint+axis%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:27.121393+00:00",
+      "hit_count": 62,
+      "returned_count": 22
+    },
+    {
+      "category": "kinematics",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND TITLE_ABS:\"lower limb\" AND (TITLE_ABS:\"validity\" OR TITLE_ABS:\"review\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+TITLE_ABS%3A%22lower+limb%22+AND+%28TITLE_ABS%3A%22validity%22+OR+TITLE_ABS%3A%22review%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:24.905156+00:00",
+      "hit_count": 67,
+      "returned_count": 22
+    },
+    {
+      "category": "knee",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"inertial\" AND (TITLE_ABS:\"knee osteoarthritis\" OR TITLE_ABS:\"knee arthroplasty\" OR TITLE_ABS:\"anterior cruciate\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22inertial%22+AND+%28TITLE_ABS%3A%22knee+osteoarthritis%22+OR+TITLE_ABS%3A%22knee+arthroplasty%22+OR+TITLE_ABS%3A%22anterior+cruciate%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:35.549916+00:00",
+      "hit_count": 262,
+      "returned_count": 22
+    },
+    {
+      "category": "measurement",
+      "sort": "default-relevance",
+      "query": "(TITLE:\"Bland\" OR TITLE:\"intraclass correlation\" OR TITLE:\"minimal detectable change\" OR TITLE:\"COSMIN\" OR TITLE:\"PRISMA 2020\" OR TITLE:\"CONSORT 2010\") AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE%3A%22Bland%22+OR+TITLE%3A%22intraclass+correlation%22+OR+TITLE%3A%22minimal+detectable+change%22+OR+TITLE%3A%22COSMIN%22+OR+TITLE%3A%22PRISMA+2020%22+OR+TITLE%3A%22CONSORT+2010%22%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:40.629666+00:00",
+      "hit_count": 1167,
+      "returned_count": 22
+    },
+    {
+      "category": "remote",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"telerehabilitation\" AND (TITLE_ABS:\"knee\" OR TITLE_ABS:\"arthroplasty\") AND (TITLE_ABS:\"randomized\" OR TITLE_ABS:\"review\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22telerehabilitation%22+AND+%28TITLE_ABS%3A%22knee%22+OR+TITLE_ABS%3A%22arthroplasty%22%29+AND+%28TITLE_ABS%3A%22randomized%22+OR+TITLE_ABS%3A%22review%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:32.288500+00:00",
+      "hit_count": 126,
+      "returned_count": 22
+    },
+    {
+      "category": "usability",
+      "sort": "default-relevance",
+      "query": "(TITLE_ABS:\"wearable\" AND TITLE_ABS:\"rehabilitation\" AND (TITLE_ABS:\"usability\" OR TITLE_ABS:\"acceptability\" OR TITLE_ABS:\"adherence\")) AND SRC:MED AND HAS_ABSTRACT:Y AND FIRST_PDATE:[1900-01-01 TO 2026-10-03] NOT PUB_TYPE:\"Preprint\" NOT TITLE:\"Erratum\" NOT TITLE:\"Correction\" NOT PUB_TYPE:\"Retracted Publication\"",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE_ABS%3A%22wearable%22+AND+TITLE_ABS%3A%22rehabilitation%22+AND+%28TITLE_ABS%3A%22usability%22+OR+TITLE_ABS%3A%22acceptability%22+OR+TITLE_ABS%3A%22adherence%22%29%29+AND+SRC%3AMED+AND+HAS_ABSTRACT%3AY+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D+NOT+PUB_TYPE%3A%22Preprint%22+NOT+TITLE%3A%22Erratum%22+NOT+TITLE%3A%22Correction%22+NOT+PUB_TYPE%3A%22Retracted+Publication%22&format=json&resultType=core&pageSize=22",
+      "retrieved_at": "2026-10-03T03:12:37.856220+00:00",
+      "hit_count": 373,
+      "returned_count": 22
+    },
+    {
+      "category": "reporting-2025",
+      "sort": "targeted",
+      "query": "(TITLE:\"CONSORT 2025 statement\" OR TITLE:\"SPIRIT 2025 statement\") AND SRC:MED AND FIRST_PDATE:[1900-01-01 TO 2026-10-03]",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=%28TITLE%3A%22CONSORT+2025+statement%22+OR+TITLE%3A%22SPIRIT+2025+statement%22%29+AND+SRC%3AMED+AND+FIRST_PDATE%3A%5B1900-01-01+TO+2026-10-03%5D&resultType=core&format=json&pageSize=8",
+      "retrieved_at": "2026-10-03",
+      "hit_count": 15,
+      "returned_count": 8
+    }
+  ]
+}

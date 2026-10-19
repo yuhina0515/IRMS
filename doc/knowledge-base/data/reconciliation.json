@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-10-06",
+  "reviewer": "Codex, same-agent second pass",
+  "scope": "Primary-source discrepancy audit; not an author-issued correction or exhaustive version audit.",
+  "cases": [
+    {
+      "source_id": "PMID-27330520",
+      "status": "official-erratum-confirmed",
+      "conclusion": "官方更正：Table 3 的 ICC(1,1) 分母項由 (k + 1) 改為 (k − 1)。已核對更正文字；原始指引完整 XML 未取得。",
+      "locator": "2017 erratum 正文／Table 3",
+      "sources": [
+        {
+          "url": "https://www.sciencedirect.com/science/article/abs/pii/S155637071730130X",
+          "locator": "Erratum 正文"
+        },
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5731844/",
+          "locator": "Erratum 正文"
+        }
+      ],
+      "use_rule": "僅對 ICC(1,1) 採此更正，不可套用到其他模型；原始指引仍為摘要層級。",
+      "unresolved": false
+    },
+    {
+      "source_id": "PMID-32580394",
+      "status": "cross-format-conflict-unresolved",
+      "conclusion": "作者機構 PDF 與 XML 均在 §8.3 報 Scenario 2、nmin=3 的 81%，§9.3 報 88%；不是本次 XML 擷取差異。",
+      "locator": "PDF 檔案第23／28頁（印刷第22／27頁）；§8.3、§9.3",
+      "sources": [
+        {
+          "url": "https://repository.tudelft.nl/file/File_9187181b-65c7-48ee-ba4a-a2085ea3a505",
+          "sha256": "ce738c748af1cd8b70210ccb183db1a9de4c82d1b43a416cabef9293c3dd54d1",
+          "bytes": 7976883,
+          "locator": "PDF 第23／28頁"
+        }
+      ],
+      "use_rule": "缺少正式更正或原始估計結果，不選定其中一值；禁止把該子組成功率作 IRMS 門檻。",
+      "unresolved": true
+    },
+    {
+      "source_id": "PMID-24743160",
+      "status": "cross-format-conflict-unresolved",
+      "conclusion": "作者機構 PDF 第16頁（6906）與 XML Table 1 均列對側膝六數平均約2.75°，但表列 Average=3.30°。",
+      "locator": "PDF 第16頁／印刷6906；Table 1",
+      "sources": [
+        {
+          "url": "https://pure.mpg.de/rest/items/item_2032537_9/component/file_2032538/content",
+          "sha256": "35fd26d99f5fdcbeb9b69574bc3e8678befd3b88c22f2128ff381dcfeb6c1b02",
+          "bytes": 2359917,
+          "locator": "PDF 第16頁／Table 1"
+        }
+      ],
+      "use_rule": "保留作者報告及矛盾，不猜試次誤植；2.75°是本庫重算，並非作者修正結論。",
+      "unresolved": true
+    },
+    {
+      "source_id": "PMID-34063355",
+      "status": "figure-text-test-distinction-confirmed",
+      "conclusion": "Figure 6C 報子組效果 Z=2.41、p=0.02；異質性 χ²=0.55、p=0.91、I²=0%。§3.6.3 的效果 p=0.91 及異質性 p=0.81 與圖不符。",
+      "locator": "出版商 PDF 第16頁 Figure 6C；§3.6.3 第15頁",
+      "sources": [
+        {
+          "url": "https://mdpi-res.com/d_attachment/sensors/sensors-21-03444/article_deploy/sensors-21-03444-v3.pdf?version=1622457266",
+          "sha256": "d6ef6bf215c939b40139c2e27a699254c5bf575c910809f0d4afa0812ea4e415",
+          "bytes": 6043248,
+          "locator": "PDF 第15–16頁；Figure 6C"
+        }
+      ],
+      "use_rule": "明寫圖6C報告與正文衝突；不能把子組效果代替全部裝置圖6A的 p=0.06。未找到正式更正，不靜默修訂正文。",
+      "unresolved": true
+    }
+  ]
+}

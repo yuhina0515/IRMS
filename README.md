@@ -47,6 +47,7 @@ LED/蜂鳴器回饋,並將復健歷程儲存於本地 **SQLite** 以供量化分
 | 文件 | 內容 |
 | --- | --- |
 | [doc/README.md](doc/README.md) | **系統架構與整合技術規格說明書** — 硬體腳位、韌體任務、BLE 協定、SQLite schema、建置指引。 |
+| [專業知識與文獻資料庫](doc/knowledge-base/README.md) | **202 筆來源、22 個主題、12 篇導讀** — 校準、量測驗證、復健背景、工程依據、離線搜尋及引用匯出。 |
 | [doc/PROJECT_STATUS.md](doc/PROJECT_STATUS.md) | **專案開發進度與整合報告** — 世代沿革、已完成階段、驗證、待辦。 |
 | [doc/OPTIMIZATION.md](doc/OPTIMIZATION.md) | **功能清單與優化待辦 (活清單)** — 現有功能盤點與優化 backlog。 |
 | [doc/AI_CODING_RULES.md](doc/AI_CODING_RULES.md) | **AI 協同開發與編碼規範** — 行為準則、韌體/App 開發規則、參數速查表。 |
