@@ -381,6 +381,16 @@
 
 ## Runtime module contract (2026-09-27)
 
+### Reliability follow-up (2026-10-20)
+
+- [x] Session save recovery (2026-10-21): retain a stopped session and pending readings on append/end failure; explicit retry across normal/error views; no false saved toast/speech; pending-session guards for restart, firmware, demo/calibration and history deletion. See [[log_20261021_session_recovery]].
+- [ ] Process-crash recovery and ambiguous IPC acknowledgement deduplication remain separate work; existing failed-write buffer cap is 2,000 readings.
+
+- [x] Mobility C: require a timestamped two-second hold, reject gaps over 250 ms, use held evidence for sweep direction, and require aligned knee-reference samples.
+- [x] Mobility UI: compare the same leg and movement set, isolate legacy unknown-side records, cancel captures on dismissal/disconnect, refresh background saves without dismissing replacement windows, and show retry on history-load failure.
+- [x] Session lifecycle: serialize batch writes, freeze acquisition at End, retire starts invalidated by disconnect, clear speech suppression at boundaries, and disable Start during final persistence.
+- [ ] Native acceptance: BLE cadence/gaps, two-second hold usability, interrupted capture, delayed storage and WebView2 speech. Unified calibration still requires the separate bench-data gate.
+
 Module listings manage modules only; operation UI belongs to module-owned pages hosted on the 工具 (Tools) tab.
 See [MODULE_CONTRACT.md](MODULE_CONTRACT.md) for page registration, immediate reactivation,
 cancellation/disposal, compatibility and release integration requirements.

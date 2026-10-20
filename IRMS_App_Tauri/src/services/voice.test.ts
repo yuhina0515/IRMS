@@ -20,7 +20,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }))
 
 import { useStore } from '../store/useStore'
-import { SAFETY_HOLD_MS, isVoiceSupported, resetVoiceStateForTests, speak } from './voice'
+import { SAFETY_HOLD_MS, isVoiceSupported, resetVoiceStateForTests, speak, stopSpeaking } from './voice'
 
 class FakeUtterance {
   lang = ''
@@ -51,6 +51,12 @@ afterEach(() => {
 })
 
 describe('speak', () => {
+  it('clears the safety suppression window when stopping at a session boundary', () => {
+    speak('warning', 'safety')
+    stopSpeaking()
+    speak('ended')
+    expect(spoken.map((u) => u.text)).toEqual(['warning', 'ended'])
+  })
   it('speaks with the language matching the app locale', () => {
     speak('hello')
     expect(spoken.map((u) => [u.text, u.lang])).toEqual([['hello', 'zh-TW']])

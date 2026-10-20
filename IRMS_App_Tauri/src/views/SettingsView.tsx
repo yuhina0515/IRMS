@@ -128,7 +128,7 @@ function DevicePane(): JSX.Element {
   const deviceName = useStore((s) => s.deviceName)
   const connectionStatus = useStore((s) => s.connectionStatus)
   const hardwareError = useStore((s) => s.hardwareError)
-  const running = useStore((s) => s.session.running)
+  const running = useStore((s) => s.session.running || s.session.id != null)
   const demoMode = useUiStore((s) => s.demoMode)
   const m = useT()
   return (
@@ -178,7 +178,7 @@ function CalibrationPane(): JSX.Element {
     setSettings({ [key]: value } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
-  const calibrationLocked = useStore((s) => s.session.running)
+  const calibrationLocked = useStore((s) => s.session.running || s.session.id != null)
   // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
   const linkTruncated = useStore((s) => s.linkTruncated)
   const m = useT()
@@ -500,7 +500,7 @@ function FirmwareOtaPanel(): JSX.Element {
   // 停頓(SPI flash 操作需要暫停 cache),Task_Sensor 的 50Hz 取樣與 Task_Comm 的
   // 25Hz BLE 推播都會跟著卡頓。療程進行中出現這種卡頓,輕則資料出現偽影,重則
   // 讓正在半蹲/外展的患者因為回饋延遲而失去平衡——這是本檔其他鎖定沒有的傷害路徑。
-  const sessionRunning = useStore((s) => s.session.running)
+  const sessionRunning = useStore((s) => s.session.running || s.session.id != null)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
 
@@ -687,7 +687,7 @@ function DemoModePanel(): JSX.Element {
   const setDemoMode = useUiStore((s) => s.setDemoMode)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
   const showToast = useUiStore((s) => s.showToast)
-  const sessionRunning = useStore((s) => s.session.running)
+  const sessionRunning = useStore((s) => s.session.running || s.session.id != null)
   const scenarioId = useUiStore((s) => s.demoScenarioId)
   const setScenarioId = useUiStore((s) => s.setDemoScenario)
   const playingId = useUiStore((s) => s.demoPlayingId)
@@ -707,8 +707,11 @@ function DemoModePanel(): JSX.Element {
   }
 
   const purge = async (): Promise<void> => {
+    if (useStore.getState().session.running || useStore.getState().session.id != null) return
     const ok = await requestConfirm(md.purgeTitle, md.purgeBody)
     if (!ok) return
+    // 確認對話框開啟期間可能開始療程，刪除前必須再次確認。
+    if (useStore.getState().session.running || useStore.getState().session.id != null) return
     setBusy(true)
     try {
       const { deleted } = await irms.sessions.purgeDemo()
@@ -761,7 +764,7 @@ function DemoModePanel(): JSX.Element {
       )}
 
       <hr className="my-4 border-0 border-t border-border" />
-      <button className="btn btn-danger-ghost" disabled={busy} onClick={() => void purge()}>
+      <button className="btn btn-danger-ghost" disabled={busy || sessionRunning} onClick={() => void purge()}>
         {md.purgeButton}
       </button>
       <p className="field-hint" style={{ marginTop: 8 }}>

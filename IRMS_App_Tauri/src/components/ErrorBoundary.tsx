@@ -9,7 +9,7 @@
 //
 // 因此 fallback 一定要提供「結束並儲存 Session」,這是白屏當下唯一能保住資料的動作。
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { sessionController } from '../services/sessionController'
+import { SessionSaveControl } from './SessionSaveControl'
 import { useStore } from '../store/useStore'
 import { getT } from '../i18n'
 
@@ -21,6 +21,12 @@ interface Props {
 
 interface State {
   error: Error | null
+}
+
+// 錯誤邊界本身不依賴 store 重繪，療程提示需獨立訂閱以免存檔後仍稱正在執行。
+function SessionRunningNote(): JSX.Element | null {
+  const running = useStore((s) => s.session.running)
+  return running ? <>{getT().errorBoundary.running}</> : null
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -37,15 +43,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private reset = (): void => this.setState({ error: null })
 
-  private endSession = (): void => {
-    void sessionController.endSession()
-  }
-
   render(): ReactNode {
     const { error } = this.state
     if (!error) return this.props.children
 
-    const running = useStore.getState().session.running
     // Class component, so no hooks: App re-renders on a language change and that re-renders this
     // fallback too, so reading the dictionary at render time is enough.
     const m = getT()
@@ -54,15 +55,11 @@ export class ErrorBoundary extends Component<Props, State> {
         <h3>{m.errorBoundary.title}</h3>
         <p>
           {m.errorBoundary.body({ name: this.props.name })}
-          {running && m.errorBoundary.running}
+          <SessionRunningNote />
         </p>
         <pre className="error-boundary-detail">{error.message}</pre>
         <div className="row" style={{ gap: 10 }}>
-          {running && (
-            <button className="btn btn-primary" onClick={this.endSession}>
-              {m.common.endAndSaveSession}
-            </button>
-          )}
+          <SessionSaveControl allowEnd />
           <button className="btn" onClick={this.reset}>
             {m.common.retry}
           </button>

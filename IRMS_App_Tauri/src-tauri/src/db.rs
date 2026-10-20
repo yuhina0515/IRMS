@@ -294,22 +294,30 @@ pub mod sessions_repo {
         Ok(())
     }
 
-    /// Deletes every demo-sourced session (sensor_data cascades via the FK). Demo rows are
+    /// Deletes completed demo-sourced sessions (sensor_data cascades via the FK). Demo rows are
     /// intentionally visible in History rather than hidden — a hidden row still exists in any DB
     /// copy, just harder to notice — so this exists to make "is there fake data in here" an
     /// answerable question.
     pub fn purge_demo(conn: &Connection) -> rusqlite::Result<usize> {
-        let n = conn.execute("DELETE FROM sessions WHERE source = 'demo'", [])?;
+        // 尚未結束的示範療程可能仍有待回補資料，不能由歷史清除操作刪掉。
+        let n = conn.execute(
+            "DELETE FROM sessions WHERE source = 'demo' AND endTime IS NOT NULL",
+            [],
+        )?;
         Ok(n)
     }
 
     pub fn end(conn: &Connection, session_id: i64, reps_completed: i64) -> rusqlite::Result<()> {
-        conn.execute(
+        let changed = conn.execute(
             "UPDATE sessions
-             SET endTime = strftime('%Y-%m-%dT%H:%M:%fZ','now'), repsCompleted = ?1
+             SET endTime = COALESCE(endTime, strftime('%Y-%m-%dT%H:%M:%fZ','now')), repsCompleted = ?1
              WHERE id = ?2",
             params![reps_completed, session_id],
         )?;
+        // 不存在的療程不能回報已儲存；重試則保留首次成功結束的時間。
+        if changed != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
         Ok(())
     }
 
@@ -516,6 +524,28 @@ mod tests {
     }
 
     #[test]
+    fn session_end_rejects_missing_record_and_preserves_first_end_time() {
+        let conn = fresh_db();
+        assert!(sessions_repo::end(&conn, 9999, 2).is_err());
+        let id = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        sessions_repo::end(&conn, id, 2).unwrap();
+        conn.execute(
+            "UPDATE sessions SET endTime = '2026-10-21T00:00:00.000Z' WHERE id = ?1",
+            [id],
+        )
+        .unwrap();
+        sessions_repo::end(&conn, id, 2).unwrap();
+        let saved = sessions_repo::list(&conn).unwrap();
+        assert_eq!(
+            saved[0].end_time.as_deref(),
+            Some("2026-10-21T00:00:00.000Z")
+        );
+        assert_eq!(saved[0].reps_completed, 2);
+        sessions_repo::delete(&conn, id).unwrap();
+        assert!(sessions_repo::end(&conn, id, 2).is_err());
+    }
+
+    #[test]
     fn purge_demo_only_deletes_demo_sessions() {
         let conn = fresh_db();
         let mut real_input = sample_session_input();
@@ -524,14 +554,51 @@ mod tests {
         demo_input.source = "demo".to_string();
 
         sessions_repo::start(&conn, &real_input).unwrap();
-        sessions_repo::start(&conn, &demo_input).unwrap();
-        assert_eq!(sessions_repo::list(&conn).unwrap().len(), 2);
+        let completed = sessions_repo::start(&conn, &demo_input).unwrap();
+        sessions_repo::end(&conn, completed, 0).unwrap();
+        let pending = sessions_repo::start(&conn, &demo_input).unwrap();
+        assert_eq!(sessions_repo::list(&conn).unwrap().len(), 3);
 
         let deleted = sessions_repo::purge_demo(&conn).unwrap();
         assert_eq!(deleted, 1);
         let remaining = sessions_repo::list(&conn).unwrap();
-        assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0].source, "device");
+        assert_eq!(remaining.len(), 2);
+        assert!(remaining.iter().any(|s| s.source == "device"));
+        assert!(remaining
+            .iter()
+            .any(|s| s.id == pending && s.end_time.is_none()));
+    }
+
+    #[test]
+    fn failed_batch_rolls_back_all_readings_before_retry() {
+        let mut conn = fresh_db();
+        let id = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let readings: Vec<SensorReading> = [1.0, 99.0]
+            .into_iter()
+            .map(|angle| SensorReading {
+                knee_angle: angle,
+                thigh_angle: 0.0,
+                shin_angle: 0.0,
+                knee_roll: 0.0,
+                thigh_roll: 0.0,
+                shin_roll: 0.0,
+                timestamp: "2026-10-21T00:00:00.000Z".to_string(),
+            })
+            .collect();
+        conn.execute_batch(
+            "CREATE TEMP TRIGGER reject_second_reading BEFORE INSERT ON sensor_data
+            WHEN NEW.kneeAngle = 99 BEGIN SELECT RAISE(ABORT, 'injected failure'); END;",
+        )
+        .unwrap();
+        assert!(data_repo::append_batch(&mut conn, id, &readings).is_err());
+        assert!(sessions_repo::get_data(&conn, id, None).unwrap().is_empty());
+        conn.execute_batch("DROP TRIGGER reject_second_reading;")
+            .unwrap();
+        assert_eq!(
+            data_repo::append_batch(&mut conn, id, &readings).unwrap(),
+            2
+        );
+        assert_eq!(sessions_repo::get_data(&conn, id, None).unwrap().len(), 2);
     }
 
     #[test]

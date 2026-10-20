@@ -103,7 +103,7 @@ export const useUiStore = create<UiState>((set, get) => ({
     // 而它在資料庫裡只會有一個標記——半真半假的紀錄比純粹的假資料更難察覺。
     // 真正的防線在 UI(按鈕在進行中就不可按),這裡是最後一道,擋掉繞過 UI 的路徑,
     // 並且刻意「拒絕且留下日誌」而非靜默忽略。
-    if (useStore.getState().session.running) {
+    if (useStore.getState().session.running || useStore.getState().session.id != null) {
       useStore.getState().log('Demo mode cannot be toggled while a session is running.')
       return false
     }

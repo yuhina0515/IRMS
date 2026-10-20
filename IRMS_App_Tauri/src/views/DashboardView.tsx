@@ -68,6 +68,7 @@ export function DashboardView(): JSX.Element {
   const setView = useUiStore((s) => s.setView)
   const [detail, setDetail] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const saveState = useStore((s) => s.sessionSaveState)
   const stage: StageView = detail ? 'detail' : poseView
   const m = useT()
   const c = m.clinical.dashboard
@@ -93,7 +94,9 @@ export function DashboardView(): JSX.Element {
   // State contract (PROPOSAL §5): fault / beyond personal limit → blocking conditions → coaching.
   const coach: Coach = hardwareError
     ? { tone: 'danger', mark: '×', title: c.sensorFault({ code: hardwareError }), sub: c.sensorFaultSub }
-    : session.alarmActive || guidance.kind === 'overLimit'
+    : !session.running && session.id != null
+      ? { tone: 'warn', mark: '!', title: saveState === 'failed' ? m.sessionDock.saveFailed : m.sessionDock.blocker.finishing }
+      : session.alarmActive || guidance.kind === 'overLimit'
       ? {
           tone: 'danger',
           mark: '!',
@@ -141,11 +144,11 @@ export function DashboardView(): JSX.Element {
         </div>
         <div className="v3-page-actions">
           {calibrated ? (
-            <button className="v3-chip good" onClick={() => setWizardOpen(true)} title={m.dashboard.recalibrate}>
+            <button className="v3-chip good" disabled={session.running || session.id != null} onClick={() => setWizardOpen(true)} title={m.dashboard.recalibrate}>
               {m.dashboard.calibratedChip({ time: formatDateTime(locale, new Date(lastCalibratedAt), TIME_MINUTES) })}
             </button>
           ) : (
-            <button className="v3-chip warn" onClick={() => setWizardOpen(true)}>
+            <button className="v3-chip warn" disabled={session.running || session.id != null} onClick={() => setWizardOpen(true)}>
               {m.dashboard.notCalibratedChip}
             </button>
           )}
