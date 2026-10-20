@@ -324,6 +324,8 @@ export const en = {
     started: 'Session started',
     startFailed: 'Could not start the session',
     ended: 'Session ended and saved',
+    saveFailed: 'The session has stopped, but saving failed. Keep the app open and retry saving.',
+    retrySave: 'Retry saving session',
     completed: 'Completed',
     repsUnit: ' reps',
     currentHold: 'Current hold',

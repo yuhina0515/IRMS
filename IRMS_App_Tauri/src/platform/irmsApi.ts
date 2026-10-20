@@ -17,6 +17,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
+import { useStore } from '../store/useStore'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
@@ -275,7 +276,8 @@ export const irms: IrmsApi = {
     async restartNow() {
       // Windows:install() 成功送出安裝程式後會直接結束 App(見 update.rs 開頭註解),
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
-      if (!currentUpdate || !readyToInstall || installing) return
+      const { session } = useStore.getState()
+      if (session.running || session.id != null || !currentUpdate || !readyToInstall || installing) return
       installing = true
       try { await currentUpdate.install() } finally { installing = false }
     },

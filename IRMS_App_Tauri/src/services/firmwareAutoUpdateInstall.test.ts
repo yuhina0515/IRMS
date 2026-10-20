@@ -3,7 +3,7 @@ import { commitFeatures, firmwareUpdaterFactory, removeFeatures } from './module
 import { useFirmwareAutoStore, type AutoUpdateDeps } from './firmwareAutoUpdate'
 
 const mock = vi.hoisted(() => ({
-  state: { isConnected: false, session: { running: false }, hardwareError: null as string | null, settings: { allowBetaUpdates: false }, log: vi.fn() },
+  state: { isConnected: false, session: { running: false, id: null as number | null }, hardwareError: null as string | null, settings: { allowBetaUpdates: false }, log: vi.fn() },
   subscriber: undefined as ((s: unknown, prev: unknown) => void) | undefined,
   flash: vi.fn(), check: vi.fn(), toast: vi.fn()
 }))
@@ -17,6 +17,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   mock.state.isConnected=false
   mock.state.session.running=false
+  mock.state.session.id=null
   useFirmwareAutoStore.setState({ status: { phase: 'idle' } })
   mock.flash.mockReset()
 })
@@ -59,5 +60,21 @@ it('does not start a module while a session is running', async () => {
   mock.subscriber?.(mock.state, { isConnected:false, session:{running:false} })
   await vi.advanceTimersByTimeAsync(3000)
   expect(run).not.toHaveBeenCalled()
+  dispose()
+})
+
+it('keeps firmware blocked through failed saving and schedules after recovery', async () => {
+  const run=vi.fn(async () => {})
+  commitFeatures('firmware-updater', { firmwareUpdater: () => ({run}) })
+  const dispose=installFirmwareAutoUpdate()
+  mock.state.isConnected=true
+  mock.state.session.id=7
+  mock.subscriber?.(mock.state, { isConnected:false, session:{running:false, id:null} })
+  await vi.advanceTimersByTimeAsync(3000)
+  expect(run).not.toHaveBeenCalled()
+  mock.state.session.id=null
+  mock.subscriber?.(mock.state, { isConnected:true, session:{running:false, id:7} })
+  await vi.advanceTimersByTimeAsync(3000)
+  expect(run).toHaveBeenCalledTimes(1)
   dispose()
 })

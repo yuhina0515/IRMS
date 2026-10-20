@@ -174,6 +174,52 @@ afterEach(async () => {
 })
 
 describe('開始/結束的重入防護', () => {
+  it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
+    await sessionController.startSession()
+    feed(REST, 3)
+    useStore.getState().patchSession({ reps: 3 })
+    stub.data.appendBatch.mockRejectedValueOnce(new Error('disk unavailable'))
+    expect(await sessionController.endSession()).toBe(false)
+    expect(useStore.getState().session).toMatchObject({ id: 1, reps: 3, running: false })
+    expect(useStore.getState().sessionSaveState).toBe('failed')
+    expect(stub.sessions.end).not.toHaveBeenCalled()
+    const sends = sendSpy.mock.calls.length
+    feed(IN_ZONE, 100)
+    expect(sendSpy.mock.calls).toHaveLength(sends)
+    expect(useStore.getState().session.reps).toBe(3)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
+    expect(stub.data.appendBatch.mock.calls[1]).toEqual(stub.data.appendBatch.mock.calls[0])
+    expect(stub.sessions.end).toHaveBeenCalledWith(1, 3)
+    expect(useStore.getState().session.id).toBeNull()
+    expect(useStore.getState().sessionSaveState).toBe('idle')
+  })
+
+  it.each([new Error('cannot finalize'), 'database is locked', null])('retains end failure %s and retries without reappending committed readings', async (failure) => {
+    await sessionController.startSession()
+    feed(REST, 3)
+    stub.sessions.end.mockRejectedValueOnce(failure)
+    expect(await sessionController.endSession()).toBe(false)
+    expect(useStore.getState().session).toMatchObject({ id: 1, running: false })
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(1)
+    expect(stub.sessions.end.mock.calls).toEqual([[1, 0], [1, 0]])
+  })
+
+  it('does not loop on persistent failure or allow a new session to replace recovery data', async () => {
+    await sessionController.startSession()
+    feed(REST, 3)
+    stub.data.appendBatch.mockRejectedValue(new Error('still unavailable'))
+    expect(await sessionController.endSession()).toBe(false)
+    expect(await sessionController.endSession()).toBe(false)
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
+    await sessionController.startSession()
+    expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+    expect(useStore.getState().session.id).toBe(1)
+    stub.data.appendBatch.mockResolvedValue({ count: 3 })
+    expect(await sessionController.endSession()).toBe(true)
+  })
+
   it('freezes acquisition immediately and awaits the periodic write before ending', async () => {
     useStore.setState({ settings: { ...useStore.getState().settings, flushIntervalSec: 1 } })
     let finishWrite!: () => void
@@ -279,6 +325,16 @@ describe('語音提示', () => {
     vi.advanceTimersByTime(ALARM_VOICE_REPEAT_MS)
     feed(OVER_LIMIT, 5)
     expect(warnings()).toHaveLength(2)
+  })
+
+  it('does not announce completion after native string failure, then announces successful retry', async () => {
+    await sessionController.startSession()
+    spoken.length = 0
+    stub.sessions.end.mockRejectedValueOnce('database is locked')
+    expect(await sessionController.endSession()).toBe(false)
+    expect(spoken).toEqual([])
+    expect(await sessionController.endSession()).toBe(true)
+    expect(spoken).toEqual(['Session finished, 0 reps'])
   })
 
   it('關閉語音提示後完全不出聲', async () => {

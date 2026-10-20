@@ -18,6 +18,19 @@ Ending a session immediately stops acquisition and repetition counting, waits fo
 then performs one final flush. A disconnect invalidates a pending session start even if the connection returns.
 These changes have automated regression coverage; real BLE timing and native speech remain unverified.
 
+### Session save recovery (2026-10-21)
+
+Final append/finalization failure now retains the stopped session ID, totals and pending readings for explicit
+retry. Completion notices and speech occur only after persistence succeeds. A successful append is not replayed
+when only finalization failed. Retry is available in the session dock and hardware/crash error fallbacks.
+Pending sessions block update installation, firmware updates, demo/calibration changes, and deletion of their
+history row. Demo purge removes only completed rows; repeated finalization preserves its first successful end time
+and a missing session cannot be reported saved. No database schema or IPC signature changed.
+
+Recovery keeps the app process alive; it is not a durable crash-recovery journal. The existing 2,000-reading
+failed-write buffer cap remains. Genuine failed SQLite batches roll back atomically; ambiguous IPC acknowledgements
+are not deduplicated and require a separate batch-token design if that failure must be handled.
+
 ## 1. 系統概述 (System Overview)
 
 本系統旨在提供一套精準、即時且具備雙向參數同步與互動回饋機制的智慧復健輔助方案。透過穿戴式 ESP32 物聯網 (IoT) 裝置擷取人體運動力學數據，結合邊緣運算 (Edge Computing) 與桌面監測端應用程式，協助物理治療師與患者即時監控關節夾角變化，並將所有復健歷程自動儲存於本地 SQLite 資料庫中，以進行量化分析與成效追蹤。

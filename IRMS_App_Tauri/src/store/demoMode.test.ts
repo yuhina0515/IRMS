@@ -71,6 +71,16 @@ describe('示範模式旗標的存活範圍', () => {
 })
 
 describe('Session 進行中不得切換', () => {
+  it('keeps mode and calibration frozen while a stopped session awaits saving', () => {
+    useStore.getState().patchSession({ id: 7, running: false })
+    const zero = useStore.getState().settings.proximalZeroRaw
+    expect(useUiStore.getState().setDemoMode(true)).toBe(false)
+    useStore.getState().setSettings({ proximalZeroRaw: zero + 20, language: 'en' })
+    expect(useStore.getState().settings.proximalZeroRaw).toBe(zero)
+    expect(useStore.getState().settings.language).toBe('en')
+    useStore.getState().resetSession()
+    useStore.getState().setLanguage('zh-Hant')
+  })
   it('拒絕切換並留下日誌(不是靜默忽略)', async () => {
     await sessionController.startSession()
     const logsBefore = useStore.getState().logs.length

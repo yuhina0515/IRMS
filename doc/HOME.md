@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
+
 - **2026-10-20 beta.25 reliability follow-up** ([[log_20261020_squad_progress|Log]]): timestamped mobility holds, separate leg trends, capture/save cleanup, and serialized Session persistence. Automated checks only; unified calibration remains gated on bench data. Delivered as a stacked draft PR; no merge or release.
 
 - **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。

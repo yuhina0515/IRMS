@@ -351,6 +351,8 @@ export const zhHant = {
     started: '療程已開始',
     startFailed: '無法開始療程',
     ended: '療程已結束並儲存',
+    saveFailed: '療程已停止，但儲存失敗。請保持程式開啟，並重試儲存。',
+    retrySave: '重試儲存療程',
     completed: '已完成',
     repsUnit: ' 次',
     currentHold: '本次保持',

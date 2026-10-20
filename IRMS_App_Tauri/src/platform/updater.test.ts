@@ -23,6 +23,17 @@ beforeEach(() => {
   mock.close.mockResolvedValue(undefined)
 })
 describe('updater concurrency', () => {
+  it('blocks installation while a stopped session still owns unsaved data', async () => {
+    const { irms } = await import('./irmsApi')
+    const { useStore } = await import('../store/useStore')
+    await irms.updates.checkNow()
+    useStore.getState().patchSession({ id: 7, running: false })
+    await irms.updates.restartNow()
+    expect(mock.install).not.toHaveBeenCalled()
+    useStore.getState().resetSession()
+    await irms.updates.restartNow()
+    expect(mock.install).toHaveBeenCalledTimes(1)
+  })
   it('shares checks through download, retains the installer and replays status after remount', async () => {
     const pending = deferred()
     mock.download.mockReturnValue(pending.promise)

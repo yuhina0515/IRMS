@@ -245,8 +245,8 @@ class SessionController {
   /** 由 bluetoothService 推入的每筆即時角度 */
   private onAngles(angles: LiveAngles): void {
     // 結束邊界之後不再判定、計數或累積資料，避免落在最後寫入之後。
-    if (this.ending) return
     const { session } = useStore.getState()
+    if (this.ending || (!session.running && session.id != null)) return
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
     const cfg = this.currentConfig()
@@ -399,6 +399,7 @@ class SessionController {
     const { session } = useStore.getState()
     if (session.id == null || this.ending) return false
     this.ending = true
+    useStore.getState().setSessionSaveState('saving')
     useStore.getState().patchSession({ running: false })
     this.sendLed('off')
     this.sendAlarm('off')
@@ -418,13 +419,20 @@ class SessionController {
     // 週期寫入失敗可能回補緩衝；先等待完成，再做一次有限的最後補寫。
     if (this.flushing) await this.flushing
     await this.flush()
+    if (this.buffer.length > 0) {
+      useStore.getState().setSessionSaveState('failed')
+      useStore.getState().log(`Session #${sessionId} remains unsaved: ${this.buffer.length} buffered readings. Retry saving.`)
+      logTelemetry('session_save_failed', { sessionId, stage: 'append', unsavedReadings: this.buffer.length })
+      return false
+    }
 
     let endError: string | null = null
     try {
       await irms.sessions.end(sessionId, session.reps)
       useStore.getState().log(`Ended session #${session.id}. Reps: ${session.reps}.`)
     } catch (err) {
-      endError = (err as Error).message
+      // Tauri 指令失敗可能直接拒絕字串，不能只依賴 Error.message。
+      endError = err instanceof Error ? err.message : String(err)
       useStore.getState().log(`Failed to end session: ${endError}`)
     }
     logTelemetry('session_end', {
@@ -434,6 +442,10 @@ class SessionController {
       unsavedReadings: this.buffer.length,
       endError
     })
+    if (endError != null) {
+      useStore.getState().setSessionSaveState('failed')
+      return false
+    }
 
     // 收尾:關閉硬體回饋;丟棄節流中的殘留進度,防止蓋回已歸零的 session
     this.sendLed('off')

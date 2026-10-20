@@ -7,13 +7,12 @@
 // endTime=NULL / repsCompleted=0 的孤兒列(真實資料變成 0 reps)。
 // 因此遮罩一律提供逃生出口:結束並儲存 Session、中斷連線。
 import { useStore } from '../store/useStore'
-import { sessionController } from '../services/sessionController'
+import { SessionSaveControl } from './SessionSaveControl'
 import { bluetoothService } from '../services/bluetooth'
 import { useT } from '../i18n'
 
 export function ErrorOverlay(): JSX.Element | null {
   const hardwareError = useStore((s) => s.hardwareError)
-  const running = useStore((s) => s.session.running)
   const m = useT()
   if (!hardwareError) return null
 
@@ -27,11 +26,7 @@ export function ErrorOverlay(): JSX.Element | null {
         {m.errorOverlay.frozen}
       </p>
       <div className="error-overlay-actions">
-        {running && (
-          <button className="btn btn-primary" onClick={() => void sessionController.endSession()}>
-            {m.common.endAndSaveSession}
-          </button>
-        )}
+        <SessionSaveControl allowEnd />
         <button className="btn" onClick={() => bluetoothService.disconnect()}>
           {m.common.disconnect}
         </button>

@@ -27,6 +27,7 @@ import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { DashboardView } from './DashboardView'
 import { installIrmsStub } from '../test/irmsApiStub'
+import { getT } from '../i18n'
 
 const ACTION: CustomAction = {
   id: 1,
@@ -42,6 +43,7 @@ const ACTION: CustomAction = {
 
 /** 每個測試前重置到已知基準:未連線、無動作、未校準、無硬體錯誤、Session 未開始。 */
 function resetStore(): void {
+  useStore.getState().resetSession()
   useStore.setState({
     isConnected: false,
     deviceName: null,
@@ -83,6 +85,16 @@ function calibrate(): void {
 }
 
 describe('DashboardView 狀態橫幅(PROPOSAL §5 state contract)', () => {
+  it('shows recovery rather than Ready and keeps calibration closed for an unsaved session', () => {
+    connectWithAction()
+    calibrate()
+    useStore.getState().patchSession({ id: 7, running: false })
+    useStore.getState().setSessionSaveState('failed')
+    render(<DashboardView />)
+    expect(screen.queryByText(getT().dashboard.ready)).toBeNull()
+    expect(screen.getByTitle(getT().dashboard.recalibrate)).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent(getT().sessionDock.saveFailed)
+  })
   it('keeps Start disabled until a delayed session end has finished saving', async () => {
     connectWithAction()
     calibrate()
