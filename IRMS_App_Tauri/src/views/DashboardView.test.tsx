@@ -19,13 +19,14 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { CustomAction } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { DashboardView } from './DashboardView'
+import { installIrmsStub } from '../test/irmsApiStub'
 
 const ACTION: CustomAction = {
   id: 1,
@@ -82,6 +83,23 @@ function calibrate(): void {
 }
 
 describe('DashboardView 狀態橫幅(PROPOSAL §5 state contract)', () => {
+  it('keeps Start disabled until a delayed session end has finished saving', async () => {
+    connectWithAction()
+    calibrate()
+    useStore.getState().patchSession({ id: 7, running: true })
+    const stub = installIrmsStub()
+    let finishEnd!: () => void
+    stub.sessions.end.mockImplementationOnce(() => new Promise<void>((resolve) => { finishEnd = resolve }))
+    const start = vi.spyOn(sessionController, 'startSession')
+    render(<DashboardView />)
+    await userEvent.click(screen.getByRole('button', { name: '結束療程' }))
+    const saving = screen.getByRole('button', { name: '療程儲存中…' })
+    expect(saving).toBeDisabled()
+    await userEvent.click(saving)
+    expect(start).not.toHaveBeenCalled()
+    await act(async () => { finishEnd(); await Promise.resolve() })
+    expect(screen.queryByRole('button', { name: '療程儲存中…' })).toBeNull()
+  })
   it('未連線時顯示「裝置未連線」', () => {
     render(<DashboardView />)
     expect(screen.getByText('裝置未連線')).toBeInTheDocument()

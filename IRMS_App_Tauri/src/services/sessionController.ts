@@ -11,7 +11,7 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from './bluetooth'
 import { getT } from '../i18n'
-import { speak } from './voice'
+import { speak, stopSpeaking } from './voice'
 import { buildCalibrationSnapshot } from './calibration'
 import { computeMetricSample, computeMetricZone, type TriggerConfig } from './movementMetric'
 import { logTelemetry } from './telemetry'
@@ -35,6 +35,9 @@ export const ALARM_VOICE_REPEAT_MS = 8000
 class SessionController {
   private engine: TriggerEngine
   private buffer: SensorReading[] = []
+  /** 同一時間只允許一筆批次寫入；結束時先等待它再補寫剩餘資料。 */
+  private flushing: Promise<void> | null = null
+  private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
   private startTimestamp = 0
@@ -134,6 +137,7 @@ class SessionController {
       // 斷線時重置指令去重快取:ESP32 斷線後 GPIO 狀態未知(可能重開機),
       // 若不重置,重連後的第一次 LED_ON/ALARM_ON 會被去重吃掉而永不下發
       if (prev.isConnected && !state.isConnected) {
+        this.connectionGeneration++
         this.lastLed = null
         this.lastAlarm = null
       }
@@ -225,6 +229,7 @@ class SessionController {
 
   /** 斷線收尾:若 Session 進行中,自動結束並 flush 緩衝,資料不遺失 */
   private async handleConnectionLost(): Promise<void> {
+    this.connectionGeneration++
     const { session } = useStore.getState()
     if (!session.running) return
     useStore.getState().log('Connection lost — auto-ending session to preserve buffered data.')
@@ -239,6 +244,8 @@ class SessionController {
 
   /** 由 bluetoothService 推入的每筆即時角度 */
   private onAngles(angles: LiveAngles): void {
+    // 結束邊界之後不再判定、計數或累積資料，避免落在最後寫入之後。
+    if (this.ending) return
     const { session } = useStore.getState()
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
@@ -296,6 +303,7 @@ class SessionController {
 
   private async doStartSession(): Promise<void> {
     const state = useStore.getState()
+    const generation = this.connectionGeneration
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
     // 會與當時的判定行為對不上,事後無法解讀
@@ -334,6 +342,16 @@ class SessionController {
         source: useUiStore.getState().demoMode ? 'demo' : 'device'
       })
 
+      // 建立紀錄期間曾斷線，即使已重連也不能啟用舊的開始請求。
+      if (generation !== this.connectionGeneration) {
+        try {
+          await irms.sessions.end(sessionId, 0)
+        } catch (err) {
+          useStore.getState().log(`Failed to close canceled session #${sessionId}: ${(err as Error).message}`)
+        }
+        throw new Error('Connection lost while starting session')
+      }
+
       this.buffer = []
       this.resetFeedbackState()
       this.startTimestamp = Date.now()
@@ -351,6 +369,7 @@ class SessionController {
       })
 
       this.startTimers()
+      stopSpeaking()
       speak(getT().voice.sessionStart)
       logTelemetry('session_start', {
         sessionId,
@@ -380,6 +399,11 @@ class SessionController {
     const { session } = useStore.getState()
     if (session.id == null || this.ending) return false
     this.ending = true
+    useStore.getState().patchSession({ running: false })
+    this.sendLed('off')
+    this.sendAlarm('off')
+    this.resetFeedbackState()
+    stopSpeaking()
     try {
       return await this.doEndSession(session, session.id)
     } finally {
@@ -391,6 +415,8 @@ class SessionController {
     session: ReturnType<typeof useStore.getState>['session'],
     sessionId: number
   ): Promise<boolean> {
+    // 週期寫入失敗可能回補緩衝；先等待完成，再做一次有限的最後補寫。
+    if (this.flushing) await this.flushing
     await this.flush()
 
     let endError: string | null = null
@@ -437,17 +463,29 @@ class SessionController {
 
   /** 批次寫入緩衝資料;失敗則回補緩衝(上限 2000 筆防止無限堆積) */
   private async flush(): Promise<void> {
+    if (this.flushing) return this.flushing
     const { session } = useStore.getState()
     if (session.id == null || this.buffer.length === 0) return
 
     const readings = this.buffer
     this.buffer = []
+    const write = async (): Promise<void> => {
+      try {
+        await irms.data.appendBatch(session.id!, readings)
+      } catch (err) {
+        // 防止外部狀態重設後，舊療程的資料回補到另一場療程。
+        if (useStore.getState().session.id === session.id) {
+          const combined = readings.concat(this.buffer)
+          this.buffer = combined.slice(-MAX_BUFFER_RESTORE)
+        }
+        useStore.getState().log(`Batch write failed, buffer restored: ${(err as Error).message}`)
+      }
+    }
+    this.flushing = write()
     try {
-      await irms.data.appendBatch(session.id, readings)
-    } catch (err) {
-      const combined = readings.concat(this.buffer)
-      this.buffer = combined.slice(-MAX_BUFFER_RESTORE)
-      useStore.getState().log(`Batch write failed, buffer restored: ${(err as Error).message}`)
+      await this.flushing
+    } finally {
+      this.flushing = null
     }
   }
 

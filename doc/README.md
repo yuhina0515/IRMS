@@ -6,6 +6,18 @@
 
 ---
 
+## Mobility and session reliability (2026-10-20)
+
+Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,
+and no inter-sample gap above 250 ms. The gap threshold is an engineering continuity guard, not a validated
+clinical threshold. Knee capture requires aligned thigh-reference samples. Trends compare the same movement
+set and recorded leg; legacy records without a leg remain a separate group. Closing or disconnecting cancels
+the current measurement; a background save still refreshes history without closing a replacement wizard.
+
+Ending a session immediately stops acquisition and repetition counting, waits for any in-flight batch write,
+then performs one final flush. A disconnect invalidates a pending session start even if the connection returns.
+These changes have automated regression coverage; real BLE timing and native speech remain unverified.
+
 ## 1. 系統概述 (System Overview)
 
 本系統旨在提供一套精準、即時且具備雙向參數同步與互動回饋機制的智慧復健輔助方案。透過穿戴式 ESP32 物聯網 (IoT) 裝置擷取人體運動力學數據，結合邊緣運算 (Edge Computing) 與桌面監測端應用程式，協助物理治療師與患者即時監控關節夾角變化，並將所有復健歷程自動儲存於本地 SQLite 資料庫中，以進行量化分析與成效追蹤。

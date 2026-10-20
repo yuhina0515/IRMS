@@ -41,6 +41,8 @@ export function speak(text: string, priority: VoicePriority = 'normal'): void {
 
 /** Stop anything being spoken (used when voice is switched off mid-speech). */
 export function stopSpeaking(): void {
+  // 停止語音亦代表結束上一段警示的抑制期，避免吞掉新療程提示。
+  lastSafetyAt = 0
   try {
     synth()?.cancel()
   } catch {

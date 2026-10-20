@@ -37,7 +37,9 @@ export function startBlocker(s: {
   calibrated: boolean
   simulated: boolean
   running: boolean
+  finishing?: boolean
 }): StartBlocker | null {
+  if (s.finishing) return 'finishing'
   if (s.running) return 'running'
   if (!s.protocolOk) return 'protocolUnsupported'
   if (s.fwBusy) return 'firmwareUpdating'
@@ -76,7 +78,8 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     hasAction: selectedActionId != null,
     calibrated,
     simulated: bluetoothService.isSimulated,
-    running
+    running,
+    finishing: !running && session.id != null
   })
   const canStart = blocker == null
 

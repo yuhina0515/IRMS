@@ -197,7 +197,7 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
     `comfortAngle`、`limitAngle` 選填、`note`),由獨立發佈的 `angle-range` 模組寫入;不綁動作類型。
   * `mobility_records`(migration 9):長期活動度紀錄(`id`、`measuredAt`、`movementSet` 排序後以 `+` 串接的動作 id、
     `totalDeg` 0–1000 該組動作各保持峰值之和、`detail` 不透明 JSON 預設 `'{}'`,資料庫不解讀其內容);
-    僅同一 `movementSet` 之間可比較趨勢。
+    趨勢比較需同一 `movementSet` 且 `detail.side` 相同；未記錄側別的舊資料獨立分組。
   * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
     歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
   * ⚠ **`source` 刻意不採「NULL = 舊行為」慣例**(migration 4/5/6 都採)。那三次的 NULL

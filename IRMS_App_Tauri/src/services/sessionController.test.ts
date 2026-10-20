@@ -174,6 +174,57 @@ afterEach(async () => {
 })
 
 describe('開始/結束的重入防護', () => {
+  it('freezes acquisition immediately and awaits the periodic write before ending', async () => {
+    useStore.setState({ settings: { ...useStore.getState().settings, flushIntervalSec: 1 } })
+    let finishWrite!: () => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<void>((resolve) => { finishWrite = resolve }))
+    await sessionController.startSession()
+    feed(REST, 25)
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(1)
+    const ending = sessionController.endSession()
+    expect(useStore.getState().session.running).toBe(false)
+    expect(stub.sessions.end).not.toHaveBeenCalled()
+    feed(IN_ZONE, 80)
+    expect(useStore.getState().session.reps).toBe(0)
+    finishWrite()
+    await ending
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(1)
+    expect(stub.sessions.end).toHaveBeenCalledWith(1, 0)
+  })
+
+  it('retries a failed in-flight write before ending and never restores it into the next session', async () => {
+    useStore.setState({ settings: { ...useStore.getState().settings, flushIntervalSec: 1 } })
+    let failWrite!: (err: Error) => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<void>((_, reject) => { failWrite = reject }))
+    await sessionController.startSession()
+    feed(REST, 25)
+    const ending = sessionController.endSession()
+    failWrite(new Error('disk busy'))
+    await ending
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
+    expect(stub.data.appendBatch.mock.calls[1][1]).toEqual(stub.data.appendBatch.mock.calls[0][1])
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 2 })
+    await sessionController.startSession()
+    feed(IN_ZONE, 25)
+    await sessionController.endSession()
+    expect(stub.data.appendBatch.mock.calls[2][0]).toBe(2)
+    expect(stub.data.appendBatch.mock.calls[2][1]).toHaveLength(25)
+  })
+
+  it('retires a pending start after connection loss even when the link reconnects', async () => {
+    let create!: (value: { sessionId: number }) => void
+    stub.sessions.start.mockImplementationOnce(() => new Promise((resolve) => { create = resolve }))
+    const starting = sessionController.startSession()
+    bluetoothService.onConnectionLost?.()
+    useStore.getState().setConnection(false, null)
+    bluetoothService.beginSimulated('reconnected')
+    create({ sessionId: 42 })
+    await expect(starting).rejects.toThrow('Connection lost while starting session')
+    expect(useStore.getState().session.running).toBe(false)
+    expect(useStore.getState().session.id).toBeNull()
+    expect(stub.sessions.end).toHaveBeenCalledWith(42, 0)
+  })
+
   it('連點開始只建立一場 Session', async () => {
     await Promise.all([sessionController.startSession(), sessionController.startSession()])
     expect(stub.sessions.start).toHaveBeenCalledTimes(1)
