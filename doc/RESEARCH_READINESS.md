@@ -64,7 +64,7 @@ Use asynchronous independent reports, then one written triage meeting. Do not ma
 | R05 | Medium | Capture an offline performance baseline and threat/data-flow model | Named machine, fixtures, exact commands, latency/memory/drop measurements and unresolved risks |
 | R06 | Medium | Audit locale and full accessibility journeys, including toast announcements | Screen-reader/keyboard/zoom checks on supported client; reviewed translations and documented exclusions |
 | R07 | Evidence gate | Extend institution mapping and measurement/fit evaluation when actual target or device evidence is available | No inferred institutional or population approval; protocol-specific evidence recorded |
-| R08 | High, newly scoped | Fence native pending/concurrent scan/setup and handle installation across disconnect/replacement | Disconnect during scan/setup cannot later install or report a retired connection; test deterministic cancellation at await boundaries before native claims |
+| R08 | Fixed locally, 2026-10-29 | Shared native connection orchestration reserves ownership before await, serializes cleanup/replacement, installs/publishes before listener scheduling and preserves cancellation/backend errors | Nine fake-transport tests cover six stage boundaries, pending install/disconnect, cleanup-before-replacement and immediate listener completion; native scan epilogue inspected in code, physical OS timing/whole-future abort remain open |
 
 ## Autonomous continuation and quota
 

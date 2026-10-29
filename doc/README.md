@@ -16,8 +16,22 @@ before clearing the handle or publishing disconnect. No await or recursive BLE l
 allowed within the synchronous epoch callback (lock order: peripheral -> epoch). Poison recovery
 keeps retirement available after callback panic. Debug stderr output runs outside that short gate.
 
-This does not recall frontend events already queued before invalidation, add source timestamps,
-or cancel pending/concurrent scan/setup operations. Native btleplug/OS race acceptance remains open.
+This does not recall frontend events already queued before invalidation or add source timestamps.
+Native btleplug/OS race acceptance remains open.
+
+### Native connect ownership (2026-10-29)
+
+`ble_lifecycle.rs` reserves an epoch before its first await and serializes native attempts through
+cleanup. Current ownership is checked at awaited boundaries; native adapter/scan/setup also check
+their internal boundaries. Scan uses one stop_scan epilogue and reports cleanup failures. Installation,
+connected publication and listener scheduling run in that order under peripheral/epoch protection.
+Disconnect cannot take a newer handle or publish a stale disconnected event. Cancellation preserves
+simultaneous backend/cleanup errors. Lock order is attempts -> peripheral -> epoch; disconnect skips
+attempts so it can retire ownership promptly.
+
+OS calls already running are awaited before cleanup; cancellation does not mean instantaneous physical
+disconnect. Cleanup failure leaves physical state unverified, and arbitrary orchestration-future abort
+is not a cleanup guarantee. Fake transports verify the shared orchestration, not real OS timing.
 
 ## Firmware and module download budgets (2026-10-29)
 

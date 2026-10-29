@@ -144,11 +144,17 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 
 ### 4.2 BLE 協定契約 (BLE Protocol)
 
+> 2026-10-29 connection ownership: `ble_lifecycle.rs` reserves before await, serializes attempts
+> through cleanup, and installs/publishes before listener scheduling. Ordering is attempts ->
+> peripheral -> epoch; disconnect skips attempts and checks epoch after waiting. Native scan
+> always attempts stop_scan, with cleanup errors retained even alongside cancellation. Awaited
+> OS calls are not blindly aborted; physical cleanup failure remains an explicit unknown state.
+
 > 2026-10-29 native lifecycle addendum: angle/raw/OTA dispatch and listener errors share a short
 > synchronous epoch gate with connection retirement. Teardown waits for peripheral then rechecks
 > epoch; no await, recursive epoch call or peripheral acquisition inside the gated callback.
-> Lock order is peripheral -> epoch. Already-queued frontend events and pending/concurrent
-> native scan/setup cancellation are separate open risks. Wire protocol and IPC shapes unchanged.
+> Lock order is peripheral -> epoch. Already-queued frontend events and physical OS cancellation
+> timing remain separate acceptance risks. Wire protocol and IPC shapes unchanged.
 
 > **2026-09-16 Tauri WIP addendum:** the final optional `V:x/y/z/x/y/z` field carries
 > thigh then shin normalized acceleration. Both parsers require exactly six nonempty finite

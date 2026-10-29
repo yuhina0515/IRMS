@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R08 native connect lifecycle** ([[log_20261029_connect_lifecycle|Log]]): reserve ownership before awaits, serialize cleanup/replacement and install/publish before listener scheduling. Cancellation retains simultaneous backend/cleanup errors; deterministic fake-transport tests pass. Native OS timing and physical cleanup failure remain acceptance gaps.
+
 - **2026-10-29 R04 BLE notification isolation** ([[log_20261029_ble_notification|Log]]): dispatch and retirement share an epoch gate; stale stream errors and delayed teardown are fenced. Deterministic ordering/poison regression checks pass; native pending-connect cancellation and already-queued renderer events remain separate risks.
 
 - **2026-10-29 R03 confirmation accessibility** ([[log_20261029_confirmation_access|Log]]): focus wrap/restoration, body-portal background isolation, replacement/exit cleanup and hardware-error takeover. Keyboard/DOM tests include StrictMode and disabled emergency controls; native WebView/screen-reader acceptance open.
