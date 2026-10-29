@@ -6,6 +6,19 @@
 
 ---
 
+## BLE notification retirement (2026-10-29)
+
+Native angle/raw-calibration/OTA-status dispatch and telemetry are checked under the same short
+connection-epoch gate used by begin/invalidate. An invalidation waits for an already-running
+dispatch, and a retired listener cannot start another dispatch afterward. Stream acquisition errors
+use the same gate; stream-end teardown first waits for the peripheral lock, then rechecks the epoch
+before clearing the handle or publishing disconnect. No await or recursive BLE lock acquisition is
+allowed within the synchronous epoch callback (lock order: peripheral -> epoch). Poison recovery
+keeps retirement available after callback panic. Debug stderr output runs outside that short gate.
+
+This does not recall frontend events already queued before invalidation, add source timestamps,
+or cancel pending/concurrent scan/setup operations. Native btleplug/OS race acceptance remains open.
+
 ## Firmware and module download budgets (2026-10-29)
 
 The shared HTTP downloader rejects oversized declared Content-Length and also counts every body

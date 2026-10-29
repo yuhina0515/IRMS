@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: readiness, R01 (`df2c5bd`) and R02 (`10b2fd0`) pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R03 confirmation accessibility validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next task R04 follows PR/CI and quota inspection. Overall objective remains active.
+Updated: 2026-10-29, Asia/Taipei. State: readiness/R01/R02 and R03 (`759047d`) pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R04 BLE notification retirement validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next task R08 native connect cancellation/installation, then R05 measured performance/threat model. Inspect Git/CI and fresh quota first. Overall objective remains active.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -11,6 +11,7 @@ Updated: 2026-10-29, Asia/Taipei. State: readiness, R01 (`df2c5bd`) and R02 (`10
 - R01 plan/log: 2026-10-29-hold-continuity-plan.md / ../doc/coding log/log_20261029_hold_continuity.md.
 - R02 plan/log: 2026-10-29-download-bounds-plan.md / ../doc/coding log/log_20261029_download_bounds.md.
 - R03 plan/log: 2026-10-29-confirmation-access-plan.md / ../doc/coding log/log_20261029_confirmation_access.md.
+- R04 plan/log: 2026-10-29-ble-notification-plan.md / ../doc/coding log/log_20261029_ble_notification.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -25,10 +26,12 @@ R02 completed locally: shared downloader now bounds each accumulated response, w
 
 R03 completed locally: body portal, original inert-state restoration/observer, keyboard/focus/click containment, 150ms close/replace semantics, message description and immediate hardware emergency takeover. Baseline Tab-wrap regression failed then passed. New tests include emergency focus race and StrictMode replay. Typecheck, 57 frontend files / 553 tests, Vite build passed. Rust unchanged; last R02 result remains 110 passed / 3 live ignored. Native WebView/screen-reader acceptance and other overlays remain open.
 
-R04 active plan: 2026-10-29-ble-notification-plan.md. Missing generation gating exists inside the notification loop; stale acquisition errors and stream-end clearing also need correct isolation. A simple atomic check followed by emit has a race with invalidation. Engineering reviewer recommends a short synchronous epoch gate around actual dispatch, shared by begin/invalidate, with no await or recursive epoch/peripheral lock in callback. Lock ordering: peripheral -> epoch; stream-end acquires peripheral before rechecking epoch and clearing/emitting. Exercise current/stale normal/raw/OTA callbacks through the production routing helper and deterministic barrier-based invalidation ordering. Native concurrent connect/scan/setup cancellation remains a separate open lifecycle risk; do not claim solved by this guard.
+R04 completed locally: epoch mutex gates actual native notification/error dispatch and retirement. Stream-end awaits peripheral then checks epoch and clears/emits inside the same callback. No await or recursive BLE locks inside callback; lock order peripheral -> epoch. Actual production helpers cover stale/current angle/raw/OTA, deterministic invalidation ordering, delayed teardown and poison recovery. Full Rust 114 passed / 3 live ignored, fmt/Clippy passed. Frontend still verified at 553 tests/typecheck/build. Native OS scheduling and already-queued renderer events remain unverified.
+
+R08 next (promoted ahead of R05 for lifecycle correctness): `connect()` currently starts the listener before installing the handle/emitting connected; an immediately ending stream can clear state then get overwritten by late install. Disconnect while scan/setup is awaiting can also be followed by a new late begin/install, despite retirement. Design a cancellable native connect attempt reserved before the first await, check ownership at awaited boundaries and atomically publish/install before starting a listener. Avoid turning the epoch mutex into an async lock held over scan/connect/disconnect. Reproduce with deterministic injected lifecycle helpers/fakes, preserve cleanup of real handles on failure and prevent stale attempts from reporting connected/disconnecting a replacement. Inspect frontend connection generation as a separate boundary. Then capture R05 reproducible performance and threat/data-flow model; R06 other modal/locale/native accessibility and R07 institution/population evidence remain open.
 
 ## Quota / environment
-Latest observed remaining quota (R03 start): five-hour 66%, weekly 91%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
+Latest observed remaining quota (R04 final checks): five-hour 53%, weekly 89%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 

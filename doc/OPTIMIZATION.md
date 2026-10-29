@@ -17,7 +17,8 @@
 - [x] R01 stalled-hold continuity: receiver-monotonic timing rejects >250 ms gaps and clock anomalies while preserving rest gating and angle warnings (2026-10-29; native timing acceptance open).
 - [x] R02 bounded downloads: fixed metadata/signature caps and incremental artifact limits from verified sizes; preserve authenticity and cache fallback checks (2026-10-29; live release/OTA acceptance open).
 - [x] R03 singleton confirmation focus/isolation: keyboard wrap and invoker restoration, closing/replacement lifecycle, inert background and immediate emergency takeover (2026-10-29; other overlays/native acceptance open).
-- [ ] Execute R04–R07 in [RESEARCH_READINESS.md](RESEARCH_READINESS.md): stale BLE notifications, performance/threat model, locale/accessibility journeys and institution-specific evidence. Follow checkpoint order; avoid duplicate broad audits.
+- [x] R04 native stale-notification retirement: serialize dispatch with epoch changes and recheck after waiting for peripheral during teardown (2026-10-29; native OS/queued frontend acceptance open).
+- [ ] Execute R05–R08 in [RESEARCH_READINESS.md](RESEARCH_READINESS.md): performance/threat model, locale/accessibility journeys, institution-specific evidence and pending native connect cancellation. Follow checkpoint order; avoid duplicate broad audits.
 
 ### 1. 連線與 BLE 通訊
 - [x] Web Bluetooth 自動配對(過濾名稱含 `IRMS` 的裝置,主進程 `select-bluetooth-device`)
