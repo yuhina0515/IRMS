@@ -79,13 +79,22 @@ export function createShareService({ isRunLive, now = Date.now }) {
     share.waiters.clear()
   }
 
+  // 先撤銷成員資格，再立即結束該觀眾的等待；不喚醒其他仍有權限的觀眾。
+  function removeViewer(share, id) {
+    const viewer = share.viewers.get(id)
+    if (!viewer) return false
+    share.viewers.delete(id)
+    for (const wake of viewer.waiters) wake()
+    return true
+  }
+
   /** Drops idle viewers, and closes shares whose host or telemetry run went quiet. */
   function sweep() {
     const t = now()
     for (const share of shares.values()) {
       if (t - share.hostSeen > HOST_IDLE_MS) close(share, 'host idle')
       else if (!isRunLive(share.runId)) close(share, 'telemetry stopped')
-      else for (const [id, v] of share.viewers) if (t - v.lastSeen > VIEWER_IDLE_MS) share.viewers.delete(id)
+      else for (const [id, v] of share.viewers) if (t - v.lastSeen > VIEWER_IDLE_MS) removeViewer(share, id)
     }
   }
 
@@ -148,7 +157,8 @@ export function createShareService({ isRunLive, now = Date.now }) {
       name: cleanName(body?.name) || 'Viewer',
       canEdit: false,
       joinedAt: t,
-      lastSeen: t
+      lastSeen: t,
+      waiters: new Set()
     }
     share.viewers.set(viewer.id, viewer)
     return [200, { viewerId: viewer.id, viewerToken: viewer.token, canEdit: false }]
@@ -174,11 +184,19 @@ export function createShareService({ isRunLive, now = Date.now }) {
           done = true
           clearTimeout(timer)
           share.waiters.delete(finish)
-          viewer.lastSeen = now()
-          resolve(share.closed ? [410, { error: 'share ended', reason: share.closed }] : [200, viewerView(share, viewer)])
+          viewer.waiters.delete(finish)
+          res.off('close', finish)
+          // 非同步等待結束時重驗資格；舊物件不能在被移除後繼續讀到新狀態。
+          if (share.closed) resolve([410, { error: 'share ended', reason: share.closed }])
+          else if (share.viewers.get(viewer.id) !== viewer) resolve([401, { error: 'viewer token required' }])
+          else {
+            viewer.lastSeen = now()
+            resolve([200, viewerView(share, viewer)])
+          }
         }
         const timer = setTimeout(finish, MAX_WAIT_MS)
         share.waiters.add(finish)
+        viewer.waiters.add(finish)
         res.on('close', finish)
       })
     }
@@ -257,7 +275,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
       if (!isHost) return [401, { error: 'host token required' }]
       if (method === 'POST') return setViewer(share, m[3], await readJson())
       if (method === 'DELETE') {
-        return share.viewers.delete(m[3]) ? [200, { viewers: viewerList(share) }] : [404, { error: 'no such viewer' }]
+        return removeViewer(share, m[3]) ? [200, { viewers: viewerList(share) }] : [404, { error: 'no such viewer' }]
       }
     }
     if (sub === '/commands' && method === 'POST') {
@@ -266,7 +284,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
     }
     if (sub === '/leave' && method === 'POST') {
       if (!viewer) return [401, { error: 'viewer token required' }]
-      share.viewers.delete(viewer.id)
+      removeViewer(share, viewer.id)
       return [200, { left: true }]
     }
     return [404, { error: 'not found' }]

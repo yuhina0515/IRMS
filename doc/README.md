@@ -2,6 +2,10 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 share authorization: collector source now ends a removed/departed/expired viewer's
+> pending state polls with 401 and no state, revalidating membership at completion. Closing a share
+> retains 410. No request format, BLE or DB schema changes; production collector deployment open.
+
 > **相關文件**:[專案總覽](../README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [優化待辦 OPTIMIZATION](OPTIMIZATION.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
 
 ---

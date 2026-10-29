@@ -47,11 +47,12 @@ BLE identity, movement accuracy and radio confidentiality are not established by
 | ID | Priority | Verified source scenario | Next acceptance |
 | --- | --- | --- | --- |
 | S01 | High | `live_share.rs::live_share_request` reads the whole response with `.text()` after bounding only the outgoing body. A configured or compromised collector can return an arbitrarily large body. | Cap declared and accumulated response bytes before buffer extension; local chunked/close-delimited/exact-limit/error-status tests. Do not depend on Content-Length alone. |
-| S02 | High | `share.mjs::readState` retains a viewer object in a pending poll; host deletion removes the Map entry but completion can still return a newer state to that removed viewer. | Recheck viewer membership at completion, wake revoked polls promptly and test removal/leave/expiry -> host push/timeout. No post-revocation state disclosure. |
+| S02 | Fixed locally / deployment open | Reproduced removed viewer's pending poll receiving the next state (200 instead of 401). | Removal/leave/expiry now revoke then wake that viewer's polls; completion rechecks Map identity and returns 401 without state. Ten local service tests pass, including multiple polls, other-viewer isolation and share-close cleanup. Production deployment not performed. |
 | S03 | Medium | `share.mjs::create` uses live runId alone to create/replace a share. A telemetry reader who knows that runId can replace the original share without its host token. There is no finding that public callers can enumerate runIds. | Design independent per-run owner proof and require existing host proof for replacement; preserve client compatibility explicitly. A run identifier must not silently become an ownership secret. |
 
-These are independently reported and lead-confirmed by reading the actual call paths; exploit
-regressions and fixes are the next bounded security batch. No production exploitation was performed.
+These were independently reported and lead-confirmed by reading the actual call paths. S02 now has
+a failing-before/passing-after local regression and independent diff review. S01/S03 remain open for
+the next bounded security batches. No production exploitation was performed.
 Other residual risks are review/acceptance items, not claims of demonstrated exploits.
 
 ## Verification and decision gates

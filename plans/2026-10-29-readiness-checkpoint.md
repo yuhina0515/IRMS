@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04/R08/R05 offline scope pushed through `0a67c6a` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5). R08 remote CI run 40812227724 confirmed SUCCESS; R05 run 40813054885 was IN PROGRESS at delivery, not yet confirmed. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next: bounded S01/S02 sharing-security fixes, S03 ownership design; then outstanding native performance/R06/R07 gates. Inspect Git/CI and fresh quota first. Overall objective remains active.
+Updated: 2026-10-29, Asia/Taipei. QUOTA HOLD ACTIVE: five-hour remaining reached 20%; no new expensive work until ALL known windows >=30%. Finish only S02 delivery/checkpoint. Readiness/R01–R04/R08/R05 pushed through `562089c` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); S02 collector revocation validated for delivery. R08 CI run 40812227724 SUCCESS; R05 run 40813054885 cancelled by superseding checkpoint push; 40813105289 still IN PROGRESS at S02 delivery. Automation `irms-squad` remains hourly in this chat; view requested this turn. Next after quota recovery: S01 response bounds, S03 ownership design; then outstanding native performance/R06/R07 gates. Overall objective remains active, not completed.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -14,6 +14,7 @@ Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04/R08/R05 offline sco
 - R04 plan/log: 2026-10-29-ble-notification-plan.md / ../doc/coding log/log_20261029_ble_notification.md.
 - R08 plan/log: 2026-10-29-connect-lifecycle-plan.md / ../doc/coding log/log_20261029_connect_lifecycle.md.
 - R05 plan/log: 2026-10-29-performance-threat-plan.md / ../doc/coding log/log_20261029_performance_threat.md.
+- S02 plan/log: 2026-10-29-share-revocation-plan.md / ../doc/coding log/log_20261029_share_revocation.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -34,10 +35,12 @@ R08 completed locally: `ble_lifecycle.rs` reserves before await, serializes OS a
 
 R05 offline scope implemented: `IRMS_App_Tauri/scripts/benchmark-readiness.mjs --native` runs actual metric/engine, file-backed WAL DB insert/query and offline telemetry record paths. Protocol/JSON under `doc/performance/`; source manifest/fixture hashes, warmups/repeated distributions, queue/drop accounting and safe environment metadata captured. Independent engineering review corrected indirect-source hash coverage and arbitrary Node-argument metadata. `doc/THREAT_MODEL.md` records code-grounded boundaries/controls/residual gaps. R05 remains partial: paced native UI/IPC/device/network and native memory trend unmeasured. Regular Rust remains 123 passed, now 5 ignored (3 live + 2 manual benchmark tests); both manual benchmarks separately passed. Frontend unchanged at 553 tests/typecheck/build.
 
-Next bounded batch: S01 cap incoming live-share response bytes in `live_share.rs` (currently unbounded `.text()`); S02 pending `share.mjs::readState` must revalidate/wake removed viewers before exposing newer state. Reproduce with local HTTP and pending-poll tests first. S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design; keep separate. These findings were independently reported and lead-confirmed from source, not exploited on production. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
+S02 completed locally: reproduced removed pending poll returning next state with 200 rather than 401; shared removal/leave/expiry helper revokes membership then wakes only that viewer's polls. Completion revalidates identity and cleans timer/sets/close listener; share closure remains 410. Ten Node service tests passed, syntax/whitespace checks passed; independent security diff review found no blocker. Not deployed. Native/frontend code unchanged; don't rerun broad suites without cause.
+
+Next bounded batch AFTER QUOTA RECOVERY: S01 cap incoming live-share response bytes in `live_share.rs` (currently unbounded `.text()`), with local HTTP chunked/declared/exact-limit/error tests first. S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design; keep separate. No production exploitation. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
 
 ## Quota / environment
-Latest observed remaining quota (R05 delivery): five-hour 23%, weekly 84%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
+Latest observed remaining quota (S02 delivery): five-hour 20%, weekly 84%; initial 95%/95%. QUOTA HOLD is latched: even a rise to 21-29% does not authorize another expensive batch. Resume only when all known windows >=30%. These are shared account percentages, not task token counts. Re-check on every run; unknown quota permits short inspection only. No credits, resets or credential switching. No workers active at checkpoint. Hourly automation can re-evaluate while the app/computer remain running; no instantaneous token interceptor is claimed.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 

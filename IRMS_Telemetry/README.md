@@ -35,6 +35,12 @@ Event kinds sent by the app: `packet` (raw angle notification text), `connection
 
 ## Live share (`share.mjs`)
 
+Pending state polls are revoked immediately on host removal, viewer leave or idle expiry. They
+return 401 without state and recheck membership at completion; share closure returns 410.
+Per-viewer waiters are cleaned without waking other viewers. This source behavior requires collector
+deployment to take effect. Local regression command: `node --test IRMS_Telemetry/share.test.mjs`
+from the repository root.
+
 Lets other clients follow one device in real time by share code (used by the `live-share`
 module in IRMS-Modules). In memory only; nothing is written to the telemetry database, and a
 restart ends every share. Own per-IP budget: `SHARE_RATE_MAX_REQUESTS` (default 900/min).

@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 share revocation: `IRMS_Telemetry/share.mjs` must revoke Map membership before
+> waking that viewer's pending polls. Recheck identity at completion; return 401 without state;
+> remove timer, share/viewer waiter entries and response close listener. Preserve share-close 410.
+
 > 2026-10-29 download addendum: shared HTTP response caps are firmware manifest 64 KiB,
 > module index 1 MiB, signature text 1 KiB, and artifact bytes <= verified signed size
 > (existing maxima: firmware 4 MiB / module 512 KiB). Enforce accumulated chunks before
