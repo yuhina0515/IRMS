@@ -1,7 +1,8 @@
 // Calibration B (beta) wizard: floor stage (optional, needs the firmware G: stream) -> worn poses -> sagittal sweeps -> solve.
 // Engine and rationale: services/calibrationB.ts, doc/plans/2026-10-01-calibration-b-plan.md.
 // Nothing is written to settings until the user confirms the result.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { AccelVector, RawMotion } from '@shared/protocol'
 import { useStore, type Settings } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
@@ -18,6 +19,7 @@ import {
   type SweepCapture
 } from '../services/calibrationB'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { calibrationFocusBlocked, useCalibrationModalFocus } from '../hooks/useCalibrationModalFocus'
 import { getT, rich, useT } from '../i18n'
 
 type V3 = AccelVector
@@ -52,6 +54,10 @@ type Step =
   | { kind: 'result' }
 
 export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.Element {
+  // 共用精靈焦點契約，但保留 B 的 raw stream/擷取生命週期，不因警示重新掛載。
+  const titleId = useId()
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useCalibrationModalFocus(overlayRef)
   const m = useT()
   const c = m.calibrationB
   const setSettings = useStore((s) => s.setSettings)
@@ -86,7 +92,8 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
     }
   }, [])
 
-  useEscapeKey(capturing ? null : onClose)
+  // 擷取中消耗 Escape，不讓背景視窗收到；確認框與硬體警示仍可優先接管。
+  useEscapeKey(() => { if (!capturing && !calibrationFocusBlocked()) onClose() }, 10)
 
   /** Collects frames for `seconds`; each frame pairs the latest V: vectors with the latest raw motion. */
   const record = async (seconds: number): Promise<Frame[] | null> => {
@@ -212,14 +219,14 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   const captureLabel = capturing ? (countdown != null ? `${countdown}…` : c.recording) : c.capture
   const progressTotal = (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.length
 
-  return (
-    <div className="overlay">
-      <div className="modal glass" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div ref={overlayRef} className="overlay">
+      <div className="modal glass" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>
+          <h3 id={titleId}>
             {c.title} <span className="badge" data-testid="calib-b-beta">{c.beta}</span>
           </h3>
-          <button className="close-x" onClick={onClose}>
+          <button className="close-x" aria-label={m.common.close} onClick={onClose}>
             ×
           </button>
         </div>
@@ -229,10 +236,11 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
             <p className="desc">{rich(c.intro)}</p>
             <p className="desc">{rich(c.sideHint)}</p>
             <div className="row">
-              <button className={`btn ${side === 'left' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSide('left')}>
+              {/* 側別仍是本次精靈暫存值；語意狀態不可只靠顏色呈現。 */}
+              <button className={`btn ${side === 'left' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={side === 'left'} onClick={() => setSide('left')}>
                 {m.clinical.terms.leftLeg}
               </button>
-              <button className={`btn ${side === 'right' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSide('right')}>
+              <button className={`btn ${side === 'right' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={side === 'right'} onClick={() => setSide('right')}>
                 {m.clinical.terms.rightLeg}
               </button>
             </div>
@@ -340,7 +348,7 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
           </div>
         )}
       </div>
-    </div>
+    </div>, document.body
   )
 }
 

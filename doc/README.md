@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 Wizard B access: B now uses the single-calibration-wizard portal/focus contract, named
+> Close and side pressed states, priority-10 capture Escape consumption. B raw-stream lifetime/detection,
+> solver and Apply-only persistence unchanged. Simultaneous arbitrary A/B mounting unsupported;
+> native raw/AT/paint/step and metrology acceptance remain open.
+
 > 2026-10-29 calibration modal: Wizard A owns a named body-portal dialog with focus/background
 > isolation. It yields to real alertdialogs through closing, resuming its prior control after recovery.
 > Paint layers: Wizard A 1100, confirmation 1200, hardware 1500 (native paint acceptance pending).

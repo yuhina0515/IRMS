@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R06 Wizard B access** ([[log_20261029_calibration_b_access|Log]]): localized close/side state, named body portal and shared focus/emergency contract. B raw detection/cleanup and capture Escape regression-tested; actual BLE, metrology and native AT acceptance remain open.
+
 - **2026-10-29 R06 Wizard A focus ownership** ([[log_20261029_calibration_focus|Log]]): named body-portal dialog, contained/restored focus and background isolation; yields through confirmation closing and hardware recovery. Capture Escape is consumed; native/step/Wizard B acceptance remains open.
 
 - **2026-10-29 R06 calibration control semantics** ([[log_20261029_calibration_controls|Log]]): localized close name and programmatic wear-side pressed state, keyboard tested in both supported locales without premature persistence. Full wizard focus/native acceptance remains open.

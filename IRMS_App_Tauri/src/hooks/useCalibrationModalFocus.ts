@@ -8,7 +8,7 @@ export function calibrationFocusBlocked(): boolean {
   return Boolean(useStore.getState().hardwareError || useUiStore.getState().confirm || document.querySelector('[role="alertdialog"]'))
 }
 
-/** 校正 A 的焦點租約；高層警示期間暫停，回復後接續精靈內原控制。 */
+/** 單一校正精靈 A/B 的焦點租約；高層警示期間暫停，回復後接續內部原控制。 */
 export function useCalibrationModalFocus(overlayRef: RefObject<HTMLDivElement>): void {
   useLayoutEffect(() => {
     const overlay = overlayRef.current

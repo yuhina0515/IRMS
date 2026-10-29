@@ -121,7 +121,7 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
-> Wizard A modal: useCalibrationModalFocus yields its inert lease to hardware/confirmation store
+> Wizard A/B modal (one at a time): useCalibrationModalFocus yields its inert lease to hardware/confirmation store
 > state and actual alertdialog presence, including closing animation. Escape: wizard 10, confirmation
 > 20, hardware 100, default 0 LIFO. Capture must consume Escape; explicit close remains available.
 > Declared paint layers: ordinary overlay 1100, confirmation 1200, emergency 1500; do not rely on portal order.

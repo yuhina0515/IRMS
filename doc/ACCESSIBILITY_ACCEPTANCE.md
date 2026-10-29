@@ -91,3 +91,21 @@ Dashboard and Settings, verify name/initial focus/Tab wrap/background isolation 
 While capturing, press Escape (no close/background action), then explicitly Close. With owned fixtures,
 open confirmation and hardware error, verify upper focus/commands and recovery to wizard control.
 Run both supported locales and actual intended AT/input/zoom combinations; record observed results.
+
+## Calibration Wizard B control/modal follow-up
+
+2026-10-29 baseline 051c9e7. This follow-up closes the earlier source-level Wizard B control/modal
+gap: B now has localized Close, mutually exclusive side pressed state, named body-portal dialog
+and the existing single-calibration-wizard focus/alert precedence. Capture Escape consumes; explicit
+Close remains available. Side remains local until Apply. Component identity, raw detection delay,
+listener/enable/disable cleanup and solver/capture code remain unchanged.
+
+DOM tests cover both supported locales, saved/null sides, keyboard selection/close without persistence,
+StrictMode cleanup, 2499/2500ms detection boundary, capture Escape, and real confirmation/emergency
+handoff without restarting raw enablement. These are mock lifecycle assertions, not BLE command,
+raw quality, sampling, metrology or calibration acceptance. Arbitrary simultaneous A/B mounting is
+outside the single-wizard contract. Native AT/paint/inert and step/error announcements remain open.
+Native protocol: repeat Wizard A keyboard/alert journeys for B; observe actual raw enable/detection
+and disable on close, without asserting quality from mere packet presence. Record both supported
+locales, intended AT/input/zoom, exact device/firmware and observed results. No participant testing
+or clinical/population/institutional conformance inferred.
