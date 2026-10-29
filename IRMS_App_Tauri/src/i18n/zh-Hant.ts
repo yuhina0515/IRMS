@@ -207,6 +207,8 @@ export const zhHant = {
 
   /** 跨畫面共用的按鈕與短語 */
   common: {
+    // 圖示關閉按鈕的可存取名稱。
+    close: '關閉',
     cancel: '取消',
     confirm: '確認',
     save: '儲存',

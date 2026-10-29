@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> Calibration Wizard A: icon close uses common.close; wear-side buttons expose aria-pressed from
+> local wearSide. Do not persist selection before Apply or introduce radio arrow-key expectations
+> onto these toggle buttons. Full wizard focus/step/native acceptance remains separate.
+
 > 2026-10-29 emergency overlay: use shared modalIsolation leases across confirmation/hardware
 > handoff; release only own lease and preserve original inert attributes. Emergency owns initial/
 > contained focus and disabled/removed-save fallback; Escape consumes at priority 100 without

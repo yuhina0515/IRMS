@@ -334,7 +334,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
       <div className="modal glass" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{m.calibration.title}</h3>
-          <button className="close-x" onClick={onClose}>
+          {/* 圖示保留外觀，以本地化動作名稱供輔助科技辨識。 */}
+          <button className="close-x" aria-label={m.common.close} onClick={onClose}>
             ×
           </button>
         </div>
@@ -385,12 +386,15 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
             <div className="row">
               <button
                 className={`btn ${wearSide === 'left' ? 'btn-primary' : 'btn-secondary'}`}
+                // 選擇僅存於本次精靈；按壓狀態反映目前側別，不提前套用設定。
+                aria-pressed={wearSide === 'left'}
                 onClick={() => setWearSide('left')}
               >
                 {m.clinical.terms.leftLeg}
               </button>
               <button
                 className={`btn ${wearSide === 'right' ? 'btn-primary' : 'btn-secondary'}`}
+                aria-pressed={wearSide === 'right'}
                 onClick={() => setWearSide('right')}
               >
                 {m.clinical.terms.rightLeg}

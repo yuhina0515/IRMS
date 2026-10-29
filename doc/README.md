@@ -2,6 +2,10 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 calibration controls: Wizard A exposes localized Close and mutually exclusive wear-side
+> pressed states using existing native buttons/local state. Selection and close do not apply settings.
+> Capture math/timing unchanged; full modal focus and native AT acceptance remain open.
+
 > 2026-10-29 emergency access: ErrorOverlay owns a named body-portal alertdialog, contained focus,
 > save/disconnect access and reversible inert isolation. Confirmation hands off the original recovery
 > target; shared isolation leases restore only after the last owner. Hardware Escape priority 100

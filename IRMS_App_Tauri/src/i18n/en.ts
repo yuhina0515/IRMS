@@ -182,6 +182,7 @@ export const en = {
   },
 
   common: {
+    close: 'Close',
     cancel: 'Cancel',
     confirm: 'Confirm',
     save: 'Save',

@@ -55,3 +55,17 @@ to save/retry/disconnect; focus after disabled/removed save; Escape must not dis
 background layer. Recover the error and verify eligible prior focus and background access. Repeat
 both supported locales, intended zoom/input/AT combinations, and record actual outcomes. Do not
 substitute a simulated store mutation for native hardware acceptance.
+
+## Calibration Wizard A control semantics follow-up
+
+2026-10-29 baseline 752d475. Close exposes localized Close / 關閉 rather than only the visible
+symbol. Existing left/right buttons expose mutually exclusive aria-pressed, including no selection
+and saved initial side. Native button Tab/Space/Enter behavior and local selection are preserved;
+choosing a side or closing without Apply does not persist settings. Seven focused DOM tests include
+both supported locales and saved left/right cases. No calibration threshold or capture change.
+
+This is not full wizard accessibility acceptance: portal/focus containment/restoration and step
+announcements remain open, as does Wizard B. Native protocol: with owned hardware, inspect names
+and pressed states using the intended screen reader in both locales, select either side by keyboard,
+close and verify unchanged saved side. Record observed speech/focus and remaining modal failures;
+do not substitute DOM checks for native calibration or participant acceptance.
