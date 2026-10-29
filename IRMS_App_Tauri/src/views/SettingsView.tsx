@@ -429,6 +429,10 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
       return u.downloading({ pct: status.percent })
     case 'downloaded':
       return u.downloaded({ version: status.version })
+    case 'installing':
+      return m.updateBanner.installing
+    case 'install-error':
+      return m.updateBanner.installFailed
     case 'apk-available':
       return u.apkAvailable({ version: status.version })
     case 'not-available':
@@ -439,8 +443,8 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
 }
 
 /**
- * App 軟體更新面板。下載/重啟套用本身仍然靜默——見 `UpdateBanner.tsx`,只有
- * 「已下載完成」才會在畫面下方冒出來。但「檢查」這一步本身的結果(已是最新版/
+ * App 軟體更新面板。背景檢查/下載保持靜默；使用者啟動安裝的通知由 UpdateBanner 統一負責。
+ * 下方橫幅從「已下載完成」開始出現，之後保留安裝進度與失敗提示。但「檢查」這一步本身的結果(已是最新版/
  * 失敗/發現新版本)過去完全沒有出口:`checkNow()` 只丟一句固定文案的 toast,不管
  * `performCheck()` 實際結果是什麼——2026-09-13 使用者實測回報「按下去之後就沒有任何
  * 提示了」正是這個缺口:如果檢查失敗(網路錯誤/manifest 抓不到)或單純沒有新版本,
@@ -452,7 +456,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available'].includes(status.state)
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available', 'installing', 'install-error'].includes(status.state)
   const m = useT()
   const ms = m.settings.software
 
@@ -475,11 +479,11 @@ function SoftwareUpdatePanel(): JSX.Element {
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">{ms.currentVersion({ version })}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
-          {status?.state === 'downloaded' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
+          {status?.state === 'downloaded' || status?.state === 'install-error' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
         </button>
       </div>
       {statusText && (
-        <p className="field-hint" style={{ marginTop: 8 }} role="status">
+        <p className="field-hint" style={{ marginTop: 8 }} role={status?.state === 'install-error' || status?.state === 'installing' ? undefined : 'status'}>
           {statusText}
         </p>
       )}

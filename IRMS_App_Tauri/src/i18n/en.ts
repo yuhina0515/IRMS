@@ -249,6 +249,8 @@ export const en = {
   },
 
   updateBanner: {
+    installing: 'Applying update… Waiting for the app to close.',
+    installFailed: 'An error occurred while applying the update. You can retry.',
     ready: (p: { version: string }) => `Version ${p.version} is downloaded. Restart to apply it`,
     sessionNote: ' (session in progress; restart after it ends)',
     restartBlocked: 'You cannot restart during a session. This button becomes available once the session ends',

@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 R05/R06 update feedback** ([[log_20261030_update_feedback|Log]]): installing/retryable failure statuses replay across remount, duplicate restart disabled, handled rejection and generic localized error. Global banner owns install announcements; Settings copy remains static. Subscriber exceptions/reentry isolated; native installer/speech/exit acceptance open.
+
 - **2026-10-30 R05 update/start/close interlock** ([[log_20261030_update_exit|Log]]): shared single-owner transition lease closes pending native-start and installer-await races. Failed operations release for retry; successful installer handoff keeps new data blocked until process exit. Actual Windows installer/exit acceptance remains open.
 
 - **2026-10-29 R05 normal-close guard** ([[log_20261029_close_guard|Log]]): application-lifetime listener blocks close with pending start/end/retained session and preserves existing save/retry. Idle close reservation blocks new starts; failed registration blocks sessions, failed destroy releases reservation. Native titlebar/AltF4 acceptance remains open.

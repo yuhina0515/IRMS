@@ -1,6 +1,26 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 updater interlock)
+## Current checkpoint (2026-10-30 updater feedback)
+
+Baseline432d5fa CI40924530764 SUCCESS, clean before task. Latest observed quota80%/56% remaining;
+prior QUOTA HOLD remains released. Installing/install-error(version) status replay, generic localized
+error/manual retry and handled rejection implemented. Installer status published after ownership;
+observer/replay exceptions isolated, synchronous nested status suppresses obsolete delivery.
+Banner owns persistent polite/alert install announcements, Settings static copies avoid duplicate
+speech sources. Both locales/remount/pending/success/retry/retained-save and callback races tested.
+Final641/641 frontend tests67 files, typecheck/build passed after reviewer correction. Rust/collector
+unchanged and not rerun. Engineering/inclusion final reviews no blocker. See
+plans/2026-10-30-update-feedback-plan.md and log_20261030_update_feedback.md. Deliver scoped commit/
+push/draft PR and inspect this new head's CI next turn; no extra full-suite reruns without changes.
+
+Next bounded task: R07 measurement-evidence inventory of existing raw capture/reference-fixture
+schemas, units and provenance. Inspect actual project artifacts, identify one actionable reproducibility
+gap and plan before edits; no broad code audit, device run, participant data or invented result. Use
+official specific sources for any added institutional claim. Native installer/AT/event timing, paced
+performance, anatomical accuracy and human fit remain separate open evidence gates. If only external
+evidence remains, checkpoint that dependency and stop expensive work.
+
+## Historical checkpoint (2026-10-30 updater interlock)
 
 QUOTA HOLD released after natural recovery: initial100%/59%, latest95%/58% remaining. No reset,
 credits or credential changes. Baseline275336c CI40883973181 SUCCESS; worktree clean before task.

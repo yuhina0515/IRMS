@@ -68,9 +68,18 @@ let installing = false
 let allowBeta = false
 const statusListeners = new Set<(status: UpdateStatus) => void>()
 
+// UI 訂閱者不能中斷安裝交接、遮蔽原始拒絕或使其他訂閱者漏接狀態。
+function notifyStatus(cb: (status: UpdateStatus) => void, status: UpdateStatus): void {
+  try { cb(status) } catch { useStore.getState().log('Update status listener failed.') }
+}
+
 function emitStatus(status: UpdateStatus): void {
   lastStatus = status
-  statusListeners.forEach((cb) => cb(status))
+  for (const cb of [...statusListeners]) {
+    // 同步重入已發布更新狀態時，不再把較舊狀態送給後面的訂閱者。
+    if (lastStatus !== status) break
+    notifyStatus(cb, status)
+  }
 }
 
 function performCheck(): Promise<void> {
@@ -288,15 +297,19 @@ export const irms: IrmsApi = {
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
       const { session } = useStore.getState()
       if (session.running || session.id != null || !currentUpdate || !readyToInstall || installing) return
+      const update = currentUpdate
+      const version = update.version
       const release = acquireAppTransition()
       if (!release) return
       installing = true
+      emitStatus({ state: 'installing', version })
       try {
-        await currentUpdate.install()
+        await update.install()
         // 安裝程式已交接但程序未必已退出；成功後保留閘門，禁止再建立量測資料。
       } catch (error) {
         installing = false
         release()
+        emitStatus({ state: 'install-error', version })
         throw error
       }
     },
@@ -308,7 +321,7 @@ export const irms: IrmsApi = {
     },
     onStatusChange(cb: (status: UpdateStatus) => void) {
       statusListeners.add(cb)
-      if (lastStatus) cb(lastStatus)
+      if (lastStatus) notifyStatus(cb, lastStatus)
       return () => {
         statusListeners.delete(cb)
       }

@@ -277,6 +277,8 @@ export const zhHant = {
   },
 
   updateBanner: {
+    installing: '正在套用更新，等待應用程式關閉。',
+    installFailed: '套用更新時發生錯誤，可以重試。',
     ready: (p: { version: string }) => `新版本 ${p.version} 已下載完成,重新啟動即可套用`,
     sessionNote: '(Session 進行中,建議結束後再重啟)',
     restartBlocked: 'Session 進行中無法重啟——結束後這個按鈕會恢復可用',

@@ -2,6 +2,15 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-30 update feedback: typed installing/install-error(version) statuses supplement downloaded.
+> Publish installing only after transition lease/flag acquisition; retain and replay after successful
+> handoff until process exit. Explicit rejection releases ownership then publishes generic retryable
+> install-error and rethrows original error. Banner handles rejection, disables restart while pending,
+> and uses persistent separate localized status/alert regions; Settings copies are static for both
+> install transitions, keeping a single announcement owner. Observer/replay errors are isolated and
+> synchronous nested status supersedes obsolete delivery. Background checks/downloads remain quiet;
+> no actual installer outcome, native speech delivery or process exit proof is implied.
+
 > 2026-10-30 updater: controller start, idle normal close and updater installation synchronously
 > acquire the same import-independent single-owner application-transition lease. Active/retained
 > session checks still apply. Start releases in finally, failed destroy/install release their own

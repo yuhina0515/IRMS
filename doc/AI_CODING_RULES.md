@@ -121,6 +121,13 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Updater feedback (2026-10-30): additive UpdateStatus installing/install-error carry version only,
+never raw installer error details. Installing emitted after lease/flag, persists across handoff and
+listener remount. Rejection releases then emits install-error and rethrows original object. Banner
+catches; manual retry only. Banner alone owns install polite/alert speech, Settings copies static.
+Listener/replay exceptions isolated; snapshot and lastStatus identity prevent obsolete nested delivery.
+Native promise outcome is not process-exit/installer attestation; keep native acceptance separate.
+
 Application transition (2026-10-30): appTransition.ts has one synchronous symbol-owned lease,
 shared by session start, idle normal-close reservation and updater install. It supplements, not
 replaces, retained-session checks. Release is owner-bound/idempotent; start finally and failed
