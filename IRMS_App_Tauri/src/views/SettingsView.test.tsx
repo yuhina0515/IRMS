@@ -206,6 +206,15 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
 })
 
 describe('SettingsView 分類索引(v3)', () => {
+  it('labels display number fields and lets label clicks focus their input', async () => {
+    render(<SettingsView />)
+    await userEvent.click(screen.getByRole('button', { name: /顯示/ }))
+    const field = screen.getByRole('spinbutton', { name: getT().settings.display.maxChartPoints })
+    await userEvent.click(screen.getByText(getT().settings.display.maxChartPoints))
+    expect(field).toHaveFocus()
+    expect(screen.getByRole('spinbutton', { name: getT().settings.display.flushInterval })).toBeInTheDocument()
+  })
+
   it('一次只顯示一個分類,切換分類會替換右側內容而不是往下長', async () => {
     render(<SettingsView />)
     expect(screen.getByRole('heading', { level: 2, name: '裝置與連線' })).toBeInTheDocument()

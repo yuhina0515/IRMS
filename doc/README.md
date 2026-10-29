@@ -6,6 +6,18 @@
 
 ---
 
+## Telemetry resource and destination boundaries (2026-10-29)
+
+Opt-in telemetry now accepts at most 64 KiB of serialized event data from either Rust or frontend
+callers. The queue evicts oldest events above 20,000 entries or 8 MiB of serialized events; batches
+are selected before cloning and capped at 2,000 events / approximately 512 KiB, plus the request
+envelope. These are wire-size budgets, not a measured total heap limit. Drops remain visible in status.
+Changing the normalized collector endpoint or enabled state discards pending data and changes the
+configuration generation. Old request results cannot mutate the new generation. Already-issued
+requests may still reach the former destination; changing settings cannot recall transmitted data.
+No database schema, BLE protocol or public IPC shape changes. See [research readiness](RESEARCH_READINESS.md)
+for the institution/locale evidence matrix and follow-up priorities.
+
 ## Mobility and session reliability (2026-10-20)
 
 Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,

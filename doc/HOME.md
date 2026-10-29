@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 Squad research/inclusion readiness** ([[log_20261029_squad_readiness|Log]]): isolated current-repository worktree; telemetry queue/batch byte budgets and collector generation isolation, named Settings number fields and toast announcements. 533 frontend / 104 Rust tests passed (3 Rust live tests ignored), build/typecheck/fmt/Clippy passed. Institution-specific evidence matrix and hourly quota-aware continuation added. No release, deployment, clinical or demographic acceptance.
+
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
 
 - **2026-10-20 beta.25 reliability follow-up** ([[log_20261020_squad_progress|Log]]): timestamped mobility holds, separate leg trends, capture/save cleanup, and serialized Session persistence. Automated checks only; unified calibration remains gated on bench data. Delivered as a stacked draft PR; no merge or release.

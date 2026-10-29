@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 telemetry addendum: opt-in remains default OFF. `telemetry.rs` bounds event data
+> at 64 KiB serialized, pending events at 20,000 / 8 MiB serialized and batches at 2,000 /
+> approximately 512 KiB plus envelope. Endpoint/enabled changes clear pending data; in-flight
+> results are generation-gated. Already-issued requests are not recalled. IPC/DB/BLE contracts
+> are unchanged. See `RESEARCH_READINESS.md` for evidence boundaries and department triggers.
+
 AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單方面變更：
 
 ### 4.1 硬體引腳與配置 (GPIO & Hardware)

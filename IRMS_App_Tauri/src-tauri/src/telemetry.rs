@@ -24,7 +24,10 @@ use tauri::{AppHandle, Manager};
 
 const FLUSH_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_BATCH: usize = 2000;
-const MAX_QUEUE: usize = 200_000;
+const MAX_QUEUE: usize = 20_000;
+// 同時限制序列化大小與事件數，避免離線時大量合法事件耗盡記憶體。
+const MAX_QUEUE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_BATCH_BYTES: usize = 512 * 1024;
 /// RISK-FIX (2026-10-10): largest serialized `data` a frontend event may carry; bigger payloads
 /// are counted as dropped so one oversized event cannot bloat the queue or its upload batch.
 const MAX_EVENT_DATA_BYTES: usize = 64 * 1024;
@@ -39,6 +42,8 @@ struct Event {
     kind: String,
     #[serde(skip_serializing_if = "Value::is_null")]
     data: Value,
+    #[serde(skip)]
+    serialized_bytes: usize,
 }
 
 #[derive(Default)]
@@ -47,6 +52,8 @@ struct Inner {
     endpoint: String,
     next_seq: u64,
     queue: VecDeque<Event>,
+    queued_bytes: usize,
+    generation: u64,
     sent: u64,
     dropped: u64,
     last_error: Option<String>,
@@ -96,18 +103,47 @@ impl TelemetryState {
         if !inner.enabled {
             return;
         }
+        // Rust 與前端來源共用限制，避免原生呼叫繞過 IPC 的大小檢查。
+        if kind.is_empty() || kind.len() > 40 || !data_within_limit(&data) {
+            inner.dropped += 1;
+            return;
+        }
         let seq = inner.next_seq;
         inner.next_seq += 1;
-        inner.queue.push_back(Event {
+        let mut event = Event {
             seq,
             t: now_iso(),
             kind: kind.to_string(),
             data,
-        });
-        while inner.queue.len() > MAX_QUEUE {
-            inner.queue.pop_front();
+            serialized_bytes: 0,
+        };
+        event.serialized_bytes = serde_json::to_vec(&event)
+            .expect("serializable event")
+            .len();
+        inner.queued_bytes += event.serialized_bytes;
+        inner.queue.push_back(event);
+        while inner.queue.len() > MAX_QUEUE || inner.queued_bytes > MAX_QUEUE_BYTES {
+            if let Some(evicted) = inner.queue.pop_front() {
+                inner.queued_bytes -= evicted.serialized_bytes;
+            }
             inner.dropped += 1;
         }
+    }
+
+    // 目的地／啟用狀態改變即建立新世代；舊收集器資料不得轉送到新目的地。
+    fn configure(&self, enabled: bool, endpoint: String) -> bool {
+        let mut inner = self.lock();
+        let turned_on = enabled && !inner.enabled;
+        if inner.enabled != enabled || inner.endpoint != endpoint {
+            inner.generation += 1;
+            inner.dropped += inner.queue.len() as u64;
+            inner.queue.clear();
+            inner.queued_bytes = 0;
+        }
+        inner.enabled = enabled;
+        inner.endpoint = endpoint;
+        inner.last_error = None;
+        turned_on
     }
 
     fn status(&self) -> TelemetryStatus {
@@ -156,19 +192,7 @@ pub fn telemetry_configure(
     } else {
         String::new()
     };
-    let turned_on = {
-        let mut inner = state.lock();
-        let turned_on = enabled && !inner.enabled;
-        inner.enabled = enabled;
-        inner.endpoint = endpoint;
-        inner.last_error = None;
-        if !enabled {
-            // Turning upload off discards what has not been sent — the user asked for no
-            // upload, so nothing queued before that decision should leave the machine later.
-            inner.queue.clear();
-        }
-        turned_on
-    };
+    let turned_on = state.configure(enabled, endpoint);
     if turned_on {
         state.record(
             "app_start",
@@ -185,13 +209,6 @@ pub fn telemetry_configure(
 /// Frontend-originated events (Session lifecycle, calibration snapshot, trigger state).
 #[tauri::command]
 pub fn telemetry_log(state: tauri::State<'_, TelemetryState>, kind: String, data: Value) {
-    if kind.is_empty() || kind.len() > 40 {
-        return;
-    }
-    if !data_within_limit(&data) {
-        state.lock().dropped += 1;
-        return;
-    }
     state.record(&kind, data);
 }
 
@@ -263,16 +280,17 @@ async fn flush_once(
     state: &TelemetryState,
     version: &str,
 ) -> Result<usize, ()> {
-    let (url, batch, dropped) = {
+    let (url, batch, dropped, generation) = {
         let inner = state.lock();
         if !inner.enabled || inner.queue.is_empty() {
             return Ok(0);
         }
-        let batch: Vec<Event> = inner.queue.iter().take(MAX_BATCH).cloned().collect();
+        let batch = bounded_batch(&inner);
         (
             format!("{}/v1/ingest", inner.endpoint),
             batch,
             inner.dropped,
+            inner.generation,
         )
     };
     let last_seq = batch.last().map(|e| e.seq).unwrap_or(0);
@@ -304,13 +322,41 @@ async fn flush_once(
             }
         });
 
+    apply_flush_result(state, generation, last_seq, result)
+}
+
+// 在複製事件前先限制批次大小；額外一 byte 涵蓋 JSON 陣列分隔符號。
+fn bounded_batch(inner: &Inner) -> Vec<Event> {
+    let mut bytes = 0;
+    inner
+        .queue
+        .iter()
+        .take(MAX_BATCH)
+        .take_while(|event| {
+            bytes += event.serialized_bytes + 1;
+            bytes <= MAX_BATCH_BYTES
+        })
+        .cloned()
+        .collect()
+}
+
+// 舊請求完成時不可移除新世代資料，也不可覆寫新目的地的錯誤狀態。
+fn apply_flush_result(
+    state: &TelemetryState,
+    generation: u64,
+    last_seq: u64,
+    result: Result<(), (String, bool)>,
+) -> Result<usize, ()> {
     let mut inner = state.lock();
+    if inner.generation != generation {
+        return Ok(0);
+    }
     match result {
         Ok(()) => {
             // Remove only what was sent: new events may have been queued meanwhile, and the
             // queue may have been cleared or trimmed while the request was in flight.
             let before = inner.queue.len();
-            inner.queue.retain(|e| e.seq > last_seq);
+            remove_through(&mut inner, last_seq);
             let delivered = before - inner.queue.len();
             inner.sent += delivered as u64;
             inner.last_error = None;
@@ -319,12 +365,24 @@ async fn flush_once(
         Err((err, permanent)) => {
             if permanent {
                 let before = inner.queue.len();
-                inner.queue.retain(|e| e.seq > last_seq);
+                remove_through(&mut inner, last_seq);
                 inner.dropped += (before - inner.queue.len()) as u64;
             }
             inner.last_error = Some(err);
             Err(())
         }
+    }
+}
+
+// 每次淘汰或完成上傳都同步扣除 byte 計數，維持佇列預算不變式。
+fn remove_through(inner: &mut Inner, last_seq: u64) {
+    while inner
+        .queue
+        .front()
+        .is_some_and(|event| event.seq <= last_seq)
+    {
+        let event = inner.queue.pop_front().expect("front exists");
+        inner.queued_bytes -= event.serialized_bytes;
     }
 }
 
@@ -351,6 +409,88 @@ mod tests {
         let state = TelemetryState::default();
         state.record("packet", json!({ "raw": "x" }));
         assert_eq!(state.status().pending, 0);
+    }
+
+    #[test]
+    fn native_events_share_the_payload_limit() {
+        let state = enabled_state();
+        state.record("packet", json!({ "blob": "x".repeat(64 * 1024) }));
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.status().dropped, 1);
+    }
+
+    #[test]
+    fn large_legal_events_are_evicted_by_bytes_and_batches_stay_small() {
+        let state = enabled_state();
+        for _ in 0..200 {
+            state.record("packet", json!({ "blob": "x".repeat(60 * 1024) }));
+        }
+        let inner = state.lock();
+        assert!(inner.queued_bytes <= 8 * 1024 * 1024);
+        assert!(inner.dropped > 0);
+        assert_eq!(inner.queue.len() as u64 + inner.dropped, 200);
+        assert_eq!(
+            inner.queued_bytes,
+            inner
+                .queue
+                .iter()
+                .map(|e| e.serialized_bytes)
+                .sum::<usize>()
+        );
+        let batch = bounded_batch(&inner);
+        assert!(!batch.is_empty());
+        assert!(serde_json::to_vec(&batch).unwrap().len() <= 512 * 1024);
+    }
+
+    #[test]
+    fn changing_collectors_discards_old_data_and_ignores_old_results() {
+        let state = TelemetryState::default();
+        assert!(state.configure(true, "https://a.example".into()));
+        state.record("packet", json!({ "raw": "old" }));
+        let generation = state.lock().generation;
+        let old_seq = state.lock().queue.back().unwrap().seq;
+        assert!(!state.configure(true, "https://b.example".into()));
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.status().dropped, 1);
+        assert_eq!(state.lock().queued_bytes, 0);
+        state.record("packet", json!({ "raw": "new" }));
+        assert_eq!(
+            apply_flush_result(
+                &state,
+                generation,
+                old_seq,
+                Err(("old failure".into(), true))
+            ),
+            Ok(0)
+        );
+        assert_eq!(
+            apply_flush_result(&state, generation, old_seq, Ok(())),
+            Ok(0)
+        );
+        assert_eq!(state.status().pending, 1);
+        assert!(state.status().last_error.is_none());
+        let current_generation = state.lock().generation;
+        let current_seq = state.lock().queue.back().unwrap().seq;
+        assert_eq!(
+            apply_flush_result(&state, current_generation, current_seq, Ok(())),
+            Ok(1)
+        );
+        assert_eq!(state.lock().queued_bytes, 0);
+        assert_eq!(state.status().sent, 1);
+    }
+
+    #[test]
+    fn identical_configuration_preserves_queue_but_disabling_clears_it() {
+        let state = TelemetryState::default();
+        state.configure(true, "https://a.example".into());
+        state.record("packet", Value::Null);
+        let generation = state.lock().generation;
+        state.configure(true, "https://a.example".into());
+        assert_eq!(state.status().pending, 1);
+        assert_eq!(state.lock().generation, generation);
+        state.configure(false, String::new());
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.lock().queued_bytes, 0);
     }
 
     #[test]

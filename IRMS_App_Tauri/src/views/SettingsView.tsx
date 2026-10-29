@@ -1,5 +1,5 @@
 // renderer/views/SettingsView.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS } from '@shared/types'
@@ -75,10 +75,13 @@ function NumField({
   // 輸入中的字串另存:每個按鍵都立刻鉗制並回寫的話,輸入「20」會先變成 10(被 max(10,…) 擋),
   // 清空欄位則會把 0 寫進校準值。只有可解析的數字才回寫,離開欄位後才以儲存值為準。
   const [draft, setDraft] = useState<string | null>(null)
+  // 每個數字欄位都有獨立標籤關聯，讓報讀器與語音輸入能辨識用途。
+  const inputId = useId()
   return (
     <div className="field" style={{ flex: 1 }}>
-      <label>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <input
+        id={inputId}
         type="number"
         value={draft ?? value}
         disabled={disabled}
