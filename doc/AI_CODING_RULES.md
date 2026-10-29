@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Wizard B pairing (2026-10-30): local raw callback counter is receiver-only, not device seq/time.
+Snapshot after countdown on every record/retry; complete fresh V consumes latest newer receipt once.
+Face/any floor correction requires raw; no-correction/skip permits V-only and unique optional gyro.
+Do not mix uncorrected V when correction active. No wire/solver/threshold/persistence change or source
+freshness/synchronization claim; repeated callbacks can still represent delayed/duplicated device data.
+
 Offline replay (2026-10-30): scripts/replay-calibration.mjs accepts optional --provenance sidecar;
 same-buffer input/hash, schema1 evidence,3 runtime source hashes and Node version. Raw historical
 hash preserved; optional canonical fields require explicit crlf-to-lf-v1 and always match actual

@@ -2,6 +2,12 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> Calibration B input guard (2026-10-30): each capture snapshots a receiver-only raw receipt counter
+> after countdown and consumes each new raw notification at most once with a complete new V: frame.
+> Floor/corrected captures require fresh receipts; skipped/no-correction V-only and optional gyro
+> paths remain. No source timestamp/sequence or synchronization is introduced; G: parser, solver,
+>10-frame minimum/durations and Apply-only persistence are unchanged. See [measurement evidence](MEASUREMENT_EVIDENCE.md).
+
 > Offline measurement replay (2026-10-30): see [evidence inventory](MEASUREMENT_EVIDENCE.md).
 > Additive input/source/runtime identity and optional manifest hash/count check preserve raw audit/
 > caller-supplied unsmoothed projection. Explicit CRLF/LF identity is not authenticity, matched

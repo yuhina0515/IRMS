@@ -1,6 +1,29 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 R07 replay identity)
+## Current checkpoint (2026-10-30 R07 raw receipt pairing)
+
+Baseline71f4902 CI40943840118 SUCCESS, clean before task. Initial quota60%/53%, latest observed
+50%/51% remaining. Client raw-motion/CSV inventory found Wizard B reused latest G: indefinitely
+while new V: arrived. Local receipt counter now increments per callback, capture snapshots AFTER
+countdown, complete fresh V consumes newer receipt once. Face/any floor correction requires raw;
+skip/no-correction keeps V-only and optional gyro without manufacturing old samples. No source time/
+sequence, new age threshold or physical synchronization claim. Minimum10/durations/solver/Apply unchanged.
+
+Actual component baseline2 failed/1 passed, final10 new cases plus existing journeys validated.
+Full680 tests69 files (including29 offline CLI), TypeScript and Vite build passed. Engineering final
+review no blocker. Runtime Rust/firmware/collector unchanged, no native suites rerun. See
+plans/2026-10-30-raw-pairing-plan.md, log_20261030_raw_pairing.md and doc/MEASUREMENT_EVIDENCE.md.
+Deliver scoped commit/push/draft PR; inspect this new head's CI before subsequent delivery.
+
+Next bounded R07 task: define an offline receiver-capture bundle contract/validator using only
+available fields and synthetic fixtures. Explicit clock domain, calibration identity, file hashes,
+source-timestamp/sequence absence and reference-evidence absence; no automatic raw recording or
+device/participant operations. Inspect any existing equivalent before adding one. This does not
+recover missing historical metadata or prove sample age/temporal coverage/sensor sync. Hardware,
+native AT/installer/timing, metrology/fit and institution-specific evaluation still need external
+evidence; stop expensive work if only unavailable dependencies remain. No broad repeated scan.
+
+## Historical checkpoint (2026-10-30 R07 replay identity)
 
 Baseline156ae17 CI40934031768 SUCCESS, clean before task. Initial quota79%/55%, observed70%/54%
 remaining. Scoped inventory found historical calibration trace/sidecar and replay identity gap.

@@ -75,12 +75,15 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   const faces = useRef<{ thigh: V3[]; shin: V3[] }>({ thigh: [], shin: [] })
   const correction = useRef<{ thigh: BiasScaleEstimate | null; shin: BiasScaleEstimate | null }>({ thigh: null, shin: null })
   const latestMotion = useRef<RawMotion | null>(null)
+  /** 接收端通知計數，不代表裝置序號、來源時間或同步量測。 */
+  const rawReceipt = useRef(0)
   const cancelled = useRef(false)
 
   useEffect(() => {
     cancelled.current = false
     const off = bluetoothService.onRawMotion((motion) => {
       latestMotion.current = motion
+      rawReceipt.current++
     })
     void bluetoothService.enableRawStream(true)
     const timer = setTimeout(() => setHasRaw(latestMotion.current !== null), RAW_DETECT_MS)
@@ -95,7 +98,7 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   // 擷取中消耗 Escape，不讓背景視窗收到；確認框與硬體警示仍可優先接管。
   useEscapeKey(() => { if (!capturing && !calibrationFocusBlocked()) onClose() }, 10)
 
-  /** Collects frames for `seconds`; each frame pairs the latest V: vectors with the latest raw motion. */
+  /** 擷取視窗內每筆新 G: 收件至多配對一筆新 V:；不推論裝置時鐘或同步。 */
   const record = async (seconds: number): Promise<Frame[] | null> => {
     setErr(null)
     setCapturing(true)
@@ -106,11 +109,18 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
     }
     setCountdown(null)
     const frames: Frame[] = []
+    // 倒數完成後才設基準，排除先前階段/重試/倒數期間留下的原始通知。
+    let consumedReceipt = rawReceipt.current
+    const requireRaw = step.kind === 'face' || SWEEPS.some((limb) => correction.current[limb] !== null)
     await new Promise<void>((resolve) => {
       const unsub = useStore.subscribe((s, prev) => {
         const a = s.rawAngles
-        if (!a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
-        frames.push({ thigh: a.thighAccel, shin: a.shinAccel, motion: latestMotion.current })
+        if (cancelled.current || !a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
+        const motion = rawReceipt.current > consumedReceipt ? latestMotion.current : null
+        // 有地面修正時不可混入未修正 V:；跳過地面/無修正仍保留既有 V-only 路徑。
+        if (requireRaw && !motion) return
+        if (motion) consumedReceipt = rawReceipt.current
+        frames.push({ thigh: a.thighAccel, shin: a.shinAccel, motion })
       })
       setTimeout(() => {
         unsub()

@@ -72,7 +72,10 @@ it('distinguishes raw-enabled floor faces and progress without announcing raw va
   fireEvent.click(screen.getByRole('button', { name: c.capture }))
   await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
   act(() => {
-    for (let sample = 0; sample < 10; sample++) useStore.setState({ rawAngles: { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0, thighAccel: vector, shinAccel: vector } })
+    for (let sample = 0; sample < 10; sample++) {
+      onRaw({ thighAcc: vector, shinAcc: vector, thighGyro: vector, shinGyro: vector })
+      useStore.setState({ rawAngles: { thigh: 0, shin: 0, thighRoll: 0, shinRoll: 0, thighAccel: vector, shinAccel: vector } })
+    }
   })
   await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
   expect(status).toHaveTextContent(c.faces['-x'])

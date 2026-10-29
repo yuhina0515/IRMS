@@ -8,6 +8,25 @@ no device capture, participant operation or original external trace retrieval oc
 | [20260915 trace](calibration-evidence/20260915/README.md) and sidecar | 66,927 ordered packets, original extracted-byte hash, explicit LF-canonical hash, packet count | Reproducible raw packet audit against supplied sidecar; 66,560 vector pairs, 367 error packets, no malformed/truncated packets on this trace | Timestamps, movement labels, exact matching zero/hinge settings, original temporary source verification and reference angles |
 | `IRMS_App_Tauri/fixtures/angle-packets.json` and `vector-packets.json` | Parser boundary examples, including malformed/truncated/vector cases | Protocol parsing expectations | Physical measurement accuracy, sensor synchronization, anatomical reference or population validity |
 | [Offline readiness benchmark](performance/README.md) | Seeded synthetic workloads, source/fixture hashes and scoped software measurements | Reproducible software workload evidence within documented debug/offline scope | Actual paced native UI/IPC/device/network/memory and metrology/fit acceptance |
+| Current client raw-motion path (`protocol.ts`, `bluetooth.ts`, Wizard B) | G: accepts12 finite values: two gyro vectors in deg/s and two acceleration vectors in g; no source timestamp/sequence in RawMotion | Receiver-notification pairing can be checked locally; each new raw receipt is consumed at most once after the capture countdown | Actual acquisition age, source sequence, loss accounting and sensor synchronization; firmware implementation is in another repository and was not inspected here |
+| Current history CSV (`HistoryView.tsx`, `sessionController.ts`) | Calibrated/smoothed angle rows with renderer-created ISO timestamps; session source/parameters and calibration JSON metadata | Interpretation of stored session angles and calibration association within that session | Raw gyro/acceleration stream, source-time/synchronized reference capture; renderer wall clock is not sensor acquisition time |
+
+### Receiver pairing guard (2026-10-30)
+
+Wizard B uses a local raw-callback receipt counter, never a device sequence. Each capture snapshots
+the counter after countdown; older notifications cannot become new-window samples. A complete new
+V: frame may consume the latest newer G: receipt once. Face capture and captures with any floor
+correction require a new raw receipt; otherwise V-only/optional-gyro behavior remains, including
+explicit floor skip. Missing/incomplete V: does not consume the receipt. Faster G: arrivals coalesce
+to the newest one before a V: frame; this is not a lossless raw recorder. Callback identity/value
+equality is not deduplication: identical readings can arrive in distinct notifications.
+
+This prevents repeated cached G: values from filling floor/gyro sample counts and avoids mixing
+uncorrected V: samples when floor correction is active. Existing10-frame minimum and capture durations
+remain; a sample count does not prove temporal coverage. No age threshold, device clock, simultaneous
+sampling, reference accuracy or clinical validity is inferred. Delayed/repeated source packets can
+still arrive as distinct receiver notifications. A future evidence bundle must explicitly label
+receiver versus source time and preserve matched calibration/provenance, rather than inventing them.
 
 ## Replay report contract
 
