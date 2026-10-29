@@ -20,6 +20,9 @@ use crate::firmware::FirmwareBinary;
 const FIRMWARE_PUBKEY_B64: &str = "9inYbAyGpSC4KbNtu1+tT/I5B/jrMDuwmfH3SsS1u/8=";
 const RELEASES: &str = "https://github.com/yuhina0515/IRMS-Firmware/releases";
 const MAX_FIRMWARE_BYTES: u64 = 4 * 1024 * 1024;
+// 清單與簽章在驗證前仍是不可信輸入，須有獨立的網路回應大小上限。
+const MAX_MANIFEST_BYTES: usize = 64 * 1024;
+pub(crate) const MAX_SIGNATURE_BYTES: usize = 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -126,8 +129,12 @@ pub(crate) fn client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("HTTP client init failed: {e}"))
 }
 
-pub(crate) async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
-    let resp = client
+pub(crate) async fn get_bytes(
+    client: &reqwest::Client,
+    url: &str,
+    max_bytes: usize,
+) -> Result<Vec<u8>, String> {
+    let mut resp = client
         .get(url)
         .send()
         .await
@@ -135,7 +142,22 @@ pub(crate) async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec
     if !resp.status().is_success() {
         return Err(format!("韌體發布站回應 {}", resp.status()));
     }
-    Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
+    if resp
+        .content_length()
+        .is_some_and(|length| length > max_bytes as u64)
+    {
+        return Err(format!("下載內容超過大小上限 ({max_bytes} bytes)"));
+    }
+    // Content-Length 可省略或不可靠；每塊資料在加入緩衝區前都檢查累計預算。
+    // 不依遠端宣告的長度預先配置，避免尚未讀取就造成大額配置。
+    let mut data = Vec::new();
+    while let Some(chunk) = resp.chunk().await.map_err(|e| e.to_string())? {
+        if chunk.len() > max_bytes - data.len() {
+            return Err(format!("下載內容超過大小上限 ({max_bytes} bytes)"));
+        }
+        data.extend_from_slice(&chunk);
+    }
+    Ok(data)
 }
 
 /// Where the channel's manifest lives. Stable = GitHub's "latest" release (prereleases are
@@ -160,8 +182,13 @@ async fn fetch_verified_manifest(
     beta: bool,
 ) -> Result<FirmwareManifest, String> {
     let base = manifest_base(beta);
-    let bytes = get_bytes(client, &format!("{base}/manifest.json")).await?;
-    let sig = get_bytes(client, &format!("{base}/manifest.json.sig")).await?;
+    let bytes = get_bytes(client, &format!("{base}/manifest.json"), MAX_MANIFEST_BYTES).await?;
+    let sig = get_bytes(
+        client,
+        &format!("{base}/manifest.json.sig"),
+        MAX_SIGNATURE_BYTES,
+    )
+    .await?;
     let manifest = verify_manifest(
         &bytes,
         &String::from_utf8_lossy(&sig),
@@ -211,7 +238,7 @@ pub async fn firmware_download_latest(
         "{RELEASES}/download/v{}/{}",
         manifest.version, manifest.file
     );
-    let data = get_bytes(&client, &url).await?;
+    let data = get_bytes(&client, &url, manifest.size as usize).await?;
     verify_binary(&data, &manifest)?;
     Ok(FirmwareBinary::new(
         format!("IRMS-Firmware v{}", manifest.version),
@@ -225,6 +252,124 @@ mod tests {
     use super::*;
     use ring::rand::SystemRandom;
     use ring::signature::{Ed25519KeyPair, KeyPair};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    // 每個測試獨立使用短生命週期 loopback 回應，不連線外部發布站。
+    fn serve_once(
+        response: Vec<u8>,
+        wait_for_close: bool,
+    ) -> (String, std::thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            socket
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut request = [0; 1024];
+            let _ = socket.read(&mut request);
+            let _ = socket.write_all(&response);
+            // 超限標頭測試不主動關閉連線，確保錯誤來自大小檢查而非截斷回應。
+            if wait_for_close {
+                let _ = socket.read(&mut request);
+            }
+        });
+        (url, server)
+    }
+
+    #[tokio::test]
+    async fn chunked_response_cannot_exceed_the_body_budget() {
+        let (url, server) = serve_once(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n4\r\nabcd\r\n5\r\nefghi\r\n0\r\n\r\n".to_vec(), false);
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        assert!(result.unwrap_err().contains("大小上限"));
+    }
+
+    #[tokio::test]
+    async fn oversized_single_chunk_is_rejected() {
+        let (url, server) = serve_once(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n9\r\nabcdefghi\r\n0\r\n\r\n".to_vec(), false);
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        assert!(result.unwrap_err().contains("大小上限"));
+    }
+
+    #[tokio::test]
+    async fn excessive_content_length_is_rejected_without_waiting_for_body() {
+        let (url, server) = serve_once(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n".to_vec(),
+            true,
+        );
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        assert!(result.unwrap_err().contains("大小上限"));
+    }
+
+    #[tokio::test]
+    async fn close_delimited_response_is_also_bounded() {
+        let (url, server) = serve_once(b"HTTP/1.0 200 OK\r\n\r\nabcdefghi".to_vec(), false);
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        assert!(result.unwrap_err().contains("大小上限"));
+    }
+
+    #[tokio::test]
+    async fn http_failure_and_short_artifacts_remain_rejected() {
+        let (url, server) = serve_once(
+            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+            false,
+        );
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        assert!(result.unwrap_err().contains("404"));
+
+        let (url, server) = serve_once(b"HTTP/1.0 200 OK\r\n\r\nshort".to_vec(), false);
+        let result = get_bytes(&client().unwrap(), &url, 8).await;
+        server.join().unwrap();
+        let expected: FirmwareManifest =
+            serde_json::from_slice(&manifest_for(b"firmware")).unwrap();
+        assert!(verify_binary(&result.unwrap(), &expected).is_err());
+    }
+
+    #[tokio::test]
+    async fn exact_budget_signed_manifest_and_chunked_binary_still_verify() {
+        let http = client().unwrap();
+        let kp = keypair();
+        let bytes = manifest_for(b"firmware");
+        let signature = sign(&kp, &bytes);
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            bytes.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&bytes);
+        let (url, server) = serve_once(response, false);
+        let downloaded = get_bytes(&http, &url, bytes.len()).await;
+        server.join().unwrap();
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            signature.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(signature.as_bytes());
+        let (url, server) = serve_once(response, false);
+        let sig = get_bytes(&http, &url, MAX_SIGNATURE_BYTES).await;
+        server.join().unwrap();
+        let manifest = verify_manifest(
+            &downloaded.unwrap(),
+            &String::from_utf8(sig.unwrap()).unwrap(),
+            kp.public_key().as_ref(),
+        )
+        .unwrap();
+        let (url, server) = serve_once(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n4\r\nfirm\r\n4\r\nware\r\n0\r\n\r\n".to_vec(), false);
+        let binary = get_bytes(&http, &url, manifest.size as usize).await;
+        server.join().unwrap();
+        assert_eq!(binary.as_ref().unwrap(), b"firmware");
+        verify_binary(&binary.unwrap(), &manifest).unwrap();
+    }
 
     fn keypair() -> Ed25519KeyPair {
         let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).unwrap();
@@ -347,7 +492,9 @@ mod live_tests {
                 "{RELEASES}/download/v{}/{}",
                 manifest.version, manifest.file
             );
-            let data = get_bytes(&client, &url).await.unwrap();
+            let data = get_bytes(&client, &url, manifest.size as usize)
+                .await
+                .unwrap();
             verify_binary(&data, &manifest).unwrap();
             println!(
                 "channel beta={beta}: verified IRMS-Firmware v{} ({} bytes)",

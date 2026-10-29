@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 download addendum: shared HTTP response caps are firmware manifest 64 KiB,
+> module index 1 MiB, signature text 1 KiB, and artifact bytes <= verified signed size
+> (existing maxima: firmware 4 MiB / module 512 KiB). Enforce accumulated chunks before
+> extending the buffer; Content-Length alone is insufficient. Preserve signature/hash checks
+> and verified-cache fallback. No IPC, DB, BLE or signed-file format changes.
+
 > 2026-10-29 telemetry addendum: opt-in remains default OFF. `telemetry.rs` bounds event data
 > at 64 KiB serialized, pending events at 20,000 / 8 MiB serialized and batches at 2,000 /
 > approximately 512 KiB plus envelope. Endpoint/enabled changes clear pending data; in-flight

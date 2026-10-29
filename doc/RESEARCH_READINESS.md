@@ -58,7 +58,7 @@ Use asynchronous independent reports, then one written triage meeting. Do not ma
 | ID | Priority | Concrete next action | Acceptance |
 | --- | --- | --- | --- |
 | R01 | Fixed locally, 2026-10-29 | TriggerEngine now restarts holds after >250 ms reception gaps or invalid/backwards timing, with a monotonic clock | Original regression failed before fix; focused engine/controller/scenario tests cover silence, 250/251ms boundary, 25 Hz, hysteresis, clock anomalies and rest gating; native timing remains open |
-| R02 | High | Bound firmware/module/index/signature downloads before full buffering | Oversized/chunked responses abort before unbounded allocation; valid signed artifacts still verify |
+| R02 | Fixed locally, 2026-10-29 | Shared downloader applies caller-specific caps before appending each body chunk, including metadata/signatures and exact verified payload sizes | Local HTTP tests cover header-only oversize, single/multiple chunks, close-delimited overflow, exact-limit signed/hash-valid artifact, HTTP failure and short artifact rejection; live release/OTA remains open |
 | R03 | High | Contain and restore confirmation-dialog focus; prevent background interaction | Tab/Shift+Tab/Escape and invoking-control restoration tests; native keyboard acceptance |
 | R04 | Medium | Gate every BLE notification by connection generation | Stale notification cannot emit sensor/calibration input; hardware race acceptance tracked separately |
 | R05 | Medium | Capture an offline performance baseline and threat/data-flow model | Named machine, fixtures, exact commands, latency/memory/drop measurements and unresolved risks |

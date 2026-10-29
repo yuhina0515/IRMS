@@ -6,6 +6,17 @@
 
 ---
 
+## Firmware and module download budgets (2026-10-29)
+
+The shared HTTP downloader rejects oversized declared Content-Length and also counts every body
+chunk before extending its buffer, so chunked/close-delimited responses cannot bypass the limit.
+Firmware manifests are capped at 64 KiB, module indexes at 1 MiB and base64 signature text at 1 KiB.
+Payload downloads use the exact size from a verified manifest/index (existing maximums: firmware
+4 MiB, module 512 KiB). Signature, final size, hash, version and rollback checks remain required.
+The byte budget is not a replacement for authenticity checks or a measured process-heap ceiling.
+Oversized module metadata follows the existing verified-cache fallback; oversized module content is
+skipped without writing partial files. No external service or release format changes.
+
 ## Telemetry resource and destination boundaries (2026-10-29)
 
 Opt-in telemetry now accepts at most 64 KiB of serialized event data from either Rust or frontend

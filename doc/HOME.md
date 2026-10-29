@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R02 bounded downloads** ([[log_20261029_download_bounds|Log]]): firmware/module shared downloader now caps declared and incrementally received bytes, including metadata/signatures and exact signed payload sizes; signatures, hashes and cache fallback retained. Local HTTP overflow/boundary tests pass; live release and OTA acceptance open.
+
 - **2026-10-29 R01 hold continuity** ([[log_20261029_hold_continuity|Log]]): reproduced in-zone/silence false repetition; receiver-monotonic timing now restarts holds after >250 ms gaps or clock anomalies, preserving rest gating and personal angle warnings. Continuous sample fixtures and no-disconnect Session/GOAL regression added; native scheduling/source-time acceptance still open.
 
 - **2026-10-29 Squad research/inclusion readiness** ([[log_20261029_squad_readiness|Log]]): isolated current-repository worktree; telemetry queue/batch byte budgets and collector generation isolation, named Settings number fields and toast announcements. 533 frontend / 104 Rust tests passed (3 Rust live tests ignored), build/typecheck/fmt/Clippy passed. Institution-specific evidence matrix and hourly quota-aware continuation added. No release, deployment, clinical or demographic acceptance.
