@@ -437,6 +437,76 @@ mod tests {
         conn
     }
 
+    /// 手動 file-backed WAL 基準；使用暫存合成資料，不接觸應用程式 DB。
+    #[test]
+    #[ignore = "manual offline performance baseline"]
+    fn readiness_benchmark_database() {
+        use crate::readiness_benchmark::summary;
+        use std::time::Instant;
+        let mut results = Vec::new();
+        for batch_size in [25, 1000] {
+            let db_path =
+                std::env::temp_dir().join(format!("irms_bench_{}.sqlite", uuid::Uuid::new_v4()));
+            let mut conn = init_database(&db_path).unwrap();
+            let session = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+            let rows: Vec<SensorReading> = (0..15000)
+                .map(|i| SensorReading {
+                    timestamp: chrono::DateTime::from_timestamp_millis(1790647200000 + i * 40)
+                        .unwrap()
+                        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                    knee_angle: (i as f64 / 10.0).sin() * 90.0,
+                    thigh_angle: 0.0,
+                    shin_angle: 0.0,
+                    knee_roll: 0.0,
+                    thigh_roll: 0.0,
+                    shin_roll: 0.0,
+                })
+                .collect();
+            // 獨立暖機療程，避免暖機資料污染被量測療程的列數。
+            let warm_session = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+            for _ in 0..3 {
+                data_repo::append_batch(&mut conn, warm_session, &rows[..batch_size]).unwrap();
+            }
+            sessions_repo::delete(&conn, warm_session).unwrap();
+            let mut append_ms = Vec::new();
+            for chunk in rows.chunks(batch_size) {
+                let start = Instant::now();
+                assert_eq!(
+                    data_repo::append_batch(&mut conn, session, chunk).unwrap(),
+                    chunk.len()
+                );
+                append_ms.push(start.elapsed().as_secs_f64() * 1000.0);
+            }
+            let count: usize = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sensor_data WHERE sessionId=?1",
+                    [session],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, rows.len());
+            let mut queries = Vec::new();
+            for run in 0..13 {
+                let start = Instant::now();
+                let data = sessions_repo::get_data(&conn, session, Some(100)).unwrap();
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                assert_eq!(data.len(), 100);
+                if run >= 3 {
+                    queries.push(elapsed);
+                }
+            }
+            results.push(serde_json::json!({"batchSize": batch_size, "rows": count,
+                "appendBatch": summary(append_ms), "query15000To100": summary(queries),
+                "queryScope": "loads all rows, parses timestamps, then LTTB; not bounded-memory query"}));
+            drop(conn);
+            std::fs::remove_file(&db_path).unwrap();
+        }
+        println!(
+            "IRMS_BENCH:{}",
+            serde_json::json!({"kind": "database", "mode": "debug file-backed WAL, accelerated inserts", "results": results})
+        );
+    }
+
     fn sample_input() -> CustomActionInput {
         CustomActionInput {
             name: "Test Squat".to_string(),

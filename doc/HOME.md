@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R05 offline baseline / threat model** ([[log_20261029_performance_threat|Log]]): reproducible source/fixture hashes, accelerated production engine, file-backed debug DB and offline telemetry benchmarks; actual JSON retained. Sharing response/revocation/ownership gaps prioritized. Native UI/network/device/memory and institutional/population acceptance remain open.
+
 - **2026-10-29 R08 native connect lifecycle** ([[log_20261029_connect_lifecycle|Log]]): reserve ownership before awaits, serialize cleanup/replacement and install/publish before listener scheduling. Cancellation retains simultaneous backend/cleanup errors; deterministic fake-transport tests pass. Native OS timing and physical cleanup failure remain acceptance gaps.
 
 - **2026-10-29 R04 BLE notification isolation** ([[log_20261029_ble_notification|Log]]): dispatch and retirement share an epoch gate; stale stream errors and delayed teardown are fenced. Deterministic ordering/poison regression checks pass; native pending-connect cancellation and already-queued renderer events remain separate risks.

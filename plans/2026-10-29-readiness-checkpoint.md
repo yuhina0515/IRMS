@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04 pushed through `35bb677` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R08 native connect ownership validated for delivery to the same PR. R04 remote CI confirmed SUCCESS. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next: R05 measured performance/threat model, then R06/R07. Inspect Git/CI and fresh quota first. Overall objective remains active.
+Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04/R08 pushed through `b3012f0` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R08 remote CI run 40812227724 confirmed SUCCESS. R05 offline benchmark/threat-model scope validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next: bounded S01/S02 sharing-security fixes, S03 ownership design; then outstanding native performance/R06/R07 gates. Inspect Git/CI and fresh quota first. Overall objective remains active.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -13,6 +13,7 @@ Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04 pushed through `35b
 - R03 plan/log: 2026-10-29-confirmation-access-plan.md / ../doc/coding log/log_20261029_confirmation_access.md.
 - R04 plan/log: 2026-10-29-ble-notification-plan.md / ../doc/coding log/log_20261029_ble_notification.md.
 - R08 plan/log: 2026-10-29-connect-lifecycle-plan.md / ../doc/coding log/log_20261029_connect_lifecycle.md.
+- R05 plan/log: 2026-10-29-performance-threat-plan.md / ../doc/coding log/log_20261029_performance_threat.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -31,10 +32,12 @@ R04 completed locally: epoch mutex gates actual native notification/error dispat
 
 R08 completed locally: `ble_lifecycle.rs` reserves before await, serializes OS attempts through cleanup and installs/publishes before listener scheduling. Disconnect checks ownership after waits. Native scan has a single stop epilogue; cancellation retains backend/cleanup errors. Nine fake-transport tests exercise shared production orchestration across six stage boundaries, queues/install/disconnect and immediate listener completion. Removed post-connect ownership guard was detected by mutation. Reviewer-found error masking fixed and retested. Final Rust 123 passed / 3 live ignored, fmt/Clippy passed; frontend unchanged at 553 tests/typecheck/build. Native scan epilogue is source-inspection evidence; OS timing, physical cleanup failure, whole-future abort and already-queued renderer events remain open.
 
-R05 next: create a reproducible offline performance harness with fixed source/fixture/workload/seed and environment metadata (CPU model/architecture, RAM, runtime versions; omit hostname/user/credentials). Measure actual production engine/metric path and bounded native telemetry/database work where practical; include normal 25Hz-equivalent, dropout and catch-up loads. Record timing distributions and memory/queue/drop observations with exact execution mode; no native FPS/clinical claims from synthetic or accelerated workloads. Include explicit failure criteria and limitations. Produce a repository-grounded threat/data-flow model covering BLE/IPC/local DB/signed updates/runtime modules/opt-in collector/live-share, trust boundaries, existing controls, residual risks and prioritized verification. R06 full modal/locale/native accessibility and R07 actual institutional/population evidence remain open.
+R05 offline scope implemented: `IRMS_App_Tauri/scripts/benchmark-readiness.mjs --native` runs actual metric/engine, file-backed WAL DB insert/query and offline telemetry record paths. Protocol/JSON under `doc/performance/`; source manifest/fixture hashes, warmups/repeated distributions, queue/drop accounting and safe environment metadata captured. Independent engineering review corrected indirect-source hash coverage and arbitrary Node-argument metadata. `doc/THREAT_MODEL.md` records code-grounded boundaries/controls/residual gaps. R05 remains partial: paced native UI/IPC/device/network and native memory trend unmeasured. Regular Rust remains 123 passed, now 5 ignored (3 live + 2 manual benchmark tests); both manual benchmarks separately passed. Frontend unchanged at 553 tests/typecheck/build.
+
+Next bounded batch: S01 cap incoming live-share response bytes in `live_share.rs` (currently unbounded `.text()`); S02 pending `share.mjs::readState` must revalidate/wake removed viewers before exposing newer state. Reproduce with local HTTP and pending-poll tests first. S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design; keep separate. These findings were independently reported and lead-confirmed from source, not exploited on production. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
 
 ## Quota / environment
-Latest observed remaining quota (R08 final checks): five-hour 40%, weekly 87%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
+Latest observed remaining quota (R05 checks): five-hour 26%, weekly 84%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 

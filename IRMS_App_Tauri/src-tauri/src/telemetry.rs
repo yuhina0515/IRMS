@@ -396,6 +396,56 @@ mod tests {
         state
     }
 
+    /// 手動離線壓力基準；完全不啟動 uploader，驗證溢位後的事件與位元組上限。
+    #[test]
+    #[ignore = "manual offline performance baseline"]
+    fn readiness_benchmark_telemetry() {
+        use crate::readiness_benchmark::summary;
+        use std::time::Instant;
+        let mut results = Vec::new();
+        // 小封包觸發數量上限，大封包觸發位元組上限。
+        for payload_bytes in [64, 2048] {
+            let mut timings = Vec::new();
+            let mut observation = Value::Null;
+            for run in 0..13 {
+                let state = enabled_state();
+                let payload = json!({"raw": "x".repeat(payload_bytes)});
+                let start = Instant::now();
+                for _ in 0..25000 {
+                    state.record("ble-packet", payload.clone());
+                }
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                let inner = state.lock();
+                assert!(inner.queue.len() <= MAX_QUEUE);
+                assert!(inner.queued_bytes <= MAX_QUEUE_BYTES);
+                assert_eq!(inner.queue.len() as u64 + inner.dropped, 25000);
+                assert_eq!(
+                    inner.queued_bytes,
+                    inner
+                        .queue
+                        .iter()
+                        .map(|e| e.serialized_bytes)
+                        .sum::<usize>()
+                );
+                if payload_bytes == 64 {
+                    assert_eq!(inner.queue.len(), MAX_QUEUE);
+                } else {
+                    assert!(inner.queue.len() < MAX_QUEUE);
+                }
+                observation = json!({"pending": inner.queue.len(), "serializedBytes": inner.queued_bytes, "dropped": inner.dropped});
+                if run >= 3 {
+                    timings.push(elapsed);
+                }
+            }
+            results.push(json!({"payloadBytes": payload_bytes, "eventsPerRun": 25000,
+                "replay": summary(timings), "finalQueue": observation}));
+        }
+        println!(
+            "IRMS_BENCH:{}",
+            json!({"kind": "telemetry", "mode": "debug offline queue, no uploader", "results": results})
+        );
+    }
+
     #[test]
     fn oversized_event_data_is_rejected_but_normal_data_passes() {
         assert!(data_within_limit(&json!({ "n": 1 })));

@@ -12,6 +12,8 @@ mod migrate_electron;
 mod migrations;
 mod modules;
 mod protocol;
+#[cfg(test)]
+mod readiness_benchmark;
 mod splash;
 mod telemetry;
 mod types;
