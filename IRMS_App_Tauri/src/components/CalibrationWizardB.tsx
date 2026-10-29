@@ -218,10 +218,25 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   const legName = (limb: Limb): string => (limb === 'thigh' ? m.clinical.terms.thigh : m.clinical.terms.shin)
   const captureLabel = capturing ? (countdown != null ? `${countdown}…` : c.recording) : c.capture
   const progressTotal = (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.length
+  // 可見進度與公告共用同一個步數，避免地面階段/姿勢階段的編號分歧。
+  const progressNumber = step.kind === 'face' ? step.index + 1
+    : step.kind === 'pose' ? (hasRaw ? FACES.length : 0) + POSES.indexOf(step.pose) + 1
+      : step.kind === 'sweep' ? (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.indexOf(step.limb) + 1 : 0
+  const progress = c.progress({ n: String(progressNumber), total: String(progressTotal) })
+  // 公告僅含階段與方向標籤；倒數只區分準備/錄製，不逐秒或逐幀朗讀。
+  const stageText = step.kind === 'intro' ? (hasRaw === null ? c.rawChecking : hasRaw ? c.rawOn : c.rawOff)
+    : step.kind === 'face' ? `${progress} · ${c.floorTitle} · ${c.faces[FACES[step.index]]}`
+      : step.kind === 'pose' ? `${progress} · ${c.poses[step.pose].title}`
+        : step.kind === 'sweep' ? `${progress} · ${c.sweepTitle({ limb: legName(step.limb) })}` : c.resultTitle
+  const phaseText = capturing ? (countdown != null ? c.capture : c.recording) : ''
+  const solveError = step.kind === 'result' && result && !result.ok ? c.failed({ limb: legName(result.limb), reason: errorText(result.error) }) : ''
 
   return createPortal(
     <div ref={overlayRef} className="overlay">
       <div className="modal glass" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{stageText}{phaseText ? ` · ${phaseText}` : ''}</div>
+        {/* 節點跨階段保留；既有重試/重做路徑清空文字，讓同一失敗可再次公告。 */}
+        <div className="sr-only" role="alert" aria-atomic="true">{err ?? solveError}</div>
         <div className="modal-header">
           <h3 id={titleId}>
             {c.title} <span className="badge" data-testid="calib-b-beta">{c.beta}</span>
@@ -260,16 +275,7 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
         {step.kind !== 'intro' && step.kind !== 'result' && (
           <div className="wizard-step">
             <p className="metric-sub">
-              {c.progress({
-                n: String(
-                  step.kind === 'face'
-                    ? step.index + 1
-                    : step.kind === 'pose'
-                      ? (hasRaw ? FACES.length : 0) + POSES.indexOf(step.pose) + 1
-                      : (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.indexOf(step.limb) + 1
-                ),
-                total: String(progressTotal)
-              })}
+              {progress}
             </p>
             {step.kind === 'face' && (
               <>

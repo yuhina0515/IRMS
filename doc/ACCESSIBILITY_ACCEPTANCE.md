@@ -128,3 +128,19 @@ step and capture phase, then trigger owned-fixture insufficient data and retry. 
 failure is announced again, timer ticks/raw updates do not create speech chatter, and meaningful
 instructions can still be reviewed. Repeat confirmation/emergency takeover and recovery. Record
 actual spoken output/queue/order; do not infer it from role attributes or DOM text tests.
+
+## Wizard B announcement follow-up
+
+2026-10-29 baseline a0f71f8. B now keeps persistent polite atomic stage status and atomic alert.
+Existing localized detection text, progress, face, pose/sweep/result titles distinguish meaningful
+stages. Capture preparation and recording may each update once; countdown ticks/raw/numeric solver
+results stay outside speech text. Alert follows capture error or failed-result message restricted to
+result stage; existing retry/recalibration clears it. Original progress formula is shared with visible UI.
+
+DOM tests cover both locales, detection fallback, raw-enabled floor face advancement, actual capture
+failure/retry, all four pose/two sweep transitions and real solver rejection of deliberately static
+underdetermined fixture data. Failed fixture proves rejection only, not valid/accurate calibration.
+Source-level B speech gap is now addressed; actual native delivery/order/initial region behavior and
+preemption recovery remain unverified. Reuse A native speech protocol for B, adding raw detection,
+each face/pose/sweep/result and failed solve/recalibration. Record actual spoken output and verify
+countdown/raw/numeric values do not cause chatter. Keep native BLE/metrology acceptance separate.

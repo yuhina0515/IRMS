@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> Wizard B speech: persistent status uses localized detection/stage/progress and capture phase;
+> persistent alert uses capture error or result-stage solver failure. Reuse visible progress formula;
+> exclude countdown ticks/raw frames/numeric solutions. Retry/recalibration clears error text.
+
 > Wizard A speech regions: persist status/alert nodes across steps; announce only localized step
 > title/capture phase and errMsg. Never make raw values, countdown or whole preview live. Preserve
 > retry clearing; DOM semantics do not prove native speech delivery or interruption ordering.

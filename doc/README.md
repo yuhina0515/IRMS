@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 Wizard B announcements: persistent polite status distinguishes raw detection, floor
+> faces, poses, sweeps and results; preparation/recording change once per phase. Assertive errors
+> include failed solver results only in result stage. Countdown ticks/raw/numeric solutions excluded.
+> Capture/solver/detection/Apply behavior unchanged; native speech/metrology remain unverified.
+
 > 2026-10-29 Wizard A announcements: persistent polite atomic step/capture status and assertive
 > error region reuse existing localized text. Countdown/raw/preview values are excluded; retry clears
 > errors so repeated failures change text again. Actual native speech/order/recovery remains unverified.

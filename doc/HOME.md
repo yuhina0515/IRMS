@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R06 Wizard B announcements** ([[log_20261029_b_announcements|Log]]): persistent localized raw/phase/step status, capture/solve error and retry clearing; countdown/raw/numeric solution values excluded. Native speech/metrology acceptance remains open.
+
 - **2026-10-29 R06 Wizard A announcements** ([[log_20261029_calibration_announcements|Log]]): persistent polite step/capture status and assertive retryable errors; countdown/raw values excluded. DOM transitions tested; native speech/preemption acceptance remains open.
 
 - **2026-10-29 R06 Wizard B access** ([[log_20261029_calibration_b_access|Log]]): localized close/side state, named body portal and shared focus/emergency contract. B raw detection/cleanup and capture Escape regression-tested; actual BLE, metrology and native AT acceptance remain open.
