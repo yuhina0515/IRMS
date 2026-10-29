@@ -1,5 +1,8 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Offline receiver bundle v1 (2026-10-30): [contract](receiver-capture-bundle-v1.md) defines one bounded, embedded UTF-8 calibration/frames container and CLI validator. Exact hashes and receiver counters are structural checks only; synthetic fixture, no recording, source timing, calibration association or reference accuracy claim.
+
+
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
 > Calibration B input guard (2026-10-30): each capture snapshots a receiver-only raw receipt counter

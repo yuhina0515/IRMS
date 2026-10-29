@@ -1,5 +1,10 @@
 # Measurement evidence inventory and replay boundaries
 
+## Offline receiver sample bundle v1 (2026-10-30)
+
+[Contract](receiver-capture-bundle-v1.md), `IRMS_App_Tauri/scripts/validate-receiver-bundle.mjs` and committed `fixtures/receiver-bundle-v1.synthetic.json` define/validate a self-contained sample container. Two embedded artifact hashes identify calibration JSON and frame JSONL; source clock/sequence/reference/labels are explicitly absent. Receiver sequence/time are declarations only. Calibration object identity is not model/session validation. Error/malformed events are not representable in v1, so this cannot establish complete capture. No app recorder/exporter, hardware or participant activity added.40 subprocess cases verify synthetic structural/budget/error behavior; metrology evidence remains missing.
+
+
 Scoped inventory2026-10-30, baseline156ae17. This inspects existing repository artifacts only;
 no device capture, participant operation or original external trace retrieval occurred.
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "dataOrigin": "synthetic",
+  "receiverClock": "receiver-monotonic-ms",
+  "sourceClock": null,
+  "sourceSequence": null,
+  "reference": null,
+  "labels": null,
+  "producerRevision": null,
+  "artifacts": {
+    "calibration.json": {
+      "utf8": "{\"synthetic\":true,\"modelValidated\":false}",
+      "sha256": "4aa7b106a6d3dd848f0b8d1a542b4379564eddb5ddc545515bfcf61f33e4525d"
+    },
+    "frames.jsonl": {
+      "utf8": "{\"rxSequence\":0,\"rxMonotonicMs\":100,\"channel\":\"raw\",\"packet\":\"G:0/0/0/0/0/0/0/0/1/0/0/1\"}\n{\"rxSequence\":1,\"rxMonotonicMs\":100,\"channel\":\"angle\",\"packet\":\"T:0,S:0,K:0,V:0/0/1/0/0/1\"}\n",
+      "sha256": "5ceeb166e4c716893aa2f8dc1fa2a9f8e78e3e8bf3617dd3f89cc9715897db10",
+      "count": 2
+    }
+  }
+}

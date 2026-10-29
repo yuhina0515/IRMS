@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R07 offline receiver sample bundle v1 (2026-10-30): embedded artifact identity, explicit missing source/reference evidence, bounded strict CLI and synthetic fixture;40 subprocess checks. No real capture/exporter or authenticity/model/metrology acceptance.
 - [x] R07 Wizard B raw receipt pairing (2026-10-30): exclude pre-window raw after countdown, consume each receipt once, reject missing raw when floor correction active, retain V-only/skip/optional gyro. Source time/sequence, lossless capture, temporal coverage and physical synchronization remain open; no new numeric or demographic threshold.
 - [x] R07 offline replay identity (2026-10-30): report input/settings/runtime-source hashes, optional sidecar SHA/count check and explicit CRLF/LF mode; reject contradictory canonical metadata, redact private errors. Measurement inventory records missing timing/calibration/reference and authenticity limits; no metrology or population acceptance claim.
 - [x] R05/R06 updater feedback (2026-10-30): installing/retryable error replay, disabled repeat restart, handled rejection/manual retry, generic localized error and one global install announcement owner. Throwing subscribers/synchronous reentry cannot break ownership/status ordering; native installer/speech/termination evidence remains open.

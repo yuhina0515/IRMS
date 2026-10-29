@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R07 offline receiver bundle v1: [contract](receiver-capture-bundle-v1.md); fixed embedded artifacts, exact UTF-8 hashes, receiver-monotonic metadata, strict input/depth budgets and explicit unavailable source/reference fields. CLI structural success is not authenticity, valid calibration, lossless capture or device acceptance.
+
+
+
 Wizard B pairing (2026-10-30): local raw callback counter is receiver-only, not device seq/time.
 Snapshot after countdown on every record/retry; complete fresh V consumes latest newer receipt once.
 Face/any floor correction requires raw; no-correction/skip permits V-only and unique optional gyro.

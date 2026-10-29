@@ -1,6 +1,29 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 R07 raw receipt pairing)
+## Current checkpoint (2026-10-30 R07 offline receiver bundle)
+
+Baselinebc3abe5 clean; CI40952113301 SUCCESS confirmed. Initial quota47%/50%, latest35%/49%
+remaining. New bounded v1 contract/CLI embeds calibration JSON and receiver frame JSONL with exact
+UTF-8 identities, strict fields/duplicate/depth/byte/row guards and actual protocol parsing. Fixture
+is explicitly synthetic; calibration model/association/origin remain unverified and source clock/
+sequence/reference/labels explicitly absent. No collector/recorder or device operations added.
+
+40 CLI subprocess tests, TypeScript, syntax/discovery and committed synthetic fixture pass.
+Engineering/security final read-only reviews no blocker. Baseline full680/69 files remains last
+full suite, not rerun for offline-only change. No native/firmware/Rust suites rerun. See
+plans/2026-10-30-capture-bundle-plan.md, doc/receiver-capture-bundle-v1.md and
+log_20261030_capture_bundle.md. Deliver scoped commit/push/draft PR; inspect new head CI next round.
+
+Next gate: inspect new CI and any genuinely new captured/reference/native evidence. R07 remaining
+metrology needs timestamped receiver capture with known calibration association and independently
+measured reference/labels; v1 is sample-only and cannot establish lossless event capture. Do not
+manufacture historical metadata, equate structural success to device/source validity or repeat
+stationary analysis/broad scans. Actual recorder design would require separate bounded review of
+lifecycle/privacy/error-event preservation; no implicit automatic collection. If only unavailable
+hardware, participants or external course/reference/native evidence remains, preserve dependency
+and stop expensive work until new evidence. Other readiness/native/institution gates remain open.
+
+## Historical checkpoint (2026-10-30 R07 raw receipt pairing)
 
 Baseline71f4902 CI40943840118 SUCCESS, clean before task. Initial quota60%/53%, latest observed
 50%/51% remaining. Client raw-motion/CSV inventory found Wizard B reused latest G: indefinitely
