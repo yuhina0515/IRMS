@@ -2,6 +2,12 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 calibration modal: Wizard A owns a named body-portal dialog with focus/background
+> isolation. It yields to real alertdialogs through closing, resuming its prior control after recovery.
+> Paint layers: Wizard A 1100, confirmation 1200, hardware 1500 (native paint acceptance pending).
+> Escape priority: background 0, Wizard A 10, confirmation 20, hardware 100; capture consumes without
+> closing. Explicit close/capture math unchanged. Native AT/step announcements/Wizard B remain open.
+
 > 2026-10-29 calibration controls: Wizard A exposes localized Close and mutually exclusive wear-side
 > pressed states using existing native buttons/local state. Selection and close do not apply settings.
 > Capture math/timing unchanged; full modal focus and native AT acceptance remain open.

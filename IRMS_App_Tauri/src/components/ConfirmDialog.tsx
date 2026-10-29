@@ -30,8 +30,8 @@ export function ConfirmDialog(): JSX.Element | null {
   // Esc = 取消。這個對話框守著刪除動作/紀錄與還原預設等不可逆操作,
   // 而在此之前它完全沒有鍵盤出口——只能用滑鼠點,或點背景(靜默視為取消)。
   const active = visible != null && !hardwareError
-  // 退場動畫期間仍消耗 Esc，避免同一次關閉穿透到下層視窗。
-  useEscapeKey(active ? () => { if (!closing) resolve(false) } : null)
+  // 退場動畫期間仍消耗 Esc；優先於校正精靈 10，低於硬體警示 100。
+  useEscapeKey(active ? () => { if (!closing) resolve(false) } : null, 20)
 
   // 此單例確認框以 body portal 隔離其他內容；保留原始 inert 狀態與呼叫端焦點。
   useLayoutEffect(() => {
@@ -127,7 +127,8 @@ export function ConfirmDialog(): JSX.Element | null {
   if (!active || !visible) return null
 
   return createPortal(
-    <div ref={overlayRef} className={`overlay${closing ? ' closing' : ''}`} onClick={() => { if (!closing) resolve(false) }}>
+    // 確認框固定高於一般 overlay 1100、低於硬體警示 1500，不依 portal 掛載先後排序。
+    <div ref={overlayRef} style={{ zIndex: 1200 }} className={`overlay${closing ? ' closing' : ''}`} onClick={() => { if (!closing) resolve(false) }}>
       <div
         ref={dialogRef}
         tabIndex={-1}

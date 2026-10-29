@@ -69,3 +69,25 @@ announcements remain open, as does Wizard B. Native protocol: with owned hardwar
 and pressed states using the intended screen reader in both locales, select either side by keyboard,
 close and verify unchanged saved side. Record observed speech/focus and remaining modal failures;
 do not substitute DOM checks for native calibration or participant acceptance.
+
+## Calibration Wizard A focus ownership follow-up
+
+2026-10-29 baseline 61351c9. Wizard A is now a named body-portal dialog, taking initial focus on
+Close, containing Tab/programmatic focus/pointer access and isolating background with a reversible
+lease. Removed/disabled focused controls fall back to available controls or dialog. Eligible prior
+invoker is restored on normal unmount; do not restore background under a higher active alert.
+Wizard remembers its local control while yielding to confirmation/hardware, including confirmation's
+closing interval; resumes after the alert portal disappears. Declared paint layers are wizard 1100,
+confirmation 1200 and emergency 1500; source/CSS and DOM assertions do not verify native painting.
+Escape priority: default background 0,
+Wizard A 10, confirmation 20, hardware 100. Capture consumes Escape without closing; explicit Close
+is preserved. Capture timing/math/settings persistence unchanged.
+
+DOM integration tests cover both overlay component orders, confirmation closing, hardware recovery,
+late mount below existing emergency, preempted wizard unmount, StrictMode and control lifecycle.
+These tests do not prove CSS visibility filtering, native WebView isolation or assistive speech.
+Step announcements and Wizard B are still open. Native protocol: open Wizard A by keyboard from
+Dashboard and Settings, verify name/initial focus/Tab wrap/background isolation and return focus.
+While capturing, press Escape (no close/background action), then explicitly Close. With owned fixtures,
+open confirmation and hardware error, verify upper focus/commands and recovery to wizard control.
+Run both supported locales and actual intended AT/input/zoom combinations; record observed results.

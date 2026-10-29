@@ -121,9 +121,15 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> Wizard A modal: useCalibrationModalFocus yields its inert lease to hardware/confirmation store
+> state and actual alertdialog presence, including closing animation. Escape: wizard 10, confirmation
+> 20, hardware 100, default 0 LIFO. Capture must consume Escape; explicit close remains available.
+> Declared paint layers: ordinary overlay 1100, confirmation 1200, emergency 1500; do not rely on portal order.
+> Do not infer native/step-announcement/Wizard B acceptance from DOM integration tests.
+
 > Calibration Wizard A: icon close uses common.close; wear-side buttons expose aria-pressed from
 > local wearSide. Do not persist selection before Apply or introduce radio arrow-key expectations
-> onto these toggle buttons. Full wizard focus/step/native acceptance remains separate.
+> onto these toggle buttons. Native wizard focus/step acceptance remains separate.
 
 > 2026-10-29 emergency overlay: use shared modalIsolation leases across confirmation/hardware
 > handoff; release only own lease and preserve original inert attributes. Emergency owns initial/
