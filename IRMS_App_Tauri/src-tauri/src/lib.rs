@@ -1,4 +1,5 @@
 mod ble;
+mod ble_lifecycle;
 mod commands;
 mod db;
 mod defaults;
