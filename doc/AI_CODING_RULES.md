@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 ownership-v1: `X-IRMS-Run-Owner` is native-only per-launch/per-canonical-collector
+> proof, never an event/status/JSON field. Collector `run_owners` stores SHA-256 digest; bind within
+> first ingest transaction, authorize before mutation/replacement, delete with run/events atomically.
+> Legacy run cannot upgrade; native/module request shape stays fixed. Capabilities/create marker
+> version=1, generation checks and one total timeout guard creation; no redirect forwarding.
+
 > 2026-10-29 share response budget: `live_share.rs` bounds incoming bodies at 64 KiB on every
 > status, rejecting excessive Content-Length early and cumulative chunks before append. No remote
 > length-based preallocation. Keep outgoing 32 KiB budget and HTTP-status/JSON/null semantics;

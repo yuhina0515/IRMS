@@ -7,12 +7,12 @@ import { createShareService, normalizeCode, HOST_IDLE_MS, VIEWER_IDLE_MS, MAX_VI
 function harness() {
   let t = 1_000_000
   const live = new Set(['run-live-1'])
-  const svc = createShareService({ isRunLive: (id) => live.has(id), now: () => t })
-  const call = (method, p, { token, body, params = '' } = {}) =>
+  const svc = createShareService({ isRunLive: (id) => live.has(id), isRunOwner: (id, proof) => live.has(id) && proof === 'a'.repeat(64), now: () => t })
+  const call = (method, p, { token, body, params = '', owner = 'a'.repeat(64) } = {}) =>
     svc.route(
       method,
       p,
-      { headers: token ? { authorization: `Bearer ${token}` } : {} },
+      { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(owner ? { 'x-irms-run-owner': owner } : {}) } },
       new EventEmitter(),
       async () => body ?? null,
       new URLSearchParams(params),
@@ -26,6 +26,17 @@ test('only a live telemetry run can create a share', async () => {
   const [status, body] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
   assert.equal(status, 200)
   assert.equal(normalizeCode(body.code), body.code)
+})
+
+test('knowing runId cannot create or replace a share without ownership proof', async () => {
+  const { call } = harness()
+  const body = { runId: 'run-live-1' }
+  assert.equal((await call('POST', '/v1/share', { body, owner: null }))[0], 403)
+  const [, original] = await call('POST', '/v1/share', { body })
+  for (const owner of [null, 'b'.repeat(64)]) {
+    assert.equal((await call('POST', '/v1/share', { body, owner, token: 'reader-token-only' }))[0], 403)
+    assert.equal((await call('GET', `/v1/share/${original.code}`))[0], 200)
+  }
 })
 
 test('share closes when the telemetry run stops or the host goes idle', async () => {

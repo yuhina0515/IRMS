@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 S03 share ownership-v1** ([[log_20261029_share_ownership|Log]]): native-only collector-scoped proof, transactional first-ingest binding and digest-only persistence; runId/reader access cannot create or replace an owned share. Legacy/mismatched versions fail closed for sharing. 138 Rust + 13 collector tests/fmt/Clippy and independent reviews pass; native/collector rollout and real module acceptance remain open.
+
 - **2026-10-29 S01 bounded share responses** ([[log_20261029_share_response|Log]]): native bridge caps every incoming response at 64 KiB before buffer extension, including error statuses and unknown lengths. Baseline regression reproduced; 129 Rust tests/fmt/Clippy and independent review pass. Request/status/JSON semantics retained; S03 ownership and native/deployment acceptance open.
 
 - **2026-10-29 S02 share revocation** ([[log_20261029_share_revocation|Log]]): removed/departed/expired viewers' pending polls end immediately with no new state; membership rechecked at completion, per-viewer waiter/listener cleanup. Reproduced leakage then passed 10 local tests and independent review. Collector not deployed; S01/S03 remain open.

@@ -13,6 +13,7 @@
 //   telemetry database, and a restart simply ends all shares.
 
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { OWNER_HEADER } from './runOwnership.mjs'
 
 // Crockford-style alphabet without I, L, O, U: codes are read aloud and typed by hand.
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -56,9 +57,9 @@ const cleanName = (v) =>
   typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 40) : ''
 
 /**
- * @param {{ isRunLive(runId: string): boolean, now?: () => number }} deps
+ * @param {{ isRunLive(runId: string): boolean, isRunOwner?: (runId: string, proof: unknown) => boolean, now?: () => number }} deps
  */
-export function createShareService({ isRunLive, now = Date.now }) {
+export function createShareService({ isRunLive, isRunOwner = () => false, now = Date.now }) {
   /** @type {Map<string, any>} code → share */
   const shares = new Map()
 
@@ -98,10 +99,14 @@ export function createShareService({ isRunLive, now = Date.now }) {
     }
   }
 
-  function create(body) {
+  function create(body, req) {
     const runId = body?.runId
     if (typeof runId !== 'string' || !isRunLive(runId)) {
       return [409, { error: 'telemetry run is not live; enable live telemetry upload first' }]
+    }
+    // 必須先驗證，再變更既有分享；runId 與 reader token 都不是主機所有權。
+    if (!isRunOwner(runId, req.headers[OWNER_HEADER])) {
+      return [403, { error: 'run ownership proof required; use an upgraded app and wait for its first upload' }]
     }
     // One share per run: creating again replaces the previous code.
     for (const s of shares.values()) if (s.runId === runId) close(s, 'replaced')
@@ -125,7 +130,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
       closed: null
     }
     shares.set(code, share)
-    return [200, { code, hostToken: share.hostToken }]
+    return [200, { code, hostToken: share.hostToken, ownershipVersion: 1 }]
   }
 
   function pushState(share, body) {
@@ -241,7 +246,8 @@ export function createShareService({ isRunLive, now = Date.now }) {
   async function route(method, p, req, res, readJson, params) {
     if (!p.startsWith('/v1/share')) return null
     sweep()
-    if (p === '/v1/share' && method === 'POST') return create(await readJson())
+    if (p === '/v1/share/capabilities' && method === 'GET') return [200, { ownershipVersion: 1 }]
+    if (p === '/v1/share' && method === 'POST') return create(await readJson(), req)
 
     const m = p.match(/^\/v1\/share\/([^/]+)(\/[a-z]+)?(?:\/([^/]+))?$/)
     if (!m) return [404, { error: 'not found' }]

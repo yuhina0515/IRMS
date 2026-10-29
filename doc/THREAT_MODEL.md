@@ -3,6 +3,8 @@
 Scope: source review of b3012f0 and the R05 benchmark additions on 2026-10-29.
 Follow-ups: S02 collector revocation fixed at fd66f2d; S01 native response limits validated
 against fd66f2d with local HTTP tests. These source fixes are not production deployment evidence.
+S03 ownership-v1 adds native-only collector-scoped proof, transactional first-ingest binding,
+digest-only storage and fail-closed version checks; validated locally against baseline f039457.
 This is a design and code assessment, not an audit of the running hina-tw.ddns.net service.
 No credentials, participant records or production configuration were inspected.
 Method: identify the system, what can go wrong, responses and verification; describe processes,
@@ -42,7 +44,7 @@ BLE identity, movement accuracy and radio confidentiality are not established by
 | Publisher -> native -> module/firmware: `modules.rs`, `firmware_update.rs`, `services/modules.ts` | Signed metadata, artifact hash and verified size; bounded metadata/signature/chunk downloads; module rollback check and verified-cache fallback | Key compromise/publisher compromise remains trusted-code risk. Verify key custody, rotation/revocation and offline/tamper/rollback behavior. Firmware authenticity does not establish clinical suitability or safe OTA interruption. |
 | App -> collector: `telemetry.rs` | Default OFF, HTTPS except localhost; event/count/serialized byte caps, separate uploader, endpoint/enable generation purge and stale-result isolation | Already-issued requests cannot be recalled. Operator consent must explain recipient, raw data and retention. Redirect/destination policy and deployment TLS/access logs need separate review. Serialized bounds are not a process-memory ceiling. |
 | Public clients -> collector: `IRMS_Telemetry/server.mjs` | 4 MiB body cap, batch/per-IP limits, storage cap; trusted-proxy XFF handling; read Bearer token with timing-safe equal-length comparison; configured retention | Public ingest authenticates no device and can contain fabricated events. runId/seq deduplication does not prove provenance. Defaults (120 requests/30,000 events per IP per minute, 20 GiB, 90 days) are source defaults, not verified deployment values. Validate proxy identity, retention execution, shared-NAT behavior, aggregate abuse and disk response. |
-| Host/viewer -> live-share: `share.mjs`, `live_share.rs`, `services/liveShareHost.ts` | Separate host/viewer tokens, viewers initially read-only, expiry and per-IP budgets; host rejects changes while a session runs, validates finite values and clamps parameters; S01 incoming response bounds and S02 pending-poll revocation fixed locally | S03 run ownership remains open below. Review code-sharing/consent, authorization revocation and concurrent commands independently of visual UI; local fixes still require native/deployment acceptance. |
+| Host/viewer -> live-share: `share.mjs`, `live_share.rs`, `services/liveShareHost.ts` | Separate host/viewer tokens, viewers initially read-only, expiry and per-IP budgets; host rejects changes while a session runs, validates finite values and clamps parameters; S01 incoming bounds, S02 revocation and S03 run ownership fixed locally | Review code-sharing/consent, authorization revocation and concurrent commands independently of visual UI; local fixes still require coordinated native/collector rollout and actual module/client acceptance. |
 
 ## Prioritized follow-up from independent security review
 
@@ -50,11 +52,11 @@ BLE identity, movement accuracy and radio confidentiality are not established by
 | --- | --- | --- | --- |
 | S01 | Fixed locally / native acceptance open | Baseline command accepted cumulative chunked response beyond 64 KiB; regression reproduced. | All statuses now enforce 64 KiB declared/accumulated response cap before buffer extension. Local chunked/close-delimited/header-only/exact-limit/error/Unicode/truncation tests and independent review pass. Request budget and status/JSON/null contract retained. Not an exact heap ceiling; native packaged/deployment acceptance open. |
 | S02 | Fixed locally / deployment open | Reproduced removed viewer's pending poll receiving the next state (200 instead of 401). | Removal/leave/expiry now revoke then wake that viewer's polls; completion rechecks Map identity and returns 401 without state. Ten local service tests pass, including multiple polls, other-viewer isolation and share-close cleanup. Production deployment not performed. |
-| S03 | Medium | `share.mjs::create` uses live runId alone to create/replace a share. A telemetry reader who knows that runId can replace the original share without its host token. There is no finding that public callers can enumerate runIds. | Design independent per-run owner proof and require existing host proof for replacement; preserve client compatibility explicitly. A run identifier must not silently become an ownership secret. |
+| S03 | Fixed locally / rollout and client acceptance open | Reproduced runId-only creation returning 200 without ownership. Native now adds a collector-scoped per-launch proof header on ingest/create; first ingest transaction binds only its digest, and wrong/missing proof cannot mutate an owned run or replace its share. Legacy runs cannot be claimed later. | Real collector HTTP/SQLite/restart/rollback/retention tests, native bridge/generation/redirect/timeout tests and independent reviews pass. Capability/version markers reject old collectors; no proof in status/events/read APIs. Coordinated native+collector rollout and actual runtime-module/client acceptance still open. First-writer preclaim can cause denial of service; this is not device attestation. |
 
-These were independently reported and lead-confirmed by reading the actual call paths. S01/S02 now
-have failing-before/passing-after local regressions and independent diff review. S03 ownership proof
-remains open for the next bounded security batch. No production exploitation was performed.
+These were independently reported and lead-confirmed by reading the actual call paths. S01/S02/S03
+have failing-before/passing-after local regressions and independent reviews. All still require the
+appropriate native/deployment acceptance; no production exploitation was performed.
 Other residual risks are review/acceptance items, not claims of demonstrated exploits.
 
 ## Verification and decision gates

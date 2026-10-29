@@ -34,6 +34,7 @@ const MAX_EVENT_DATA_BYTES: usize = 64 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Longest wait between retries after consecutive failures.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
+pub(crate) const RUN_OWNER_HEADER: &str = "x-irms-run-owner";
 
 #[derive(Debug, Clone, Serialize)]
 struct Event {
@@ -61,13 +62,26 @@ struct Inner {
 
 pub struct TelemetryState {
     run_id: String,
+    // 每次啟動的原生私密金鑰；不序列化、不放入事件，也不回傳 renderer。
+    owner_master: String,
     inner: Mutex<Inner>,
+}
+
+pub(crate) struct ShareOwner {
+    pub(crate) header: reqwest::header::HeaderValue,
+    endpoint: String,
+    generation: u64,
 }
 
 impl Default for TelemetryState {
     fn default() -> Self {
         Self {
             run_id: uuid::Uuid::new_v4().to_string(),
+            owner_master: format!(
+                "{}{}",
+                uuid::Uuid::new_v4().simple(),
+                uuid::Uuid::new_v4().simple()
+            ),
             inner: Mutex::new(Inner {
                 next_seq: 1,
                 ..Inner::default()
@@ -92,6 +106,71 @@ fn now_iso() -> String {
 }
 
 impl TelemetryState {
+    #[cfg(test)]
+    pub(crate) fn test_run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_configure(&self, enabled: bool, endpoint: &str) {
+        self.configure(
+            enabled,
+            if enabled {
+                normalize_endpoint(endpoint).unwrap()
+            } else {
+                String::new()
+            },
+        );
+    }
+
+    // 不同收集器使用不同 HMAC 證明，切換目的地不重用已交給其他收集器的憑證。
+    fn owner_header(&self, endpoint: &str) -> reqwest::header::HeaderValue {
+        let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, self.owner_master.as_bytes());
+        let tag = ring::hmac::sign(&key, endpoint.as_bytes());
+        let proof: String = tag
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let mut header = reqwest::header::HeaderValue::from_str(&proof).expect("hex proof");
+        header.set_sensitive(true);
+        header
+    }
+
+    /// 在同一把鎖內綁定當下啟用狀態、run、收集器與世代，不將證明交給前端。
+    pub(crate) fn share_owner(&self, endpoint: &str, run_id: &str) -> Result<ShareOwner, String> {
+        let endpoint = normalize_endpoint(endpoint)?;
+        let inner = self.lock();
+        if !inner.enabled
+            || normalize_endpoint(&inner.endpoint)? != endpoint
+            || run_id != self.run_id
+        {
+            return Err(
+                "live share: enable telemetry for the current run and collector first".into(),
+            );
+        }
+        Ok(ShareOwner {
+            header: self.owner_header(&endpoint),
+            endpoint,
+            generation: inner.generation,
+        })
+    }
+
+    /// 每個非同步建立邊界後重驗設定；不能把過期分享碼當作目前結果回傳。
+    pub(crate) fn check_share_owner(&self, owner: &ShareOwner) -> Result<(), String> {
+        let inner = self.lock();
+        if !inner.enabled
+            || inner.generation != owner.generation
+            || normalize_endpoint(&inner.endpoint)? != owner.endpoint
+        {
+            return Err(
+                "live share: telemetry configuration changed; retry with the current collector"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         // A panic while holding this lock cannot leave the queue logically inconsistent (every
         // mutation is a single push/drain), so recover instead of propagating the poison.
@@ -169,13 +248,20 @@ pub fn record(app: &AppHandle, kind: &str, data: Value) {
 pub(crate) fn normalize_endpoint(endpoint: &str) -> Result<String, String> {
     let trimmed = endpoint.trim().trim_end_matches('/');
     let parsed = url::Url::parse(trimmed).map_err(|e| format!("無效的伺服器網址:{e}"))?;
+    if !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("伺服器網址不可包含登入資訊、查詢或片段".into());
+    }
+    // URL parser 的主機大小寫、預設 port 與路徑正規化同時用於送出與 HMAC 身分。
+    let canonical = parsed.as_str().trim_end_matches('/').to_string();
     match parsed.scheme() {
-        "https" => Ok(trimmed.to_string()),
+        "https" => Ok(canonical),
         // Plain HTTP only for a collector on this machine (development); sensor data must not
         // cross a network in clear text.
-        "http" if matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")) => {
-            Ok(trimmed.to_string())
-        }
+        "http" if matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")) => Ok(canonical),
         _ => Err("伺服器網址必須使用 https".to_string()),
     }
 }
@@ -241,6 +327,8 @@ fn build_client() -> Option<reqwest::Client> {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
     with_platform_roots(reqwest::Client::builder())
+        // 自訂持有證明不可隨 30x 重新導向被轉交到其他目的地。
+        .redirect(reqwest::redirect::Policy::none())
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| eprintln!("[telemetry] HTTP client init failed: {e}"))
@@ -280,7 +368,7 @@ async fn flush_once(
     state: &TelemetryState,
     version: &str,
 ) -> Result<usize, ()> {
-    let (url, batch, dropped, generation) = {
+    let (url, batch, dropped, generation, owner_header) = {
         let inner = state.lock();
         if !inner.enabled || inner.queue.is_empty() {
             return Ok(0);
@@ -291,6 +379,7 @@ async fn flush_once(
             batch,
             inner.dropped,
             inner.generation,
+            state.owner_header(&inner.endpoint),
         )
     };
     let last_seq = batch.last().map(|e| e.seq).unwrap_or(0);
@@ -304,6 +393,7 @@ async fn flush_once(
     });
     let result = client
         .post(&url)
+        .header(RUN_OWNER_HEADER, owner_header)
         .json(&body)
         .send()
         .await
@@ -389,6 +479,134 @@ fn remove_through(inner: &mut Inner, last_seq: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn owner_proof_is_private_scoped_and_generation_bound() {
+        let state = TelemetryState::default();
+        let a = normalize_endpoint("https://EXAMPLE.com:443/base/").unwrap();
+        assert_eq!(a, "https://example.com/base");
+        state.configure(true, a.clone());
+        let owner = state
+            .share_owner("https://EXAMPLE.com:443/base/", &state.run_id)
+            .unwrap();
+        assert!(owner.header.is_sensitive());
+        assert!(owner.header == state.owner_header(&a));
+        assert!(owner.header != state.owner_header("https://example.com/other"));
+        assert!(owner.header != TelemetryState::default().owner_header(&a));
+        assert!(state.share_owner(&a, "another-run").is_err());
+        assert!(state
+            .share_owner("https://other.example/base", &state.run_id)
+            .is_err());
+        state.record("fixture", json!({"n": 1}));
+        let public = format!(
+            "{}{}",
+            serde_json::to_string(&state.status()).unwrap(),
+            serde_json::to_string(&state.lock().queue).unwrap()
+        );
+        assert!(!public.contains(&state.owner_master));
+        assert!(!public.contains(owner.header.to_str().unwrap()));
+        state.configure(false, String::new());
+        assert!(state.check_share_owner(&owner).is_err());
+        state.configure(true, a);
+        assert!(state.check_share_owner(&owner).is_err());
+    }
+
+    #[test]
+    fn collector_identity_rejects_credential_query_and_fragment_urls() {
+        for url in [
+            "https://user:secret@example.com/base",
+            "https://example.com/base?q=x",
+            "https://example.com/base#x",
+        ] {
+            assert!(normalize_endpoint(url).is_err());
+        }
+        assert_eq!(
+            normalize_endpoint("https://EXAMPLE.com:443/base/../api/").unwrap(),
+            "https://example.com/api"
+        );
+        assert_ne!(
+            normalize_endpoint("http://localhost:8000/api").unwrap(),
+            normalize_endpoint("http://localhost:8001/api").unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn uploader_keeps_proof_in_header_and_does_not_follow_redirect() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+        let target = TcpListener::bind("127.0.0.1:0").unwrap();
+        target.set_nonblocking(true).unwrap();
+        let destination = format!(
+            "http://localhost:{}/v1/ingest",
+            target.local_addr().unwrap().port()
+        );
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = stop.clone();
+        let target_thread = std::thread::spawn(move || {
+            let mut forwarded = false;
+            while !stopping.load(Ordering::SeqCst) {
+                if let Ok((mut socket, _)) = target.accept() {
+                    forwarded = true;
+                    let _ = socket.write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            forwarded
+        });
+        let origin = TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://localhost:{}", origin.local_addr().unwrap().port());
+        let origin_thread = std::thread::spawn(move || {
+            let (mut socket, _) = origin.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            loop {
+                let mut chunk = [0; 2048];
+                let n = socket.read(&mut chunk).unwrap();
+                if n == 0 {
+                    break;
+                }
+                bytes.extend_from_slice(&chunk[..n]);
+                if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                    let headers = String::from_utf8_lossy(&bytes[..end]).to_lowercase();
+                    let size = headers
+                        .lines()
+                        .find_map(|line| {
+                            line.strip_prefix("content-length:")
+                                .and_then(|v| v.trim().parse::<usize>().ok())
+                        })
+                        .unwrap_or(0);
+                    if bytes.len() >= end + 4 + size {
+                        break;
+                    }
+                }
+            }
+            let reply = format!("HTTP/1.1 307 Redirect\r\nLocation: {destination}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket.write_all(reply.as_bytes()).unwrap();
+            String::from_utf8(bytes).unwrap()
+        });
+        let state = state_pointing_at(&endpoint);
+        state.record("fixture", json!({"n": 1}));
+        let result = flush_once(&build_client().unwrap(), &state, "fixture").await;
+        stop.store(true, Ordering::SeqCst);
+        let forwarded = target_thread.join().unwrap();
+        let request = origin_thread.join().unwrap();
+        assert!(result.is_err());
+        assert!(!forwarded);
+        assert_eq!(state.status().pending, 1);
+        let (headers, body) = request.split_once("\r\n\r\n").unwrap();
+        let proof = state.owner_header(&endpoint);
+        assert!(headers.contains(proof.to_str().unwrap()));
+        assert!(!body.contains(proof.to_str().unwrap()));
+        assert!(!body.contains(&state.owner_master));
+    }
 
     fn enabled_state() -> TelemetryState {
         let state = TelemetryState::default();

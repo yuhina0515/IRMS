@@ -2,6 +2,13 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 ownership-v1: native per-launch master derives collector-specific proof, only in a
+> sensitive HTTP header; first ingest transaction binds its SHA-256 digest in collector `run_owners`.
+> Owned ingest/share create requires proof; legacy runs cannot acquire ownership later. Runtime
+> module request shape unchanged; native preflight/response markers reject legacy collectors, and
+> generation checks suppress stale code/token. Canonical collector URLs exclude userinfo/query/
+> fragment; proof-bearing requests never redirect. Client+collector rollout/acceptance still open.
+
 > 2026-10-29 share HTTP budgets: native bridge accepts incoming bodies up to 64 KiB, checking
 > declared length and each accumulated chunk for all statuses before appending. Outgoing JSON
 > remains <=32 KiB; existing method/path/endpoint/token/timeouts and status/body contract unchanged.

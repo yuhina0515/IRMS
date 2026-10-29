@@ -61,7 +61,18 @@ fn build_url(req: &ShareRequest) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn live_share_request(request: ShareRequest) -> Result<ShareResponse, String> {
+pub async fn live_share_request(
+    request: ShareRequest,
+    state: tauri::State<'_, crate::telemetry::TelemetryState>,
+) -> Result<ShareResponse, String> {
+    execute_share_request(request, &state).await
+}
+
+// command 與本機 HTTP 測試共用完整流程；私密證明只在原生層加入，不經模組或 IPC 回傳。
+async fn execute_share_request(
+    request: ShareRequest,
+    state: &crate::telemetry::TelemetryState,
+) -> Result<ShareResponse, String> {
     let url = build_url(&request)?;
     let timeout = request
         .timeout_ms
@@ -88,10 +99,71 @@ pub async fn live_share_request(request: ShareRequest) -> Result<ShareResponse, 
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .body(bytes);
     }
-    let mut response = builder
-        .send()
-        .await
-        .map_err(|e| format!("live share: {e}"))?;
+    let creating = request.method == "POST" && request.path.split('?').next() == Some("/v1/share");
+    // preflight 與建立共用整體 timeout，避免新增握手讓呼叫時間翻倍。
+    tokio::time::timeout(timeout, async {
+        let owner = if creating {
+            let run_id = request
+                .body
+                .as_ref()
+                .and_then(|body| body.get("runId"))
+                .and_then(Value::as_str)
+                .ok_or("live share: current telemetry runId required")?;
+            let owner = state.share_owner(&request.endpoint, run_id)?;
+            let base = crate::telemetry::normalize_endpoint(&request.endpoint)?;
+            let capabilities = read_response(
+                client
+                    .get(format!("{base}/v1/share/capabilities"))
+                    .timeout(timeout)
+                    .send()
+                    .await
+                    .map_err(|e| format!("live share: {e}"))?,
+            )
+            .await?;
+            if capabilities.status != 200
+                || capabilities
+                    .body
+                    .get("ownershipVersion")
+                    .and_then(Value::as_u64)
+                    != Some(1)
+            {
+                return Err(
+                    "live share: collector requires ownership-v1 upgrade; no share created".into(),
+                );
+            }
+            state.check_share_owner(&owner)?;
+            builder = builder.header(crate::telemetry::RUN_OWNER_HEADER, owner.header.clone());
+            Some(owner)
+        } else {
+            None
+        };
+        let response = read_response(
+            builder
+                .send()
+                .await
+                .map_err(|e| format!("live share: {e}"))?,
+        )
+        .await?;
+        if let Some(owner) = owner {
+            state.check_share_owner(&owner)?;
+            if (200..300).contains(&response.status)
+                && response
+                    .body
+                    .get("ownershipVersion")
+                    .and_then(Value::as_u64)
+                    != Some(1)
+            {
+                return Err("live share: collector ownership confirmation missing".into());
+            }
+        }
+        Ok(response)
+    })
+    .await
+    .map_err(|_| "live share: request timed out".to_string())?
+}
+
+// 能力查詢與正式回應都沿用同一讀取限額，不能藉握手回應繞過 S01。
+async fn read_response(mut response: reqwest::Response) -> Result<ShareResponse, String> {
     let status = response.status().as_u16();
     if response
         .content_length()
@@ -122,6 +194,10 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+
+    async fn live_share_request(request: ShareRequest) -> Result<ShareResponse, String> {
+        execute_share_request(request, &crate::telemetry::TelemetryState::default()).await
+    }
 
     // 僅監聽本機暫存埠，回傳可控制分塊與標頭的單次 HTTP 回應。
     fn serve_once(
@@ -262,6 +338,261 @@ mod tests {
             body: None,
             timeout_ms: None,
         }
+    }
+
+    // 實際 loopback 交換，完整讀取 header/body；額外短暫監聽以偵測不該發出的 POST／redirect。
+    fn exchange(
+        responses: Vec<Vec<u8>>,
+        hook: impl Fn(usize) + Send + 'static,
+    ) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let endpoint = format!("http://localhost:{}", listener.local_addr().unwrap().port());
+        let server = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            let mut last = start;
+            let mut requests = Vec::new();
+            while start.elapsed() < Duration::from_secs(3) {
+                match listener.accept() {
+                    Ok((mut socket, _)) => {
+                        // Windows accept 可能繼承非阻塞模式；讀取完整 POST 前先還原阻塞 socket。
+                        socket.set_nonblocking(false).unwrap();
+                        socket
+                            .set_read_timeout(Some(Duration::from_secs(1)))
+                            .unwrap();
+                        let mut bytes = Vec::new();
+                        loop {
+                            let mut chunk = [0; 2048];
+                            let n = socket.read(&mut chunk).unwrap_or(0);
+                            if n == 0 {
+                                break;
+                            }
+                            bytes.extend_from_slice(&chunk[..n]);
+                            if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                                let headers =
+                                    String::from_utf8_lossy(&bytes[..end]).to_ascii_lowercase();
+                                let length = headers
+                                    .lines()
+                                    .find_map(|line| {
+                                        line.strip_prefix("content-length:")
+                                            .and_then(|s| s.trim().parse::<usize>().ok())
+                                    })
+                                    .unwrap_or(0);
+                                if bytes.len() >= end + 4 + length {
+                                    break;
+                                }
+                            }
+                        }
+                        let index = requests.len();
+                        requests.push(String::from_utf8_lossy(&bytes).into_owned());
+                        hook(index);
+                        let fallback = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                        let _ = socket
+                            .write_all(responses.get(index).map(Vec::as_slice).unwrap_or(fallback));
+                        last = std::time::Instant::now();
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        if !responses.is_empty()
+                            && requests.len() >= responses.len()
+                            && last.elapsed() > Duration::from_millis(150)
+                        {
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(e) => panic!("loopback accept failed: {e}"),
+                }
+            }
+            requests
+        });
+        (endpoint, server)
+    }
+
+    fn json_response(status: u16, body: Value) -> Vec<u8> {
+        let body = serde_json::to_vec(&body).unwrap();
+        let mut wire = format!(
+            "HTTP/1.1 {status} Test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        wire.extend_from_slice(&body);
+        wire
+    }
+
+    fn create_req(endpoint: &str, state: &crate::telemetry::TelemetryState) -> ShareRequest {
+        let mut request = req(endpoint, "/v1/share");
+        request.method = "POST".into();
+        request.body = Some(serde_json::json!({"runId": state.test_run_id()}));
+        request
+    }
+
+    #[tokio::test]
+    async fn creation_keeps_module_shape_and_proof_only_in_native_post_header() {
+        let (endpoint, server) = exchange(
+            vec![
+                json_response(200, serde_json::json!({"ownershipVersion": 1})),
+                json_response(
+                    200,
+                    serde_json::json!({"ownershipVersion": 1, "code": "FIXTURE1", "hostToken": "fixture"}),
+                ),
+            ],
+            |_| {},
+        );
+        let state = crate::telemetry::TelemetryState::default();
+        state.test_configure(true, &endpoint);
+        let response = execute_share_request(create_req(&endpoint, &state), &state)
+            .await
+            .unwrap();
+        let requests = server.join().unwrap();
+        assert_eq!(requests.len(), 2);
+        assert!(requests[0].starts_with("GET /v1/share/capabilities "));
+        assert!(!requests[0]
+            .to_lowercase()
+            .contains(crate::telemetry::RUN_OWNER_HEADER));
+        assert!(requests[1].starts_with("POST /v1/share "));
+        let (headers, body) = requests[1].split_once("\r\n\r\n").unwrap();
+        let owner = state.share_owner(&endpoint, state.test_run_id()).unwrap();
+        assert!(headers.contains(owner.header.to_str().unwrap()));
+        assert!(!body.contains(owner.header.to_str().unwrap()));
+        assert!(!serde_json::to_string(&response)
+            .unwrap()
+            .contains(owner.header.to_str().unwrap()));
+        assert_eq!(response.body["code"], "FIXTURE1");
+    }
+
+    #[tokio::test]
+    async fn old_collector_or_missing_confirmation_never_returns_share_code() {
+        for supports_capability in [false, true] {
+            let mut responses = vec![json_response(
+                if supports_capability { 200 } else { 404 },
+                if supports_capability {
+                    serde_json::json!({"ownershipVersion": 1})
+                } else {
+                    Value::Null
+                },
+            )];
+            if supports_capability {
+                responses.push(json_response(
+                    200,
+                    serde_json::json!({"code": "UNSAFE", "hostToken": "fixture"}),
+                ));
+            }
+            let (endpoint, server) = exchange(responses, |_| {});
+            let state = crate::telemetry::TelemetryState::default();
+            state.test_configure(true, &endpoint);
+            assert!(execute_share_request(create_req(&endpoint, &state), &state)
+                .await
+                .is_err());
+            assert_eq!(
+                server.join().unwrap().len(),
+                if supports_capability { 2 } else { 1 }
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn config_change_during_preflight_or_creation_suppresses_code() {
+        for change_at in [0, 1] {
+            let state = std::sync::Arc::new(crate::telemetry::TelemetryState::default());
+            let changing = state.clone();
+            let responses = if change_at == 0 {
+                vec![json_response(
+                    200,
+                    serde_json::json!({"ownershipVersion": 1}),
+                )]
+            } else {
+                vec![
+                    json_response(200, serde_json::json!({"ownershipVersion": 1})),
+                    json_response(
+                        200,
+                        serde_json::json!({"ownershipVersion": 1, "code": "STALE"}),
+                    ),
+                ]
+            };
+            let (endpoint, server) = exchange(responses, move |i| {
+                if i == change_at {
+                    changing.test_configure(false, "");
+                }
+            });
+            state.test_configure(true, &endpoint);
+            let result = execute_share_request(create_req(&endpoint, &state), &state).await;
+            assert!(result.err().unwrap().contains("configuration changed"));
+            assert_eq!(server.join().unwrap().len(), change_at + 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn ownership_creation_rejects_wrong_run_or_disabled_telemetry_before_network() {
+        let state = crate::telemetry::TelemetryState::default();
+        let endpoint = "http://localhost:9";
+        assert!(execute_share_request(create_req(endpoint, &state), &state)
+            .await
+            .err()
+            .unwrap()
+            .contains("enable telemetry"));
+        state.test_configure(true, endpoint);
+        let mut request = create_req(endpoint, &state);
+        request.body = Some(serde_json::json!({"runId": "another-run"}));
+        assert!(execute_share_request(request, &state)
+            .await
+            .err()
+            .unwrap()
+            .contains("enable telemetry"));
+    }
+
+    #[tokio::test]
+    async fn preflight_and_creation_share_one_timeout_budget() {
+        let (endpoint, server) = exchange(
+            vec![
+                json_response(200, serde_json::json!({"ownershipVersion": 1})),
+                json_response(
+                    200,
+                    serde_json::json!({"ownershipVersion": 1, "code": "LATE"}),
+                ),
+            ],
+            |_| {
+                std::thread::sleep(Duration::from_millis(500));
+            },
+        );
+        // 明確使用 fixture 的 IPv4 位址，讓短限額測兩階段延遲而非 localhost 的解析／fallback。
+        let endpoint = endpoint.replace("localhost", "127.0.0.1");
+        let state = crate::telemetry::TelemetryState::default();
+        state.test_configure(true, &endpoint);
+        let mut request = create_req(&endpoint, &state);
+        request.timeout_ms = Some(750);
+        let result = execute_share_request(request, &state).await;
+        // 兩階段各延遲 500ms，整體 750ms 限額應在第二階段終止，不交出遲到的分享碼。
+        let error = result.err().unwrap();
+        assert!(
+            error == "live share: request timed out",
+            "unexpected budget error: {error}"
+        );
+        assert_eq!(server.join().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn ownership_header_is_not_forwarded_on_redirect() {
+        let (target, target_server) = exchange(Vec::new(), |_| {});
+        let redirect = format!("HTTP/1.1 307 Redirect\r\nLocation: {target}/v1/share\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").into_bytes();
+        let (endpoint, server) = exchange(
+            vec![
+                json_response(200, serde_json::json!({"ownershipVersion": 1})),
+                redirect,
+            ],
+            |_| {},
+        );
+        let state = crate::telemetry::TelemetryState::default();
+        state.test_configure(true, &endpoint);
+        let response = execute_share_request(create_req(&endpoint, &state), &state)
+            .await
+            .unwrap();
+        assert_eq!(response.status, 307);
+        assert!(
+            !target_server.is_finished(),
+            "redirect target fixture expired before completion"
+        );
+        assert_eq!(server.join().unwrap().len(), 2);
+        assert!(target_server.join().unwrap().is_empty());
     }
 
     #[test]
