@@ -19,7 +19,7 @@
 - [x] R03 singleton confirmation focus/isolation: keyboard wrap and invoker restoration, closing/replacement lifecycle, inert background and immediate emergency takeover (2026-10-29; other overlays/native acceptance open).
 - [x] R04 native stale-notification retirement: serialize dispatch with epoch changes and recheck after waiting for peripheral during teardown (2026-10-29; native OS/queued frontend acceptance open).
 - [x] R08 native connect ownership: cancellation/cleanup sequencing, current-only installation/publication and scan-stop error preservation (2026-10-29; physical OS/abort acceptance open).
-- [ ] R05/R06 partial: [offline baseline](performance/README.md), [threat model](THREAT_MODEL.md) and [dropdown/locale acceptance record](ACCESSIBILITY_ACCEPTANCE.md) captured. S01/S02/S03 locally fixed; ownership-v1 rollout/native/module acceptance open. Shared dropdown keyboard and Display naming/language switch implemented; native AT/touch/pen/zoom, other overlays, paced performance and R07 institutional evidence remain open. Follow checkpoint order; avoid duplicate broad audits.
+- [ ] R05/R06 partial: [offline baseline](performance/README.md), [threat model](THREAT_MODEL.md) and [keyboard/native acceptance records](ACCESSIBILITY_ACCEPTANCE.md) captured. S01/S02/S03 locally fixed; ownership-v1 rollout/native/module acceptance open. Dropdown/Display language and hardware-alert focus/keyboard paths implemented; native AT/touch/pen/zoom, other overlays, paced performance and R07 institutional evidence remain open. Follow checkpoint order; avoid duplicate broad audits.
 
 ### 1. 連線與 BLE 通訊
 - [x] Web Bluetooth 自動配對(過濾名稱含 `IRMS` 的裝置,主進程 `select-bluetooth-device`)

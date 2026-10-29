@@ -5,6 +5,7 @@ import { useUiStore } from '../store/useUiStore'
 import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useT } from '../i18n'
+import { isolateBody, offerEmergencyReturnTarget, takeEmergencyReturnTarget } from '../services/modalIsolation'
 
 // 150ms——必須對齊 tailwind.css 裡 .overlay.closing/.dialog.closing 的 animation-duration,
 // 退場動畫才有時間播完再真正卸載。
@@ -38,14 +39,6 @@ export function ConfirmDialog(): JSX.Element | null {
     const dialog = dialogRef.current
     if (!active || !overlay || !dialog) return
     const invoker = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const siblings = new Map<Element, string | null>()
-    const isolate = (): void => {
-      for (const sibling of document.body.children) {
-        if (sibling === overlay || sibling.contains(overlay) || siblings.has(sibling)) continue
-        siblings.set(sibling, sibling.getAttribute('inert'))
-        sibling.setAttribute('inert', '')
-      }
-    }
     const buttons = (): HTMLButtonElement[] => Array.from(dialog.querySelectorAll('button:not(:disabled)'))
     const focusInside = (): void => { (buttons()[0] ?? dialog).focus() }
     const containFocus = (event: FocusEvent): void => {
@@ -71,27 +64,23 @@ export function ConfirmDialog(): JSX.Element | null {
         event.stopPropagation()
       }
     }
-    isolate()
-    const observer = new MutationObserver(isolate)
-    observer.observe(document.body, { childList: true })
+    const releaseIsolation = isolateBody(overlay)
     document.addEventListener('focusin', containFocus, true)
     document.addEventListener('keydown', containKey, true)
     document.addEventListener('pointerdown', containPointer, true)
     document.addEventListener('click', containPointer, true)
     focusInside()
     return () => {
-      observer.disconnect()
+      releaseIsolation()
       document.removeEventListener('focusin', containFocus, true)
       document.removeEventListener('keydown', containKey, true)
       document.removeEventListener('pointerdown', containPointer, true)
       document.removeEventListener('click', containPointer, true)
-      for (const [sibling, inert] of siblings) {
-        if (inert == null) sibling.removeAttribute('inert')
-        else sibling.setAttribute('inert', inert)
-      }
       // 先解除隔離再交還焦點；硬體警示接管時直接選擇仍可操作的逃生控制。
-      const emergency = document.querySelector<HTMLElement>('.error-overlay button:not(:disabled)')
-      const target = useStore.getState().hardwareError ? emergency : invoker
+      const hardwareOwns = Boolean(useStore.getState().hardwareError)
+      if (hardwareOwns) offerEmergencyReturnTarget(invoker)
+      const emergency = document.querySelector<HTMLElement>('.error-overlay:not([data-emergency-focus-owner]) button:not(:disabled)')
+      const target = hardwareOwns ? emergency : invoker
       if (target?.isConnected && !target.matches(':disabled') && !target.closest('[inert], [hidden]')) target.focus()
     }
   }, [active])
@@ -99,7 +88,9 @@ export function ConfirmDialog(): JSX.Element | null {
   // 其他元件的警示 DOM 要等 mutation 階段完成才存在；在 layout setup 階段交接焦點。
   useLayoutEffect(() => {
     if (hardwareError && !active) {
-      document.querySelector<HTMLElement>('.error-overlay button:not(:disabled)')?.focus()
+      document.querySelector<HTMLElement>('.error-overlay:not([data-emergency-focus-owner]) button:not(:disabled)')?.focus()
+    } else if (!hardwareError) {
+      takeEmergencyReturnTarget()
     }
   }, [hardwareError, active])
 

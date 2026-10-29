@@ -27,11 +27,12 @@ function ensureListener(): void {
 }
 
 /**
- * 綁定 Esc。只有「最後被綁定且仍生效」的那一個會被呼叫。
+ * 綁定 Esc。最高優先序中「最後被綁定且仍生效」的那一個會被呼叫。
  *
  * @param onEscape Esc 時呼叫;傳 null 表示暫時停用(例如擷取進行中不可中斷)
+ * @param priority 一般視窗維持 0，硬體警示使用 100 保留緊急事件所有權。
  */
-export function useEscapeKey(onEscape: (() => void) | null): void {
+export function useEscapeKey(onEscape: (() => void) | null, priority = 0): void {
   // 呼叫端幾乎都是 inline arrow(`() => setForm(null)`),每次 render 都是新的函式
   // 實體。若直接當成 effect 相依,listener 會隨著每次 render 反覆拆掉重掛——
   // CalibrationWizard 在 25Hz 資料流下等於每秒重掛 25 次,而且會讓堆疊順序取決於
@@ -45,6 +46,6 @@ export function useEscapeKey(onEscape: (() => void) | null): void {
   useEffect(() => {
     if (!armed) return
     ensureListener()
-    return pushEscapeHandler(() => handlerRef.current?.())
-  }, [armed])
+    return pushEscapeHandler(() => handlerRef.current?.(), priority)
+  }, [armed, priority])
 }

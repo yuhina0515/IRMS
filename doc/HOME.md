@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R06 hardware alert keyboard ownership** ([[log_20261029_hardware_alert|Log]]): standalone named emergency dialog, contained focus/background isolation, disabled/removed save handoff and recovery focus. Shared isolation leases coordinate confirmation; emergency Escape priority prevents background dismissal. DOM checks only; native hardware/AT acceptance remains open.
+
 - **2026-10-29 R06 dropdown keyboard / locale journey** ([[log_20261029_dropdown_keyboard|Log]]): select-only combobox semantics, tentative navigation/commit/cancel, shared Escape ownership and noninteractive close animation; Display language/theme/pose labels associated. Supported-language keyboard switching covered; native touch/pen/screen-reader/zoom and other overlays remain open.
 
 - **2026-10-29 S03 share ownership-v1** ([[log_20261029_share_ownership|Log]]): native-only collector-scoped proof, transactional first-ingest binding and digest-only persistence; runId/reader access cannot create or replace an owned share. Legacy/mismatched versions fail closed for sharing. 138 Rust + 13 collector tests/fmt/Clippy and independent reviews pass; native/collector rollout and real module acceptance remain open.

@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 emergency access: ErrorOverlay owns a named body-portal alertdialog, contained focus,
+> save/disconnect access and reversible inert isolation. Confirmation hands off the original recovery
+> target; shared isolation leases restore only after the last owner. Hardware Escape priority 100
+> consumes without dismissal; ordinary priority 0 remains LIFO. Session/BLE/DB/IPC contracts unchanged.
+
 > 2026-10-29 dropdown access: GlassDropdown is a select-only combobox with trigger focus,
 > active-descendant navigation, explicit Enter/Space/Tab/click commit and Escape cancellation.
 > Closing options are noninteractive; shared Escape stack protects underlying layers. Display
