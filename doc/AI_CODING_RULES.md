@@ -222,6 +222,11 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
 
+> 2026-10-29 hold continuity: the current Tauri TriggerEngine uses one monotonic receive timestamp
+> per sample; >250 ms gaps, backwards or nonfinite time cannot extend a hold. Cancelling a hold
+> preserves `restPending` and personal-angle warnings. This is a receiver continuity check, not
+> source-clock synchronization, stale-payload detection or a clinical threshold.
+
 > 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
 > `CMD:`。權威來源為 `IRMS_App_Tauri/src/services/` 下的 triggerEngine
 > 與 movementMetric 正規化層。

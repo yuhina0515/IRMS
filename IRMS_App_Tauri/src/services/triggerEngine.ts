@@ -30,6 +30,9 @@ export interface TriggerEvents {
 /** 引擎階段:idle=等待進區,holding=區間內維持中,restPending=已計一下、等回休息位 */
 export type EnginePhase = 'idle' | 'holding' | 'restPending'
 
+/** 接收端連續性防線；25Hz 串流超過 250ms 未收到樣本便不可延續保持，非臨床閾值。 */
+export const ENGINE_MAX_SAMPLE_GAP_MS = 250
+
 export class TriggerEngine {
   private state: EnginePhase = 'idle'
   private inZoneStartTime = 0
@@ -37,11 +40,13 @@ export class TriggerEngine {
   private graceStartedAt: number | null = null
   private alarmActive = false
   private overComfort = false
+  /** 上筆樣本的接收端單調時間；不代表感測器來源時間或跨感測器同步。 */
+  private lastSampleAt: number | null = null
 
   constructor(
     private readonly events: TriggerEvents,
     /** 可注入的時間來源,便於測試 */
-    private readonly now: () => number = () => Date.now()
+    private readonly now: () => number = () => performance.now()
   ) {}
 
   /** 目前階段(供 UI 顯示 phase 徽章與教練提示) */
@@ -66,6 +71,15 @@ export class TriggerEngine {
       this.events.onComfortExceeded?.(overComfort)
     }
 
+    // 每筆只讀一次時鐘。空窗或時鐘異常只中止保持，不解除 restPending／個人角度警示。
+    const now = this.now()
+    const validTime = Number.isFinite(now)
+    const discontinuous = !validTime || (this.lastSampleAt != null &&
+      (now < this.lastSampleAt || now - this.lastSampleAt > ENGINE_MAX_SAMPLE_GAP_MS))
+    this.lastSampleAt = validTime ? now : null
+    if (discontinuous) this.leaveHolding()
+    if (!validTime) return
+
     // ── 休息判定(完成一下後需回到休息位才能計下一下)──
     if (this.state === 'restPending') {
       if (sample.value <= zone.rest) {
@@ -83,18 +97,14 @@ export class TriggerEngine {
     if (
       this.state === 'holding' &&
       this.graceStartedAt != null &&
-      this.now() - this.graceStartedAt > EXIT_GRACE_MS
+      now - this.graceStartedAt > EXIT_GRACE_MS
     ) {
-      this.state = 'idle'
-      this.inZoneStartTime = 0
-      this.graceStartedAt = null
-      this.events.onHoldProgress(0)
-      this.events.onZoneExit()
+      this.leaveHolding()
     }
 
     if (this.state === 'idle' && strictIn) {
       this.state = 'holding'
-      this.inZoneStartTime = this.now()
+      this.inZoneStartTime = now
       this.graceStartedAt = null
       this.events.onZoneEnter()
     }
@@ -109,7 +119,7 @@ export class TriggerEngine {
 
       if (relaxedIn) {
         this.graceStartedAt = null
-        const elapsed = this.now() - this.inZoneStartTime
+        const elapsed = now - this.inZoneStartTime
         // holdTimeMs 為 0 時 (elapsed / 0) 在第一個封包是 0/0 = NaN,之後是 Infinity;
         // NaN 會一路流進 session.holdProgress 與量表。輸入端已鉗制下限,這裡再防一層。
         const percent = Math.min(100, (elapsed / Math.max(1, holdTimeMs)) * 100)
@@ -120,10 +130,20 @@ export class TriggerEngine {
         }
       } else if (this.graceStartedAt == null) {
         // 剛跳出:啟動寬限計時,進度凍結(不發事件、不清零)
-        this.graceStartedAt = this.now()
+        this.graceStartedAt = now
       }
       // 寬限期間:維持 holding,等待回區或逾時
     }
+  }
+
+  /** 連續性失守與離區逾時共用的保持取消；已完成一下的回位義務保持不變。 */
+  private leaveHolding(): void {
+    if (this.state !== 'holding') return
+    this.state = 'idle'
+    this.inZoneStartTime = 0
+    this.graceStartedAt = null
+    this.events.onHoldProgress(0)
+    this.events.onZoneExit()
   }
 
   /** 重置狀態機(Session 開始/結束、硬體錯誤時呼叫) */
@@ -131,6 +151,7 @@ export class TriggerEngine {
     this.state = 'idle'
     this.inZoneStartTime = 0
     this.graceStartedAt = null
+    this.lastSampleAt = null
     if (this.alarmActive) {
       this.alarmActive = false
       this.events.onOverExtension(false)

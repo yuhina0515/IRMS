@@ -174,6 +174,23 @@ afterEach(async () => {
 })
 
 describe('開始/結束的重入防護', () => {
+  it('resets stale hold progress without a disconnect and waits for continuous samples before GOAL', async () => {
+    await sessionController.startSession()
+    feed(IN_ZONE, 20)
+    expect(useStore.getState().session.holdProgress).toBeGreaterThan(0)
+    expect(useStore.getState().session.reps).toBe(0)
+    vi.advanceTimersByTime(3000)
+    bluetoothService.ingest(encodeAnglePacket(poseForKnee(IN_ZONE)))
+    vi.advanceTimersByTime(80) // 讓 UI 節流送出重啟保持後的精確零進度。
+    expect(useStore.getState().isConnected).toBe(true)
+    expect(useStore.getState().session.holdProgress).toBe(0)
+    expect(useStore.getState().session.reps).toBe(0)
+    expect(countOf('CMD:GOAL')).toBe(0)
+    feed(IN_ZONE, 60)
+    expect(useStore.getState().session.reps).toBe(1)
+    expect(countOf('CMD:GOAL')).toBe(1)
+  })
+
   it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
     await sessionController.startSession()
     feed(REST, 3)

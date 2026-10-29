@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: first bounded implementation batch validated and pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5), implementation commit 1aec6a6. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next run starts R01 after inspecting PR/CI status and quota.
+Updated: 2026-10-29, Asia/Taipei. State: first implementation batch pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5), implementation commit 1aec6a6; follow-up R01 hold-continuity batch validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next run starts R02 after inspecting PR/CI status and quota. Overall objective remains active.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -8,6 +8,7 @@ Updated: 2026-10-29, Asia/Taipei. State: first bounded implementation batch vali
 - Branch: codex/irms-readiness-20261029
 - Base branch: codex/irms-progress-20261020, commit 6c6241765f6ba33a46ff0018143616bffa675875 (draft PR #4; depends on draft #3).
 - Plan: 2026-10-29-readiness-plan.md; backlog/evidence: ../doc/RESEARCH_READINESS.md; handoff: ../doc/coding log/log_20261029_squad_readiness.md.
+- R01 plan/log: 2026-10-29-hold-continuity-plan.md / ../doc/coding log/log_20261029_hold_continuity.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -16,7 +17,9 @@ Telemetry now has serialized byte/count limits, shared native/frontend payload c
 Validation: 56 frontend files / 533 tests; TypeScript and Vite build passed. Cargo fmt, 104 Rust tests (3 live tests ignored) and Clippy all-targets/all-features with warnings denied passed. Native screen-reader, BLE/OTA and participant testing were not run. hina-tw.ddns.net collector health returned HTTP 200 / ok; no service changes. Antigravity command absent on PATH.
 
 ## Next concrete task
-R01: reproduce and fix TriggerEngine in-zone -> no packets -> in-zone completing a hold from elapsed silence. At baseline `triggerEngine.ts` tracks only out-of-zone grace; a 3-second gap between two in-zone samples can count a 1-second hold. Use monotonic timing and an explicit continuity guard; coordinate UI hold progress and session lifecycle. Sparse existing unit fixtures need deliberate continuous-sample updates, not weakening the new guard. Test both stalled streams and continuous 25 Hz, hysteresis, rest gating, reset and clock anomalies. R02 bounded download follows, then R03 confirmation focus and R04 BLE notification-generation gating.
+R01 completed locally: original failure reproduced, monotonic receiver clock and >250ms gap/clock-anomaly restart implemented, rest gating preserved, sparse success fixtures explicitly streamed, SessionController zero progress/no GOAL regression added. Latest frontend validation: 56 files / 542 tests, typecheck and production build passed. Prior CI run 40808318776 confirmed SUCCESS before R01 push; check new head independently. Rust unchanged this batch.
+
+R02 next: shared `firmware_update.rs::get_bytes` buffers a full response before validating signed artifact sizes, and is reused by modules/index/signature downloads. Inspect current call sites and accepted manifest/device budgets; introduce caller-specific caps and incremental response reading (do not trust Content-Length alone). Reproduce oversize/chunked rejection and valid signed artifact paths with isolated local test HTTP responses. Preserve signatures/hash verification and no-install-on-failure behavior. Then R03 confirmation focus and R04 BLE notification-generation gating.
 
 ## Quota / environment
 Latest observed remaining quota: five-hour 82%, weekly 93%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.

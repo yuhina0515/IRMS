@@ -20,6 +20,14 @@ for the institution/locale evidence matrix and follow-up priorities.
 
 ## Mobility and session reliability (2026-10-20)
 
+Repetition-hold follow-up (2026-10-29): TriggerEngine now uses a monotonic receiver clock and reads
+it once per sample. A gap above 250 ms, backwards time or a nonfinite clock cancels the current hold;
+the next valid strictly in-zone sample starts a fresh hold. Completed repetitions still require an
+actual rest sample before rearming, and personal-angle warnings remain independent. This prevents
+notification silence from earning hold time. The 250 ms threshold is an engineering continuity
+guard; native BLE scheduling and source timestamps remain separate validation work. Visual freshness
+during total silence is not changed: this guard is evaluated when the next sample arrives.
+
 Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,
 and no inter-sample gap above 250 ms. The gap threshold is an engineering continuity guard, not a validated
 clinical threshold. Knee capture requires aligned thigh-reference samples. Trends compare the same movement

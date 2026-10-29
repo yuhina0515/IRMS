@@ -14,7 +14,8 @@
 
 ### Readiness follow-up (2026-10-29)
 - [x] Bound telemetry queue/batch by serialized bytes and isolate collector configuration generations; name Settings number fields and expose persistent toast live regions. Automated checks passed; native acceptance open.
-- [ ] Execute R01–R07 in [RESEARCH_READINESS.md](RESEARCH_READINESS.md): stalled holds, bounded downloads, modal focus, stale BLE notifications, performance/threat model, locale/accessibility journeys and institution-specific evidence. Follow checkpoint order; avoid duplicate broad audits.
+- [x] R01 stalled-hold continuity: receiver-monotonic timing rejects >250 ms gaps and clock anomalies while preserving rest gating and angle warnings (2026-10-29; native timing acceptance open).
+- [ ] Execute R02–R07 in [RESEARCH_READINESS.md](RESEARCH_READINESS.md): bounded downloads, modal focus, stale BLE notifications, performance/threat model, locale/accessibility journeys and institution-specific evidence. Follow checkpoint order; avoid duplicate broad audits.
 
 ### 1. 連線與 BLE 通訊
 - [x] Web Bluetooth 自動配對(過濾名稱含 `IRMS` 的裝置,主進程 `select-bluetooth-device`)

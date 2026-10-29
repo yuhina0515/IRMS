@@ -57,7 +57,7 @@ Use asynchronous independent reports, then one written triage meeting. Do not ma
 
 | ID | Priority | Concrete next action | Acceptance |
 | --- | --- | --- | --- |
-| R01 | High | Fix TriggerEngine in-zone -> silent stream -> in-zone hold accounting using monotonic sample continuity | Long silent gap never completes a repetition; continuous 25 Hz and existing hysteresis/rest semantics retain coverage; refresh sparse timing fixtures intentionally |
+| R01 | Fixed locally, 2026-10-29 | TriggerEngine now restarts holds after >250 ms reception gaps or invalid/backwards timing, with a monotonic clock | Original regression failed before fix; focused engine/controller/scenario tests cover silence, 250/251ms boundary, 25 Hz, hysteresis, clock anomalies and rest gating; native timing remains open |
 | R02 | High | Bound firmware/module/index/signature downloads before full buffering | Oversized/chunked responses abort before unbounded allocation; valid signed artifacts still verify |
 | R03 | High | Contain and restore confirmation-dialog focus; prevent background interaction | Tab/Shift+Tab/Escape and invoking-control restoration tests; native keyboard acceptance |
 | R04 | Medium | Gate every BLE notification by connection generation | Stale notification cannot emit sensor/calibration input; hardware race acceptance tracked separately |
