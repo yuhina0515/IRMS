@@ -19,8 +19,8 @@ import { TriggerEngine } from './triggerEngine'
 import { currentLimits, currentTriggerConfig } from './triggerConfig'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
+import storageBudget from '@shared/storage-budget.json'
 
-const MAX_BUFFER_RESTORE = 2000
 /** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
 const UI_SYNC_MS = 80
 /**
@@ -37,6 +37,8 @@ class SessionController {
   private buffer: SensorReading[] = []
   /** 同一時間只允許一筆批次寫入；結束時先等待它再補寫剩餘資料。 */
   private flushing: Promise<void> | null = null
+  /** 包含目前交易與尚未送出的 snapshot 後綴，避免只計算新 buffer。 */
+  private pendingWriteRows = 0
   private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
@@ -247,6 +249,13 @@ class SessionController {
     // 結束邊界之後不再判定、計數或累積資料，避免落在最後寫入之後。
     const { session } = useStore.getState()
     if (this.ending || (!session.running && session.id != null)) return
+    // 在判定引擎之前停止；未接受的下一筆不能增加次數或觸發達標。
+    if (session.running && this.buffer.length + this.pendingWriteRows >= storageBudget.maxPendingReadings) {
+      useStore.getState().log('Storage backpressure: stopping acquisition with retained readings')
+      useUiStore.getState().showToast(getT().common.storageBackpressure, 'error', 10000)
+      void this.endSession()
+      return
+    }
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
     const cfg = this.currentConfig()
@@ -273,6 +282,8 @@ class SessionController {
         distalRoll: angles.shinRoll,
         timestamp: new Date().toISOString()
       })
+      // 即使設定很長的計時週期，也不能產生無上限的單次交易。
+      if (this.buffer.length >= storageBudget.maxBatchRows && !this.flushing) void this.flush()
     }
   }
 
@@ -473,7 +484,7 @@ class SessionController {
     this.clockTimer = null
   }
 
-  /** 批次寫入緩衝資料;失敗則回補緩衝(上限 2000 筆防止無限堆積) */
+  /** 有限 snapshot 依序寫入；只退休完整確認的前綴，失敗後保留全部後綴。 */
   private async flush(): Promise<void> {
     if (this.flushing) return this.flushing
     const { session } = useStore.getState()
@@ -481,16 +492,26 @@ class SessionController {
 
     const readings = this.buffer
     this.buffer = []
+    this.pendingWriteRows = readings.length
     const write = async (): Promise<void> => {
+      let acknowledged = 0
       try {
-        await irms.data.appendBatch(session.id!, readings)
+        while (acknowledged < readings.length) {
+          if (useStore.getState().session.id !== session.id) return
+          const chunk = readings.slice(acknowledged, acknowledged + storageBudget.maxBatchRows)
+          const result = await irms.data.appendBatch(session.id!, chunk)
+          if (result?.count !== chunk.length) throw new Error('Incomplete batch acknowledgement')
+          acknowledged += chunk.length
+          this.pendingWriteRows = readings.length - acknowledged
+        }
       } catch (err) {
         // 防止外部狀態重設後，舊療程的資料回補到另一場療程。
         if (useStore.getState().session.id === session.id) {
-          const combined = readings.concat(this.buffer)
-          this.buffer = combined.slice(-MAX_BUFFER_RESTORE)
+          this.buffer = readings.slice(acknowledged).concat(this.buffer)
         }
-        useStore.getState().log(`Batch write failed, buffer restored: ${(err as Error).message}`)
+        useStore.getState().log(`Batch write failed, buffer restored: ${String(err)}`)
+      } finally {
+        this.pendingWriteRows = 0
       }
     }
     this.flushing = write()

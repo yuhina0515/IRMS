@@ -182,6 +182,7 @@ export const en = {
   },
 
   common: {
+    storageBackpressure: 'Data collection stopped because storage could not keep up. Check the session save status.',
     close: 'Close',
     cancel: 'Cancel',
     confirm: 'Confirm',

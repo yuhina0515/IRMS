@@ -1,0 +1,5 @@
+{
+  "maxBatchRows": 1000,
+  "maxPendingReadings": 2000,
+  "maxTimestampBytes": 128
+}

@@ -73,6 +73,18 @@ R05 native history pages completed locally: additive listPage/sessions_list_page
 Next bounded batch: native data_append_batch ingestion/write-budget source review with actual frontend flush/retry path. One verified issue only; preserve complete data/transaction/retry contracts. Let latest-head CI finish before push; local preparation permitted. Do not repeat completed history/UI/full-project audit; native speech/metrology/performance still require actual evidence. Keep native screen-reader/WebView, real user/age/fit and institutional protocol acceptance distinct from DOM tests. S03 rollout remains gated on coordinated native+collector candidate, backup/rollback and actual runtime-module/client verification; old clients lose sharing on upgraded collector and new clients reject old collectors, as documented. No destructive production rollout or participant operations. R05 paced native performance and R07 institution/metrology evidence remain open.
 
 ## Quota / environment
+
+Latest storage-write batch: remaining32% five-hour /61% weekly. R05 storage issue below is now
+locally completed; this paragraph supersedes the earlier next-batch instruction. Shared JSON caps
+native transactions1000 rows/timestamps128 UTF-8 bytes and requires six finite angle/roll fields
+before DB lock, after deserialization. Controller pending includes buffer and in-flight suffix;
+at2000 stop before accepting another frame, retain complete failed suffix and retire only full-count
+acknowledged chunks. Existing end/save/retry remains; no tight failure loop. 616 frontend/148 Rust
+tests passed, 6 Rust ignores unchanged, typecheck/build/fmt/Clippy passed. Engineering/security final
+reviews found no blocker; prior head157a4f7 CI40872203346 SUCCESS. New log: log_20261029_storage_budget.md.
+Next: check quota/latest-head CI, then assess ONE automatic-save failure/recovery gap from current
+lifecycle evidence. Do not add durable queue/idempotency schema without scoped design. Lost-reply
+duplication/crash recovery/hung native RPC/native IPC acceptance remain open; no new task this round.
 Latest observed remaining quota (B announcements delivery): five-hour 86%, weekly 70% after natural window reset; initial 95%/95%. QUOTA HOLD released because all known windows recovered >=30%; no credits/reset used. Stop new expensive work at <=20%; once held, 21-29% is insufficient to resume. These are shared account percentages, not task token counts. Re-check on every run; unknown quota permits short inspection only. No purchases, resets or credential switching. No workers active at checkpoint. Hourly automation can re-evaluate while the app/computer remain running; no instantaneous token interceptor is claimed.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:

@@ -7,6 +7,14 @@ S03 ownership-v1 adds native-only collector-scoped proof, transactional first-in
 digest-only storage and fail-closed version checks; validated locally against baseline f039457.
 This is a design and code assessment, not an audit of the running hina-tw.ddns.net service.
 No credentials, participant records or production configuration were inspected.
+
+Storage follow-up (baseline157a4f7): shared JSON limits native append batches to1000 rows,
+timestamps128 UTF-8 bytes and finite six angle/roll fields before acquiring the DB lock. This occurs
+after Tauri Vec deserialization; it bounds per-command DB work, not wire/parse heap/database size.
+Controller tracks buffer plus unacknowledged in-flight suffix, stops acquisition at2000 pending
+before accepting another frame and preserves all accepted samples for existing save retry.
+Acknowledged chunks retire individually. Crash loss, commit-with-lost-reply duplication and hung
+native writes remain residual risks; finite numbers do not prove physiological validity.
 Method: identify the system, what can go wrong, responses and verification; describe processes,
 stores and trust boundaries following the [OWASP threat-modeling guidance](https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html).
 

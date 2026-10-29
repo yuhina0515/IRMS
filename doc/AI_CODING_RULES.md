@@ -121,6 +121,13 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Storage write contract (2026-10-29): `src/shared/storage-budget.json` is imported by TS and Rust.
+`data_append_batch` accepts at most1000 rows, timestamp128 UTF-8 bytes and finite six angle/roll
+fields before DB lock, after IPC deserialization. Controller pending includes in-flight unacknowledged
+suffix plus buffer; at2000 stop before the next engine/frame, preserving all accepted readings for
+existing end/save/retry. Only full-count ack retires a chunk. No schema change (version10), durable
+queue or exactly-once guarantee; unknown commits after lost replies may duplicate on retry.
+
 > History list: sessions.listPage(page,pageSize) -> sessions_list_page; total/rows share a read
 > transaction, size1..100 and page clamped before offset. Sort startTime DESC,id DESC using migration10
 > idx_sessions_start_id. UI navigation uses returned page; stale results/errors discarded; old list

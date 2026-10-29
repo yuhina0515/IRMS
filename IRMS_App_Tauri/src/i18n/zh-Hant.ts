@@ -207,6 +207,7 @@ export const zhHant = {
 
   /** 跨畫面共用的按鈕與短語 */
   common: {
+    storageBackpressure: '儲存速度不足，已停止本場資料收集。請確認療程儲存狀態。',
     // 圖示關閉按鈕的可存取名稱。
     close: '關閉',
     cancel: '取消',

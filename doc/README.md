@@ -2,6 +2,14 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 storage: shared storage-budget.json caps append IPC transactions at1000 rows and
+> timestamps at128 UTF-8 bytes; all six angles/rolls must be finite, checked after deserialization
+> before DB lock. Repository transactions/schema unchanged. Controller retains all unacknowledged
+> rows, chunks writes and stops acquisition before accepting the next frame at2000 pending rows
+> (buffer plus in-flight suffix), using existing save/retry UI. No silent oldest-row truncation.
+> Positive full-count acknowledgements retire chunks; lost replies can still cause duplicate retries.
+> This is not a durable queue, wire/parse-heap cap, clinical range validation or disk completion guarantee.
+
 > 2026-10-29 history list: sessions.listPage -> sessions_list_page returns sessions/total/page/
 > pageSize from one read transaction, size1..100, clamped page and stable startTime DESC,id DESC.
 > Migration10 adds nonunique idx_sessions_start_id only; prior migrations/data preserved. Renderer
