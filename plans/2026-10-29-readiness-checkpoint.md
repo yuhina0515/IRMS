@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: readiness batch and R01 (`df2c5bd`) pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R02 bounded downloads validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next run starts R03 after inspecting PR/CI status and quota. Overall objective remains active.
+Updated: 2026-10-29, Asia/Taipei. State: readiness, R01 (`df2c5bd`) and R02 (`10b2fd0`) pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R03 confirmation accessibility validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next task R04 follows PR/CI and quota inspection. Overall objective remains active.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -10,6 +10,7 @@ Updated: 2026-10-29, Asia/Taipei. State: readiness batch and R01 (`df2c5bd`) pus
 - Plan: 2026-10-29-readiness-plan.md; backlog/evidence: ../doc/RESEARCH_READINESS.md; handoff: ../doc/coding log/log_20261029_squad_readiness.md.
 - R01 plan/log: 2026-10-29-hold-continuity-plan.md / ../doc/coding log/log_20261029_hold_continuity.md.
 - R02 plan/log: 2026-10-29-download-bounds-plan.md / ../doc/coding log/log_20261029_download_bounds.md.
+- R03 plan/log: 2026-10-29-confirmation-access-plan.md / ../doc/coding log/log_20261029_confirmation_access.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -22,10 +23,12 @@ R01 completed locally: original failure reproduced, monotonic receiver clock and
 
 R02 completed locally: shared downloader now bounds each accumulated response, with fixed metadata/signature caps and exact verified payload sizes. All call sites migrated; signatures/hashes/cache fallback unchanged. 14 focused firmware tests passed; full Rust 110 passed / 3 live ignored, fmt/Clippy passed. Frontend remains R01's verified 542 tests/typecheck/build. No live release or native OTA acceptance.
 
-R03 next: `src/components/ConfirmDialog.tsx` initially focuses Cancel, but Tab/Shift+Tab can escape and invoking focus is not restored. Implement actual modality/background interaction prevention and reliable close/replacement/unmount focus semantics, preserving 150ms exit animation and immediate resolve. Prefer native semantics when compatible with supported WebView/client behavior and test environment; inspect existing Escape stack and overlay structure before deciding. Keyboard tests must prove wraparound/restoration and no background activation, not merely aria-modal presence. R04 then gates each native BLE notification by generation, followed by measured performance/threat model and broad inclusive acceptance work.
+R03 completed locally: body portal, original inert-state restoration/observer, keyboard/focus/click containment, 150ms close/replace semantics, message description and immediate hardware emergency takeover. Baseline Tab-wrap regression failed then passed. New tests include emergency focus race and StrictMode replay. Typecheck, 57 frontend files / 553 tests, Vite build passed. Rust unchanged; last R02 result remains 110 passed / 3 live ignored. Native WebView/screen-reader acceptance and other overlays remain open.
+
+R04 active plan: 2026-10-29-ble-notification-plan.md. Missing generation gating exists inside the notification loop; stale acquisition errors and stream-end clearing also need correct isolation. A simple atomic check followed by emit has a race with invalidation. Engineering reviewer recommends a short synchronous epoch gate around actual dispatch, shared by begin/invalidate, with no await or recursive epoch/peripheral lock in callback. Lock ordering: peripheral -> epoch; stream-end acquires peripheral before rechecking epoch and clearing/emitting. Exercise current/stale normal/raw/OTA callbacks through the production routing helper and deterministic barrier-based invalidation ordering. Native concurrent connect/scan/setup cancellation remains a separate open lifecycle risk; do not claim solved by this guard.
 
 ## Quota / environment
-Latest observed remaining quota (R02 start): five-hour 73%, weekly 92%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
+Latest observed remaining quota (R03 start): five-hour 66%, weekly 91%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 
