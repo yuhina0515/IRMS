@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 dropdown contract: retain portal/viewport positioning and 100ms close animation.
+> DOM focus stays on the combobox; candidate navigation is separate from committed value.
+> Enter/Space/Tab/click commits, Escape cancels through shared escapeStack; blur/outside pointer
+> cancels. Closing popup is hidden/noninteractive, options excluded from sequential Tab order.
+> Use stable label/control/listbox IDs; DOM tests do not establish native screen-reader behavior.
+
 > 2026-10-29 ownership-v1: `X-IRMS-Run-Owner` is native-only per-launch/per-canonical-collector
 > proof, never an event/status/JSON field. Collector `run_owners` stores SHA-256 digest; bind within
 > first ingest transaction, authorize before mutation/replacement, delete with run/events atomically.

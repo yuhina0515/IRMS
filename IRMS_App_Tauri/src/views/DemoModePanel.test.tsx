@@ -23,14 +23,14 @@ describe('示範模式情境選單', () => {
   it('切換頁面後回來仍顯示先前選的情境', async () => {
     const first = render(<SettingsView />)
     await openDemo()
-    await userEvent.click(screen.getByRole('button', { name: /正常療程 — 連續三下達標/ }))
+    await userEvent.click(screen.getByRole('combobox', { name: /正常療程 — 連續三下達標/ }))
     await userEvent.click(screen.getByRole('option', { name: /極限範圍/ }))
-    expect(screen.getByRole('button', { name: /極限範圍/ })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /極限範圍/ })).toBeInTheDocument()
 
     first.unmount()
     render(<SettingsView />)
     await openDemo()
-    expect(screen.getByRole('button', { name: /極限範圍/ })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /極限範圍/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /正常療程 — 連續三下達標/ })).toBeNull()
   })
 })

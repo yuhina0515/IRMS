@@ -206,6 +206,24 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
 })
 
 describe('SettingsView 分類索引(v3)', () => {
+  it('switches supported languages by named keyboard control and keeps the next field in Tab order', async () => {
+    useStore.getState().setSettings({ language: 'zh-Hant' })
+    render(<SettingsView />)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /顯示/ }))
+    const language = screen.getByRole('combobox', { name: getT().settings.display.language })
+    await user.click(screen.getByText(getT().settings.display.language))
+    expect(language).toHaveFocus()
+    await user.keyboard('{End}{Enter}')
+    expect(useStore.getState().settings.language).toBe('en')
+    expect(screen.getByRole('combobox', { name: 'Language' })).toHaveFocus()
+    await user.keyboard('{ArrowDown}{Home}{ArrowDown}')
+    expect(screen.getByRole('option', { name: '繁體中文' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'English' })).toBeInTheDocument()
+    await user.tab()
+    expect(useStore.getState().settings.language).toBe('zh-Hant')
+    expect(screen.getByRole('combobox', { name: getT().settings.display.theme })).toHaveFocus()
+  })
   it('labels display number fields and lets label clicks focus their input', async () => {
     render(<SettingsView />)
     await userEvent.click(screen.getByRole('button', { name: /顯示/ }))

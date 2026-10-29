@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 dropdown access: GlassDropdown is a select-only combobox with trigger focus,
+> active-descendant navigation, explicit Enter/Space/Tab/click commit and Escape cancellation.
+> Closing options are noninteractive; shared Escape stack protects underlying layers. Display
+> language/theme/pose fields have associated names; native/AT acceptance remains documented separately.
+
 > 2026-10-29 ownership-v1: native per-launch master derives collector-specific proof, only in a
 > sensitive HTTP header; first ingest transaction binds its SHA-256 digest in collector `run_owners`.
 > Owned ingest/share create requires proof; legacy runs cannot acquire ownership later. Runtime

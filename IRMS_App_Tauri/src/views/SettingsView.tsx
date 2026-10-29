@@ -271,6 +271,8 @@ function CalibrationPane(): JSX.Element {
 }
 
 function DisplayPane(): JSX.Element {
+  // 同一設定欄位的 label、combobox 與說明共用穩定 ID，切換語系後仍可辨識。
+  const displayId = useId()
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const m = useT()
@@ -278,8 +280,11 @@ function DisplayPane(): JSX.Element {
   return (
     <>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.language}</label>
+        <label id={`${displayId}-language-label`} htmlFor={`${displayId}-language`}>{md.language}</label>
         <GlassDropdown
+          id={`${displayId}-language`}
+          aria-labelledby={`${displayId}-language-label`}
+          aria-describedby={`${displayId}-language-hint`}
           value={settings.language}
           onChange={(v) => setSettings({ language: v as LanguageSetting })}
           options={[
@@ -288,11 +293,13 @@ function DisplayPane(): JSX.Element {
             { value: 'en', label: LANGUAGE_NAMES.en }
           ]}
         />
-        <p className="field-hint">{md.languageHint}</p>
+        <p id={`${displayId}-language-hint`} className="field-hint">{md.languageHint}</p>
       </div>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.theme}</label>
+        <label id={`${displayId}-theme-label`} htmlFor={`${displayId}-theme`}>{md.theme}</label>
         <GlassDropdown
+          id={`${displayId}-theme`}
+          aria-labelledby={`${displayId}-theme-label`}
           value={settings.themeMode}
           onChange={(v) => setSettings({ themeMode: v as Settings['themeMode'] })}
           options={[
@@ -303,8 +310,10 @@ function DisplayPane(): JSX.Element {
         />
       </div>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.poseDefault}</label>
+        <label id={`${displayId}-pose-label`} htmlFor={`${displayId}-pose`}>{md.poseDefault}</label>
         <GlassDropdown
+          id={`${displayId}-pose`}
+          aria-labelledby={`${displayId}-pose-label`}
           value={settings.poseView}
           onChange={(v) => setSettings({ poseView: v as Settings['poseView'] })}
           options={[
