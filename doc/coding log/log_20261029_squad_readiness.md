@@ -6,6 +6,8 @@ summary: "Bounded telemetry resources and collector generations, fixed Settings 
 
 # Squad readiness batch
 
+Delivery: implementation commit `1aec6a6`, pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5) against `codex/irms-progress-20261020`. PR attached to this chat. Remote CI is separate from the passing local checks; inspect its live status before the next batch. No merge or release.
+
 ## Scope and baseline
 User authorized autonomous squad progress, departmental intervention/meetings, university/international inclusion goals, security/performance work, optional Hina host/Antigravity and quota-aware stop/resume. Plan: `plans/2026-10-29-readiness-plan.md`. Resume: `plans/2026-10-29-readiness-checkpoint.md`.
 

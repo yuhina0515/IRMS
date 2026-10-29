@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: first bounded implementation batch validated; Git delivery in progress. Automation `irms-squad` is ACTIVE, hourly, in this chat.
+Updated: 2026-10-29, Asia/Taipei. State: first bounded implementation batch validated and pushed as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5), implementation commit 1aec6a6. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next run starts R01 after inspecting PR/CI status and quota.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
