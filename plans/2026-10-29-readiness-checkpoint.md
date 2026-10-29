@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. QUOTA HOLD ACTIVE: five-hour remaining reached 20%; no new expensive work until ALL known windows >=30%. Finish only S02 delivery/checkpoint. Readiness/R01–R04/R08/R05 pushed through `562089c` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); S02 collector revocation validated for delivery. R08 CI run 40812227724 SUCCESS; R05 run 40813054885 cancelled by superseding checkpoint push; 40813105289 still IN PROGRESS at S02 delivery. Automation `irms-squad` remains hourly in this chat; view requested this turn. Next after quota recovery: S01 response bounds, S03 ownership design; then outstanding native performance/R06/R07 gates. Overall objective remains active, not completed.
+Updated: 2026-10-29 14:42 Asia/Taipei heartbeat. QUOTA HOLD RELEASED: recovered to five-hour 100%, weekly 83%; latest after S01 checks 97% / 82%. Readiness/R01–R04/R08/R05/S02 pushed through `fd66f2d` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); that head's CI 40813351062 confirmed SUCCESS. S01 response bounds validated for delivery in this batch; check the new head's CI separately. No deployment/native acceptance implied. Automation `irms-squad` remains hourly in this chat. Next: bounded S03 ownership design/implementation with explicit compatibility evidence; then outstanding native performance/R06/R07 gates. Overall objective not completed. Prior local status-only checkpoint edit is included in this substantive batch.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -15,6 +15,7 @@ Updated: 2026-10-29, Asia/Taipei. QUOTA HOLD ACTIVE: five-hour remaining reached
 - R08 plan/log: 2026-10-29-connect-lifecycle-plan.md / ../doc/coding log/log_20261029_connect_lifecycle.md.
 - R05 plan/log: 2026-10-29-performance-threat-plan.md / ../doc/coding log/log_20261029_performance_threat.md.
 - S02 plan/log: 2026-10-29-share-revocation-plan.md / ../doc/coding log/log_20261029_share_revocation.md.
+- S01 plan/log: 2026-10-29-share-response-plan.md / ../doc/coding log/log_20261029_share_response.md.
 - Before work: inspect `git status`, PR status and fresh limits. Do not redo the completed audit. Never mix unrelated modifications into a commit.
 
 ## Completed batch
@@ -37,10 +38,12 @@ R05 offline scope implemented: `IRMS_App_Tauri/scripts/benchmark-readiness.mjs -
 
 S02 completed locally: reproduced removed pending poll returning next state with 200 rather than 401; shared removal/leave/expiry helper revokes membership then wakes only that viewer's polls. Completion revalidates identity and cleans timer/sets/close listener; share closure remains 410. Ten Node service tests passed, syntax/whitespace checks passed; independent security diff review found no blocker. Not deployed. Native/frontend code unchanged; don't rerun broad suites without cause.
 
-Next bounded batch AFTER QUOTA RECOVERY: S01 cap incoming live-share response bytes in `live_share.rs` (currently unbounded `.text()`), with local HTTP chunked/declared/exact-limit/error tests first. S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design; keep separate. No production exploitation. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
+S01 completed locally: reproduced actual command accepting 65,537 chunked bytes; incoming declared and accumulated responses now capped at 64 KiB before append on every HTTP status. Outgoing 32 KiB budget and status/JSON/null semantics retained. Eight focused tests (six new) pass, covering chunked/single/header-only/unknown-length overflow, truncation, exact-limit/error/Unicode/null/lossy UTF-8. Full Rust 129 passed / 5 ignored, fmt/Clippy passed; independent security review found no blocker. No native packaged/client or production acceptance. Frontend code unchanged; last frontend validation remains 553 tests/typecheck/build.
+
+Next bounded batch: S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design. Inspect collector ingest/run schema, native telemetry uploader/run identity and runtime module share creation contract; do not merely require a host token for replacement while leaving first creation hijackable. Keep secrets out of telemetry reads and public artifacts; test known-runId attacker, legitimate first create/recreate, app/module version mismatch, restart/expiry/revocation and failed-request retry. No production exploitation/deployment. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
 
 ## Quota / environment
-Latest observed remaining quota (S02 delivery): five-hour 20%, weekly 84%; initial 95%/95%. QUOTA HOLD is latched: even a rise to 21-29% does not authorize another expensive batch. Resume only when all known windows >=30%. These are shared account percentages, not task token counts. Re-check on every run; unknown quota permits short inspection only. No credits, resets or credential switching. No workers active at checkpoint. Hourly automation can re-evaluate while the app/computer remain running; no instantaneous token interceptor is claimed.
+Latest observed remaining quota (S01 checks after scheduled reset): five-hour 97%, weekly 82%; initial 95%/95%. QUOTA HOLD released because all known windows recovered >=30%; no credits/reset used. Stop new expensive work at <=20%; once held, 21-29% is insufficient to resume. These are shared account percentages, not task token counts. Re-check on every run; unknown quota permits short inspection only. No purchases, resets or credential switching. No workers active at checkpoint. Hourly automation can re-evaluate while the app/computer remain running; no instantaneous token interceptor is claimed.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 

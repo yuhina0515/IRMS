@@ -1,6 +1,8 @@
 # IRMS research deployment threat model
 
 Scope: source review of b3012f0 and the R05 benchmark additions on 2026-10-29.
+Follow-ups: S02 collector revocation fixed at fd66f2d; S01 native response limits validated
+against fd66f2d with local HTTP tests. These source fixes are not production deployment evidence.
 This is a design and code assessment, not an audit of the running hina-tw.ddns.net service.
 No credentials, participant records or production configuration were inspected.
 Method: identify the system, what can go wrong, responses and verification; describe processes,
@@ -40,19 +42,19 @@ BLE identity, movement accuracy and radio confidentiality are not established by
 | Publisher -> native -> module/firmware: `modules.rs`, `firmware_update.rs`, `services/modules.ts` | Signed metadata, artifact hash and verified size; bounded metadata/signature/chunk downloads; module rollback check and verified-cache fallback | Key compromise/publisher compromise remains trusted-code risk. Verify key custody, rotation/revocation and offline/tamper/rollback behavior. Firmware authenticity does not establish clinical suitability or safe OTA interruption. |
 | App -> collector: `telemetry.rs` | Default OFF, HTTPS except localhost; event/count/serialized byte caps, separate uploader, endpoint/enable generation purge and stale-result isolation | Already-issued requests cannot be recalled. Operator consent must explain recipient, raw data and retention. Redirect/destination policy and deployment TLS/access logs need separate review. Serialized bounds are not a process-memory ceiling. |
 | Public clients -> collector: `IRMS_Telemetry/server.mjs` | 4 MiB body cap, batch/per-IP limits, storage cap; trusted-proxy XFF handling; read Bearer token with timing-safe equal-length comparison; configured retention | Public ingest authenticates no device and can contain fabricated events. runId/seq deduplication does not prove provenance. Defaults (120 requests/30,000 events per IP per minute, 20 GiB, 90 days) are source defaults, not verified deployment values. Validate proxy identity, retention execution, shared-NAT behavior, aggregate abuse and disk response. |
-| Host/viewer -> live-share: `share.mjs`, `live_share.rs`, `services/liveShareHost.ts` | Separate host/viewer tokens, viewers initially read-only, expiry and per-IP budgets; host rejects changes while a session runs, validates finite values and clamps parameters | Three confirmed source-level gaps below need focused regressions and fixes. Review code-sharing/consent, authorization revocation and concurrent commands independently of visual UI. |
+| Host/viewer -> live-share: `share.mjs`, `live_share.rs`, `services/liveShareHost.ts` | Separate host/viewer tokens, viewers initially read-only, expiry and per-IP budgets; host rejects changes while a session runs, validates finite values and clamps parameters; S01 incoming response bounds and S02 pending-poll revocation fixed locally | S03 run ownership remains open below. Review code-sharing/consent, authorization revocation and concurrent commands independently of visual UI; local fixes still require native/deployment acceptance. |
 
 ## Prioritized follow-up from independent security review
 
 | ID | Priority | Verified source scenario | Next acceptance |
 | --- | --- | --- | --- |
-| S01 | High | `live_share.rs::live_share_request` reads the whole response with `.text()` after bounding only the outgoing body. A configured or compromised collector can return an arbitrarily large body. | Cap declared and accumulated response bytes before buffer extension; local chunked/close-delimited/exact-limit/error-status tests. Do not depend on Content-Length alone. |
+| S01 | Fixed locally / native acceptance open | Baseline command accepted cumulative chunked response beyond 64 KiB; regression reproduced. | All statuses now enforce 64 KiB declared/accumulated response cap before buffer extension. Local chunked/close-delimited/header-only/exact-limit/error/Unicode/truncation tests and independent review pass. Request budget and status/JSON/null contract retained. Not an exact heap ceiling; native packaged/deployment acceptance open. |
 | S02 | Fixed locally / deployment open | Reproduced removed viewer's pending poll receiving the next state (200 instead of 401). | Removal/leave/expiry now revoke then wake that viewer's polls; completion rechecks Map identity and returns 401 without state. Ten local service tests pass, including multiple polls, other-viewer isolation and share-close cleanup. Production deployment not performed. |
 | S03 | Medium | `share.mjs::create` uses live runId alone to create/replace a share. A telemetry reader who knows that runId can replace the original share without its host token. There is no finding that public callers can enumerate runIds. | Design independent per-run owner proof and require existing host proof for replacement; preserve client compatibility explicitly. A run identifier must not silently become an ownership secret. |
 
-These were independently reported and lead-confirmed by reading the actual call paths. S02 now has
-a failing-before/passing-after local regression and independent diff review. S01/S03 remain open for
-the next bounded security batches. No production exploitation was performed.
+These were independently reported and lead-confirmed by reading the actual call paths. S01/S02 now
+have failing-before/passing-after local regressions and independent diff review. S03 ownership proof
+remains open for the next bounded security batch. No production exploitation was performed.
 Other residual risks are review/acceptance items, not claims of demonstrated exploits.
 
 ## Verification and decision gates

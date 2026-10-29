@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 share HTTP budgets: native bridge accepts incoming bodies up to 64 KiB, checking
+> declared length and each accumulated chunk for all statuses before appending. Outgoing JSON
+> remains <=32 KiB; existing method/path/endpoint/token/timeouts and status/body contract unchanged.
+> 64 KiB accommodates current collector 16K UTF-16 state after UTF-8 expansion and its envelope.
+
 > 2026-10-29 share authorization: collector source now ends a removed/departed/expired viewer's
 > pending state polls with 401 and no state, revalidating membership at completion. Closing a share
 > retains 410. No request format, BLE or DB schema changes; production collector deployment open.

@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 S01 bounded share responses** ([[log_20261029_share_response|Log]]): native bridge caps every incoming response at 64 KiB before buffer extension, including error statuses and unknown lengths. Baseline regression reproduced; 129 Rust tests/fmt/Clippy and independent review pass. Request/status/JSON semantics retained; S03 ownership and native/deployment acceptance open.
+
 - **2026-10-29 S02 share revocation** ([[log_20261029_share_revocation|Log]]): removed/departed/expired viewers' pending polls end immediately with no new state; membership rechecked at completion, per-viewer waiter/listener cleanup. Reproduced leakage then passed 10 local tests and independent review. Collector not deployed; S01/S03 remain open.
 
 - **2026-10-29 R05 offline baseline / threat model** ([[log_20261029_performance_threat|Log]]): reproducible source/fixture hashes, accelerated production engine, file-backed debug DB and offline telemetry benchmarks; actual JSON retained. Sharing response/revocation/ownership gaps prioritized. Native UI/network/device/memory and institutional/population acceptance remain open.

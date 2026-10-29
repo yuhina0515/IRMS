@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> 2026-10-29 share response budget: `live_share.rs` bounds incoming bodies at 64 KiB on every
+> status, rejecting excessive Content-Length early and cumulative chunks before append. No remote
+> length-based preallocation. Keep outgoing 32 KiB budget and HTTP-status/JSON/null semantics;
+> receiver body bytes are not total heap. Update compatibility evidence if collector envelopes grow.
+
 > 2026-10-29 share revocation: `IRMS_Telemetry/share.mjs` must revoke Map membership before
 > waking that viewer's pending polls. Recheck identity at completion; return 401 without state;
 > remove timer, share/viewer waiter entries and response close listener. Preserve share-close 410.
