@@ -12,6 +12,7 @@ import { installFirmwareAutoUpdate } from './services/firmwareAutoUpdateInstall'
 import { installModules } from './services/modulesInstall'
 import { loadAngleRange } from './services/angleRange'
 import { installDocumentLang } from './i18n'
+import { installSessionCloseGuard } from './services/sessionCloseGuard'
 // SF Pro 是 Apple 授權字型,不能合法包進 Windows build;Inter 是視覺上最接近的
 // 開源替身(SIL OFL),自架避免使用者本機沒裝就整組 fallback 掉到 Segoe UI。
 // 只引入 wght 軸(不含斜體)——App 全程沒有 italic 文字,index.css 全量會多帶
@@ -45,6 +46,8 @@ async function bootstrap(): Promise<void> {
 
 // <html lang> 跟隨介面語系(index.html 寫死的 lang 只是首次繪製前的占位)
 installDocumentLang()
+// 同步禁止新療程，直到關窗監聽器註冊成功；頁面卸載不移除保護。
+void installSessionCloseGuard()
 initTelemetry()
 installFirmwareAutoUpdate()
 // 模組同步走網路,不阻擋首次繪製
