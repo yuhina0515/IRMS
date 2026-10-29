@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R05 normal-close guard** ([[log_20261029_close_guard|Log]]): application-lifetime listener blocks close with pending start/end/retained session and preserves existing save/retry. Idle close reservation blocks new starts; failed registration blocks sessions, failed destroy releases reservation. Native titlebar/AltF4 acceptance remains open.
+
 - **2026-10-29 R05 normal-close assessment** ([[log_20261029_close_recovery_assessment|Log]]): source and independent review confirm ordinary native close bypasses retained-session save protection. Next scoped implementation includes pending-start/ending races and application-lifetime registration; no runtime fix or physical close acceptance claimed.
 
 - **2026-10-29 R05 storage backpressure** ([[log_20261029_storage_budget|Log]]): shared transaction budget, acknowledged-prefix retirement and complete failed-suffix retention. Acquisition stops at pending capacity before accepting another frame; explicit save retry retained. Crash durability and lost-reply duplication remain open.

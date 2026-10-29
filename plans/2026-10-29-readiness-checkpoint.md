@@ -74,6 +74,31 @@ Next bounded batch: native data_append_batch ingestion/write-budget source revie
 
 ## Quota / environment
 
+Delivery update2026-10-29T13:38Z: previous docs CI40874246554 completed SUCCESS. Normal-close guard
+was locally validated at0f47b38 (623 frontend tests64 files/typecheck/build, independent final review);
+this checkpoint/log update may amend that unpublished commit. Push gate cleared; complete scoped
+delivery and draft PR update only. Remaining quota18%/59%: QUOTA HOLD continues until ALL known
+windows>=30%. No new implementation/review/full tests this round. Next heartbeat inspect quota,
+actual PR head and its CI (do not reuse the previous head's success as current-head evidence).
+Native titlebar/AltF4, forced exit/crash/OS shutdown and durable recovery remain unverified.
+
+QUOTA HOLD: latest observed remaining20% five-hour /59% weekly; stop expensive work now. Resume
+only when ALL known windows>=30%; unknown permits short inspection only. No resets/paid credits.
+Local normal-close guard commit1340889 (may be amended for this checkpoint) has623 passing frontend
+tests/typecheck/build and independent final review. Not pushed: prior docs CI40874246554 still needs
+terminal SUCCESS. Next run may briefly inspect quota/that exact CI; preserve local commit, finish
+cheap delivery after successful gate when appropriate, but no new implementation/review/full tests
+until quota recovery. All native/forced-exit/durability acceptance boundaries above remain open.
+
+Normal-close implementation completed locally (baselinee1ad348): see implementation plan and
+log_20261029_close_guard.md. Singleton before render gates start until registration, block-and-save
+policy includes pending start/end/retained id/buffer/flushing; idle reservation blocks new start and
+destroy failure releases it. Narrow main-window allow-destroy capability added. Engineering final
+review no blocker. Full623/623 frontend tests64 files, typecheck/build passed; Rust/collector unchanged
+and not rerun. Native titlebar/AltF4, forced exit/crash/durable recovery still unverified. CI40874246554
+for previous doc head must finish successfully before push; local commit is allowed. Next run recheck
+quota first, finish pending delivery only, and do not open new expensive task near quota hold.
+
 Latest assessment delivery:26%/60% remaining; CI40873513567 for4556b18 verified SUCCESS.
 This supersedes the earlier generic next recovery assessment: normal close bypasses save/retry;
 see plans/2026-10-29-close-recovery-plan.md and log_20261029_close_recovery_assessment.md.

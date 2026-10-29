@@ -182,6 +182,8 @@ export const en = {
   },
 
   common: {
+    saveBeforeClose: 'End and save the session before closing. If saving failed, retry saving first.',
+    closeProtectionFailed: 'Window close protection is unavailable. Restart the app before starting another session.',
     storageBackpressure: 'Data collection stopped because storage could not keep up. Check the session save status.',
     close: 'Close',
     cancel: 'Cancel',

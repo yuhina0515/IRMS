@@ -8,6 +8,14 @@ digest-only storage and fail-closed version checks; validated locally against ba
 This is a design and code assessment, not an audit of the running hina-tw.ddns.net service.
 No credentials, participant records or production configuration were inspected.
 
+Normal-close follow-up (baselinee1ad348): application-lifetime close listener blocks native
+destruction with pending start/end or retained session data; idle reservation prevents racing start.
+Failed registration blocks new sessions, failed destruction releases reservation. Narrow main-window
+allow-destroy capability enables the installed API's explicit native destruction path. This is a
+cooperative lifecycle control in the trusted renderer, not a renderer security sandbox or durability
+boundary. Native event delivery remains unverified; compromised/crashed/hung renderer, forced kill
+and OS termination remain outside this protection.
+
 Storage follow-up (baseline157a4f7): shared JSON limits native append batches to1000 rows,
 timestamps128 UTF-8 bytes and finite six angle/roll fields before acquiring the DB lock. This occurs
 after Tauri Vec deserialization; it bounds per-command DB work, not wire/parse heap/database size.

@@ -300,8 +300,29 @@ class SessionController {
   /** 開始/結束的重入防護:兩者都要 await,session.id/running 要等 await 之後才變 */
   private starting = false
   private ending = false
+  /** 啟動時安裝原生關窗保護；安裝失敗時不可建立新療程。 */
+  private closeProtectionAvailable = true
+  private closingWindow = false
+
+  setCloseProtectionAvailable(available: boolean): void {
+    this.closeProtectionAvailable = available
+  }
+
+  /** 同步保留關窗權，避免閒置檢查後又開始新的療程。 */
+  reserveWindowClose(): boolean {
+    const { session } = useStore.getState()
+    if (this.closingWindow || this.starting || this.ending || session.running || session.id != null ||
+      this.buffer.length > 0 || this.flushing != null) return false
+    this.closingWindow = true
+    return true
+  }
+
+  releaseWindowClose(): void {
+    this.closingWindow = false
+  }
 
   async startSession(): Promise<void> {
+    if (!this.closeProtectionAvailable || this.closingWindow) throw new Error('Window close protection unavailable')
     const state = useStore.getState()
     if (this.starting || this.ending || state.session.running || state.session.id != null) return
     this.starting = true

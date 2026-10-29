@@ -2,6 +2,14 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 normal close: application-lifetime native close handler is installed before allowing
+> sessions; pending/failed registration blocks new starts. Close is prevented while starting/ending,
+> running, retained session id, buffer or flush exists; localized hint directs existing save/retry.
+> Idle close reserves controller against new start, explicitly destroys native window and releases
+> reservation on failure. Main-window capability adds only core:window:allow-destroy (not in installed
+> core window defaults). No auto-end/discard. Native titlebar/AltF4 event delivery remains unverified;
+> renderer crash/hang, forced termination and OS shutdown need separate durable recovery.
+
 > 2026-10-29 storage: shared storage-budget.json caps append IPC transactions at1000 rows and
 > timestamps at128 UTF-8 bytes; all six angles/rolls must be finite, checked after deserialization
 > before DB lock. Repository transactions/schema unchanged. Controller retains all unacknowledged

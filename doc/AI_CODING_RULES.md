@@ -121,6 +121,13 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Normal close (2026-10-29): main.tsx installs singleton sessionCloseGuard outside React/view/error
+boundaries, synchronously blocking session start until registration succeeds. Controller reserves
+idle close against start; starting/ending/session id/running/buffer/flushing deny close. Always
+preventDefault before explicit destroy; failed destruction releases reservation, failed listener
+registration keeps starts blocked. Existing manual save/retry remains authoritative. Narrow main
+window allow-destroy ACL required. Cooperative healthy-renderer close only; no crash durability claim.
+
 Storage write contract (2026-10-29): `src/shared/storage-budget.json` is imported by TS and Rust.
 `data_append_batch` accepts at most1000 rows, timestamp128 UTF-8 bytes and finite six angle/roll
 fields before DB lock, after IPC deserialization. Controller pending includes in-flight unacknowledged

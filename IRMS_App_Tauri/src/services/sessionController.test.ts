@@ -200,6 +200,42 @@ describe('開始/結束的重入防護', () => {
     expect(stub.appended).toHaveLength(1001)
   })
 
+  it('refuses close while starting even before the native session id exists', async () => {
+    let finish!: () => void
+    stub.sessions.start.mockImplementationOnce(() => new Promise<{ sessionId: number }>((resolve) => {
+      finish = () => resolve({ sessionId: 1 })
+    }))
+    const starting = sessionController.startSession()
+    expect(useStore.getState().session.id).toBeNull()
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    finish()
+    await starting
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    await sessionController.endSession()
+  })
+
+  it('protects retained save failures and prevents a new start during reserved idle close', async () => {
+    await sessionController.startSession()
+    stub.sessions.end.mockRejectedValueOnce('disk busy')
+    expect(await sessionController.endSession()).toBe(false)
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(sessionController.reserveWindowClose()).toBe(true)
+    try {
+      expect(sessionController.reserveWindowClose()).toBe(false)
+      await expect(sessionController.startSession()).rejects.toThrow('Window close protection')
+      expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+    } finally { sessionController.releaseWindowClose() }
+  })
+
+  it('blocks new sessions until close protection is available', async () => {
+    sessionController.setCloseProtectionAvailable(false)
+    try {
+      await expect(sessionController.startSession()).rejects.toThrow('Window close protection')
+      expect(stub.sessions.start).not.toHaveBeenCalled()
+    } finally { sessionController.setCloseProtectionAvailable(true) }
+  })
+
   it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
     await sessionController.startSession()
     feed(REST, 3)
