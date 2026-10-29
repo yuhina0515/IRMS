@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> Offline measurement replay (2026-10-30): see [evidence inventory](MEASUREMENT_EVIDENCE.md).
+> Additive input/source/runtime identity and optional manifest hash/count check preserve raw audit/
+> caller-supplied unsmoothed projection. Explicit CRLF/LF identity is not authenticity, matched
+> calibration, timing or accuracy; application protocol/math and stored trace remain unchanged.
+
 > 2026-10-30 update feedback: typed installing/install-error(version) statuses supplement downloaded.
 > Publish installing only after transition lease/flag acquisition; retain and replay after successful
 > handoff until process exit. Explicit rejection releases ownership then publishes generic retryable

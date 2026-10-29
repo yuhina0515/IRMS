@@ -35,7 +35,7 @@ export default defineConfig({
         resolve: { alias },
         test: {
           name: 'node',
-          include: ['src/**/*.test.ts'],
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.mjs'],
           environment: 'node',
           setupFiles: ['./src/test/locale.ts']
         }

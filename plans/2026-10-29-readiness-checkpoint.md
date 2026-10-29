@@ -1,6 +1,31 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 updater feedback)
+## Current checkpoint (2026-10-30 R07 replay identity)
+
+Baseline156ae17 CI40934031768 SUCCESS, clean before task. Initial quota79%/55%, observed70%/54%
+remaining. Scoped inventory found historical calibration trace/sidecar and replay identity gap.
+Replay now reports exact packet/settings bytes/hash,3 runtime-source hashes/Node and optional strict
+sidecar hash/count verification. Original forensic hashes unchanged; explicit crlf-to-lf-v1 canonical
+identity supports Git LF without conflating original bytes. Provided canonical hash must match even
+on raw match. Fixed errors expose no private input paths/JSON/metadata paths; no original-source or
+settings association inferred. Existing count/angle math untouched. Original CRLF and temporary LF
+trace both verify66927 packets/66560 vectors/367 errors; calibrated count remains null.
+
+29 actual CLI subprocess tests, TypeScript, script/test syntax and normal discovery pass. New tests
+live under scripts/*.test.mjs in Node Vitest project, avoiding browser Node typings. Runtime app,
+Rust and collector unchanged; no unrelated full suites/build rerun or aggregate670-pass claim.
+Engineering/security final confirmations accepted canonical consistency correction. See
+plans/2026-10-30-replay-provenance-plan.md, doc/MEASUREMENT_EVIDENCE.md and
+log_20261030_replay_provenance.md. Deliver scoped commit/push/draft PR and inspect its own CI next.
+
+Next bounded R07 task: inspect existing raw-motion logging/export path for source vs receiver timing,
+sequence and calibration linkage before designing any new capture bundle. One evidence-backed gap,
+no hardware/participants or invented reference values. Do not rerun old stationary analysis or
+broad software audit. Original trace still lacks timestamps/labels/matched settings/reference angles;
+native speech/installer/BLE/OS timing, paced performance and institutional/fit evidence remain open.
+If only unavailable external evidence remains, save that dependency and stop expensive work.
+
+## Historical checkpoint (2026-10-30 updater feedback)
 
 Baseline432d5fa CI40924530764 SUCCESS, clean before task. Latest observed quota80%/56% remaining;
 prior QUOTA HOLD remains released. Installing/install-error(version) status replay, generic localized

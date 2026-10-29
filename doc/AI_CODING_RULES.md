@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Offline replay (2026-10-30): scripts/replay-calibration.mjs accepts optional --provenance sidecar;
+same-buffer input/hash, schema1 evidence,3 runtime source hashes and Node version. Raw historical
+hash preserved; optional canonical fields require explicit crlf-to-lf-v1 and always match actual
+canonical hash, including raw-match cases. No private paths/raw settings in reports or errors.
+Consistency with caller metadata is not source/calibration/measurement proof; no timestamp inference.
+
 Updater feedback (2026-10-30): additive UpdateStatus installing/install-error carry version only,
 never raw installer error details. Installing emitted after lease/flag, persists across handoff and
 listener remount. Rejection releases then emits install-error and rethrows original object. Banner

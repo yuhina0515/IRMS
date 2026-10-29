@@ -2,6 +2,8 @@
   "source": "Temp/irms_tauri_dev_trace.log",
   "sourceSha256": "0E7FDFF147A475B76B7AFF6875E906C5FDB174FC2CF68C689AD60DBE5F357B25",
   "packetsSha256": "952C5431E525BC01CB94E16B98FF632B6BA2D36FB84FA833520DEAF4FD43D57E",
+  "packetsCanonicalization": "crlf-to-lf-v1",
+  "packetsCanonicalLfSha256": "a8a954238aa10a45051c0eb81544c42b397161356bd8db81a05796234ba2d998",
   "packetCount": 66927,
   "sourceLastWriteTime": "2026-09-15T22:59:55.5633218+08:00",
   "extraction": "Only lines starting with [calibration-trace]; prefix removed; order preserved. No timestamps or movement labels available.",
