@@ -74,6 +74,13 @@ Next bounded batch: native data_append_batch ingestion/write-budget source revie
 
 ## Quota / environment
 
+Latest assessment delivery:26%/60% remaining; CI40873513567 for4556b18 verified SUCCESS.
+This supersedes the earlier generic next recovery assessment: normal close bypasses save/retry;
+see plans/2026-10-29-close-recovery-plan.md and log_20261029_close_recovery_assessment.md.
+No implementation yet. Next task install healthy-renderer normal-close coordination with pending
+start/end/retained-id protection and actual native-close handler tests. Read plan before editing.
+Keep crash durability/forced termination separate. Do not supersede live CI; no reset/paid credits.
+
 Latest storage-write batch: remaining32% five-hour /61% weekly. R05 storage issue below is now
 locally completed; this paragraph supersedes the earlier next-batch instruction. Shared JSON caps
 native transactions1000 rows/timestamps128 UTF-8 bytes and requires six finite angle/roll fields
