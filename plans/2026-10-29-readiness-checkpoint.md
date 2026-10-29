@@ -1,6 +1,6 @@
 # IRMS autonomous continuation checkpoint
 
-Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04/R08 pushed through `b3012f0` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5); R08 remote CI run 40812227724 confirmed SUCCESS. R05 offline benchmark/threat-model scope validated for delivery to the same PR. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next: bounded S01/S02 sharing-security fixes, S03 ownership design; then outstanding native performance/R06/R07 gates. Inspect Git/CI and fresh quota first. Overall objective remains active.
+Updated: 2026-10-29, Asia/Taipei. State: readiness/R01–R04/R08/R05 offline scope pushed through `0a67c6a` as draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5). R08 remote CI run 40812227724 confirmed SUCCESS; R05 run 40813054885 was IN PROGRESS at delivery, not yet confirmed. Automation `irms-squad` is ACTIVE, hourly, in this chat. Next: bounded S01/S02 sharing-security fixes, S03 ownership design; then outstanding native performance/R06/R07 gates. Inspect Git/CI and fresh quota first. Overall objective remains active.
 
 ## Resume here
 - Worktree: E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029
@@ -37,7 +37,7 @@ R05 offline scope implemented: `IRMS_App_Tauri/scripts/benchmark-readiness.mjs -
 Next bounded batch: S01 cap incoming live-share response bytes in `live_share.rs` (currently unbounded `.text()`); S02 pending `share.mjs::readState` must revalidate/wake removed viewers before exposing newer state. Reproduce with local HTTP and pending-poll tests first. S03 runId-only create/replace ownership requires independent run proof and explicit compatibility design; keep separate. These findings were independently reported and lead-confirmed from source, not exploited on production. R06 full locale/native accessibility and R07 institutional/population evidence remain open. Do not launch a broad audit again.
 
 ## Quota / environment
-Latest observed remaining quota (R05 checks): five-hour 26%, weekly 84%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
+Latest observed remaining quota (R05 delivery): five-hour 23%, weekly 84%; initial 95%/95%. These are shared account percentages, not task token counts. Re-check on every run. Do not start expensive work if any known window <=20%; resume only when all known windows >=30%. Unknown quota: short inspection only. No credits, resets or credential switching. Do not leave workers active at a checkpoint.
 
 Dependencies installed with `npm.cmd ci --ignore-scripts --no-audit --no-fund`. npm package-script Windows shims failed with `"node" is not recognized` even though direct Node works; changing PATHEXT did not fix it. Verified direct equivalents:
 
