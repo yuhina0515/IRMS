@@ -55,6 +55,22 @@ function session(over: Partial<Session>): Session {
 }
 
 describe('HistoryView 示範資料標記', () => {
+  it('loads bounded native pages rather than the complete session list', async () => {
+    const all = Array.from({ length: 7 }, (_, i) => session({ id: i + 1, actionName: `Paged ${i + 1}` }))
+    const stub = installIrmsStub({ sessions: { list: async () => all, listPage: async (page, pageSize) => ({ sessions: all.slice(page * pageSize, (page + 1) * pageSize), total: all.length, page, pageSize }) } })
+    render(<HistoryView />)
+    expect(await screen.findByText('Paged 1')).toBeInTheDocument()
+    expect(stub.sessions.list).not.toHaveBeenCalled()
+    expect(stub.sessions.listPage).toHaveBeenCalledWith(0, 6)
+    expect(screen.queryByText('Paged 7')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '下一頁' }))
+    expect(await screen.findByText('Paged 7')).toBeInTheDocument()
+    expect(screen.queryByText('Paged 1')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '回顧' }))
+    await userEvent.click(screen.getByRole('button', { name: '← 返回列表' }))
+    expect(await screen.findByText('Paged 7')).toBeInTheDocument()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     useStore.getState().resetSession()

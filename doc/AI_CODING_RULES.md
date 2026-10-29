@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> History list: sessions.listPage(page,pageSize) -> sessions_list_page; total/rows share a read
+> transaction, size1..100 and page clamped before offset. Sort startTime DESC,id DESC using migration10
+> idx_sessions_start_id. UI navigation uses returned page; stale results/errors discarded; old list
+> remains full. Row cap does not bound text bytes/COUNT/deep OFFSET; separate pages may shift.
+
 > History: sessions.getReview DTO chart + analysis (native command is
 > sessions_get_review). Chart fixed1200 via original knee LTTB; analysis keeps all timestamp/knee/
 > proximal rows and original Date.parse/metric/module semantics. Never analyze sampled chart data.
@@ -237,7 +242,10 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
 * 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
-### 4.3 SQLite Schema(目前 `user_version = 9`)
+### 4.3 SQLite Schema(目前 `user_version = 10`)
+
+> Migration10: nonunique idx_sessions_start_id ON sessions(startTime DESC,id DESC), used for
+> indexed history paging. No column/row rewrite; versions1..9 unchanged.
 
 > 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
 > DB 檔存於 Tauri 的 app data 目錄(不進版控)。

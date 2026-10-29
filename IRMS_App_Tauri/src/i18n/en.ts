@@ -428,6 +428,8 @@ export const en = {
     exported: 'Session exported',
     exportFailed: (p: { message: string }) => `Export failed: ${p.message}`,
     loadFailed: 'Could not load history',
+    loading: 'Loading session records…',
+    deleteFailed: 'Could not delete the session record. Try again.',
     deleteTitle: 'Delete session',
     deleteBody: (p: { id: number }) => `Delete the record of session #${p.id}?`,
     deleted: (p: { id: number }) => `Session #${p.id} deleted`,

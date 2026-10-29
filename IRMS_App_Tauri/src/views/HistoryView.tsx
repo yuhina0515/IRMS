@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chart } from '../services/chartSetup'
 import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
-import type { Session, StoredReading, SessionReviewData, ReviewAnalysisReading } from '@shared/types'
+import type { Session, SessionPage, StoredReading, SessionReviewData, ReviewAnalysisReading } from '@shared/types'
 import { computeMetricZone, metricInfo, type MetricZone } from '../services/movementMetric'
 import { analyzeSession } from '../services/sessionAnalysis'
 import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
@@ -316,44 +316,58 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
 
 export function HistoryView(): JSX.Element {
   const activeSessionId = useStore((s) => s.session.id)
-  const [sessions, setSessions] = useState<Session[]>([])
+  const [resource, setResource] = useState<{ key: string; data?: SessionPage; failed?: boolean } | null>(null)
   const [reviewing, setReviewing] = useState<Session | null>(null)
   const [page, setPage] = useState(0)
+  const [revision, setRevision] = useState(0)
+  const [deleting, setDeleting] = useState<number | null>(null)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
   const m = useT()
   const locale = useLocale()
   const bodyRef = useRef<HTMLDivElement>(null)
-  const pageRows = usePageSize(bodyRef, ROW_HEIGHT, 6)
-
-  const load = async (): Promise<void> => {
-    try {
-      setSessions(await irms.sessions.list())
-    } catch {
-      showToast(m.history.loadFailed, 'error')
-    }
-  }
+  const pageRows = Math.min(100, usePageSize(bodyRef, ROW_HEIGHT, 6))
+  // 回應綁定請求身分；換頁/resize 當下即隱藏舊頁，過期錯誤也不可污染新頁。
+  const requestKey = `${page}:${pageRows}:${revision}`
+  const currentResource = resource?.key === requestKey ? resource : null
+  const loading = currentResource == null
+  const data = currentResource?.data
+  const sessions = data?.sessions ?? []
 
   useEffect(() => {
-    void load()
-  }, [])
+    if (reviewing) return
+    let cancelled = false
+    void irms.sessions.listPage(page, pageRows).then((result) => {
+      if (!cancelled) setResource({ key: requestKey, data: result })
+    }).catch(() => {
+      if (!cancelled) {
+        setResource({ key: requestKey, failed: true })
+        useUiStore.getState().showToast(getT().history.loadFailed, 'error')
+      }
+    })
+    return () => { cancelled = true }
+  }, [page, pageRows, revision, requestKey, reviewing])
 
   const remove = async (s: Session): Promise<void> => {
-    if (useStore.getState().session.id === s.id) return
-    const ok = await requestConfirm(m.history.deleteTitle, m.history.deleteBody({ id: s.id }))
-    if (!ok) return
-    if (useStore.getState().session.id === s.id) return
-    await irms.sessions.delete(s.id)
-    showToast(m.history.deleted({ id: s.id }), 'success')
-    await load()
+    if (deleting != null || useStore.getState().session.id === s.id) return
+    setDeleting(s.id)
+    try {
+      const ok = await requestConfirm(m.history.deleteTitle, m.history.deleteBody({ id: s.id }))
+      if (!ok || useStore.getState().session.id === s.id) return
+      await irms.sessions.delete(s.id)
+      showToast(getT().history.deleted({ id: s.id }), 'success')
+      setRevision((value) => value + 1)
+    } catch {
+      showToast(getT().history.deleteFailed, 'error')
+    } finally { setDeleting(null) }
   }
 
   // 回顧取代列表;返回時頁碼保留(state 仍在這個元件)
-  if (reviewing) return <SessionReview session={reviewing} onBack={() => setReviewing(null)} />
+  if (reviewing) return <SessionReview session={reviewing} onBack={() => { setReviewing(null); setRevision((value) => value + 1) }} />
 
-  const pageCount = Math.max(1, Math.ceil(sessions.length / pageRows))
-  const current = Math.min(page, pageCount - 1)
-  const visible = sessions.slice(current * pageRows, (current + 1) * pageRows)
+  const total = data?.total ?? 0
+  const pageCount = Math.max(1, Math.ceil(total / (data?.pageSize ?? pageRows)))
+  const current = data?.page ?? 0
 
   return (
     <div className="v3-page">
@@ -372,13 +386,13 @@ export function HistoryView(): JSX.Element {
           <span>{m.history.colDuration}</span>
           <span>{m.history.colOps}</span>
         </div>
-        <div className="v3-history-body" ref={bodyRef}>
-          {sessions.length === 0 ? (
+        <div className="v3-history-body" ref={bodyRef} aria-busy={loading}>
+          {loading ? <p role="status">{m.history.loading}</p> : currentResource?.failed ? <p>{m.history.loadFailed}</p> : sessions.length === 0 ? (
             <div className="v3-empty">
               <p>{m.history.empty}</p>
             </div>
           ) : (
-            visible.map((s) => (
+            sessions.map((s) => (
               <div key={s.id} className="v3-history-row">
                 <span className="v3-history-time">{formatDateTime(locale, new Date(s.startTime), DATE_TIME)}</span>
                 <span className="v3-history-action">
@@ -406,7 +420,7 @@ export function HistoryView(): JSX.Element {
                   <button className="btn btn-primary btn-sm" onClick={() => setReviewing(s)}>
                     {m.history.review}
                   </button>
-                  <button className="btn btn-danger-ghost btn-sm" disabled={activeSessionId === s.id} aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
+                  <button className="btn btn-danger-ghost btn-sm" disabled={deleting != null || activeSessionId === s.id} aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
                     {m.common.delete}
                   </button>
                 </span>
@@ -417,15 +431,15 @@ export function HistoryView(): JSX.Element {
         </div>
         <div className="v3-pager">
           <span>
-            {m.history.pager({ total: sessions.length, page: current + 1, pages: pageCount })}
+            {m.history.pager({ total, page: current + 1, pages: pageCount })}
           </span>
           <span className="row" style={{ gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
+            <button className="btn btn-secondary btn-sm" disabled={loading || current === 0} onClick={() => setPage(current - 1)}>
               {m.common.prevPage}
             </button>
             <button
               className="btn btn-secondary btn-sm"
-              disabled={current >= pageCount - 1}
+              disabled={loading || current >= pageCount - 1}
               onClick={() => setPage(current + 1)}
             >
               {m.common.nextPage}

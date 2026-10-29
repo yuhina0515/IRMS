@@ -33,6 +33,7 @@ import type {
   SensorReading,
   SessionStartInput,
   SessionReviewData,
+  SessionPage,
   StoredReading,
   UpdateStatus
 } from '@shared/types'
@@ -149,6 +150,9 @@ export const irms: IrmsApi = {
     },
     list() {
       return invoke<Session[]>('sessions_list')
+    },
+    listPage(page: number, pageSize: number) {
+      return invoke<SessionPage>('sessions_list_page', { page, pageSize })
     },
     getData(sessionId: number, maxPoints?: number) {
       return invoke<StoredReading[]>('sessions_get_data', { sessionId, maxPoints: maxPoints ?? null })

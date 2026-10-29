@@ -165,6 +165,7 @@ pub fn run() {
             commands::sessions_update_reps,
             commands::sessions_end,
             commands::sessions_list,
+            commands::sessions_list_page,
             commands::sessions_get_data,
             commands::sessions_get_review,
             commands::sessions_delete,

@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 history list: sessions.listPage -> sessions_list_page returns sessions/total/page/
+> pageSize from one read transaction, size1..100, clamped page and stable startTime DESC,id DESC.
+> Migration10 adds nonunique idx_sessions_start_id only; prior migrations/data preserved. Renderer
+> fetches current measured page and fences stale/resize/delete results; old full APIs/export retained.
+
 > 2026-10-29 history review: additive sessions.getReview -> sessions_get_review returns chart
 > (original knee LTTB, max1200) and every analysis row (timestamp/kneeAngle/proximalAngle) from one
 > SELECT. Renderer preserves full-resolution metric/module analysis and locale-only chart redraw.
@@ -301,7 +306,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--9)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--10)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。

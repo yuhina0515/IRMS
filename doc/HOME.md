@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-29 R05 native history pagination** ([[log_20261029_history_pages|Log]]): bounded native pages, stable index/order, same-snapshot count/clamp and stale/resize/delete fencing. Migration10 preserves rows; legacy full APIs retained. Native latency/heap acceptance remains open.
+
 - **2026-10-29 R05 history single-read projection** ([[log_20261029_history_review|Log]]): one snapshot supplies original LTTB chart plus complete analysis fields; locale redraw avoids DB refetch, CSV remains full. Synthetic15k-row JSON ~42.2% smaller; native FPS/IPC/heap acceptance remains open.
 
 - **2026-10-29 R06 Wizard B announcements** ([[log_20261029_b_announcements|Log]]): persistent localized raw/phase/step status, capture/solve error and retry clearing; countdown/raw/numeric solution values excluded. Native speech/metrology acceptance remains open.

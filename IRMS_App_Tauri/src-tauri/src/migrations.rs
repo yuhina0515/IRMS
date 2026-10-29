@@ -182,6 +182,13 @@ fn migration_9(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
+    // 只新增非唯一排序索引；同時間戳由 id 明確排序，不改既有資料列。
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_start_id ON sessions(startTime DESC, id DESC);",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -227,6 +234,11 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 9,
         name: "mobility records (strategy C long-term range-of-motion total)",
         up: migration_9,
+    },
+    Migration {
+        version: 10,
+        name: "stable indexed history pagination",
+        up: migration_10,
     },
 ];
 
@@ -565,7 +577,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8, 9]
+                vec![7, 8, 9, 10]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();

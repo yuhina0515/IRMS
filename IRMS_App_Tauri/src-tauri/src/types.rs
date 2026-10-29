@@ -134,9 +134,33 @@ pub struct SessionReviewData {
     pub analysis: Vec<ReviewAnalysisReading>,
 }
 
+/// 同一讀取交易的總數/分頁；回傳已校正的頁碼與上限。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionPage {
+    pub sessions: Vec<Session>,
+    pub total: usize,
+    pub page: usize,
+    pub page_size: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_page_wire_shape_matches_shared_types() {
+        assert_eq!(
+            serde_json::to_value(SessionPage {
+                sessions: vec![],
+                total: 0,
+                page: 0,
+                page_size: 6
+            })
+            .unwrap(),
+            serde_json::json!({ "sessions": [], "total": 0, "page": 0, "pageSize": 6 })
+        );
+    }
 
     #[test]
     fn session_review_projection_wire_shape_matches_shared_types() {

@@ -241,6 +241,14 @@ export interface SessionReviewData {
   analysis: ReviewAnalysisReading[]
 }
 
+/** 原生分頁校正超界頁碼，總數與資料列來自同一讀取交易。 */
+export interface SessionPage {
+  sessions: Session[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /**
  * 使用者透過檔案選取器挑的韌體 .bin，由可信任的宿主層讀檔 + 算 MD5 後回傳。
  * Electron 版使用 Node `crypto`，Tauri 版使用 Rust；renderer 不取得通用檔案系統權限，
@@ -300,6 +308,7 @@ export interface IrmsApi {
     /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
     progress(sessionId: number, reps: number): Promise<{ success: true }>
     list(): Promise<Session[]>
+    listPage(page: number, pageSize: number): Promise<SessionPage>
     /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
     getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
     getReview(sessionId: number): Promise<SessionReviewData>

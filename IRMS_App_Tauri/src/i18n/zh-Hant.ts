@@ -453,6 +453,8 @@ export const zhHant = {
     exported: '紀錄已匯出',
     exportFailed: (p: { message: string }) => `匯出失敗:${p.message}`,
     loadFailed: '載入歷史失敗',
+    loading: '載入療程紀錄中…',
+    deleteFailed: '刪除療程紀錄失敗,請重試。',
     deleteTitle: '刪除紀錄',
     deleteBody: (p: { id: number }) => `確定刪除療程 #${p.id} 的紀錄嗎?`,
     deleted: (p: { id: number }) => `療程 #${p.id} 已刪除`,

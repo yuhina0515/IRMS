@@ -9,7 +9,7 @@ use crate::downsample::{lttb, Point};
 use crate::migrations::{apply_migrations, finalize_orphaned_sessions, MIGRATIONS};
 use crate::types::{
     AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, ReviewAnalysisReading,
-    SensorReading, Session, SessionReviewData, SessionStartInput, StoredReading,
+    SensorReading, Session, SessionPage, SessionReviewData, SessionStartInput, StoredReading,
 };
 use rusqlite::{params, Connection};
 
@@ -325,6 +325,37 @@ pub mod sessions_repo {
         let mut stmt = conn.prepare("SELECT * FROM sessions ORDER BY startTime DESC")?;
         let rows = stmt.query_map([], row_to_session)?;
         rows.collect()
+    }
+
+    /// COUNT 與分頁共用 SQLite snapshot；clamp 後才算 offset，避免溢位及末頁空洞。
+    pub fn list_page(
+        conn: &Connection,
+        requested: usize,
+        requested_size: usize,
+    ) -> rusqlite::Result<SessionPage> {
+        let tx = conn.unchecked_transaction()?;
+        let total = tx.query_row("SELECT COUNT(*) FROM sessions", [], |row| {
+            row.get::<_, i64>(0)
+        })? as usize;
+        let page_size = requested_size.clamp(1, 100);
+        let page = requested.min(total.saturating_sub(1) / page_size);
+        let sessions = {
+            let mut stmt = tx.prepare(
+                "SELECT * FROM sessions ORDER BY startTime DESC, id DESC LIMIT ?1 OFFSET ?2",
+            )?;
+            let rows = stmt.query_map(
+                params![page_size as i64, (page * page_size) as i64],
+                row_to_session,
+            )?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        tx.commit()?;
+        Ok(SessionPage {
+            sessions,
+            total,
+            page,
+            page_size,
+        })
     }
 
     /// `max_points`, when given, LTTB-downsamples for chart display (a 25Hz x 10min session is
@@ -890,6 +921,87 @@ mod tests {
             .unwrap()
             .analysis
             .is_empty());
+    }
+
+    #[test]
+    fn history_page_bounds_ties_and_full_availability() {
+        use sha2::{Digest, Sha256};
+        let mut conn = fresh_db();
+        let tx = conn.transaction().unwrap();
+        for _ in 0..1001 {
+            sessions_repo::start(&tx, &sample_session_input()).unwrap();
+        }
+        tx.execute("UPDATE sessions SET startTime = '2026-10-29T00:00:00Z'", [])
+            .unwrap();
+        tx.commit().unwrap();
+        let first = sessions_repo::list_page(&conn, 0, usize::MAX).unwrap();
+        assert_eq!(
+            (
+                first.total,
+                first.page,
+                first.page_size,
+                first.sessions.len()
+            ),
+            (1001, 0, 100, 100)
+        );
+        let mut ids = vec![];
+        for page in 0..11 {
+            ids.extend(
+                sessions_repo::list_page(&conn, page, 100)
+                    .unwrap()
+                    .sessions
+                    .iter()
+                    .map(|row| row.id),
+            );
+        }
+        assert_eq!(ids, (1..=1001).rev().collect::<Vec<i64>>());
+        let last = sessions_repo::list_page(&conn, usize::MAX, usize::MAX).unwrap();
+        assert_eq!((last.page, last.sessions.len()), (10, 1));
+        assert_eq!(last.sessions[0].id, 1);
+        let minimal = sessions_repo::list_page(&conn, usize::MAX, 0).unwrap();
+        assert_eq!((minimal.page, minimal.page_size), (1000, 1));
+        let full = sessions_repo::list(&conn).unwrap();
+        assert_eq!(full.len(), 1001);
+        println!(
+            "IRMS_HISTORY_PAGE_BUDGET {}",
+            serde_json::json!({
+                "fixtureRows": 1001, "rowCap": 100, "pageRows": first.sessions.len(),
+                "fixtureSha256": format!("{:x}", Sha256::digest(serde_json::to_vec(&full).unwrap())),
+                "fullPayloadBytes": serde_json::to_vec(&full).unwrap().len(),
+                "pagePayloadBytes": serde_json::to_vec(&first).unwrap().len(),
+                "scope": "deterministic in-memory fixture; serialized bytes only, no latency/heap claim"
+            })
+        );
+    }
+
+    #[test]
+    fn history_page_clamps_after_last_row_delete_and_handles_empty() {
+        let conn = fresh_db();
+        let empty = sessions_repo::list_page(&conn, usize::MAX, 100).unwrap();
+        assert_eq!((empty.total, empty.page), (0, 0));
+        let first = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let second = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        sessions_repo::delete(&conn, first).unwrap();
+        let page = sessions_repo::list_page(&conn, 1, 1).unwrap();
+        assert_eq!((page.total, page.page), (1, 0));
+        assert_eq!(page.sessions[0].id, second);
+    }
+
+    #[test]
+    fn history_page_migration_preserves_rows_and_uses_sort_index() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn, &MIGRATIONS[..9], |_| {}).unwrap();
+        sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let before = serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap();
+        run_migrations(&conn, MIGRATIONS, |_| {}).unwrap();
+        assert_eq!(
+            serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap(),
+            before
+        );
+        let plan = conn.prepare("EXPLAIN QUERY PLAN SELECT * FROM sessions ORDER BY startTime DESC, id DESC LIMIT 6 OFFSET 6").unwrap()
+            .query_map([], |row| row.get::<_, String>(3)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap().join(" ");
+        assert!(plan.contains("idx_sessions_start_id"), "{plan}");
+        assert!(!plan.contains("TEMP B-TREE"), "{plan}");
     }
 
     #[test]

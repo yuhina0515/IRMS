@@ -82,3 +82,13 @@ Full analysis still scales with session length and has no total byte/heap ceilin
 and unusually long-session acceptance remain open. Renderer discards obsolete results/errors but
 cannot cancel native reads already issued. Timestamp validity semantics were preserved, not repaired
 or elevated to measurement acceptance. See performance/history-review-projection.md for exact scope.
+
+## History list page boundary (2026-10-29)
+
+sessions_list_page is an additive local read command using the existing DB lock and a read
+transaction. Native page size clamps1..100; bound/clamp precedes offset arithmetic. Migration10
+adds a nonunique sorting index without rewriting session data. Response count/page belong to one
+snapshot; separate pages can shift under concurrent writes. Old full list/review/export remain.
+This row-count cap does not bound calibration text bytes, COUNT/deep-OFFSET CPU or total heap.
+Renderer fences obsolete results/errors and preserves active-session deletion checks; deletion
+failures are caught without optimistic data loss. No new network, general file or mutation authority.
