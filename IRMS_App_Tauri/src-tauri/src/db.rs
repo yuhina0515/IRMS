@@ -8,8 +8,8 @@ use crate::defaults::default_actions;
 use crate::downsample::{lttb, Point};
 use crate::migrations::{apply_migrations, finalize_orphaned_sessions, MIGRATIONS};
 use crate::types::{
-    AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, SensorReading, Session,
-    SessionStartInput, StoredReading,
+    AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, ReviewAnalysisReading,
+    SensorReading, Session, SessionReviewData, SessionStartInput, StoredReading,
 };
 use rusqlite::{params, Connection};
 
@@ -342,13 +342,42 @@ pub mod sessions_repo {
             .query_map([session_id], row_to_reading)?
             .collect::<rusqlite::Result<_>>()?;
 
+        Ok(sample_readings(rows, max_points))
+    }
+
+    /// 回顧固定最多 1200 圖表點，分析仍保留每筆讀數；一次 SELECT 確保同一快照。
+    pub fn get_review(conn: &Connection, session_id: i64) -> rusqlite::Result<SessionReviewData> {
+        let rows = get_data(conn, session_id, None)?;
+        // 先完成抽樣、釋放其 points 暫存，再移動時間字串到分析投影，避免三份同時存活。
+        let chart = if rows.len() <= 1200 {
+            rows.clone()
+        } else {
+            sample_chart(&rows, 1200)
+        };
+        let analysis = rows
+            .into_iter()
+            .map(|row| ReviewAnalysisReading {
+                timestamp: row.timestamp,
+                knee_angle: row.knee_angle,
+                proximal_angle: row.thigh_angle,
+            })
+            .collect();
+        Ok(SessionReviewData { chart, analysis })
+    }
+
+    // 共用原 LTTB 路徑；舊呼叫的閾值語意與同毫秒資料列身分保持不變。
+    fn sample_readings(rows: Vec<StoredReading>, max_points: Option<usize>) -> Vec<StoredReading> {
         let Some(max_points) = max_points else {
-            return Ok(rows);
+            return rows;
         };
         if rows.len() <= max_points {
-            return Ok(rows);
+            return rows;
         }
 
+        sample_chart(&rows, max_points)
+    }
+
+    fn sample_chart(rows: &[StoredReading], max_points: usize) -> Vec<StoredReading> {
         // LTTB needs a numeric x axis; use the parsed timestamp (ms since epoch) falling back to
         // the row's own index if parsing fails, same defensive fallback as the TS version's
         // `Date.parse(r.timestamp) || i`.
@@ -375,7 +404,7 @@ pub mod sessions_repo {
                 cursor += offset + 1;
             }
         }
-        Ok(out)
+        out
     }
 
     pub fn delete(conn: &Connection, session_id: i64) -> rusqlite::Result<()> {
@@ -723,6 +752,144 @@ mod tests {
 
         let sampled = sessions_repo::get_data(&conn, session_id, Some(100)).unwrap();
         assert_eq!(sampled.len(), 100);
+    }
+
+    #[test]
+    fn review_keeps_full_analysis_and_original_chart_row_identity() {
+        let mut conn = fresh_db();
+        let session = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let readings: Vec<SensorReading> = (0..1500)
+            .map(|i| SensorReading {
+                knee_angle: (i / 2) as f64,
+                thigh_angle: -(i as f64),
+                shin_angle: 3.0,
+                knee_roll: 4.0,
+                thigh_roll: 5.0,
+                shin_roll: 6.0,
+                // 同毫秒同膝角、不同 proximal；另保留 epoch 0 和不合法時間字串。
+                timestamp: if i == 0 {
+                    "1970-01-01T00:00:00Z".into()
+                } else if i == 1499 {
+                    "invalid-preserved".into()
+                } else {
+                    format!("2026-10-29T00:00:{:02}.{:03}Z", i / 1000, (i / 2) % 1000)
+                },
+            })
+            .collect();
+        data_repo::append_batch(&mut conn, session, &readings).unwrap();
+        let full = sessions_repo::get_data(&conn, session, None).unwrap();
+        let chart = sessions_repo::get_data(&conn, session, Some(1200)).unwrap();
+        let review = sessions_repo::get_review(&conn, session).unwrap();
+        assert_eq!(review.chart.len(), 1200);
+        assert_eq!(
+            serde_json::to_value(&review.chart).unwrap(),
+            serde_json::to_value(chart).unwrap()
+        );
+        assert_eq!(review.analysis.len(), full.len());
+        for (projected, original) in review.analysis.iter().zip(full.iter()) {
+            assert_eq!(projected.timestamp, original.timestamp);
+            assert_eq!(projected.knee_angle, original.knee_angle);
+            assert_eq!(projected.proximal_angle, original.thigh_angle);
+        }
+        let mut ids = review.chart.iter().map(|row| row.id).collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), review.chart.len());
+    }
+
+    /// 手動合成 WAL 比較：包含舊雙查詢/序列化與新快照/序列化，不宣稱 IPC/FPS。
+    #[test]
+    #[ignore = "manual history review projection benchmark"]
+    fn history_review_projection_benchmark() {
+        use sha2::{Digest, Sha256};
+        use std::time::Instant;
+        let path =
+            std::env::temp_dir().join(format!("irms_review_bench_{}.sqlite", uuid::Uuid::new_v4()));
+        let mut conn = init_database(&path).unwrap();
+        let session = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let readings = (0..15000)
+            .map(|i| SensorReading {
+                knee_angle: (i as f64 / 50.0).sin() * 45.0 + 45.0,
+                thigh_angle: (i as f64 / 70.0).sin() * 20.0,
+                shin_angle: 8.0,
+                knee_roll: 2.0,
+                thigh_roll: 3.0,
+                shin_roll: 4.0,
+                timestamp: chrono::DateTime::from_timestamp_millis(1_790_000_000_000 + i * 40)
+                    .unwrap()
+                    .to_rfc3339(),
+            })
+            .collect::<Vec<_>>();
+        let fixture_hash = format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_vec(&readings).unwrap())
+        );
+        data_repo::append_batch(&mut conn, session, &readings).unwrap();
+        let mut old_ms = vec![];
+        let mut new_ms = vec![];
+        let mut old_bytes = 0;
+        let mut new_bytes = 0;
+        // 兩次暖機後交錯重複，避免只把 SQLite 首次讀取成本算在舊路徑。
+        for round in 0..7 {
+            let before = Instant::now();
+            let chart = sessions_repo::get_data(&conn, session, Some(1200)).unwrap();
+            let full = sessions_repo::get_data(&conn, session, None).unwrap();
+            old_bytes = serde_json::to_vec(&chart).unwrap().len()
+                + serde_json::to_vec(&full).unwrap().len();
+            let elapsed_old = before.elapsed().as_secs_f64() * 1000.0;
+            let before = Instant::now();
+            let review = sessions_repo::get_review(&conn, session).unwrap();
+            new_bytes = serde_json::to_vec(&review).unwrap().len();
+            let elapsed_new = before.elapsed().as_secs_f64() * 1000.0;
+            assert_eq!(review.analysis.len(), 15000);
+            assert_eq!(review.chart.len(), 1200);
+            if round >= 2 {
+                old_ms.push(elapsed_old);
+                new_ms.push(elapsed_new);
+            }
+        }
+        assert!(new_bytes < old_bytes);
+        println!(
+            "IRMS_HISTORY_REVIEW_BENCH {}",
+            serde_json::json!({
+            "rows": 15000, "chartPoints": 1200, "warmups": 2, "fixtureSha256": fixture_hash, "oldPayloadBytes": old_bytes,
+                "newPayloadBytes": new_bytes, "oldQueryAndSerialize": crate::readiness_benchmark::summary(old_ms),
+                "newQueryAndSerialize": crate::readiness_benchmark::summary(new_ms),
+                "scope": "synthetic file-backed WAL, debug; excludes IPC, WebView, analyzer and native memory"
+            })
+        );
+        drop(conn);
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn review_handles_empty_small_and_other_session_without_truncating_export() {
+        let mut conn = fresh_db();
+        let first = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let second = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        let empty = sessions_repo::get_review(&conn, first).unwrap();
+        assert!(empty.chart.is_empty() && empty.analysis.is_empty());
+        let reading = SensorReading {
+            knee_angle: 10.0,
+            thigh_angle: -5.0,
+            shin_angle: 6.0,
+            knee_roll: 7.0,
+            thigh_roll: 8.0,
+            shin_roll: 9.0,
+            timestamp: "2026-10-29T00:00:00Z".into(),
+        };
+        data_repo::append_batch(&mut conn, first, &[reading]).unwrap();
+        let review = sessions_repo::get_review(&conn, first).unwrap();
+        assert_eq!(review.chart.len(), 1);
+        assert_eq!(review.analysis[0].proximal_angle, -5.0);
+        assert_eq!(
+            sessions_repo::get_data(&conn, first, None).unwrap()[0].shin_roll,
+            9.0
+        );
+        assert!(sessions_repo::get_review(&conn, second)
+            .unwrap()
+            .analysis
+            .is_empty());
     }
 
     #[test]

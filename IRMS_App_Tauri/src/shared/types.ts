@@ -233,6 +233,14 @@ export interface StoredReading extends SensorReading {
   sessionId: number
 }
 
+/** 全解析度分析只需要這三欄；不以圖表抽樣取代時間統計。 */
+export type ReviewAnalysisReading = Pick<StoredReading, 'timestamp' | 'kneeAngle' | 'proximalAngle'>
+/** 同一次 DB 讀取所得的圖表與完整分析投影；CSV 仍走 getData 全量契約。 */
+export interface SessionReviewData {
+  chart: StoredReading[]
+  analysis: ReviewAnalysisReading[]
+}
+
 /**
  * 使用者透過檔案選取器挑的韌體 .bin，由可信任的宿主層讀檔 + 算 MD5 後回傳。
  * Electron 版使用 Node `crypto`，Tauri 版使用 Rust；renderer 不取得通用檔案系統權限，
@@ -294,6 +302,7 @@ export interface IrmsApi {
     list(): Promise<Session[]>
     /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
     getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
+    getReview(sessionId: number): Promise<SessionReviewData>
     delete(sessionId: number): Promise<{ success: true }>
     /** 刪除所有示範模式紀錄;回傳實際刪掉的列數 */
     purgeDemo(): Promise<{ deleted: number }>

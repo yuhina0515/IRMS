@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> History: sessions.getReview DTO chart + analysis (native command is
+> sessions_get_review). Chart fixed1200 via original knee LTTB; analysis keeps all timestamp/knee/
+> proximal rows and original Date.parse/metric/module semantics. Never analyze sampled chart data.
+> Locale redraw reuses snapshot; stale success/error discarded, already-issued native reads not cancelled.
+> CSV/getData stay full fidelity; no schema/BLE changes or native heap/FPS guarantee.
+
 > Wizard B speech: persistent status uses localized detection/stage/progress and capture phase;
 > persistent alert uses capture error or result-stage solver failure. Reuse visible progress formula;
 > exclude countdown ticks/raw frames/numeric solutions. Retry/recalibration clears error text.

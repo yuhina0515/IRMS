@@ -71,3 +71,14 @@ authorization/revocation, update supply chain, storage/backup/retention and nati
 the intended client. Human research and population suitability require the institution's own review
 and appropriately designed evidence. Do not infer consent or suitability from age, sex, gender or
 ethnicity; use individual measured limits and documented exclusions.
+
+## History review read boundary (2026-10-29)
+
+sessions_get_review is an additive local IPC read under the existing DB lock. One statement snapshot
+feeds bounded1,200-point chart and all timestamp/kneeAngle/proximalAngle analysis rows. It adds no
+network endpoint, mutation, database schema or general filesystem access. Old full getData/export
+remain available. Projection reduces returned fields/serialized bytes, not a confidentiality boundary.
+Full analysis still scales with session length and has no total byte/heap ceiling; native UI/IPC/memory
+and unusually long-session acceptance remain open. Renderer discards obsolete results/errors but
+cannot cancel native reads already issued. Timestamp validity semantics were preserved, not repaired
+or elevated to measurement acceptance. See performance/history-review-projection.md for exact scope.

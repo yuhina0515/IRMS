@@ -96,6 +96,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       progress: async (_sessionId: number, _reps: number) => ({ success: true as const }),
       list: async (): Promise<Session[]> => [],
       getData: async (_sessionId: number, _maxPoints?: number): Promise<StoredReading[]> => [],
+      getReview: async (_sessionId: number) => ({ chart: [], analysis: [] }),
       delete: async (_sessionId: number) => ({ success: true as const }),
       purgeDemo: async () => ({ deleted: 0 }),
       exportText: async (_defaultName: string, _contents: string) => true

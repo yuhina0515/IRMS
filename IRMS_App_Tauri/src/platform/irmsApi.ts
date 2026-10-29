@@ -32,6 +32,7 @@ import type {
   Session,
   SensorReading,
   SessionStartInput,
+  SessionReviewData,
   StoredReading,
   UpdateStatus
 } from '@shared/types'
@@ -151,6 +152,10 @@ export const irms: IrmsApi = {
     },
     getData(sessionId: number, maxPoints?: number) {
       return invoke<StoredReading[]>('sessions_get_data', { sessionId, maxPoints: maxPoints ?? null })
+    },
+    getReview(sessionId: number) {
+      // 型別由共用 API 推導；一次快照避免圖表與分析重複查詢/傳輸完整欄位。
+      return invoke<SessionReviewData>('sessions_get_review', { sessionId })
     },
     async delete(sessionId: number) {
       await invoke('sessions_delete', { sessionId })

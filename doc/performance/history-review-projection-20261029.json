@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "measuredAtUtc": "2026-10-29T12:03:13.707792Z",
+  "baselineCommit": "05a223fbbef3db2fcddacd2e8244ac43455ad728",
+  "environment": {
+    "os": "Microsoft Windows NT 10.0.26300.0",
+    "rustc": "rustc 1.93.1 (01f6ddf75 2026-02-11)",
+    "cargo": "cargo 1.93.1 (083ac5135 2025-12-15)",
+    "profile": "debug",
+    "fixture": "15000 synthetic readings at40ms; actual serialized fixture SHA256 in result",
+    "cpuModel": "Intel(R) Core(TM) i5-14600K",
+    "logicalProcessors": 20,
+    "physicalMemoryBytes": 33558708224
+  },
+  "sourceSha256": {
+    "IRMS_App_Tauri/src-tauri/src/db.rs": "af212107a766c9c8edd40d05065c16655e4e4872d43adfb1416659020b75cae7",
+    "IRMS_App_Tauri/src-tauri/src/types.rs": "0edb653692878f34b7ee09d1f3646a7b803c5121519d3afb0fb9735e77b5fece",
+    "IRMS_App_Tauri/src-tauri/src/downsample.rs": "4eeac752730de75da309d7d783d0f1c7684498a61ea37852301dd287bf4c72e1",
+    "IRMS_App_Tauri/src-tauri/src/migrations.rs": "ead0ea67f4f5ce2db19a0809ecfbbfc882b6e8e98f2606fff2eda5f5b99f7a77",
+    "IRMS_App_Tauri/src-tauri/src/defaults.rs": "75352f3bbac563808b1ecea4476b34d92960c78525a99edb8a355ae133ce5e0f",
+    "IRMS_App_Tauri/src-tauri/src/readiness_benchmark.rs": "0502c8850801b2ebdec03120617532db3e929d1678e448f768e9c9914174e19c",
+    "IRMS_App_Tauri/src-tauri/Cargo.toml": "7213b96625c1cbea1d106264e67719b0746cef062562daf00641730a20484392",
+    "IRMS_App_Tauri/src-tauri/Cargo.lock": "57e5a5d2a66b4121e583c04bdbc05933f630b72478312655cef851b0becfc8f9"
+  },
+  "result": {
+    "chartPoints": 1200,
+    "fixtureSha256": "fde1f890e9515e10a9936b5e3a5f70b45a217f1d74d9459c74caf5b87a8a16ac",
+    "newPayloadBytes": 1912413,
+    "newQueryAndSerialize": {
+      "count": 5,
+      "maxMs": 86.36,
+      "meanMs": 85.85014,
+      "p50Ms": 85.94359999999999,
+      "p95Ms": 86.36
+    },
+    "oldPayloadBytes": 3311285,
+    "oldQueryAndSerialize": {
+      "count": 5,
+      "maxMs": 171.3255,
+      "meanMs": 169.98942,
+      "p50Ms": 170.1933,
+      "p95Ms": 171.3255
+    },
+    "rows": 15000,
+    "scope": "synthetic file-backed WAL, debug; excludes IPC, WebView, analyzer and native memory",
+    "warmups": 2
+  }
+}

@@ -2,6 +2,11 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 history review: additive sessions.getReview -> sessions_get_review returns chart
+> (original knee LTTB, max1200) and every analysis row (timestamp/kneeAngle/proximalAngle) from one
+> SELECT. Renderer preserves full-resolution metric/module analysis and locale-only chart redraw.
+> CSV/getData/schema unchanged; no byte/heap ceiling or native FPS claim. See performance protocol.
+
 > 2026-10-29 Wizard B announcements: persistent polite status distinguishes raw detection, floor
 > faces, poses, sweeps and results; preparation/recording change once per phase. Assertive errors
 > include failed solver results only in result stage. Countdown ticks/raw/numeric solutions excluded.

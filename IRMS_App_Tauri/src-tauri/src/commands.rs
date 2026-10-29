@@ -7,7 +7,7 @@
 use crate::db::{actions_repo, angle_ranges_repo, data_repo, sessions_repo};
 use crate::types::{
     AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, SensorReading, Session,
-    SessionStartInput, StoredReading,
+    SessionReviewData, SessionStartInput, StoredReading,
 };
 use rusqlite::Connection;
 use std::sync::{Mutex, MutexGuard};
@@ -108,6 +108,15 @@ pub fn sessions_get_data(
 ) -> Result<Vec<StoredReading>, String> {
     let conn = lock_db(&state)?;
     sessions_repo::get_data(&conn, session_id, max_points).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn sessions_get_review(
+    state: tauri::State<DbState>,
+    session_id: i64,
+) -> Result<SessionReviewData, String> {
+    let conn = lock_db(&state)?;
+    sessions_repo::get_review(&conn, session_id).map_err(to_err)
 }
 
 #[tauri::command]

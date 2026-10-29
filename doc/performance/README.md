@@ -53,3 +53,10 @@ are captured on the intended client. Record firmware, mounting/calibration, sour
 network conditions and loss counters for those runs. Keep participant data out of public artifacts.
 See [threat model](../THREAT_MODEL.md) for security follow-ups and [research readiness](../RESEARCH_READINESS.md)
 for institution, accessibility and population evidence gates.
+
+## History review projection follow-up
+
+See [single-read protocol and measured JSON](history-review-projection.md). It compares the previous
+duplicate-query/return payload with the new full-analysis projection on15,000 synthetic WAL rows.
+It is a separate manual test, outside the two-test readiness script; native paced UI/IPC/memory gates
+remain open. The original baseline above is historical and was not overwritten by this follow-up.

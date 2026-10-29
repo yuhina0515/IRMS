@@ -118,9 +118,43 @@ pub struct StoredReading {
     pub timestamp: String,
 }
 
+/// 全解析度統計所需投影；保留原時間字串供既有 renderer Date.parse 語意使用。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewAnalysisReading {
+    pub timestamp: String,
+    pub knee_angle: f64,
+    pub proximal_angle: f64,
+}
+
+/// 圖表與分析來自同一次讀取，不影響舊 get_data/CSV 全量契約。
+#[derive(Debug, Serialize)]
+pub struct SessionReviewData {
+    pub chart: Vec<StoredReading>,
+    pub analysis: Vec<ReviewAnalysisReading>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_review_projection_wire_shape_matches_shared_types() {
+        let review = SessionReviewData {
+            chart: vec![],
+            analysis: vec![ReviewAnalysisReading {
+                timestamp: "invalid-preserved".into(),
+                knee_angle: 12.0,
+                proximal_angle: -4.0,
+            }],
+        };
+        assert_eq!(
+            serde_json::to_value(review).unwrap(),
+            serde_json::json!({
+                "chart": [], "analysis": [{ "timestamp": "invalid-preserved", "kneeAngle": 12.0, "proximalAngle": -4.0 }]
+            })
+        );
+    }
 
     // CON-01 (2026-09-17): the BLE wire protocol has shared TS/Rust contract fixtures, but the
     // Tauri IPC layer's Rust structs and shared/types.ts's hand-written interfaces have no
