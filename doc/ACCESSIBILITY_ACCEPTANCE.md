@@ -109,3 +109,22 @@ Native protocol: repeat Wizard A keyboard/alert journeys for B; observe actual r
 and disable on close, without asserting quality from mere packet presence. Record both supported
 locales, intended AT/input/zoom, exact device/firmware and observed results. No participant testing
 or clinical/population/institutional conformance inferred.
+
+## Wizard A step/error announcement follow-up
+
+2026-10-29 baseline 24e1fdd. Persistent polite atomic status contains only existing localized step
+title and capture-phase text. Persistent atomic alert follows errMsg. Countdown ticks/raw/live-preview
+values are excluded. Retry uses existing clear path, so the same subsequent error creates another text
+transition. Visible title/error layout, capture timing/math and focus contract remain unchanged.
+
+DOM evidence: both locales, step change with stable nodes, capture start, countdown/raw update without
+status text mutation, actual insufficient-data error and retry clear/repeat. This closes the earlier A
+live-region source gap, not native announcement acceptance. Speech delivery, initial content handling,
+polite/assertive interruption and recovery after confirmation/hardware preemption require intended
+screen-reader/WebView verification. Wizard B announcement semantics remain separate/open.
+
+Native protocol: in both locales navigate from placement to capture, observe announcement of the new
+step and capture phase, then trigger owned-fixture insufficient data and retry. Verify the identical
+failure is announced again, timer ticks/raw updates do not create speech chatter, and meaningful
+instructions can still be reviewed. Repeat confirmation/emergency takeover and recovery. Record
+actual spoken output/queue/order; do not infer it from role attributes or DOM text tests.

@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> Wizard A speech regions: persist status/alert nodes across steps; announce only localized step
+> title/capture phase and errMsg. Never make raw values, countdown or whole preview live. Preserve
+> retry clearing; DOM semantics do not prove native speech delivery or interruption ordering.
+
 > Wizard A/B modal (one at a time): useCalibrationModalFocus yields its inert lease to hardware/confirmation store
 > state and actual alertdialog presence, including closing animation. Escape: wizard 10, confirmation
 > 20, hardware 100, default 0 LIFO. Capture must consume Escape; explicit close remains available.

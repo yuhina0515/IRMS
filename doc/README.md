@@ -2,6 +2,10 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-29 Wizard A announcements: persistent polite atomic step/capture status and assertive
+> error region reuse existing localized text. Countdown/raw/preview values are excluded; retry clears
+> errors so repeated failures change text again. Actual native speech/order/recovery remains unverified.
+
 > 2026-10-29 Wizard B access: B now uses the single-calibration-wizard portal/focus contract, named
 > Close and side pressed states, priority-10 capture Escape consumption. B raw-stream lifetime/detection,
 > solver and Apply-only persistence unchanged. Simultaneous arbitrary A/B mounting unsupported;

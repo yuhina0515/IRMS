@@ -335,9 +335,15 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     </button>
   )
 
+  // 公告只追蹤步驟與擷取階段；倒數和高頻預覽不得放入 live region。
+  const stepTitle = [m.calibration.step1Title, c.step2Title, c.step3Title, c.step4Title, c.step5Title, m.calibration.step6Title][step]
+
   return createPortal(
     <div ref={overlayRef} className="overlay">
       <div className="modal glass" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{stepTitle}{capturing ? ` · ${m.calibration.capturing}` : ''}</div>
+        {/* 固定保留錯誤節點；重試清空後，同一錯誤再次出現仍有文字變更。 */}
+        <div className="sr-only" role="alert" aria-atomic="true">{errMsg ?? ''}</div>
         <div className="modal-header">
           <h3 id={titleId}>{m.calibration.title}</h3>
           {/* 圖示保留外觀，以本地化動作名稱供輔助科技辨識。 */}

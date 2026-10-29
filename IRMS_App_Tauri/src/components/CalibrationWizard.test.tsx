@@ -78,6 +78,6 @@ describe('CalibrationWizard 步驟 1:配戴側閘門', () => {
     expect(startBtn).not.toBeDisabled()
 
     await userEvent.click(startBtn)
-    expect(screen.getByText('步驟 2/6 · 站直捕捉零位')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '步驟 2/6 · 站直捕捉零位' })).toBeInTheDocument()
   })
 })
