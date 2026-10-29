@@ -207,7 +207,7 @@ export const zhHant = {
 
   /** 跨畫面共用的按鈕與短語 */
   common: {
-    saveBeforeClose: '請先結束並儲存療程再關閉；若儲存失敗，請先重試儲存。',
+    saveBeforeClose: '請先完成療程儲存或等待應用程式操作完成再關閉；若儲存失敗，請先重試儲存。',
     closeProtectionFailed: '視窗關閉保護無法使用，開始下一場療程前請重新啟動應用程式。',
     storageBackpressure: '儲存速度不足，已停止本場資料收集。請確認療程儲存狀態。',
     // 圖示關閉按鈕的可存取名稱。

@@ -1,5 +1,23 @@
 # IRMS autonomous continuation checkpoint
 
+## Current checkpoint (2026-10-30 updater interlock)
+
+QUOTA HOLD released after natural recovery: initial100%/59%, latest95%/58% remaining. No reset,
+credits or credential changes. Baseline275336c CI40883973181 SUCCESS; worktree clean before task.
+Updater/session-start/idle-close now share symbol-owned synchronous transition lease. Start releases
+finally; failed install/destroy release; successful install holds installing/lease until process exit.
+Six real adapter/controller lifecycle cases plus obsolete-release regression added. Full630 frontend
+tests66 files/typecheck/build passed; Rust/collector unchanged, no new native suite claim. Independent
+engineering design/final review no blocker. See plans/2026-10-30-update-exit-plan.md and
+log_20261030_update_exit.md. Deliver scoped commit/push/draft PR, check its own CI next turn.
+
+Next bounded task: inspect UpdateBanner restart rejection/status handling. Current source calls
+void restartNow without catch and only renders downloaded/APK status; distinguish rejected launch
+from successful handoff that remains blocked pending native exit. Plan/reproduce before changing;
+do not rerun a full-project audit or execute real installer. Native installer/termination, cooperative
+titlebar/AltF4, OS shutdown/crash durability and broad institution/metrology acceptance remain open.
+Historical summaries/quota holds below are superseded by this current checkpoint.
+
 Updated: 2026-10-29 R05 native history pages batch. Observed remaining five-hour48%, weekly64%. Previous head `a2ff51b` CI40870617543 confirmed SUCCESS before delivery. Draft [PR #5](https://github.com/yuhina0515/IRMS/pull/5), branch codex/irms-readiness-20261029. Native page cap/index/clamp and renderer fences validated with612 frontend/145 Rust tests; new head CI separate. Next: bounded data_append_batch ingestion/write-budget source review; let latest CI finish before push (local preparation allowed). No native latency/heap/FPS/deployment or institutional/clinical/population acceptance implied. S03 rollout and R05/R07 native-performance/metrology/institution gates remain open. Overall objective not completed.
 
 ## Resume here

@@ -20,6 +20,7 @@ import { currentLimits, currentTriggerConfig } from './triggerConfig'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
 import storageBudget from '@shared/storage-budget.json'
+import { acquireAppTransition } from './appTransition'
 
 /** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
 const UI_SYNC_MS = 80
@@ -303,6 +304,7 @@ class SessionController {
   /** 啟動時安裝原生關窗保護；安裝失敗時不可建立新療程。 */
   private closeProtectionAvailable = true
   private closingWindow = false
+  private releaseCloseTransition: (() => void) | null = null
 
   setCloseProtectionAvailable(available: boolean): void {
     this.closeProtectionAvailable = available
@@ -313,23 +315,31 @@ class SessionController {
     const { session } = useStore.getState()
     if (this.closingWindow || this.starting || this.ending || session.running || session.id != null ||
       this.buffer.length > 0 || this.flushing != null) return false
+    const release = acquireAppTransition()
+    if (!release) return false
+    this.releaseCloseTransition = release
     this.closingWindow = true
     return true
   }
 
   releaseWindowClose(): void {
     this.closingWindow = false
+    this.releaseCloseTransition?.()
+    this.releaseCloseTransition = null
   }
 
   async startSession(): Promise<void> {
     if (!this.closeProtectionAvailable || this.closingWindow) throw new Error('Window close protection unavailable')
     const state = useStore.getState()
     if (this.starting || this.ending || state.session.running || state.session.id != null) return
+    const release = acquireAppTransition()
+    if (!release) throw new Error('Application transition is pending')
     this.starting = true
     try {
       await this.doStartSession()
     } finally {
       this.starting = false
+      release()
     }
   }
 

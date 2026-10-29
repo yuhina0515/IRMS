@@ -2,6 +2,14 @@
 
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
 
+> 2026-10-30 updater: controller start, idle normal close and updater installation synchronously
+> acquire the same import-independent single-owner application-transition lease. Active/retained
+> session checks still apply. Start releases in finally, failed destroy/install release their own
+> lease, successful installer handoff retains installing/lease until process exit so no new data
+> can begin while termination is pending. No platform/controller import cycle or IPC/schema change.
+> Installer promise rejection cannot prove an external process never launched; native Windows
+> installation/termination, forced exit and crash durability remain unverified.
+
 > 2026-10-29 normal close: application-lifetime native close handler is installed before allowing
 > sessions; pending/failed registration blocks new starts. Close is prevented while starting/ending,
 > running, retained session id, buffer or flush exists; localized hint directs existing save/retry.

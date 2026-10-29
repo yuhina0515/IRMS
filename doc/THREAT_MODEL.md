@@ -8,6 +8,13 @@ digest-only storage and fail-closed version checks; validated locally against ba
 This is a design and code assessment, not an audit of the running hina-tw.ddns.net service.
 No credentials, participant records or production configuration were inspected.
 
+Updater follow-up (2026-10-30 baseline275336c): shared owner-bound synchronous transition lease
+interlocks native session creation, idle close and install launch before awaits. Existing active/
+retained-id guards remain; successful installer handoff keeps new collection blocked until process
+exit, while explicit rejection releases for retry. This protects cooperative renderer ordering,
+not external process attestation: rejected install may still have launched an installer and resolved
+install does not prove application exit. Native Windows installer/termination remains unverified.
+
 Normal-close follow-up (baselinee1ad348): application-lifetime close listener blocks native
 destruction with pending start/end or retained session data; idle reservation prevents racing start.
 Failed registration blocks new sessions, failed destruction releases reservation. Narrow main-window

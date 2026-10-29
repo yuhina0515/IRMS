@@ -18,6 +18,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import { useStore } from '../store/useStore'
+import { acquireAppTransition } from '../services/appTransition'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
@@ -287,8 +288,17 @@ export const irms: IrmsApi = {
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
       const { session } = useStore.getState()
       if (session.running || session.id != null || !currentUpdate || !readyToInstall || installing) return
+      const release = acquireAppTransition()
+      if (!release) return
       installing = true
-      try { await currentUpdate.install() } finally { installing = false }
+      try {
+        await currentUpdate.install()
+        // 安裝程式已交接但程序未必已退出；成功後保留閘門，禁止再建立量測資料。
+      } catch (error) {
+        installing = false
+        release()
+        throw error
+      }
     },
     async openApkDownload() {
       if (currentApkUrl) await openUrl(currentApkUrl)

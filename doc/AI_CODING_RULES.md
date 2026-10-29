@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+Application transition (2026-10-30): appTransition.ts has one synchronous symbol-owned lease,
+shared by session start, idle normal-close reservation and updater install. It supplements, not
+replaces, retained-session checks. Release is owner-bound/idempotent; start finally and failed
+destroy/install release. Successful install keeps lease/installing until process exit. Never reopen
+session collection merely because install() resolved; no native exit proof is implied.
+
 Normal close (2026-10-29): main.tsx installs singleton sessionCloseGuard outside React/view/error
 boundaries, synchronously blocking session start until registration succeeds. Controller reserves
 idle close against start; starting/ending/session id/running/buffer/flushing deny close. Always

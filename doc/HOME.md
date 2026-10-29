@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 R05 update/start/close interlock** ([[log_20261030_update_exit|Log]]): shared single-owner transition lease closes pending native-start and installer-await races. Failed operations release for retry; successful installer handoff keeps new data blocked until process exit. Actual Windows installer/exit acceptance remains open.
+
 - **2026-10-29 R05 normal-close guard** ([[log_20261029_close_guard|Log]]): application-lifetime listener blocks close with pending start/end/retained session and preserves existing save/retry. Idle close reservation blocks new starts; failed registration blocks sessions, failed destroy releases reservation. Native titlebar/AltF4 acceptance remains open.
 
 - **2026-10-29 R05 normal-close assessment** ([[log_20261029_close_recovery_assessment|Log]]): source and independent review confirm ordinary native close bypasses retained-session save protection. Next scoped implementation includes pending-start/ending races and application-lifetime registration; no runtime fix or physical close acceptance claimed.

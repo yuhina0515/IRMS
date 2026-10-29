@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 updater/start/close interlock (2026-10-30): shared synchronous owner lease blocks installer during pending native start and new session/close during installation. Rollbacks release; successful install retains gate until exit. Cross-boundary regressions cover both directions; actual installer/OS termination and ambiguous rejection remain native acceptance gaps.
 - [x] R05 healthy-renderer normal-close guard: lifetime registration/start gate, pending-start/end/retained-session protection, idle-close reservation and destroy-failure release. Existing save/retry retained; physical titlebar/AltF4 and forced-exit/crash recovery remain open.
 - [x] R05 storage writes: shared1000-row/128-byte/finite command guard before DB lock; pending2000 stops acquisition before next frame, retains full failed suffix and retires acknowledged chunks. Local regressions cover failure/retry/ordering; durable crash recovery, lost-reply idempotency and native disk/IPC timing remain open.
 - [x] Bound telemetry queue/batch by serialized bytes and isolate collector configuration generations; name Settings number fields and expose persistent toast live regions. Automated checks passed; native acceptance open.
