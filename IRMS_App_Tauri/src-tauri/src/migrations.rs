@@ -203,6 +203,25 @@ fn migration_11(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_12(conn: &Connection) -> rusqlite::Result<()> {
+    // 只作持久關聯識別，不是認證憑證；歷史資料與數字 id 保持不變。
+    conn.execute_batch(
+        "CREATE TABLE storage_identity (
+            singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+            databaseId TEXT NOT NULL CHECK(length(databaseId) = 32 AND databaseId NOT GLOB '*[^0-9a-f]*')
+        );
+        INSERT INTO storage_identity VALUES(1, lower(hex(randomblob(16))));
+        ALTER TABLE sessions ADD COLUMN storageKey TEXT
+            CHECK(storageKey IS NULL OR (length(storageKey) = 32 AND storageKey NOT GLOB '*[^0-9a-f]*'));
+        UPDATE sessions SET storageKey = lower(hex(randomblob(16)));
+        CREATE UNIQUE INDEX idx_sessions_storage_key ON sessions(storageKey);
+        CREATE TRIGGER sessions_assign_storage_key AFTER INSERT ON sessions
+        WHEN NEW.storageKey IS NULL BEGIN
+            UPDATE sessions SET storageKey = lower(hex(randomblob(16))) WHERE id = NEW.id;
+        END;",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -258,6 +277,11 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 11,
         name: "transactional reading batch retry receipts",
         up: migration_11,
+    },
+    Migration {
+        version: 12,
+        name: "persistent database and session storage identities",
+        up: migration_12,
     },
 ];
 
@@ -596,7 +620,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8, 9, 10, 11]
+                vec![7, 8, 9, 10, 11, 12]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();

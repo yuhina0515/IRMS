@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 persistent storage association** ([[log_20261030_recovery_binding|Log]]): [contract](storage-identity.md), migration12 atomic start binding and crossDB/recreated-session rejection; fixed snapshot owner. Full732frontend/161Rust passed,6ignored. Quota tool recovered; independent unsent journal remains next, not completed.
+
 - **2026-10-30 R05 idempotent batch retry** ([[log_20261030_idempotent_append|Log]]): [contract](storage-batch-retry.md), atomic SQLite receipt/rows and stable retry identity/boundary. Conflicting payload rejects; unsent-buffer crash recovery remains next software task.
 
 - **2026-10-30 R07 offline receiver bundle** ([[log_20261030_capture_bundle|Log]]): [v1 contract](receiver-capture-bundle-v1.md), bounded self-contained validator and synthetic fixture;40 CLI subprocess cases. Structural identity only; source/metrology/native evidence remains open.

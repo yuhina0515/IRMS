@@ -305,7 +305,7 @@ export type UpdateStatus =
  */
 export interface IrmsApi {
   sessions: {
-    start(input: SessionStartInput): Promise<{ sessionId: number }>
+    start(input: SessionStartInput): Promise<{ sessionId: number; storageIdentity: string }>
     end(sessionId: number, repsCompleted: number): Promise<{ success: true }>
     /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
     progress(sessionId: number, reps: number): Promise<{ success: true }>
@@ -332,7 +332,7 @@ export interface IrmsApi {
   }
   data: {
     /** 同一批資料重試必須沿用識別碼與完整內容，不能改用時間戳去重。 */
-    appendBatch(sessionId: number, readings: SensorReading[], batchId: string): Promise<{ count: number }>
+    appendBatch(sessionId: number, readings: SensorReading[], batchId: string, storageIdentity: string): Promise<{ count: number }>
   }
   actions: {
     list(): Promise<CustomAction[]>

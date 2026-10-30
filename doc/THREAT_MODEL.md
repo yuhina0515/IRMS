@@ -35,6 +35,11 @@ new identities create no receipt, and session deletion/demo purge cascade receip
 and existing reading budgets occur before DB lock. Receipt storage grows with retained nonempty batches;
 no whole-database size/heap/latency bound is claimed. Unsent-buffer crash loss, lost process-local
 identities and hung native writes remain; this is not device attestation or end-to-end exactly-once.
+Migration12 additionally binds each append to the database/session identity returned atomically at
+session creation, checked inside the transaction before receipt acknowledgement or write. A stale
+journal from a different DB/recreated numeric session cannot rebind silently. Keys survive backup/
+restore, so they are not history-generation detection, deletion tombstones or authentication. No
+independent journal or cross-store deletion protocol activated. See [association](storage-identity.md).
 See [storage retry contract](storage-batch-retry.md). Finite numbers do not prove physiological validity.
 Method: identify the system, what can go wrong, responses and verification; describe processes,
 stores and trust boundaries following the [OWASP threat-modeling guidance](https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html).

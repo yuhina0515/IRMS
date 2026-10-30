@@ -147,8 +147,13 @@ if (AUTO_CHECK_ENABLED) {
 export const irms: IrmsApi = {
   sessions: {
     async start(input: SessionStartInput) {
-      const sessionId = await invoke<number>('sessions_start', { input })
-      return { sessionId }
+      // 身份與快照由原生同一交易回傳，不在第一次寫入時重新綁定。
+      const started = await invoke<{ sessionId: number; storageIdentity: string }>('sessions_start', { input })
+      if (!Number.isSafeInteger(started?.sessionId) || started.sessionId <= 0 ||
+          typeof started.storageIdentity !== 'string' || !/^[a-f\d]{32}\/[a-f\d]{32}$/.test(started.storageIdentity)) {
+        throw new Error('Invalid session storage identity')
+      }
+      return started
     },
     async end(sessionId: number, repsCompleted: number) {
       await invoke('sessions_end', { sessionId, repsCompleted })
@@ -198,8 +203,8 @@ export const irms: IrmsApi = {
     remove: (id: number) => invoke<void>('mobility_delete', { id })
   },
   data: {
-    async appendBatch(sessionId: number, readings: SensorReading[], batchId: string) {
-      const count = await invoke<number>('data_append_batch', { sessionId, readings, batchId })
+    async appendBatch(sessionId: number, readings: SensorReading[], batchId: string, storageIdentity: string) {
+      const count = await invoke<number>('data_append_batch', { sessionId, readings, batchId, storageIdentity })
       return { count }
     }
   },

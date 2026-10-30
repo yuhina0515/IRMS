@@ -79,6 +79,14 @@ pub struct SessionStartInput {
     pub source: String,
 }
 
+/// 建立療程與取得持久關聯身份同一交易完成，避免開始後才重新綁定另一個資料庫。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionStarted {
+    pub session_id: i64,
+    pub storage_identity: String,
+}
+
 // Field names below stay `thigh`/`shin` internally (matching the SQLite column names in
 // db.rs/migrations.rs unchanged by this pass) but are renamed on the wire via explicit
 // `serde(rename)` to `proximal`/`distal`, matching shared/types.ts's `SensorReading`/

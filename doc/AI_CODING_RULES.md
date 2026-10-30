@@ -285,7 +285,13 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
 * 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
-### 4.3 SQLite Schema(目前 `user_version = 11`)
+### 4.3 SQLite Schema(目前 `user_version = 12`)
+
+> Migration12: singleton storage_identity.databaseId and unique sessions.storageKey (32lowerhex).
+> Existing sessions backfilled; AFTER INSERT assigns future NULL keys. Atomic sessions_start returns
+> sessionId/storageIdentity; append requires the65ASCII db/session binding and checks inside its
+> transaction before receipt/empty/data. [Association contract](storage-identity.md). No journal,
+> restore-generation or authentication claim. Matched renderer/native required.
 
 > Migration11: reading_batch_receipts(sessionId,batchId,payloadHash,rowCount), WITHOUT ROWID,
 > composite primary key and ON DELETE CASCADE to sessions; no existing row rewrite. The append

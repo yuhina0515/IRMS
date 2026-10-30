@@ -1,10 +1,11 @@
 # Reading batch retry contract
 
-2026-10-30; migration11, current Tauri renderer/native pair. No sensor/hardware required.
+2026-10-30; migration11 receipts plus migration12 storage association, current Tauri renderer/native pair. No sensor/hardware required.
 
-`irms.data.appendBatch(sessionId, readings, batchId)` invokes `data_append_batch` with all three
-arguments. A batch identity is a canonical lowercase UUIDv4 generated before first invoke. An old
-caller omitting it is rejected by the new command; renderer/native must ship together. No IPC
+`irms.data.appendBatch(sessionId, readings, batchId, storageIdentity)` invokes `data_append_batch`
+with all four arguments. [Storage identity](storage-identity.md) is returned atomically with session
+creation and checked inside the receipt transaction before any acknowledgement/write. A batch identity is a canonical lowercase UUIDv4 generated before first invoke. An old
+caller omitting identity arguments is rejected by the new command; renderer/native must ship together. No IPC
 command name or reading wire fields changed. Runtime modules do not own this controller path.
 
 The controller snapshots buffered readings and sends sequential chunks of at most1000. On reject

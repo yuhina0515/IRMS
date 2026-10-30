@@ -9,7 +9,8 @@ use crate::downsample::{lttb, Point};
 use crate::migrations::{apply_migrations, finalize_orphaned_sessions, MIGRATIONS};
 use crate::types::{
     AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, ReviewAnalysisReading,
-    SensorReading, Session, SessionPage, SessionReviewData, SessionStartInput, StoredReading,
+    SensorReading, Session, SessionPage, SessionReviewData, SessionStartInput, SessionStarted,
+    StoredReading,
 };
 use rusqlite::{params, Connection};
 
@@ -256,6 +257,21 @@ pub mod mobility_repo {
 pub mod sessions_repo {
     use super::*;
 
+    /// 先完成原療程快照，再在同一交易取得身份；出錯時不留下半建立的療程。
+    pub fn start_bound(
+        conn: &mut Connection,
+        input: &SessionStartInput,
+    ) -> rusqlite::Result<SessionStarted> {
+        let tx = conn.transaction()?;
+        let session_id = start(&tx, input)?;
+        let storage_identity = data_repo::storage_identity(&tx, session_id)?;
+        tx.commit()?;
+        Ok(SessionStarted {
+            session_id,
+            storage_identity,
+        })
+    }
+
     pub fn start(conn: &Connection, input: &SessionStartInput) -> rusqlite::Result<i64> {
         let calibration_json =
             serde_json::to_string(&input.calibration).unwrap_or_else(|_| "null".to_string());
@@ -450,6 +466,52 @@ pub mod data_repo {
     use rusqlite::OptionalExtension;
     use sha2::{Digest, Sha256};
 
+    /// 固定 db/session 關聯值，不含原始校準或量測內容；不作認證用途。
+    pub fn storage_identity(conn: &Connection, session_id: i64) -> rusqlite::Result<String> {
+        conn.query_row(
+            "SELECT storage_identity.databaseId || '/' || sessions.storageKey
+            FROM storage_identity JOIN sessions ON sessions.id=?1 WHERE singleton=1",
+            [session_id],
+            |row| row.get(0),
+        )
+    }
+
+    /// 驗證固定長度與唯一拼法；在 command 取得資料庫鎖之前即可拒絕任意字串。
+    pub fn validate_storage_identity(identity: &str) -> rusqlite::Result<()> {
+        if identity.len() != 65
+            || !identity.bytes().enumerate().all(|(index, byte)| {
+                if index == 32 {
+                    byte == b'/'
+                } else {
+                    byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
+                }
+            })
+        {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "invalid storage identity".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// 每次寫入都在同一交易核對舊身份；不自動刷新成目前另一場療程的身份。
+    pub fn append_bound_batch(
+        conn: &mut Connection,
+        session_id: i64,
+        batch_id: &str,
+        readings: &[SensorReading],
+        expected_identity: &str,
+    ) -> rusqlite::Result<usize> {
+        validate_storage_identity(expected_identity)?;
+        append_batch_transaction(
+            conn,
+            session_id,
+            batch_id,
+            readings,
+            Some(expected_identity),
+        )
+    }
+
     /// 固定小寫 UUID v4，避免任意長 metadata 落盤或同身份多種拼法。
     pub fn validate_batch_id(id: &str) -> rusqlite::Result<()> {
         let bytes = id.as_bytes();
@@ -494,15 +556,34 @@ pub mod data_repo {
     }
 
     /// 收據與讀值同一交易；相同身份的內容不同時拒絕，不回顯任何量測內容。
+    #[cfg(test)]
     pub fn append_batch_once(
         conn: &mut Connection,
         session_id: i64,
         batch_id: &str,
         readings: &[SensorReading],
     ) -> rusqlite::Result<usize> {
+        append_batch_transaction(conn, session_id, batch_id, readings, None)
+    }
+
+    // 測試保留舊收據契約；正式 IPC 一律提供 expected_identity。
+    fn append_batch_transaction(
+        conn: &mut Connection,
+        session_id: i64,
+        batch_id: &str,
+        readings: &[SensorReading],
+        expected_identity: Option<&str>,
+    ) -> rusqlite::Result<usize> {
         validate_batch_id(batch_id)?;
         let digest = payload_hash(readings);
         let tx = conn.transaction()?;
+        if let Some(expected) = expected_identity {
+            if storage_identity(&tx, session_id)? != expected {
+                return Err(rusqlite::Error::InvalidParameterName(
+                    "storage identity mismatch".into(),
+                ));
+            }
+        }
         let previous: Option<(String, usize)> = tx.query_row(
             "SELECT payloadHash, rowCount FROM reading_batch_receipts WHERE sessionId=?1 AND batchId=?2",
             params![session_id, batch_id], |row| Ok((row.get(0)?, row.get(1)?))
@@ -786,6 +867,254 @@ mod tests {
             .any(|s| s.id == pending && s.end_time.is_none()));
     }
 
+    // 將來的跨程序日誌必須綁定持久身份，不能只信任可能重用的數字 id。
+    mod storage_binding {
+        use super::*;
+        const BATCH: &str = "00000000-0000-4000-8000-000000000001";
+        fn rows() -> Vec<SensorReading> {
+            vec![SensorReading {
+                timestamp: "synthetic".into(),
+                knee_angle: 1.0,
+                thigh_angle: 2.0,
+                shin_angle: 3.0,
+                knee_roll: 4.0,
+                thigh_roll: 5.0,
+                shin_roll: 6.0,
+            }]
+        }
+        fn assert_empty(conn: &Connection) {
+            for table in ["sensor_data", "reading_batch_receipts"] {
+                assert_eq!(
+                    conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                        .unwrap(),
+                    0
+                );
+            }
+        }
+        #[test]
+        fn refuses_foreign_database_even_when_numeric_id_and_batch_match() {
+            let mut first = fresh_db();
+            let mut second = fresh_db();
+            let a = sessions_repo::start_bound(&mut first, &sample_session_input()).unwrap();
+            let b = sessions_repo::start_bound(&mut second, &sample_session_input()).unwrap();
+            assert_eq!(a.session_id, b.session_id);
+            assert_ne!(a.storage_identity, b.storage_identity);
+            assert!(data_repo::append_bound_batch(
+                &mut second,
+                b.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity
+            )
+            .is_err());
+            assert_empty(&second);
+            assert_eq!(
+                data_repo::append_bound_batch(
+                    &mut second,
+                    b.session_id,
+                    BATCH,
+                    &rows(),
+                    &b.storage_identity
+                )
+                .unwrap(),
+                1
+            );
+            // 即使 receipt 已存在，舊庫身份仍不可被當成成功重試。
+            assert!(data_repo::append_bound_batch(
+                &mut second,
+                b.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity
+            )
+            .is_err());
+            assert!(data_repo::append_bound_batch(
+                &mut second,
+                b.session_id,
+                BATCH,
+                &[],
+                &a.storage_identity
+            )
+            .is_err());
+            assert_eq!(
+                sessions_repo::get_data(&second, b.session_id, None)
+                    .unwrap()
+                    .len(),
+                1
+            );
+        }
+        #[test]
+        fn refuses_deleted_recreated_session_and_other_session_binding() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let b = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            assert_eq!(&a.storage_identity[..32], &b.storage_identity[..32]);
+            assert_ne!(&a.storage_identity[33..], &b.storage_identity[33..]);
+            assert!(data_repo::append_bound_batch(
+                &mut conn,
+                b.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity
+            )
+            .is_err());
+            sessions_repo::delete(&conn, a.session_id).unwrap();
+            assert!(data_repo::append_bound_batch(
+                &mut conn,
+                a.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity
+            )
+            .is_err());
+            conn.execute("INSERT INTO sessions(id) VALUES(?1)", [a.session_id])
+                .unwrap();
+            assert_ne!(
+                data_repo::storage_identity(&conn, a.session_id).unwrap(),
+                a.storage_identity
+            );
+            assert!(data_repo::append_bound_batch(
+                &mut conn,
+                a.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity
+            )
+            .is_err());
+            assert_empty(&conn);
+        }
+        #[test]
+        fn migration_preserves_rows_receipts_and_snapshots_and_backfills_unique_keys() {
+            let mut conn = Connection::open_in_memory().unwrap();
+            conn.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+            run_migrations(&conn, &MIGRATIONS[..11], |_| {}).unwrap();
+            let first = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+            let second = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+            data_repo::append_batch_once(&mut conn, first, BATCH, &rows()).unwrap();
+            let sessions = serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap();
+            let data =
+                serde_json::to_value(sessions_repo::get_data(&conn, first, None).unwrap()).unwrap();
+            run_migrations(&conn, MIGRATIONS, |_| {}).unwrap();
+            assert_eq!(
+                serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap(),
+                sessions
+            );
+            assert_eq!(
+                serde_json::to_value(sessions_repo::get_data(&conn, first, None).unwrap()).unwrap(),
+                data
+            );
+            let identity = data_repo::storage_identity(&conn, first).unwrap();
+            data_repo::validate_storage_identity(&identity).unwrap();
+            assert_ne!(
+                identity,
+                data_repo::storage_identity(&conn, second).unwrap()
+            );
+            assert_eq!(
+                data_repo::append_bound_batch(&mut conn, first, BATCH, &rows(), &identity).unwrap(),
+                1
+            );
+            assert_eq!(
+                sessions_repo::get_data(&conn, first, None).unwrap().len(),
+                1
+            );
+            run_migrations(&conn, MIGRATIONS, |_| {}).unwrap();
+            assert_eq!(data_repo::storage_identity(&conn, first).unwrap(), identity);
+        }
+        #[test]
+        fn identity_is_stable_after_close_reopen_and_old_retry_still_matches() {
+            let path =
+                std::env::temp_dir().join(format!("irms_binding_{}.sqlite", uuid::Uuid::new_v4()));
+            let mut conn = init_database(&path).unwrap();
+            let started = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            data_repo::append_bound_batch(
+                &mut conn,
+                started.session_id,
+                BATCH,
+                &rows(),
+                &started.storage_identity,
+            )
+            .unwrap();
+            drop(conn);
+            let mut conn = init_database(&path).unwrap();
+            assert_eq!(
+                data_repo::storage_identity(&conn, started.session_id).unwrap(),
+                started.storage_identity
+            );
+            assert_eq!(
+                data_repo::append_bound_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &rows(),
+                    &started.storage_identity
+                )
+                .unwrap(),
+                1
+            );
+            assert_eq!(
+                sessions_repo::get_data(&conn, started.session_id, None)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert_eq!(sessions_repo::list(&conn).unwrap()[0].abandoned, 1);
+            drop(conn);
+            assert_eq!(path.parent(), Some(std::env::temp_dir().as_path()));
+            assert!(path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("irms_binding_"));
+            std::fs::remove_file(path).unwrap();
+        }
+        #[test]
+        fn failed_identity_creation_rolls_back_session_and_wire_shape_is_explicit() {
+            let mut conn = fresh_db();
+            conn.execute_batch(
+                "CREATE TEMP TRIGGER reject_identity BEFORE UPDATE OF storageKey ON sessions
+                BEGIN SELECT RAISE(ABORT, 'injected identity failure'); END;",
+            )
+            .unwrap();
+            assert!(sessions_repo::start_bound(&mut conn, &sample_session_input()).is_err());
+            assert!(sessions_repo::list(&conn).unwrap().is_empty());
+            conn.execute_batch("DROP TRIGGER reject_identity;").unwrap();
+            let started = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let json = serde_json::to_value(&started).unwrap();
+            assert_eq!(
+                json,
+                serde_json::json!({"sessionId":started.session_id,"storageIdentity":started.storage_identity})
+            );
+            assert_eq!(json.as_object().unwrap().len(), 2);
+        }
+        #[test]
+        fn rejects_invalid_identity_before_any_data_or_receipt_change() {
+            let mut conn = fresh_db();
+            let started = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            for identity in [
+                "".to_string(),
+                "x".repeat(10000),
+                started.storage_identity.to_uppercase(),
+                started.storage_identity.replace('/', "-"),
+                "secret-private-input".into(),
+            ] {
+                let error = data_repo::append_bound_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &rows(),
+                    &identity,
+                )
+                .unwrap_err()
+                .to_string();
+                assert!(error.contains("invalid storage identity"));
+                assert!(!error.contains("private-input"));
+            }
+            assert_empty(&conn);
+        }
+    }
+
     // 故障注入只使用合成讀值與暫存／記憶體 SQLite，不接觸應用資料庫或裝置。
     mod batch_receipts {
         use super::*;
@@ -988,7 +1317,7 @@ mod tests {
                 serde_json::to_value(sessions_repo::get_data(&conn, id, None).unwrap()).unwrap(),
                 before
             );
-            assert_eq!(crate::migrations::get_schema_version(&conn).unwrap(), 11);
+            assert_eq!(crate::migrations::get_schema_version(&conn).unwrap(), 12);
         }
     }
 

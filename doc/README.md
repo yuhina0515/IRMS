@@ -1,5 +1,11 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Persistent storage association (2026-10-30): migration12 binds writes to a stable DB/session identity,
+> returned atomically with session creation and retained across retries/snapshot awaits. Same numeric
+> IDs from another DB/recreated session reject. See [contract](storage-identity.md); this is a recovery
+> journal prerequisite, not unsent crash recovery, authentication or backup-generation detection.
+
+
 > Reading batch retry (2026-10-30): migration11 and required batchId provide transactional
 > payload-checked retry receipts. Renderer retains original identity and chunk boundary on uncertain
 > replies. See [storage contract](storage-batch-retry.md); this does not persist unsent buffers.
@@ -359,7 +365,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--11)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--12)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。

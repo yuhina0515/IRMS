@@ -91,7 +91,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
   // 預設實作一律「成功且回傳空集合」:測試只需覆寫它實際關心的那一兩個方法。
   const defaults = {
     sessions: {
-      start: async (_input: SessionStartInput) => ({ sessionId: nextSessionId++ }),
+      start: async (_input: SessionStartInput) => ({ sessionId: nextSessionId++, storageIdentity: 'd'.repeat(32) + '/' + 'e'.repeat(32) }),
       end: async (_sessionId: number, _repsCompleted: number) => ({ success: true as const }),
       progress: async (_sessionId: number, _reps: number) => ({ success: true as const }),
       list: async (): Promise<Session[]> => [],
@@ -109,7 +109,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       exportText: async (_defaultName: string, _contents: string) => true
     },
     data: {
-      appendBatch: async (_sessionId: number, readings: SensorReading[], _batchId?: string) => {
+      appendBatch: async (_sessionId: number, readings: SensorReading[], _batchId?: string, _storageIdentity?: string) => {
         appended.push(...readings)
         return { count: readings.length }
       }

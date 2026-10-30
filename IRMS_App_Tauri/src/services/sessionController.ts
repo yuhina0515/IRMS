@@ -42,6 +42,8 @@ class SessionController {
   private pendingWriteRows = 0
   /** 回覆不明時保留同一身份與切分邊界；新讀值不可併入舊批次。 */
   private retryBatch: { sessionId: number; id: string; count: number } | null = null
+  /** 與建立療程快照一起取得；重試不得重新查詢／換綁另一個資料庫。 */
+  private storageIdentity: string | null = null
   private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
@@ -362,7 +364,7 @@ class SessionController {
     }
 
     try {
-      const { sessionId } = await irms.sessions.start({
+      const { sessionId, storageIdentity } = await irms.sessions.start({
         targetAngle: params.targetAngle,
         tolerance: params.tolerance,
         holdTimeMs: params.holdTimeMs,
@@ -398,6 +400,7 @@ class SessionController {
 
       this.buffer = []
       this.retryBatch = null
+      this.storageIdentity = storageIdentity
       this.resetFeedbackState()
       this.startTimestamp = Date.now()
 
@@ -524,6 +527,8 @@ class SessionController {
     const { session } = useStore.getState()
     if (session.id == null || this.buffer.length === 0) return
 
+    // 跨 await 的整個 snapshot 固定同一身份，不因數字 id 被重用而換綁。
+    const storageIdentity = this.storageIdentity
     const readings = this.buffer
     this.buffer = []
     this.pendingWriteRows = readings.length
@@ -531,7 +536,7 @@ class SessionController {
       let acknowledged = 0
       try {
         while (acknowledged < readings.length) {
-          if (useStore.getState().session.id !== session.id) return
+          if (useStore.getState().session.id !== session.id || this.storageIdentity !== storageIdentity) return
           // 產生身份後才進 IPC；短回覆／拒絕都不能更換身份或重新切批。
           if (this.retryBatch?.sessionId !== session.id) this.retryBatch = null
           const batch = this.retryBatch ?? {
@@ -540,7 +545,8 @@ class SessionController {
           }
           this.retryBatch = batch
           const chunk = readings.slice(acknowledged, acknowledged + batch.count)
-          const result = await irms.data.appendBatch(session.id!, chunk, batch.id)
+          if (!storageIdentity) throw new Error('Session storage identity unavailable')
+          const result = await irms.data.appendBatch(session.id!, chunk, batch.id, storageIdentity)
           if (result?.count !== chunk.length) throw new Error('Incomplete batch acknowledgement')
           // 舊療程的延遲回覆不得清除新療程的待確認身份。
           if (this.retryBatch === batch) this.retryBatch = null
@@ -549,7 +555,7 @@ class SessionController {
         }
       } catch (err) {
         // 防止外部狀態重設後，舊療程的資料回補到另一場療程。
-        if (useStore.getState().session.id === session.id) {
+        if (useStore.getState().session.id === session.id && this.storageIdentity === storageIdentity) {
           this.buffer = readings.slice(acknowledged).concat(this.buffer)
         }
         useStore.getState().log(`Batch write failed, buffer restored: ${String(err)}`)

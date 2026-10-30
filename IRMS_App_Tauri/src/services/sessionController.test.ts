@@ -202,8 +202,8 @@ describe('開始/結束的重入防護', () => {
 
   it('refuses close while starting even before the native session id exists', async () => {
     let finish!: () => void
-    stub.sessions.start.mockImplementationOnce(() => new Promise<{ sessionId: number }>((resolve) => {
-      finish = () => resolve({ sessionId: 1 })
+    stub.sessions.start.mockImplementationOnce(() => new Promise<{ sessionId: number; storageIdentity: string }>((resolve) => {
+      finish = () => resolve({ sessionId: 1, storageIdentity: 'a'.repeat(32) + '/' + 'b'.repeat(32) })
     }))
     const starting = sessionController.startSession()
     expect(useStore.getState().session.id).toBeNull()
@@ -254,6 +254,44 @@ describe('開始/結束的重入防護', () => {
     expect(calls.map(call => call[1].length)).toEqual([3, 3, 5])
     expect(calls[1]).toEqual(original)
     expect(calls[2][2]).not.toBe(original[2])
+  })
+
+  it('binds reading retries to the storage identity returned by session creation', async () => {
+    const storageIdentity = 'a'.repeat(32) + '/' + 'b'.repeat(32)
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 1, storageIdentity })
+    await sessionController.startSession()
+    feed(REST, 3)
+    stub.data.appendBatch.mockRejectedValueOnce(new Error('reply lost'))
+    expect(await sessionController.endSession()).toBe(false)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[3])).toEqual([storageIdentity, storageIdentity])
+  })
+
+  it('does not rebind an old multi-chunk snapshot when a numeric session id is reused', async () => {
+    useStore.setState(s => ({ settings: { ...s.settings, flushIntervalSec: 60 } }))
+    let failFirst!: (reason: Error) => void
+    let finishRetry!: () => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((_, reject) => { failFirst = reject }))
+    await sessionController.startSession()
+    feed(REST, 1500)
+    failFirst(new Error('retry later'))
+    await Promise.resolve()
+    await Promise.resolve()
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>(resolve => { finishRetry = () => resolve({ count: 1000 }) }))
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[1].length)).toEqual([1000, 1000])
+    // 模擬外部復原流程換掉 owner，且刻意重用數字 id；一般 UI 不會這樣重設。
+    useStore.getState().resetSession()
+    const replacementIdentity = '1'.repeat(32) + '/' + '2'.repeat(32)
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 1, storageIdentity: replacementIdentity })
+    await sessionController.startSession()
+    finishRetry()
+    await Promise.resolve()
+    await Promise.resolve()
+    feed(REST, 3)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[1].length)).toEqual([1000, 1000, 3])
+    expect(stub.data.appendBatch.mock.calls[2][3]).toBe(replacementIdentity)
   })
 
   it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
@@ -386,22 +424,23 @@ describe('開始/結束的重入防護', () => {
     await ending
     expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
     expect(stub.data.appendBatch.mock.calls[1][1]).toEqual(stub.data.appendBatch.mock.calls[0][1])
-    stub.sessions.start.mockResolvedValueOnce({ sessionId: 2 })
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 2, storageIdentity: 'c'.repeat(32) + '/' + 'f'.repeat(32) })
     await sessionController.startSession()
     feed(IN_ZONE, 25)
     await sessionController.endSession()
     expect(stub.data.appendBatch.mock.calls[2][0]).toBe(2)
     expect(stub.data.appendBatch.mock.calls[2][1]).toHaveLength(25)
+    expect(stub.data.appendBatch.mock.calls[2][3]).toBe('c'.repeat(32) + '/' + 'f'.repeat(32))
   })
 
   it('retires a pending start after connection loss even when the link reconnects', async () => {
-    let create!: (value: { sessionId: number }) => void
+    let create!: (value: { sessionId: number; storageIdentity: string }) => void
     stub.sessions.start.mockImplementationOnce(() => new Promise((resolve) => { create = resolve }))
     const starting = sessionController.startSession()
     bluetoothService.onConnectionLost?.()
     useStore.getState().setConnection(false, null)
     bluetoothService.beginSimulated('reconnected')
-    create({ sessionId: 42 })
+    create({ sessionId: 42, storageIdentity: 'a'.repeat(32) + '/' + 'b'.repeat(32) })
     await expect(starting).rejects.toThrow('Connection lost while starting session')
     expect(useStore.getState().session.running).toBe(false)
     expect(useStore.getState().session.id).toBeNull()

@@ -56,7 +56,8 @@ Use asynchronous independent reports, then one written triage meeting. Do not ma
 ## Software-only priority update (2026-10-30)
 
 No physical devices in this session. R05 batch retry identity now resolves same-identity lost-reply
-replay with migration11 transactional receipts; see [contract](storage-batch-retry.md). Next is durable
+replay with migration11 transactional receipts; see [contract](storage-batch-retry.md). Persistent DB/session association is now the reviewed prerequisite (migration12); no independent
+journal or unsent recovery claim yet. Next is durable
 unsent queue/restart reconciliation, followed by remaining software accessibility/privacy journeys
 and reproducibility artifacts. External measurement gates do not imply all software work is blocked.
 No clinical or institution-wide conclusion follows from these software improvements.

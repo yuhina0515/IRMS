@@ -20,12 +20,13 @@ function deferred<T>() {
 }
 
 let controller: typeof import('../services/sessionController')['sessionController'] | undefined
+const started = { sessionId: 1, storageIdentity: 'a'.repeat(32) + '/' + 'b'.repeat(32) }
 beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   mocks.invoke.mockImplementation(async (command: string) => {
     if (command === 'update_check') return { rid: 1, version: '2.0.0' }
-    if (command === 'sessions_start') return 1
+    if (command === 'sessions_start') return started
     return undefined
   })
   mocks.download.mockResolvedValue(undefined)
@@ -48,13 +49,13 @@ async function setup() {
 
 it('blocks install while native session creation is pending before a session id exists', async () => {
   const { irms, sessionController, useStore } = await setup()
-  const pending = deferred<number>()
+  const pending = deferred<typeof started>()
   mocks.invoke.mockImplementationOnce(() => pending.promise)
   const starting = sessionController.startSession()
   expect(useStore.getState().session.id).toBeNull()
   await irms.updates.restartNow()
   const attemptedInstall = mocks.install.mock.calls.length
-  pending.resolve(1)
+  pending.resolve(started)
   await starting
   expect(attemptedInstall).toBe(0)
   await irms.updates.restartNow()

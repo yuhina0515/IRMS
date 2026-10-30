@@ -1,6 +1,80 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 R05 idempotent reading batches)
+## Current checkpoint (2026-10-30 persistent storage association verified)
+
+Live quota restored98%/42%, latest93%/41% remaining. The older UNKNOWN hold below is historical;
+its blocking transport recovered. Authorized heartbeat work resumed after both known windows>=30%.
+Baseline4dc9895, prior CI41002659505 SUCCESS. Finish scoped delivery of this verified bounded task;
+no physical devices/participants/production operations, no unrelated changes.
+
+Migration12 adds32hex DB identity and unique32hex session keys (backfill and insert trigger), preserving
+existing rows/snapshots/receipt data. Atomic sessions_start returns sessionId/storageIdentity; no new
+identity command. Adapter rejects malformed/legacy DTO, controller retains binding through retries
+and fixed flush snapshots. Native append requires65ASCII binding, validates prelock and compares
+inside receipt/data transaction before ack/empty/write. CrossDB or recreated numeric ID rejects.
+Renderer/native must ship together. Keys copied by backup do not distinguish diverging restores or
+provide authentication/tombstones; start reply loss can leave abandoned row.
+
+Final full732/732 frontend cases70files, TypeScript/Vite build passed. Initial full730/2 failures were
+legacy updater.lifecycle response fixtures, now corrected; focused tests/typecheck then full rerun
+passed. Full Rust161passed/6ignored, fmt/Clippy all-targets/all-features -D warnings passed. Six new
+SQLite binding tests plus controller/adapter owner/retry/malformed DTO coverage. Engineering final
+snapshot-owner correction confirmed; security final foundation review no blocker. Collector unchanged.
+See doc/storage-identity.md, plans/2026-10-30-crash-recovery-plan.md and
+log_20261030_recovery_binding.md (append-only resume/completion section supersedes earlier WIP).
+Inspect this new commit's CI before a subsequent push; no merge/release/deployment.
+
+Next bounded software task: independent pre-IPC durable journal evidence prototype and protocol.
+This foundation is NOT completed unsent recovery. Compare actual committed-but-unsent entries with
+native receipt drain; preserve original binding, stable batch boundary and ordering, bounded bytes/
+rows and explicit incomplete-session state. Startup gate, native deletion/replacement, same-lineage
+restore ambiguity, ack/delete interruption and quota/eviction/corruption must be tested before
+connecting acquisition. Do not recreate missing native sessions or automatically resume exercises.
+No physical device use this session; do not stall unrelated software work on external measurement.
+No universal university/country/population acceptance or demographic treatment thresholds.
+
+
+## Historical checkpoint (2026-10-30 recovery binding WIP / live quota unavailable)
+
+At2026-10-30T12:33+08:00, usage tool twice returned Transport closed. Last known this turn83%/46%
+remaining, but live quota is now UNKNOWN: stop new expensive work. No purchases/reset/auth changes.
+Recheck live usage when resumed; resume expensive work only every known window>=30%.
+The same Transport closed failure now recurred across three consecutive goal turns including its
+original occurrence. Goal marked blocked by the quota-unknown guard, not complete. WIP is preserved.
+Prior head CI41002659505 SUCCESS; no subsequent push.
+
+Active worktree E:/Monitoring-and-IoT/IRMS-wt/readiness-20261029 at4dc9895. WIP10 scoped source/test
+files plus plans/2026-10-30-crash-recovery-plan.md. No staging/commit/push; preserve all changes.
+New meeting log log_20261030_recovery_binding.md. No devices, production changes or new sensitive store.
+
+Engineering/security independent positions and cross-critique: same-DB staging adds IO without
+protecting pre-IPC data. Immediate append only reduces volatile tail. True unsent replay needs an
+independent journal, with native stable DB/session identity and deletion/restore policy first.
+Chosen necessary first runtime foundation: migration12 DB32hex+unique session32hex; atomic start_bound
+returns sessionId/storageIdentity; renderer retains binding and native append requires/checks it
+inside receipt transaction. No new command name. Both wire signatures change, ship matched pair.
+Not a substitute completion claim: no durable unsent journal or restart replay implemented yet.
+Backup copies preserve these IDs, so this is not a restore generation, authentication or tombstone.
+
+Validation so far: original new binding controller regression failed with undefined identities;
+after initial implementation43 targeted controller/adapter cases plus typecheck passed. Native6
+storage_binding tests and7existing receipt tests pass. Full checks NOT yet run for this WIP. Reviewers
+no blocking foundation defects; engineering recommended snapshot identity across awaits. Lead applied
+that correction and added forced same-numeric-id owner replacement case. Its initial1s-timer fixture
+caused an early pending-promise/cleanup timeout and cascade in full controller file; changed to60s,
+focused replacement case passes. Full controller file/typecheck must be rerun before claiming green.
+No native source changes after successful6binding tests, except no later native changes planned.
+
+Resume: first livequota gate. Then finish adapter rich-start validation tests, rerun full controller,
+full frontend/typecheck/build and full Rust/fmt/Clippy. Obtain narrow final review of snapshot-owner
+correction. Synchronize spec/schema12/cheat sheet/optimization/threat model and honest scope docs,
+update meeting log with outcomes, scoped commit/push/draft PR after confirmation checks. Do not
+start another task while WIP incomplete. Then plan independent journal evidence prototype with DB
+replacement/restore/deletion/eviction and startup barrier; no automatic exercise resume or clinical
+completeness inference. Physical/native metrology stays unverified but software work remains active.
+
+
+## Historical checkpoint (2026-10-30 R05 idempotent reading batches)
 
 Baseline54fa0a5 clean, CI40960899608 SUCCESS. Quota initial98%/48%, latest85%/46% remaining.
 No physical devices in this session. Prior external-only waiting interpretation superseded:

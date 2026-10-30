@@ -7,7 +7,7 @@
 use crate::db::{actions_repo, angle_ranges_repo, data_repo, sessions_repo};
 use crate::types::{
     AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, SensorReading, Session,
-    SessionPage, SessionReviewData, SessionStartInput, StoredReading,
+    SessionPage, SessionReviewData, SessionStartInput, SessionStarted, StoredReading,
 };
 use rusqlite::Connection;
 use std::sync::{Mutex, MutexGuard};
@@ -69,9 +69,9 @@ pub fn actions_restore_defaults(state: tauri::State<DbState>) -> Result<Vec<Cust
 pub fn sessions_start(
     state: tauri::State<DbState>,
     input: SessionStartInput,
-) -> Result<i64, String> {
-    let conn = lock_db(&state)?;
-    sessions_repo::start(&conn, &input).map_err(to_err)
+) -> Result<SessionStarted, String> {
+    let mut conn = lock_db(&state)?;
+    sessions_repo::start_bound(&mut conn, &input).map_err(to_err)
 }
 
 #[tauri::command]
@@ -223,11 +223,20 @@ pub fn data_append_batch(
     session_id: i64,
     readings: Vec<SensorReading>,
     batch_id: String,
+    storage_identity: String,
 ) -> Result<usize, String> {
     data_repo::validate_batch_id(&batch_id).map_err(to_err)?;
+    data_repo::validate_storage_identity(&storage_identity).map_err(to_err)?;
     validate_append_readings(&readings)?;
     let mut conn = lock_db(&state)?;
-    data_repo::append_batch_once(&mut conn, session_id, &batch_id, &readings).map_err(to_err)
+    data_repo::append_bound_batch(
+        &mut conn,
+        session_id,
+        &batch_id,
+        &readings,
+        &storage_identity,
+    )
+    .map_err(to_err)
 }
 
 // 與前端讀取同一份交易預算；此檢查發生在 IPC 反序列化之後、資料庫鎖之前。
