@@ -45,6 +45,7 @@ it('returns the native session id and durable binding together', async () => {
 it.each([null, 7, { sessionId: 1 }, { sessionId: 0, storageIdentity: identity },
   { sessionId: Number.MAX_SAFE_INTEGER + 1, storageIdentity: identity },
   { sessionId: 1, storageIdentity: identity.toUpperCase() },
+  { sessionId: 1, storageIdentity: identity + '\n' },
   { sessionId: 1, storageIdentity: 'private-input'.repeat(1000) }
 ])('rejects malformed or legacy start replies without echoing their content', async result => {
   mocks.invoke.mockResolvedValueOnce(result)

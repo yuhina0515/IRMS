@@ -150,7 +150,7 @@ export const irms: IrmsApi = {
       // 身份與快照由原生同一交易回傳，不在第一次寫入時重新綁定。
       const started = await invoke<{ sessionId: number; storageIdentity: string }>('sessions_start', { input })
       if (!Number.isSafeInteger(started?.sessionId) || started.sessionId <= 0 ||
-          typeof started.storageIdentity !== 'string' || !/^[a-f\d]{32}\/[a-f\d]{32}$/.test(started.storageIdentity)) {
+          typeof started.storageIdentity !== 'string' || started.storageIdentity.length !== 65 || !/^[a-f\d]{32}\/[a-f\d]{32}$/.test(started.storageIdentity)) {
         throw new Error('Invalid session storage identity')
       }
       return started

@@ -1,6 +1,41 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 persistent storage association verified)
+## Current checkpoint (2026-10-30 isolated journal evidence prototype)
+
+Baseline8ff7662 clean, CI41022604955 SUCCESS. Quota initial90%/41%, latest69%/38% remaining.
+One bounded isolated journal task complete; no physical devices, people messages, production changes,
+user browser profile or participant data. Current runtime schema12/identity/receipt contracts preserved.
+
+Unconnected typed IDB prototype stores original binding/batch/session/readings. Fixed canonical copies,
+transaction-complete success, strict durability hint requested/observed, atomic cursor audit/capacity/
+counters;2000rows/128batches/512KiB payload,1..1000rows/batch/128UTF8timestamp. Oldest full original
+identity/count ack only, corruption retained/rejected, no silent erase. Never imported by acquisition.
+Manual Chrome probe uses own temp profile and same loopback origin across ownedPID-tree force kill.
+19actual browser cases passed, source/runtime-hashed JSON in doc/recovery/journal-probe-20261030.json.
+Native sink SIMULATED acknowledgement map, not actual Rust/IPC. Temporary browser/profile/server
+cleanup confirmed. No WebView, power-loss, eviction, quota exhaustion or production durability claim.
+
+Security final finding fixed: outer CLI error boundary now includes setup/finally/output;3filesystem
+error subprocess cases and actual missing-executable/output-directory CLI checks pass without paths.
+Engineering/security final reviews no blocker, narrow correction confirmed. Added65-length adapter
+binding guard for JS `$` trailing-newline acceptance; prototype65/36 lengths likewise exact. Full
+736frontend cases71files/typecheck/build passed. Final stats typing followed by fresh19browser probe
+and typecheck. Native/collector unchanged; baseline161Rust/6ignored not rerun. See
+plans/2026-10-30-journal-probe-plan.md, doc/recovery/journal-prototype.md and log_20261030_journal_probe.md.
+Deliver scoped commit/push/draft PR and inspect new head CI before another push.
+
+Next bounded software task: bridge isolated browser journal to ACTUAL Rust/SQLite receipt oracle,
+using only owned temporary DB/profiles and synthetic data. Pin native commit->lost reply->journal
+retry/delete interruption, immutable original payload/binding, wrong/missing/deleted native session
+and foreign DB fail-closed outcomes. Establish explicit deletion/backup-restore/startup policy before
+connecting acquisition. Same-lineage backups preserve IDs, so matching binding alone is insufficient
+for all restore histories. Keep prototype unconnected until gates pass, never rebuild missing sessions,
+refresh binding, resume exercises or imply complete interrupted tail. Actual WebView persistence and
+storage quota/eviction remain later software acceptance gates, not verified by this Chrome probe.
+No broad repeated audits; no universal university/country/demographic acceptance claims.
+
+
+## Historical checkpoint (2026-10-30 persistent storage association verified)
 
 Live quota restored98%/42%, latest93%/41% remaining. The older UNKNOWN hold below is historical;
 its blocking transport recovered. Authorized heartbeat work resumed after both known windows>=30%.

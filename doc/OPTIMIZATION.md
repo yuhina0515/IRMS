@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 isolated pre-IPC journal evidence prototype (2026-10-30):19real-Chrome IndexedDB cases, owned-profile interruption/reopen, atomic capacity/audit and oldest full-ack retention;3CLI error-boundary tests. Actual Rust/WebView drain, quota/eviction, deletion/restore/startup and production acquisition remain unconnected.
 - [x] R05 persistent storage association (2026-10-30): migration12 stable DB/session keys, atomic start reply, required append binding before receipt/write and immutable flush-owner check. Journal/restart replay and restore/deletion reconciliation remain separate unfinished work.
 - [x] R05 idempotent batch retry (2026-10-30): stable renderer identity/chunk boundary; migration11 atomic payload-checked receipts, same-identity retries acknowledge without extra rows. Conflicts reject, deletion cascades. Process-crash unsent queue remains next separate task.
 - [x] R07 offline receiver sample bundle v1 (2026-10-30): embedded artifact identity, explicit missing source/reference evidence, bounded strict CLI and synthetic fixture;40 subprocess checks. No real capture/exporter or authenticity/model/metrology acceptance.

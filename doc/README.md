@@ -1,5 +1,11 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Recovery journal evidence prototype (2026-10-30): [isolated protocol/probe](recovery/journal-prototype.md)
+> exercises real Chrome IndexedDB with synthetic data and an owned temporary profile; production
+> collection does not import it. Rust/WebView drain and deletion/restore/startup integration remain
+> open. Start-response association validation additionally rejects trailing-newline identities.
+
+
 > Persistent storage association (2026-10-30): migration12 binds writes to a stable DB/session identity,
 > returned atomically with session creation and retained across retries/snapshot awaits. Same numeric
 > IDs from another DB/recreated session reject. See [contract](storage-identity.md); this is a recovery

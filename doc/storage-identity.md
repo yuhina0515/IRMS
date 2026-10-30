@@ -55,3 +55,6 @@ cover its own committed-but-unsent entries, but must first demonstrate storage o
 stable binding, deletion/restore reconciliation, explicit incomplete sessions and startup gating.
 Journal replay must never create missing native sessions, resume exercises or imply missing-tail
 completeness. Those acceptance gates remain the next separate software-only subplan.
+
+The subsequent [isolated journal probe](recovery/journal-prototype.md) now provides synthetic Chrome
+IDB evidence. It does not activate collection, native replay, double-store deletion or restore policy.

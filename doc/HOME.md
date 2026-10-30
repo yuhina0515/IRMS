@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 isolated journal probe** ([[log_20261030_journal_probe|Log]]): [protocol/result](recovery/journal-prototype.md),19real-Chrome synthetic cases including owned-browser kill/reopen. Production unconnected; native sink simulated. CLI redaction and trailing-newline binding guard covered.
+
 - **2026-10-30 persistent storage association** ([[log_20261030_recovery_binding|Log]]): [contract](storage-identity.md), migration12 atomic start binding and crossDB/recreated-session rejection; fixed snapshot owner. Full732frontend/161Rust passed,6ignored. Quota tool recovered; independent unsent journal remains next, not completed.
 
 - **2026-10-30 R05 idempotent batch retry** ([[log_20261030_idempotent_append|Log]]): [contract](storage-batch-retry.md), atomic SQLite receipt/rows and stable retry identity/boundary. Conflicting payload rejects; unsent-buffer crash recovery remains next software task.

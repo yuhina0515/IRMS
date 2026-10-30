@@ -121,6 +121,12 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 recovery journal prototype: [isolated evidence](recovery/journal-prototype.md). Original native
+> binding/batch boundary, atomic IDB counters and transaction-complete success;2000rows/128batches/
+> 512KiB canonical payload budget. Not imported by acquisition; no schema/IPC change in this probe
+> batch. JS identity regex requires explicit65-character length because `$` permits a final newline.
+
+
 > R07 offline receiver bundle v1: [contract](receiver-capture-bundle-v1.md); fixed embedded artifacts, exact UTF-8 hashes, receiver-monotonic metadata, strict input/depth budgets and explicit unavailable source/reference fields. CLI structural success is not authenticity, valid calibration, lossless capture or device acceptance.
 
 

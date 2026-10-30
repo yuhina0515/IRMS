@@ -44,6 +44,12 @@ See [storage retry contract](storage-batch-retry.md). Finite numbers do not prov
 Method: identify the system, what can go wrong, responses and verification; describe processes,
 stores and trust boundaries following the [OWASP threat-modeling guidance](https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html).
 
+Recovery prototype note (2026-10-30): [isolated IndexedDB probe](recovery/journal-prototype.md)
+uses synthetic data in an owned temporary Chrome profile only; collection never imports it. Bounded
+canonical payloads/counters audit atomically, corruption fails closed and only oldest full identity/
+count acknowledgements delete. Reports and CLI error boundary redact inputs/paths. There is no new
+production sensitive-data store, native drain, double-store deletion or restore-generation guarantee.
+
 ## Assets, actors and boundaries
 
 Assets: movement/session integrity, calibration and personal angle limits, local history/exports,
