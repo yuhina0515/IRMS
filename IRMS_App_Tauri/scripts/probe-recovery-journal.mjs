@@ -14,6 +14,10 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const sourcePath = new URL('../src/services/recoveryJournalPrototype.ts', import.meta.url)
 const source = readFileSync(sourcePath, 'utf8')
 const emitted = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+const ownerSource = readFileSync(new URL('../src/services/historyTransitionPrototype.ts', import.meta.url), 'utf8')
+const ownerEmitted = ts.transpileModule(ownerSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+const budgetSource = readFileSync(new URL('../src/shared/storage-budget.json', import.meta.url), 'utf8')
+const budgetModule = `export default ${JSON.stringify(JSON.parse(budgetSource))};`
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 const browserPath = process.argv[2]
 const options = new Map()
@@ -59,8 +63,10 @@ const directory = mkdtempSync(join(tmpdir(), 'irms-journal-probe-'))
 const profile = join(directory, 'profile')
 const server = createServer((request, response) => {
   response.setHeader('Cache-Control', 'no-store')
-  if (request.url === '/') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>IRMS synthetic journal probe</title>') }
+  if (request.url === '/') { response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><title>IRMS synthetic journal probe</title><script type="importmap">{"imports":{"@shared/storage-budget.json":"/storage-budget.js"}}</script>') }
   else if (request.url === '/prototype.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(emitted) }
+  else if (request.url === '/history-gate.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(ownerEmitted) }
+  else if (request.url === '/storage-budget.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(budgetModule) }
   else { response.writeHead(404); response.end() }
 })
 let browser, channel, report, failed = false, caseName = 'startup'
@@ -122,7 +128,7 @@ try {
       if (attempt === 199) throw new Error('Probe page did not load')
       await pause(25)
     }
-    await evaluate(`(async()=>{globalThis.mod = await import('/prototype.js');
+    await evaluate(`(async()=>{globalThis.mod = await import('/prototype.js');globalThis.gateModule=await import('/history-gate.js');
       globalThis.name = 'irms-recovery-prototype-probe';
       globalThis.j = await mod.openRecoveryJournal(name);
       globalThis.batch = (count=1) => ({sessionId:1,storageIdentity:'a'.repeat(32)+'/'+'b'.repeat(32),batchId:crypto.randomUUID(),
@@ -283,10 +289,53 @@ try {
     await check('history-restore-fence-global-null-binding-persists', `(async()=>{await reset();await j.enqueue(batch());await j.markHistoryChange({kind:'restore',operationId:crypto.randomUUID(),sessionId:null,storageIdentity:null});j.close();j=await mod.openRecoveryJournal(name);try{await j.enqueue(batch());return false}catch{return (await j.stats()).historyFence.kind==='restore'&&(await j.stats()).rows===1}})()`)
     await check('history-unknown-meta-with-fence-failclosed-no-erasure', `(async()=>{j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'unknown'});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch{const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('meta').objectStore('meta').count();r.onsuccess=()=>y(r.result)});db.close();return count===3}})()`)
     await check('history-corrupt-fence-failclosed-no-erasure', `(async()=>{await reset();await j.enqueue(batch());j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'historyFence',kind:'restore',operationId:'private',sessionId:null,storageIdentity:null});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch(e){const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('entries').objectStore('entries').count();r.onsuccess=()=>y(r.result)});db.close();return count===1&&!e.message.includes('private')}})()`)
+    // 實際 DB 已提交，但 transport 回覆由父程序控制；不是 Tauri IPC fault injection。
+    const owned = native('init', 'backup')
+    assert(owned.status === 'started')
+    const ownedBatch = await evaluate(`(async()=>{await reset();const b={...batch(2),...${JSON.stringify(owned.started)}};await j.enqueue(b);return b})()`)
+    const ownerIntent = { kind: 'delete', operationId: '44444444-4444-4444-8444-444444444444', sessionId: ownedBatch.sessionId, storageIdentity: ownedBatch.storageIdentity }
+    async function prepareOwner(timeoutMs, nativeBatch) {
+      await evaluate(`(()=>{globalThis.g=gateModule.createHistoryTransitionGate();globalThis.calls={fence:0,mutate:0};
+        globalThis.pendingAppend=g.append(2,()=>new Promise(y=>globalThis.deliver=y)).then(()=>true,()=>false);
+        globalThis.ready=new Promise(y=>globalThis.signalReady=y);return true})()`)
+      assert(await evaluate('typeof deliver===\'function\''))
+      const reply = native('append', 'backup', nativeBatch)
+      assert(reply.status === 'committed' && reply.count === 2)
+      await evaluate(`(()=>{globalThis.changing=g.change(async()=>{calls.fence++;await j.markHistoryChange(${JSON.stringify(ownerIntent)})},
+        ()=>{calls.mutate++;signalReady();return new Promise(y=>globalThis.mutated=y)},${timeoutMs}).then(()=>true,()=>false);return true})()`)
+      return reply
+    }
+    // 先登記 append，再呼叫真實 native，最後才啟動需要等待回覆的 history transition。
+    const committed = await prepareOwner(10000, ownedBatch)
+    await check('owner-actual-commit-delayed-reply-blocks-fence-and-mutation', `(async()=>{return g.snapshot().phase==='draining'&&calls.fence===0&&calls.mutate===0&&(await j.stats()).historyFence===null})()`)
+    await check('owner-new-work-refused-during-actual-commit-drain', `(async()=>{try{await g.append(1,async()=>1);return false}catch{}try{await g.change(async()=>{},async()=>{});return false}catch{return calls.mutate===0}})()`)
+    caseName = 'owner-full-native-count-before-fence-completion-and-delete-request'
+    assert(await evaluate(`(async()=>{deliver(${committed.count});await ready;return (await pendingAppend)&&calls.fence===1&&calls.mutate===1&&g.snapshot().phase==='mutating'&&(await j.stats()).historyFence.kind==='delete'})()`))
+    assert(native('inspect', 'backup').rows === 2); cases.push(caseName)
+    caseName = 'owner-native-delete-result-keeps-held-journal'
+    assert(native('delete', 'backup', ownedBatch).status === 'deleted')
+    assert(await evaluate(`(async()=>{mutated();return (await changing)&&g.snapshot().reason==='historyComplete'&&(await j.stats()).rows===2})()`))
+    assert(native('inspect', 'backup').sessions === 0); cases.push(caseName)
+    caseName = 'owner-browser-restart-retains-fence-not-memory-owner'
+    await stopBrowser(); await startBrowser()
+    assert(await evaluate(`(async()=>typeof globalThis.g==='undefined'&&(await j.stats()).historyFence!==null)()`))
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(ownedBatch)); cases.push(caseName)
+    // 明確建立另一個合成 fixture；不是解除前一個 owner／fence 的產品流程。
+    const uncertain = native('init', 'backup')
+    const uncertainBatch = await evaluate(`(async()=>{await reset();const b={...batch(2),...${JSON.stringify(uncertain.started)}};await j.enqueue(b);return b})()`)
+    await prepareOwner(10000, uncertainBatch)
+    await check('owner-short-reply-after-real-commit-never-mutates', `(async()=>{deliver(1);return !(await pendingAppend)&&!(await changing)&&g.snapshot().reason==='appendUncertain'&&calls.fence===0&&calls.mutate===0&&(await j.stats()).rows===2&&(await j.stats()).historyFence===null})()`)
+    assert(native('inspect', 'backup').rows === 2)
+    const lateReply = await prepareOwner(25, uncertainBatch)
+    await check('owner-withheld-reply-after-real-commit-times-out-without-mutation', `(async()=>{return !(await changing)&&g.snapshot().reason==='drainTimedOut'&&g.snapshot().pendingAppend&&calls.fence===0&&calls.mutate===0&&(await j.stats()).historyFence===null})()`)
+    await check('owner-late-full-native-count-cannot-release-timeout', `(async()=>{deliver(${lateReply.count});await pendingAppend;return g.snapshot().reason==='drainTimedOut'&&!g.snapshot().pendingAppend&&calls.fence===0&&calls.mutate===0&&(await j.stats()).rows===2})()`)
+    assert(native('inspect', 'backup').rows === 2)
   }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
-    sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'scripts/probe-recovery-journal.mjs': hash(readFileSync(new URL(import.meta.url))) },
+    sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'src/services/historyTransitionPrototype.ts': hash(ownerSource),
+      'src/shared/storage-budget.json': hash(budgetSource), 'scripts/probe-recovery-journal.mjs': hash(readFileSync(new URL(import.meta.url))) },
     runtime: { node: process.version, typescript: ts.version, browser: version.product, protocol: version.protocolVersion, platform: process.platform },
+    servedModules: { prototypeSha256: hash(emitted), historyGateSha256: hash(ownerEmitted), storageBudgetSha256: hash(budgetModule) },
     scope: { realIndexedDB: true, isolatedProfile: true, sameOriginOnRestart: true, forcedOwnedBrowserTermination: true,
       strictDurabilityRequestedAndObserved: true, nativeSink: nativeOracle ? 'actual-Rust-SQLite-test-oracle' : 'simulated-acknowledgement-only', productionConnected: false,
       actualTauriIPC: false, nativeProcessPerRequest: Boolean(nativeOracle), backupDivergenceObserved: Boolean(nativeOracle), automaticReplayAuthorized: false,
@@ -300,6 +349,8 @@ try {
       readOnlyInspection: { prototype: true, skipsInitialization: true, readOnlyOpen: true, noReplayOrJournalAckAuthority: true },
       historyFence: { prototype: true, singletonUnresolvedIntent: true, enqueueAndAckBlocked: true, clearAPI: false,
         nativeInflightQuiescenceImplemented: false, externalRestoreDetectionImplemented: false },
+      historyOwner: { actualBrowserGate: true, actualSQLiteCommit: true, controlledAcknowledgementTransport: true,
+        fullReplyBeforeFenceBeforeNativeDelete: true, ownerMemorySurvivesBrowserRestart: false, productionQuiescenceVerified: false },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

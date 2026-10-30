@@ -37,8 +37,8 @@ node node_modules/vitest/vitest.mjs run src/services/historyTransitionPrototype.
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
-Next evidence gate: connect this isolated owner to the existing actual Chrome/SQLite probe with
-controlled transport delay before considering production hookup. It must demonstrate submitted
-append settlement before durable [history fence](history-change-fence.md) and native mutation.
+Later [actual browser/SQLite ordering evidence](owner-ordering-probe.md) demonstrates submitted
+append acknowledgement before durable [history fence](history-change-fence.md) and native mutation,
+using controlled transport. Startup readiness based on persistent state remains the next gate.
 Restore detection, retained sensitive-data deletion/unlock UX, cross-process ownership, WebView
 persistence and crash/power-loss behavior remain unfinished; do not claim complete recovery or erase.

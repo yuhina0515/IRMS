@@ -1,6 +1,34 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 isolated history transition owner)
+## Current checkpoint (2026-10-30 actual owner ordering probe)
+
+Baseline3c54526 clean, CI41058113067 SUCCESS. Initialquota66%/29%, latest60%/28%.
+No quota hold active;20stop/30resume hysteresis permits continued bounded work above20, but after
+quota hold all known windows must>=30 to resume. Stop/checkpoint if any known remaining<=20.
+One bounded actual Chrome/IDB/SQLite integration task complete,61synthetic cases (53prior+8owner).
+Gate registers append BEFORE native commit/retry; parent controls delayed/substituted ack throughCDP,
+not actualTauriIPC. Drain/nofence/norequest directly observed; fullcount -> actualfencecomplete ->
+nativebackupdelete -> held/journal retained. Short/25ms withheld/latefullcount no fence/delete.
+
+Owned-browser kill/reopen retains marker+originalqueue, memory owner disappears; startup recovery
+NOT complete. Four fixedloopbackroutes importmap/journal/owner/sharedbudget, no nativeendpoint or
+filemapping. Raw/servedmodule/budget/runtime/nativeexe hashes and cleanup in
+doc/recovery/owner-ordering-probe-20261030.json. Original19/29/39/53reports preserved.
+Current cached native executable selected via freshCargo no-run, Rust unchanged. Node syntax,
+3normalCLIredaction and typecheck passed. Prior19ownerunit/build, full168Rust/7ignored/fmt/Clippy
+and736fullfrontend not rerun; collector unchanged. Engineering/security finalstatic reviews no blocker.
+See plans/2026-10-30-owner-probe-plan.md, doc/recovery/owner-ordering-probe.md and
+doc/coding log/log_20261030_owner_probe.md. Scoped commit/push/update draftPR5; inspect new head CI
+before anotherpush. No devices/realappDB/profile/participants/productionhook/deployment/messages.
+
+Next bounded software task: persisted startup-readiness gate before owner accepts work; unresolved
+fence or pending journal cannot auto-resume/replay/clear. Memory owner factory alone starts open and
+cannot authorize recovery. All relevant native paths must eventually share one owner; cross-window/
+process/bypasses and cancellation remain unverified. Data-erasure/unlock/retention/external-or-both-
+store restore detection, WebView/eviction/actualIPC/native interruption remain unfinished. No rebind/
+recreate/timestamp repair/complete-tail or universal institutional/population/clinical claim.
+
+## Historical checkpoint (2026-10-30 isolated history transition owner)
 
 Baseline f2ad909 clean, CI41050986613 SUCCESS. Quota initial76%/31%, latest70%/30% remaining.
 One bounded software task complete: unconnected historyTransitionPrototype.ts tracks1append before

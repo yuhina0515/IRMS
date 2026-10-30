@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 owner ordering evidence: [61-case probe](recovery/owner-ordering-probe.md), actual Chrome/IDB/
+> SQLite with parent-controlled delayed ack. Register before native call; full count before fence
+> complete before delete request. Short/timeout/late remain held. Memory owner lost on restart;
+> persistent startup readiness, real IPC/cross-process ownership and production hookup unverified.
+
 > R05 isolated transition owner: [contract](recovery/history-transition-owner.md),1outstanding append,
 > exact shared-budget count, reserve before await, drain -> fence -> mutation. Per-stage1..60000ms
 > deadline/default5000, sticky first hold reason, no reset/cancellation. Controlled tests only;

@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 actual owner ordering** ([[log_20261030_owner_probe|Log]]): [61-case evidence](recovery/owner-ordering-probe.md); actual SQLite commit + controlled reply in Chrome, fence before native delete. Memory owner disappears on restart; persisted startup gate remains next.
+
 - **2026-10-30 history-transition owner** ([[log_20261030_history_transition|Log]]): [19controlled-promise cases](recovery/history-transition-owner.md); ordered drain/fence/mutation and sticky stage uncertainty. Actual native-probe integration remains next; production unconnected.
 
 - **2026-10-30 history-intent fence** ([[log_20261030_history_fence|Minutes/log]]): [53-case evidence and decision](recovery/history-change-fence.md); unresolved marker preserves queue across native delete/lost reply/browser kill. Production transition interlock and unlock/retention policy unfinished.

@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Actual owner ordering probe (2026-10-30): [61-case evidence](recovery/owner-ordering-probe.md)
+> delays real SQLite acknowledgements in Chrome, verifying full count -> durable fence -> native
+> deletion. Short/late replies stay held; restart retains fence but loses memory owner. No actual IPC.
+
 > History transition owner prototype (2026-10-30): [contract/tests](recovery/history-transition-owner.md)
 > tracks a submitted append before callback, then orders full acknowledgement, fence and mutation;
 > stage timeout/uncertainty remains held.19controlled-promise cases, not actual IPC/cancellation proof.
