@@ -39,9 +39,10 @@ Reproduce using the fresh-build procedure in [native oracle](native-journal-orac
 The19 controlled-promise unit cases remain a separate result, not added into61 or a new full-suite
 total. Temporary browser/profile/DB/request/server cleanup completes before successful publication.
 
-Remaining startup gate: a fresh memory owner must not accept work until durable journal/fence and
-native reconciliation decisions are checked. A persisted unresolved marker or pending data must
-block automatic start/replay/erase. All production append/start/history operations must eventually
+Later [local startup-readiness evidence](startup-readiness.md) blocks owner creation for pending
+journal, unresolved fence and unavailable storage. Native reconciliation and cross-context lease
+remain gates; a persisted marker or pending data cannot authorize automatic start/replay/erase.
+All production append/start/history operations must eventually
 route through one owner; other windows/processes or bypass operations remain outside this evidence.
 Unlock/retention, external or both-store restore, WebView persistence, eviction and actual IPC/native
 termination timing remain unfinished. No complete-tail, metrology, clinical or universal readiness

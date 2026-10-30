@@ -1,6 +1,32 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 actual owner ordering probe)
+## Current checkpoint (2026-10-30 persistent local startup-readiness)
+
+Baseline928814a clean, CI41066460644 SUCCESS. Initialquota56%/28%, latest45%/26%, no quota hold.
+20stop/30resume hysteresis still applies; checkpoint/stop expensivework<=20, resumeheldonlyall>=30.
+One bounded task: async openHistoryTransitionGate trusts auditedjournal.stats, no owner until read
+settles. Explicitownfields/safecounts/consistency, zero totals/fence:null only localready. Pending/
+fenced/unknown/legacy/readerror/deadline held without owner. Late read never upgrades, timers clear.
+No native calls/replay/repair/clear or production hookup. No devices/participants/appdata/deployment.
+
+37focused passed (19owner+15startup+3CLI), TypeScript/Vite/node syntax passed. New69actual synthetic
+browser/native cases (61prior+8startup), doc/recovery/startup-readiness-probe-20261030.json: pending
+restart, empty/queued fence, explicitempty, pending/released audit, closedstore retains data. Native
+rows stay present during emptyjournal fixtures; localready is not nativehistory/restore/eviction or
+strictwrite proof. No cross-window reservation. Raw owner factory still an unconnected testprimitive.
+No production imports; native unchanged currentcached no-run build selected. Baseline168Rust/7ignored/
+fmt/Clippy and736fullfrontend not rerun; collector unchanged. Older artifacts preserved; finalsource
+hashes checked beforedelivery. Engineering/security finalstaticreviews no blocker.
+
+See plans/2026-10-30-startup-readiness-plan.md, doc/recovery/startup-readiness.md and
+doc/coding log/log_20261030_startup_readiness.md. Scoped commit/push/update draftPR5; newheadCI before
+anotherpush. Next bounded software task: exclusive cooperating-context ownership around startup
+audit and owner lifetime, so secondcontext cannot concurrently gain readiness. All productionpaths
+must eventually share owner; bypasses/crossprocess/nativehistory/restore/eviction/retention/unlock/
+data-erasure/WebView/actualIPC/native interruption remain unfinished. No auto-resume/rebind/recreate/
+timestamp repair/complete-tail or universalinstitutional/population/clinical claim.
+
+## Historical checkpoint (2026-10-30 actual owner ordering probe)
 
 Baseline3c54526 clean, CI41058113067 SUCCESS. Initialquota66%/29%, latest60%/28%.
 No quota hold active;20stop/30resume hysteresis permits continued bounded work above20, but after

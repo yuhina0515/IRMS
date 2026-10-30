@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Local startup-readiness prototype (2026-10-30): [69-case evidence](recovery/startup-readiness.md)
+> exposes no owner before audited stats; pending/fenced/unavailable storage stays held. Explicit empty
+> local readiness is not a cross-window lease, strict-write proof or native-history/restore authority.
+
 > Actual owner ordering probe (2026-10-30): [61-case evidence](recovery/owner-ordering-probe.md)
 > delays real SQLite acknowledgements in Chrome, verifying full count -> durable fence -> native
 > deletion. Short/late replies stay held; restart retains fence but loses memory owner. No actual IPC.

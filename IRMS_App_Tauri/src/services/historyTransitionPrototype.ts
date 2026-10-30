@@ -4,6 +4,36 @@ import budget from '@shared/storage-budget.json'
 type Phase = 'open' | 'draining' | 'fencing' | 'mutating' | 'held'
 type Hold = 'appendUncertain' | 'drainTimedOut' | 'fenceUncertain' | 'mutationUncertain' | 'historyComplete'
 
+export type StartupOutcome =
+  | { status: 'ready'; owner: ReturnType<typeof createHistoryTransitionGate> }
+  | { status: 'held'; reason: 'storageUnavailable' | 'historyUnresolved' | 'pendingJournal' }
+
+// 只接可信 journal.stats 的已稽核結果；空值不是 native 歷史或跨視窗 lease 的證明。
+export async function openHistoryTransitionGate(readStats: () => Promise<unknown>, timeoutMs = 5000): Promise<StartupOutcome> {
+  const unavailable = (): StartupOutcome => ({ status: 'held', reason: 'storageUnavailable' })
+  if (typeof readStats !== 'function' || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 60000) return unavailable()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const value = await Promise.race([Promise.resolve().then(readStats), new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Startup storage unavailable')), timeoutMs)
+    })])
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return unavailable()
+    const record = value as Record<string, unknown>
+    if (['key', 'rows', 'batches', 'bytes', 'historyFence'].some(key => !Object.hasOwn(record, key))) return unavailable()
+    const { key, rows, batches, bytes, historyFence } = record
+    if (key !== 'totals' || [rows, batches, bytes].some(n => !Number.isSafeInteger(n) || (n as number) < 0)) return unavailable()
+    const counts = [rows, batches, bytes] as number[]
+    if (!(counts.every(n => n === 0) || counts.every(n => n > 0)) || (batches as number) > (rows as number)) return unavailable()
+    if (historyFence !== null) {
+      if (!historyFence || typeof historyFence !== 'object' || Array.isArray(historyFence)) return unavailable()
+      return { status: 'held', reason: 'historyUnresolved' }
+    }
+    if (rows !== 0 || batches !== 0 || bytes !== 0) return { status: 'held', reason: 'pendingJournal' }
+    return { status: 'ready', owner: createHistoryTransitionGate() }
+  } catch { return unavailable() }
+  finally { if (timer !== undefined) clearTimeout(timer) }
+}
+
 export function createHistoryTransitionGate() {
   let phase: Phase = 'open', reason: Hold | null = null
   let active: { settled: Promise<boolean> } | null = null

@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 persistent local startup-readiness (2026-10-30):69browser/native cases and37focused cases; pending/fenced/unavailable audit withholds owner, explicit empty only localready. Cross-context exclusive ownership and native-history/restore/eviction remain gates; [contract](recovery/startup-readiness.md).
 - [x] R05 actual owner ordering evidence (2026-10-30):61Chrome/native cases (53prior+8owner), real commit with controlled delayed/short/late count, fence-before-delete, retained queue/marker across restart with memory owner lost. Startup readiness and actualIPC remain next gates; [evidence](recovery/owner-ordering-probe.md).
 - [x] R05 isolated history-transition owner (2026-10-30):19controlled-promise cases, synchronous reservation and full append -> fence -> mutation ordering, stage deadlines and sticky late-outcome hold. Actual Chrome/native owner integration remains next; no production/cancellation proof. [Contract](recovery/history-transition-owner.md).
 - [x] R05 isolated singleton history-intent fence (2026-10-30):53actual browser/native cases, strict commit before synthetic native delete, interruption retains marker/queue; full intent retry/conflict, concurrent ack refusal and corrupt metadata failclosed. In-flight native quiescence/unlock/retention/external restore remain gated; [policy](recovery/history-change-fence.md).

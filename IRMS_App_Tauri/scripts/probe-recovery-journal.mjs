@@ -330,6 +330,18 @@ try {
     await check('owner-withheld-reply-after-real-commit-times-out-without-mutation', `(async()=>{return !(await changing)&&g.snapshot().reason==='drainTimedOut'&&g.snapshot().pendingAppend&&calls.fence===0&&calls.mutate===0&&(await j.stats()).historyFence===null})()`)
     await check('owner-late-full-native-count-cannot-release-timeout', `(async()=>{deliver(${lateReply.count});await pendingAppend;return g.snapshot().reason==='drainTimedOut'&&!g.snapshot().pendingAppend&&calls.fence===0&&calls.mutate===0&&(await j.stats()).rows===2})()`)
     assert(native('inspect', 'backup').rows === 2)
+    await check('startup-pending-journal-withholds-owner', `(async()=>{const s=await gateModule.openHistoryTransitionGate(()=>j.stats());return s.status==='held'&&s.reason==='pendingJournal'&&!Object.hasOwn(s,'owner')&&(await j.stats()).rows===2})()`)
+    caseName = 'startup-browser-restart-pending-journal-still-withholds-owner'
+    await stopBrowser(); await startBrowser()
+    assert(await evaluate(`(async()=>{const s=await gateModule.openHistoryTransitionGate(()=>j.stats());return s.status==='held'&&s.reason==='pendingJournal'&&!Object.hasOwn(s,'owner')})()`))
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(uncertainBatch)); cases.push(caseName)
+    await check('startup-empty-fenced-journal-withholds-owner', `(async()=>{await reset();await j.markHistoryChange({kind:'restore',operationId:crypto.randomUUID(),sessionId:null,storageIdentity:null});j.close();j=await mod.openRecoveryJournal(name);const s=await gateModule.openHistoryTransitionGate(()=>j.stats());return s.status==='held'&&s.reason==='historyUnresolved'&&!Object.hasOwn(s,'owner')&&(await j.stats()).rows===0})()`)
+    await check('startup-fence-takes-priority-over-pending-data', `(async()=>{await reset();const b=batch();await j.enqueue(b);await j.markHistoryChange({kind:'delete',operationId:crypto.randomUUID(),sessionId:b.sessionId,storageIdentity:b.storageIdentity});const s=await gateModule.openHistoryTransitionGate(()=>j.stats());return s.status==='held'&&s.reason==='historyUnresolved'&&!Object.hasOwn(s,'owner')&&(await j.stats()).rows===1})()`)
+    await check('startup-explicit-empty-audit-allows-local-owner-only', `(async()=>{await reset();const s=await gateModule.openHistoryTransitionGate(()=>j.stats());return s.status==='ready'&&s.owner.snapshot().phase==='open'&&(await j.stats()).historyFence===null})()`)
+    await check('startup-pending-audit-does-not-publish-owner', `(async()=>{globalThis.startResult=null;globalThis.starting=gateModule.openHistoryTransitionGate(()=>new Promise(y=>globalThis.releaseStartup=()=>y(j.stats()))).then(s=>{globalThis.startResult=s;return s});await Promise.resolve();return startResult===null&&typeof releaseStartup==='function'})()`)
+    await check('startup-completed-audit-publishes-local-readiness', `(async()=>{releaseStartup();const s=await starting;return s.status==='ready'&&s.owner.snapshot().phase==='open'})()`)
+    await check('startup-unavailable-store-withholds-owner-and-retains-data', `(async()=>{await reset();await j.enqueue(batch());j.close();const s=await gateModule.openHistoryTransitionGate(()=>j.stats());j=await mod.openRecoveryJournal(name);return s.status==='held'&&s.reason==='storageUnavailable'&&!Object.hasOwn(s,'owner')&&(await j.stats()).rows===1})()`)
+    assert(native('inspect', 'backup').rows === 2)
   }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
     sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'src/services/historyTransitionPrototype.ts': hash(ownerSource),
@@ -351,6 +363,8 @@ try {
         nativeInflightQuiescenceImplemented: false, externalRestoreDetectionImplemented: false },
       historyOwner: { actualBrowserGate: true, actualSQLiteCommit: true, controlledAcknowledgementTransport: true,
         fullReplyBeforeFenceBeforeNativeDelete: true, ownerMemorySurvivesBrowserRestart: false, productionQuiescenceVerified: false },
+      startupReadiness: { prototype: true, auditedJournalReader: true, noOwnerBeforeRead: true, localEmptyOnly: true,
+        nativeHistoryAuthority: false, crossWindowReservation: false, productionConnected: false },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

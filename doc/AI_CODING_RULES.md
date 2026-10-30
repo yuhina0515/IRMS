@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 local startup factory: [contract](recovery/startup-readiness.md), no owner before trusted audit;
+> explicitzero totals/fence:null only localready. Pending/fenced/invalid/readerror/deadline held, late
+> outcome never upgrades. No cross-window reservation, native-history/eviction/restore authority;
+> full journal validation remains reader responsibility, no production hookup.
+
 > R05 owner ordering evidence: [61-case probe](recovery/owner-ordering-probe.md), actual Chrome/IDB/
 > SQLite with parent-controlled delayed ack. Register before native call; full count before fence
 > complete before delete request. Short/timeout/late remain held. Memory owner lost on restart;
