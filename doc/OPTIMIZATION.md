@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 isolated history-transition owner (2026-10-30):19controlled-promise cases, synchronous reservation and full append -> fence -> mutation ordering, stage deadlines and sticky late-outcome hold. Actual Chrome/native owner integration remains next; no production/cancellation proof. [Contract](recovery/history-transition-owner.md).
 - [x] R05 isolated singleton history-intent fence (2026-10-30):53actual browser/native cases, strict commit before synthetic native delete, interruption retains marker/queue; full intent retry/conflict, concurrent ack refusal and corrupt metadata failclosed. In-flight native quiescence/unlock/retention/external restore remain gated; [policy](recovery/history-change-fence.md).
 - [x] R05 read-only startup inspection evidence (2026-10-30):39actual browser/native cases,6new Rust cases; existing DB read-only/query-only before init, same-snapshot original binding/hash/count/session state. All inspection outcomes retain journal. Production startup/recovery/deletion/restore policy remains gated; [contract](recovery/reconciliation-inspection.md).
 - [x] R05 actual native journal oracle (2026-10-30):29synthetic Chrome/Rust-SQLite cases, commit/lost-reply retry and aborted journal-delete retention, missing/foreign/deleted/recreated association rejection. Same-lineage backup ambiguity and startup abandoned/staleEnd observed; production integration remains gated. See [evidence](recovery/native-journal-oracle.md).

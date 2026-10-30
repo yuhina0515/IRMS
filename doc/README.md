@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> History transition owner prototype (2026-10-30): [contract/tests](recovery/history-transition-owner.md)
+> tracks a submitted append before callback, then orders full acknowledgement, fence and mutation;
+> stage timeout/uncertainty remains held.19controlled-promise cases, not actual IPC/cancellation proof.
+
 > History-change intent prototype (2026-10-30): [53-case evidence/policy](recovery/history-change-fence.md)
 > persists one unresolved delete/restore intent before native mutation; enqueue/ack reject while
 > peek/stats retain evidence. No clear API, in-flight native quiescence or production hookup yet.

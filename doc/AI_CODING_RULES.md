@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 isolated transition owner: [contract](recovery/history-transition-owner.md),1outstanding append,
+> exact shared-budget count, reserve before await, drain -> fence -> mutation. Per-stage1..60000ms
+> deadline/default5000, sticky first hold reason, no reset/cancellation. Controlled tests only;
+> production and cross-process ownership unconnected/unverified.
+
 > R05 history-change fence: [isolated contract](recovery/history-change-fence.md). Optional singleton
 > known meta record, complete-transaction success, same entries/meta scope for intent/queue/ack;
 > unresolved fence blocks enqueue/ack and never auto-clears. No schema/IPC/production hookup;

@@ -1,6 +1,32 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 singleton history-change fence)
+## Current checkpoint (2026-10-30 isolated history transition owner)
+
+Baseline f2ad909 clean, CI41050986613 SUCCESS. Quota initial76%/31%, latest70%/30% remaining.
+One bounded software task complete: unconnected historyTransitionPrototype.ts tracks1append before
+callback, exact shared-budget count only; reserves history owner before await, drains accepted work,
+awaits durable fence, then invokes mutation. Per-stage deadline1..60000ms/default5000; sticky first
+hold reason on uncertainty/timeout, even success remains held. No reset/unlock/native cancellation.
+
+19controlled-promise/faketimer cases passed (initial14then5design-priority additions): ordering,
+reentry, short/invalidcounts, privateerrors, same-tick deadlinebothorders, late resolve/reject across
+stages and timer cleanup. Typecheck/Vite build passed; ToolsView/chunk warnings remain. No production
+imports, no runtimeIPC/UI/schema change. Actual53browser/native artifact unchanged, not rerun;
+baseline full168Rust/7ignored/fmt/Clippy and prior736frontend not rerun. Do not combine19targetedcases
+with historical full totals into a fresh full-suite claim. Engineering/security final static reviews
+no blocker. See plans/2026-10-30-history-transition-plan.md, doc/recovery/history-transition-owner.md,
+doc/coding log/log_20261030_history_transition.md. Deliver scoped commit/push/update draftPR5;
+inspect new head CI before another push. No devices/app/participant data/production operations.
+
+Next bounded software task: connect isolated owner to existing actual Chrome/SQLite probe with
+controlled delayed acknowledgement, verifying accepted append settles BEFORE fence complete/native
+history mutation. Current19tests simulate async outcomes, not actualIPC/cross-window/process proof.
+All relevant work must eventually route through one owner; bypass operations remain uncoordinated.
+Keep acquisition unconnected. Retention/unlock/data-erasure UX, external/both-store restore detection,
+WebView/quota/eviction/native process interruption still unfinished. No automatic resume/rebind/
+recreate/timestamp repair/complete-tail or universal institutional/population/clinical claim.
+
+## Historical checkpoint (2026-10-30 singleton history-change fence)
 
 Baseline8c7811f clean, CI41043282152 SUCCESS. Initial remaining89%/33%, latest80%/31%.
 One bounded isolated task: optional singleton historyFence in existing version1 IDB meta, strict
