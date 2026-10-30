@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-31 bound-delete prerequisite** ([[log_20261031_bound_delete|Log]]): [test-only contract](recovery/bound-delete-precondition.md),4SQLite/full172native passed; production/oracle unchanged, integration waits quota.
+
 - **2026-10-30 cooperating context lease** ([[log_20261030_context_lease|Log]]): [78-case evidence](recovery/cooperating-context-lease.md),48focused; two actual Chrome targets, lifetime/old-proxy control and request-loss fixes. Native global/bound mutation still unverified; production unconnected.
 
 - **2026-10-30 local startup-readiness** ([[log_20261030_startup_readiness|Log]]): [69-case evidence](recovery/startup-readiness.md),37focused cases; no owner before audit or while pending/fenced/unavailable. Cross-context lease remains next; production unconnected.

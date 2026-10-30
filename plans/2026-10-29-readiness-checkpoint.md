@@ -1,6 +1,24 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 cooperating context lease)
+## Current checkpoint (2026-10-31 bound native delete prerequisite)
+
+Baseline54f03d8 clean, CI41083792235 SUCCESS. Initialquota88%/22%, last81%/21%, nohold atlastcheck.
+One small task: cfg(test)-only sessions_repo::delete_bound, canonical originalidentity+positiveID,
+sameSQLiteTx comparebefore exact1row deletion+commit. Foreign/missing/recreated/invalid refused,
+no rebind/recreate. FourrealSQLite regressions passed, full172passed/7ignored/fmt/Clippy passed.
+One engineering readonly design/final review no blocker. Productiondelete/IPC/schema/manualoracle
+unchanged. Prior78browser/native and48frontend targeted/build/736fullsuite notrerun; collectorunchanged.
+
+Docs plans/2026-10-31-bound-delete-plan.md, doc/recovery/bound-delete-precondition.md and
+doc/coding log/log_20261031_bound_delete.md. Scopedcommit/push/update draftPR5; newheadCI before
+anotherpush. Next boundedtask afterquota permits: integrate bound-delete into isolated oracle and
+verify foreign/recreated/rollback targets retain fence/journal. Matchingbinding lineage is not
+authorization/restoregeneration/quiescence/data-erasure proof. No productionhook/deployment/devices/
+participants/appdata/messages. No automaticresume/rebind/clear or universalreadinessclaim.
+IMPORTANT: livequota<=20 saveshold/stops newexpensivework; resumeheld only allknown>=30. Recheck live
+before nexttask, no purchase/reset/auth substitution.
+
+## Historical checkpoint (2026-10-30 cooperating context lease)
 
 Baseline5f74c37 clean, CI41074620172 SUCCESS. Initial43%/26%, latest91%/22% after natural5hrollover;
 no reset/purchase/auth change. No quota holdactive. Stop/checkpoint expensivework<=20; afterhold

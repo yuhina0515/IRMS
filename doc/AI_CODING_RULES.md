@@ -121,6 +121,10 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 bound-delete prerequisite: [cfg(test) contract](recovery/bound-delete-precondition.md), original
+> identity check and exact1row deletion in one transaction; error retains rows/receipts. Not wired
+> to production/oracle; no restore-generation/authentication/independent-journal erasure claim.
+
 > R05 cooperating context owner: [contract](recovery/cooperating-context-lease.md), fixed exclusive
 > WebLock/ifAvailable before audit, callback lifetime held, proxy checked at entry AND dispatch.
 > Pending/uncertain release refuses; no steal/reset. Browser bucket only, native bound mutation and

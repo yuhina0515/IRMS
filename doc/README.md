@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Bound-delete prerequisite (2026-10-31): [test-only contract](recovery/bound-delete-precondition.md)
+> checks original DB/session binding inside deletion transaction;4SQLite cases/full172native passed.
+> Production IPC/manual oracle unchanged; lineage is not restore or deletion authorization.
+
 > Cooperating context lease (2026-10-30): [78-case evidence](recovery/cooperating-context-lease.md)
 > acquires same-bucket exclusive browser ownership before startup audit, retains it for proxy lifetime
 > and revokes old/staged callbacks on loss. Not native global ownership or production hookup.

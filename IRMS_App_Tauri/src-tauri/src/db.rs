@@ -459,6 +459,31 @@ pub mod sessions_repo {
         conn.execute("DELETE FROM sessions WHERE id = ?1", [session_id])?;
         Ok(())
     }
+
+    /// 隔離前置契約原型：同一交易先核對原身份再刪除；尚未接上正式 IPC。
+    #[cfg(test)]
+    pub fn delete_bound(
+        conn: &mut Connection,
+        session_id: i64,
+        expected_identity: &str,
+    ) -> rusqlite::Result<()> {
+        data_repo::validate_storage_identity(expected_identity)?;
+        if session_id <= 0 {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "invalid session identity".into(),
+            ));
+        }
+        let tx = conn.transaction()?;
+        if data_repo::storage_identity(&tx, session_id)? != expected_identity {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "storage identity mismatch".into(),
+            ));
+        }
+        if tx.execute("DELETE FROM sessions WHERE id=?1", [session_id])? != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+        tx.commit()
+    }
 }
 
 pub mod data_repo {
@@ -969,6 +994,138 @@ mod tests {
                     0
                 );
             }
+        }
+        #[test]
+        fn bound_delete_cascades_only_original_session_and_preserves_other_data() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let b = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            for started in [&a, &b] {
+                data_repo::append_bound_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &rows(),
+                    &started.storage_identity,
+                )
+                .unwrap();
+            }
+            let other_before =
+                serde_json::to_value(sessions_repo::get_data(&conn, b.session_id, None).unwrap())
+                    .unwrap();
+            sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).unwrap();
+            assert!(data_repo::storage_identity(&conn, a.session_id).is_err());
+            assert_eq!(
+                serde_json::to_value(sessions_repo::get_data(&conn, b.session_id, None).unwrap())
+                    .unwrap(),
+                other_before
+            );
+            for table in ["sessions", "sensor_data", "reading_batch_receipts"] {
+                assert_eq!(
+                    conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r
+                        .get::<_, i64>(0))
+                        .unwrap(),
+                    1
+                );
+            }
+        }
+        #[test]
+        fn bound_delete_foreign_database_same_numeric_id_retains_all_records() {
+            let mut first = fresh_db();
+            let mut second = fresh_db();
+            let a = sessions_repo::start_bound(&mut first, &sample_session_input()).unwrap();
+            let b = sessions_repo::start_bound(&mut second, &sample_session_input()).unwrap();
+            assert_eq!(a.session_id, b.session_id);
+            data_repo::append_bound_batch(
+                &mut second,
+                b.session_id,
+                BATCH,
+                &rows(),
+                &b.storage_identity,
+            )
+            .unwrap();
+            assert!(
+                sessions_repo::delete_bound(&mut second, a.session_id, &a.storage_identity)
+                    .is_err()
+            );
+            assert_eq!(
+                data_repo::storage_identity(&second, b.session_id).unwrap(),
+                b.storage_identity
+            );
+            for table in ["sessions", "sensor_data", "reading_batch_receipts"] {
+                assert_eq!(
+                    second
+                        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r
+                            .get::<_, i64>(0))
+                        .unwrap(),
+                    1
+                );
+            }
+        }
+        #[test]
+        fn bound_delete_missing_recreated_and_invalid_identity_never_rebind() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).unwrap();
+            assert!(
+                sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).is_err()
+            );
+            let b = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            // 明確的數字 ID 重用 fixture；新 storageKey 必須保留，正式流程不改 ID。
+            conn.execute(
+                "UPDATE sessions SET id=?1 WHERE id=?2",
+                [a.session_id, b.session_id],
+            )
+            .unwrap();
+            let new_identity = data_repo::storage_identity(&conn, a.session_id).unwrap();
+            assert_ne!(new_identity, a.storage_identity);
+            assert!(
+                sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).is_err()
+            );
+            for bad in ["private".into(), format!("{}\n", new_identity)] {
+                let error = sessions_repo::delete_bound(&mut conn, a.session_id, &bad)
+                    .unwrap_err()
+                    .to_string();
+                assert!(!error.contains("private"));
+            }
+            assert!(sessions_repo::delete_bound(&mut conn, 0, &new_identity).is_err());
+            assert_eq!(
+                data_repo::storage_identity(&conn, a.session_id).unwrap(),
+                new_identity
+            );
+        }
+        #[test]
+        fn bound_delete_abort_rolls_back_session_readings_and_receipt() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            data_repo::append_bound_batch(
+                &mut conn,
+                a.session_id,
+                BATCH,
+                &rows(),
+                &a.storage_identity,
+            )
+            .unwrap();
+            conn.execute_batch("CREATE TRIGGER stop_bound_delete AFTER DELETE ON sessions BEGIN SELECT RAISE(ABORT,'synthetic'); END;").unwrap();
+            assert!(
+                sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).is_err()
+            );
+            for table in ["sessions", "sensor_data", "reading_batch_receipts"] {
+                assert_eq!(
+                    conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r
+                        .get::<_, i64>(0))
+                        .unwrap(),
+                    1
+                );
+            }
+            assert_eq!(
+                data_repo::storage_identity(&conn, a.session_id).unwrap(),
+                a.storage_identity
+            );
+            conn.execute_batch("DROP TRIGGER stop_bound_delete")
+                .unwrap();
+            sessions_repo::delete_bound(&mut conn, a.session_id, &a.storage_identity).unwrap();
+            assert_empty(&conn);
         }
         #[test]
         fn recovery_inspection_is_read_only_and_keeps_open_session_open() {
