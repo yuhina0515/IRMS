@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 actual native journal oracle (2026-10-30):29synthetic Chrome/Rust-SQLite cases, commit/lost-reply retry and aborted journal-delete retention, missing/foreign/deleted/recreated association rejection. Same-lineage backup ambiguity and startup abandoned/staleEnd observed; production integration remains gated. See [evidence](recovery/native-journal-oracle.md).
 - [x] R05 isolated pre-IPC journal evidence prototype (2026-10-30):19real-Chrome IndexedDB cases, owned-profile interruption/reopen, atomic capacity/audit and oldest full-ack retention;3CLI error-boundary tests. Actual Rust/WebView drain, quota/eviction, deletion/restore/startup and production acquisition remain unconnected.
 - [x] R05 persistent storage association (2026-10-30): migration12 stable DB/session keys, atomic start reply, required append binding before receipt/write and immutable flush-owner check. Journal/restart replay and restore/deletion reconciliation remain separate unfinished work.
 - [x] R05 idempotent batch retry (2026-10-30): stable renderer identity/chunk boundary; migration11 atomic payload-checked receipts, same-identity retries acknowledge without extra rows. Conflicts reject, deletion cascades. Process-crash unsent queue remains next separate task.

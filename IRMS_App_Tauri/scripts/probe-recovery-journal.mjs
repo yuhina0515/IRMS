@@ -1,6 +1,6 @@
 // 隔離瀏覽器證據探測；只讀專案原型，所有資料與設定檔均為本次合成暫存。
 import { createServer } from 'node:http'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -16,9 +16,15 @@ const source = readFileSync(sourcePath, 'utf8')
 const emitted = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 const browserPath = process.argv[2]
-const outputPath = process.argv[3] === '--output' ? process.argv[4] : undefined
-if (!browserPath || !statSync(browserPath).isFile() || ![3, 5].includes(process.argv.length) || process.argv.length === 5 && !outputPath) {
-  throw new Error('Usage: node scripts/probe-recovery-journal.mjs browser-executable [--output report.json]')
+const options = new Map()
+for (let i = 3; i < process.argv.length; i += 2) {
+  const key = process.argv[i], value = process.argv[i + 1]
+  if (!['--output', '--native-oracle'].includes(key) || !value || options.has(key)) throw new Error('Invalid probe options')
+  options.set(key, value)
+}
+const outputPath = options.get('--output'), nativeOracle = options.get('--native-oracle')
+if (!browserPath || !statSync(browserPath).isFile() || nativeOracle && !statSync(nativeOracle).isFile()) {
+  throw new Error('Invalid probe executable')
 }
 
 // CDP 僅用於本次自行啟動的 headless browser 測試，不連到使用者的瀏覽器工作階段。
@@ -59,6 +65,19 @@ const server = createServer((request, response) => {
 })
 let browser, channel, report, failed = false, caseName = 'startup'
 const cases = []
+// 僅由測試父程序呼叫精確 ignored test；不向瀏覽器提供原生端點或任意路徑。
+function native(op, database = 'native', batch) {
+  writeFileSync(join(directory, 'native-request.json'), JSON.stringify({ op, database, ...(batch ? { batch } : {}) }))
+  const child = spawnSync(nativeOracle, ['--exact', 'recovery_oracle::manual_recovery_oracle', '--ignored', '--nocapture'], {
+    windowsHide: true, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
+    env: { ...process.env, IRMS_RECOVERY_ORACLE_ROOT: directory },
+  })
+  const matches = [...(child.stdout ?? '').matchAll(/^IRMS_RECOVERY_ORACLE (.+)$/gm)]
+  if (child.error || child.status !== 0 || matches.length !== 1) throw new Error('Native oracle failed')
+  const result = JSON.parse(matches[0][1])
+  if (result.status === 'infrastructureFailure') throw new Error('Native oracle failed')
+  return result
+}
 async function stopBrowser() {
   channel?.close(); channel = undefined
   if (!browser || browser.exitCode !== null || browser.signalCode !== null) return
@@ -151,12 +170,81 @@ try {
   await check('corrupt-counters-fail-closed-no-erasure', `(async()=>{await j.enqueue(batch());j.close();const db=await new Promise((y,n)=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result);r.onerror=n});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'totals',rows:99,bytes:0,batches:0});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch{const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('entries').objectStore('entries').count();r.onsuccess=()=>y(r.result)});db.close();return count===1}})()`)
   await check('corrupt-record-fail-closed-no-erasure', `(async()=>{await reset();await j.enqueue(batch());j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('entries','readwrite');const r=t.objectStore('entries').openCursor();r.onsuccess=()=>r.result.update({...r.result.value,payload:'private malformed'});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch(e){const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('entries').objectStore('entries').count();r.onsuccess=()=>y(r.result)});db.close();return count===1&&!e.message.includes('private')}})()`)
   await check('unexpected-meta-row-rejected-without-erasure', `(async()=>{await reset();j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'unexpected'});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch{const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('meta').objectStore('meta').count();r.onsuccess=()=>y(r.result)});db.close();return count===2}})()`)
+  if (nativeOracle) {
+    // 真實 SQLite 交易完成後丟棄回覆；journal 不得據此自行刪除。
+    const assert = condition => { if (!condition) throw new Error('Probe assertion failed') }
+    const begun = native('init')
+    assert(begun.status === 'started')
+    await check('native-original-binding-enqueued', `(async()=>{await reset();const b={...batch(2),...${JSON.stringify(begun.started)}};b.readings.forEach(r=>r.timestamp='2099-01-01T00:00:00.000Z');await j.enqueue(b);return (await j.stats()).rows===2})()`)
+    const original = await evaluate('j.peek()')
+    caseName = 'native-commit-lost-reply-browser-kill-retry'
+    assert(native('append', 'native', original).status === 'committed')
+    await stopBrowser(); await startBrowser()
+    const replay = await evaluate('j.peek()')
+    assert(JSON.stringify(replay) === JSON.stringify(original))
+    const reply = native('append', 'native', replay), state = native('inspect')
+    assert(reply.status === 'committed' && reply.count === 2 && state.rows === 2 && state.receipts === 1)
+    // 每個 oracle 都重新啟動 DB；現行 startup 會結束孤兒療程，不能視為恢復運動。
+    assert(state.ended === 1 && state.abandoned === 1 && state.staleEnd === 1)
+    cases.push(caseName)
+    caseName = 'native-changed-payload-conflicts-without-duplicate'
+    const changed = structuredClone(replay); changed.readings[0].kneeAngle = 88
+    assert(native('append', 'native', changed).status === 'rejected' && native('inspect').rows === 2)
+    assert(await evaluate('j.stats().then(s=>s.rows)') === 2); cases.push(caseName)
+    caseName = 'native-ack-before-journal-delete-interruption'
+    await evaluate(`(async()=>{const add=IDBObjectStore.prototype.delete;IDBObjectStore.prototype.delete=function(...a){const r=add.apply(this,a);r.addEventListener('success',()=>this.transaction.abort(),{once:true});return r};try{await j.acknowledge(ack(await j.peek()));return false}catch{return true}finally{IDBObjectStore.prototype.delete=add}})()`).then(assert)
+    await stopBrowser(); await startBrowser()
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(original))
+    const retried = native('append', 'native', await evaluate('j.peek()'))
+    assert(retried.status === 'committed' && retried.count === 2 && native('inspect').rows === 2)
+    await evaluate(`j.acknowledge(${JSON.stringify({ sessionId: replay.sessionId, storageIdentity: replay.storageIdentity, batchId: replay.batchId, count: retried.count })})`)
+    assert(await evaluate('j.stats().then(s=>s.rows)') === 0); cases.push(caseName)
+    await evaluate(`j.enqueue(${JSON.stringify({ ...original, batchId: '22222222-2222-4222-8222-222222222222' })})`)
+    const pending = await evaluate('j.peek()')
+    caseName = 'native-missing-database-retains-journal-no-create'
+    assert(native('append', 'backup', pending).status === 'missingDatabase')
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    caseName = 'native-foreign-database-retains-original-journal'
+    const foreign = native('init', 'foreign')
+    assert(foreign.started.sessionId === pending.sessionId && foreign.started.storageIdentity !== pending.storageIdentity)
+    assert(native('append', 'foreign', pending).status === 'rejected' && native('inspect', 'foreign').rows === 0)
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    caseName = 'native-missing-session-retains-original-journal'
+    assert(native('append', 'native', { ...pending, sessionId: 99999 }).status === 'rejected')
+    assert(native('inspect').rows === 2 && JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    // 同血統備份保留 identity；舊備份與目前刪除歷史不能僅靠 matching key 判別。
+    assert(native('backup').status === 'backedUp')
+    caseName = 'native-deleted-session-retains-journal-no-recreate'
+    assert(native('delete', 'native', pending).status === 'deleted')
+    assert(native('append', 'native', pending).status === 'rejected')
+    const deleted = native('inspect')
+    assert(deleted.rows === 0 && deleted.receipts === 0 && deleted.sessions === 0)
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    caseName = 'native-recreated-numeric-id-rejects-old-binding'
+    // SQLite AUTOINCREMENT 可能改變 ID，顯式 fixture 將重建場次固定為舊 ID。
+    assert(native('recreate', 'native', pending).status === 'recreated')
+    assert(native('append', 'native', pending).status === 'rejected' && native('inspect').rows === 0)
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    caseName = 'native-backup-divergence-observed-replay-not-authorized'
+    assert(native('append', 'backup', pending).status === 'committed')
+    assert(native('inspect', 'backup').rows === 4 && native('inspect').rows === 0)
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+  }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
     sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'scripts/probe-recovery-journal.mjs': hash(readFileSync(new URL(import.meta.url))) },
     runtime: { node: process.version, typescript: ts.version, browser: version.product, protocol: version.protocolVersion, platform: process.platform },
     scope: { realIndexedDB: true, isolatedProfile: true, sameOriginOnRestart: true, forcedOwnedBrowserTermination: true,
-      strictDurabilityRequestedAndObserved: true, nativeSink: 'simulated-acknowledgement-only', productionConnected: false,
+      strictDurabilityRequestedAndObserved: true, nativeSink: nativeOracle ? 'actual-Rust-SQLite-test-oracle' : 'simulated-acknowledgement-only', productionConnected: false,
+      actualTauriIPC: false, nativeProcessPerRequest: Boolean(nativeOracle), backupDivergenceObserved: Boolean(nativeOracle), automaticReplayAuthorized: false,
+      isolatedNativeDeletionVerified: Boolean(nativeOracle), restoreGenerationDetectionImplemented: false,
       webViewVerified: false, powerLossVerified: false, evictionVerified: false, nativeDeletionRestoreVerified: false } }
+  if (nativeOracle) {
+    report.native = { testFilter: 'recovery_oracle::manual_recovery_oracle', executableSha256: hash(readFileSync(nativeOracle)),
+      sourceHashes: Object.fromEntries(['recovery_oracle.rs', 'db.rs', 'commands.rs', 'migrations.rs', 'types.rs'].map(name =>
+        [`src-tauri/src/${name}`, hash(readFileSync(new URL(`../src-tauri/src/${name}`, import.meta.url)))])),
+      observedStartup: { abandoned: true, endedBeforeSyntheticTail: true, reconciliationImplemented: false },
+      boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
+  }
 } catch (error) {
   failed = true
   // 僅回報本探測器的固定錯誤類別，不輸出 protocol／payload／私人檔案路徑。

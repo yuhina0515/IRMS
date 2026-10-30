@@ -255,7 +255,7 @@ fn append_budget() -> &'static AppendBudget {
     })
 }
 
-fn validate_append_readings(readings: &[SensorReading]) -> Result<(), String> {
+pub(crate) fn validate_append_readings(readings: &[SensorReading]) -> Result<(), String> {
     let budget = append_budget();
     if readings.len() > budget.max_batch_rows {
         return Err("storage batch row budget exceeded".into());

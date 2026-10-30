@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 native journal oracle: [evidence/policy](recovery/native-journal-oracle.md),29synthetic Chrome/
+> Rust-SQLite cases; exact ignored cfg(test) helper only, shared command input validator, fixed temp
+> DBs and consistent VACUUM backup. No schema/IPC change or acquisition hookup. Startup abandoned
+> end-time reconciliation and cross-store deletion/restore policy block automatic recovery.
+
 > R05 recovery journal prototype: [isolated evidence](recovery/journal-prototype.md). Original native
 > binding/batch boundary, atomic IDB counters and transaction-complete success;2000rows/128batches/
 > 512KiB canonical payload budget. Not imported by acquisition; no schema/IPC change in this probe

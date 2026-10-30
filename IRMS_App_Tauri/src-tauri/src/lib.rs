@@ -14,6 +14,8 @@ mod modules;
 mod protocol;
 #[cfg(test)]
 mod readiness_benchmark;
+#[cfg(test)]
+mod recovery_oracle;
 mod splash;
 mod telemetry;
 mod types;

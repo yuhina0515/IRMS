@@ -1,6 +1,38 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 isolated journal evidence prototype)
+## Current checkpoint (2026-10-30 actual native journal oracle)
+
+Baseline6ed5e05 clean; prior CI41030074994 SUCCESS. Initial remaining63%/37%, latest51%/35%.
+One bounded task complete: optional actual Rust/SQLite test-only oracle plus real Chrome IDB,
+29synthetic cases (19prior+10native). No devices/real app DB/profile/participant/deployment/production
+acquisition hookup. Exact ignored helper, fixed ownedtemp DB/request, shared command validation.
+Actual commit/parent-discarded reply and browser kill/reopen/retry produce2rows/1receipt; aborted
+journal ack/delete retains entry, later complete native success clears. Foreign/missing/deleted/
+recreated associations reject without journal loss/rebinding. Consistent VACUUM backup demonstrates
+same-lineage identity ambiguity after current deletion; no automatic replay authorization.
+
+Startup init actually marks abandoned/endTime before new tail; staleEnd asserted with future synthetic
+timestamp. This is an observed integration gate, not repaired/normal recovery. Source/binary/runtime
+hashes and cleanup in doc/recovery/native-journal-probe-20261030.json; helper processes exit normally,
+browser only force-killed; no actual Tauri IPC/native kill/power-loss claim. Source-to-binary association
+relies on fresh build, not hashes alone. Original19-case artifact remains historical earlier source.
+
+Full Rust162passed/7ignored, fmt/Clippy passed;3normal CLI redaction cases passed. Prior736frontend/
+typecheck/build not rerun (test tooling plus shared validator visibility only); collector unchanged.
+Engineering final no blocker; security dangling-symlink exists() bypass fixed using symlink_metadata
+for DB/sidecars/backup/request plus pre-canonical root check. Normal guard regression, Unix-only
+dangling test not run locallyWindows. Narrow final review and scoped delivery recorded in
+doc/coding log/log_20261030_native_journal.md. See plans/2026-10-30-native-journal-plan.md and
+doc/recovery/native-journal-oracle.md. Inspect new head CI before any next push.
+
+Next bounded software task: decide/test startup reconciliation and explicit recovery status, with
+abandoned end-time repair semantics and cross-store deletion/restore generation/tombstone policy.
+Keep original binding/payload, failclosed retention; never recreate sessions, refresh binding, resume
+exercise or imply complete tail. Keep prototype unconnected until gates pass. Actual WebView
+persistence, quota/eviction and native process interruption are later software-only gates.
+No broad repeat audits or universal school/country/demographic/clinical claim.
+
+## Historical checkpoint (2026-10-30 isolated journal evidence prototype)
 
 Baseline8ff7662 clean, CI41022604955 SUCCESS. Quota initial90%/41%, latest69%/38% remaining.
 One bounded isolated journal task complete; no physical devices, people messages, production changes,

@@ -64,9 +64,11 @@ concurrent row/batch capacity, byte capacity, request-success followed by abort,
 invalid payloads, corrupt records/counters and unexpected metadata without erasure. Browser reports
 strict as the requested hint. This does not prove power-loss, eviction or every precommit kill point.
 
-The native sink in this probe is explicitly a simulated acknowledgement map. Actual Rust append,
-Tauri transport, WebView origin/persistence, browser quota exhaustion/eviction, double-store native
-deletion, backup/restore ambiguity and startup reconciliation are **unverified**. Forced termination
+The native sink in the original19-case probe is explicitly a simulated acknowledgement map. The
+later [actual Rust/SQLite oracle](native-journal-oracle.md) adds10 synthetic integration cases;
+it observes deletion/binding rejection and backup divergence without production hookup. Tauri
+transport, WebView persistence, quota/eviction and production deletion/restore/startup reconciliation
+remain **unverified**. Forced termination
 occurs after enqueue complete and a later read, not at every commit boundary. Ordinary API abort and
 corrupt-store tests are not operating-system or browser corruption/eviction experiments.
 
@@ -75,7 +77,7 @@ redaction boundary. Manual full-CLI missing executable and invalid output-direct
 returned nonzero and fixed stderr with no stdout. No browser is launched by those normal unit tests.
 The full browser probe is a separately invoked reproducibility check.
 
-Next: bridge the isolated journal to an actual synthetic native receipt oracle and define explicit
+Next: use the actual native oracle observations to define explicit
 deletion/restore outcomes and startup gating before connecting collection. Do not recreate missing
 native sessions, refresh a failed binding, resume exercise feedback or label an interrupted session
 complete. Same-lineage backups retain native identities, so identity matching alone cannot authorize

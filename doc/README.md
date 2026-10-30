@@ -1,5 +1,10 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Actual native journal oracle (2026-10-30): [29-case isolated evidence](recovery/native-journal-oracle.md)
+> connects Chrome IDB to real Rust/SQLite receipts with synthetic temporary data. Lost-reply retries
+> deduplicate; missing/foreign/deleted associations retain the journal. Startup abandoned/stale end
+> and same-lineage backup divergence are observed limitations; production replay remains gated.
+
 > Recovery journal evidence prototype (2026-10-30): [isolated protocol/probe](recovery/journal-prototype.md)
 > exercises real Chrome IndexedDB with synthetic data and an owned temporary profile; production
 > collection does not import it. Rust/WebView drain and deletion/restore/startup integration remain
