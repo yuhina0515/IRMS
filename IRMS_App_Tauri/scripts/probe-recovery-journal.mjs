@@ -255,6 +255,34 @@ try {
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
     await inspectNative('reconcile-backup-matched-still-no-delete-authority', 'backup', pending,
       { status: 'receiptMatched', count: 2, abandoned: true, ended: true })
+    const intent = { kind: 'delete', operationId: '33333333-3333-4333-8333-333333333333', sessionId: pending.sessionId, storageIdentity: pending.storageIdentity }
+    await evaluate(`globalThis.intent=${JSON.stringify(intent)}`)
+    await check('history-malformed-intents-retain-queue-without-fence', `(async()=>{for(const bad of [{...intent,kind:'private'}, {...intent,operationId:'private'}, {...intent,extra:true}, {...intent,kind:'restore'}, {...intent,sessionId:0}]){try{await j.markHistoryChange(bad);return false}catch{}}return (await j.stats()).historyFence===null&&(await j.stats()).rows===2})()`)
+    await check('history-request-success-abort-does-not-publish-fence', `(async()=>{const old=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...a){const r=old.apply(this,a);if(a[0]?.key==='historyFence')r.addEventListener('success',()=>this.transaction.abort(),{once:true});return r};try{await j.markHistoryChange(intent);return false}catch{return (await j.stats()).historyFence===null&&(await j.stats()).rows===2}finally{IDBObjectStore.prototype.put=old}})()`)
+    await check('history-delete-fence-commit-retains-queue', `(async()=>{await j.markHistoryChange(intent);const s=await j.stats();return s.historyFence.kind==='delete'&&s.observedDurability==='strict'&&s.rows===2})()`)
+    const committedFence = (await evaluate('j.stats()')).historyFence
+    await check('history-same-intent-idempotent', `(async()=>{await j.markHistoryChange({...intent});return (await j.stats()).historyFence.operationId===intent.operationId})()`)
+    await check('history-conflicting-intent-retains-original', `(async()=>{for(const wrong of [{...intent,operationId:crypto.randomUUID()}, {...intent,sessionId:2},{...intent,storageIdentity:'a'.repeat(32)+'/'+'c'.repeat(32)},{kind:'restore',operationId:intent.operationId,sessionId:null,storageIdentity:null}]){try{await j.markHistoryChange(wrong);return false}catch{}}return (await j.stats()).historyFence.storageIdentity===intent.storageIdentity})()`)
+    await check('history-fence-blocks-enqueue-and-full-ack', `(async()=>{const b=await j.peek();for(const op of [()=>j.enqueue(batch()),()=>j.acknowledge(ack(b))]){try{await op();return false}catch(e){if(e.message!=='Journal history change unresolved')return false}}return (await j.stats()).rows===2})()`)
+    caseName = 'history-backup-matched-does-not-clear-fence'
+    assert(native('reconcile', 'backup', pending).inspection.status === 'receiptMatched')
+    assert(JSON.stringify((await evaluate('j.stats()')).historyFence) === JSON.stringify(committedFence)); cases.push(caseName)
+    caseName = 'history-native-rejection-does-not-clear-fence'
+    assert(native('append', 'native', pending).status === 'rejected')
+    assert(JSON.stringify((await evaluate('j.stats()')).historyFence) === JSON.stringify(committedFence)); cases.push(caseName)
+    caseName = 'history-native-delete-lost-reply-browser-kill-retains-intent-and-queue'
+    // 只有 fence 的 complete promise 已完成才走 native；回覆丟棄不解除 intent。
+    assert(native('delete', 'backup', pending).status === 'deleted')
+    await stopBrowser(); await startBrowser()
+    assert(native('inspect', 'backup').sessions === 0)
+    assert(JSON.stringify((await evaluate('j.stats()')).historyFence) === JSON.stringify(committedFence))
+    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await evaluate(`globalThis.intent=${JSON.stringify(intent)}`)
+    await check('history-preceding-enqueue-retained-after-fence', `(async()=>{await reset();await Promise.all([j.enqueue(batch()),j.markHistoryChange(intent)]);try{await j.acknowledge(ack(await j.peek()));return false}catch{return (await j.stats()).rows===1&&(await j.stats()).historyFence!==null}})()`)
+    await check('history-concurrent-following-ack-sees-fence', `(async()=>{await reset();const b=batch();await j.enqueue(b);const r=await Promise.allSettled([j.markHistoryChange(intent),j.acknowledge(ack(b))]);return r[0].status==='fulfilled'&&r[1].status==='rejected'&&(await j.stats()).rows===1&&(await j.stats()).historyFence!==null})()`)
+    await check('history-restore-fence-global-null-binding-persists', `(async()=>{await reset();await j.enqueue(batch());await j.markHistoryChange({kind:'restore',operationId:crypto.randomUUID(),sessionId:null,storageIdentity:null});j.close();j=await mod.openRecoveryJournal(name);try{await j.enqueue(batch());return false}catch{return (await j.stats()).historyFence.kind==='restore'&&(await j.stats()).rows===1}})()`)
+    await check('history-unknown-meta-with-fence-failclosed-no-erasure', `(async()=>{j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'unknown'});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch{const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('meta').objectStore('meta').count();r.onsuccess=()=>y(r.result)});db.close();return count===3}})()`)
+    await check('history-corrupt-fence-failclosed-no-erasure', `(async()=>{await reset();await j.enqueue(batch());j.close();const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});await new Promise((y,n)=>{const t=db.transaction('meta','readwrite');t.objectStore('meta').put({key:'historyFence',kind:'restore',operationId:'private',sessionId:null,storageIdentity:null});t.oncomplete=y;t.onabort=n});db.close();try{j=await mod.openRecoveryJournal(name);return false}catch(e){const db=await new Promise(y=>{const r=indexedDB.open(name,1);r.onsuccess=()=>y(r.result)});const count=await new Promise(y=>{const r=db.transaction('entries').objectStore('entries').count();r.onsuccess=()=>y(r.result)});db.close();return count===1&&!e.message.includes('private')}})()`)
   }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
     sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'scripts/probe-recovery-journal.mjs': hash(readFileSync(new URL(import.meta.url))) },
@@ -270,6 +298,8 @@ try {
         [`src-tauri/src/${name}`, hash(readFileSync(new URL(`../src-tauri/src/${name}`, import.meta.url)))])),
       observedStartup: { abandoned: true, endedBeforeSyntheticTail: true, reconciliationImplemented: false },
       readOnlyInspection: { prototype: true, skipsInitialization: true, readOnlyOpen: true, noReplayOrJournalAckAuthority: true },
+      historyFence: { prototype: true, singletonUnresolvedIntent: true, enqueueAndAckBlocked: true, clearAPI: false,
+        nativeInflightQuiescenceImplemented: false, externalRestoreDetectionImplemented: false },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

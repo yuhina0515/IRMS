@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> History-change intent prototype (2026-10-30): [53-case evidence/policy](recovery/history-change-fence.md)
+> persists one unresolved delete/restore intent before native mutation; enqueue/ack reject while
+> peek/stats retain evidence. No clear API, in-flight native quiescence or production hookup yet.
+
 > Startup inspection prototype (2026-10-30): [39-case evidence/status contract](recovery/reconciliation-inspection.md)
 > uses an existing read-only DB without initialization. Matching/conflicting/unseen receipts and
 > rejected associations preserve the journal; no status authorizes replay, deletion or timestamp repair.

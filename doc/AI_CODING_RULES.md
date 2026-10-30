@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 history-change fence: [isolated contract](recovery/history-change-fence.md). Optional singleton
+> known meta record, complete-transaction success, same entries/meta scope for intent/queue/ack;
+> unresolved fence blocks enqueue/ack and never auto-clears. No schema/IPC/production hookup;
+> already-submitted native work and unlock/deletion UX remain explicit gates.
+
 > R05 startup inspection: [test-only status contract](recovery/reconciliation-inspection.md).
 > Reconcile opens existing DB read-only before init, no migration/orphan finalization; one snapshot
 > binds original receipt/hash/count and session state. Matched/unseen/conflict/rejected are observations,

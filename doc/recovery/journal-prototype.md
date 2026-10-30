@@ -42,7 +42,8 @@ browser before validation; this is not a hostile-browser/OS memory sandbox.
 
 Every operation audits entries and counters in its transaction. Writers use the same entries/meta
 readwrite scope for audit, capacity decision, data and counter changes. Metadata has exactly one
-totals row. Cursor inspection is bounded by count/bytes; malformed records or inconsistent counters
+totals row, plus an optional validated singleton [history fence](history-change-fence.md). Unknown
+metadata remains rejected. Cursor inspection is bounded by count/bytes; malformed records or inconsistent counters
 reject without clearing the store. A complete transaction is the enqueue success point; request
 success alone is insufficient. Callback work does not await timers/promises. Writers request strict
 durability and reject if the returned hint differs. These choices follow the transaction lifecycle
@@ -51,7 +52,8 @@ and durability-hint sections of the [IndexedDB editor draft](https://w3c.github.
 
 Acknowledgement includes original sessionId, storageIdentity, batchId and full count of the oldest
 entry. Unknown owner/key, partial/excess count or out-of-order acknowledgement cannot delete data.
-Deletion and totals decrement commit atomically. The API provides no automatic discard/repair or
+Deletion and totals decrement commit atomically. An unresolved history fence blocks enqueue and
+acknowledgement but preserves peek/stats. The API provides no automatic discard/repair or
 native-session creation. Local acknowledgement is not native authentication: the caller must later
 prove successful native receipt handling before invoking it.
 

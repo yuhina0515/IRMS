@@ -1,6 +1,39 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 read-only reconciliation inspection)
+## Current checkpoint (2026-10-30 singleton history-change fence)
+
+Baseline8c7811f clean, CI41043282152 SUCCESS. Initial remaining89%/33%, latest80%/31%.
+One bounded isolated task: optional singleton historyFence in existing version1 IDB meta, strict
+complete-before-success; known second record only, unknown/corrupt metadata rejected without erase.
+Full canonical intent retries idempotently, conflicting intent cannot overwrite. Delete requires
+original session/binding, restore requires null binding. Same entries/meta scope blocks enqueue/
+fullack after unresolved fence; peek/stats preserve evidence. No clear API or production hookup.
+
+53actual synthetic browser/native cases (39prior+14new), doc/recovery/history-fence-probe-20261030.json:
+request-success abort no publication; actual backup DB delete only after fence commit, lost reply/
+owned-browser kill/reopen retains queue/intent; matching backup/native rejection never clear; prior
+enqueue retained and following concurrent ack rejected; malformed/corrupt/unknown meta failclosed.
+Typecheck/Vite build,3normal CLIredaction/node syntax passed. Native unchanged, current cached build
+selected; baseline full168Rust/7ignored/fmt/Clippy not rerun. Prior736frontend not rerun, UI unchanged;
+collector unchanged. Original19/29/39artifacts preserved; final source hashes checked before delivery.
+
+Independent engineering/security debate + cross-critique select bounded singleton rather than
+unbounded tombstones. Both final static reviews no blocker; lead added recommended concurrent ack
+case after52-case review, final53actualpass. Minutes/log doc/coding log/log_20261030_history_fence.md,
+plan plans/2026-10-30-history-fence-plan.md, contract doc/recovery/history-change-fence.md.
+No devices/real app DB/profile/participants/deployment/people messaging. Deliver scoped commit/push/
+update draftPR5; inspect new head CI before another push. No merge.
+
+Next bounded software task: exclusive history-transition/quiescence prototype covering already-sent
+native append, rejecting ambiguous/hung outcomes before native mutation. Counterexample: append sent,
+fence commit, restore backup, old append commits. Current fence does NOT cancel/coordinate this.
+Global indefinite hold/no unlock or full deletion UX remain unfinished; native deletion retains
+sensitive journal, not privacy-erasure proof. External replacement or both-store rollback not detected.
+Keep acquisition unconnected; no auto resume/rebind/recreate, timestamp repair or complete-tail claim.
+Later WebView persistence/quota/eviction/native termination evidence still software-only gates.
+No broad repeated audit or universal school/country/demographic/clinical acceptance claim.
+
+## Historical checkpoint (2026-10-30 read-only reconciliation inspection)
 
 Baseline f7cd1d4 clean, CI41036086380 SUCCESS. Initial quota100%/34%, latest92%/33% remaining.
 One bounded test-only task complete: cfg(test) native read-only association/receipt inspection,

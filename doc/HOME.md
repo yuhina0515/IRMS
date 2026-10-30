@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 history-intent fence** ([[log_20261030_history_fence|Minutes/log]]): [53-case evidence and decision](recovery/history-change-fence.md); unresolved marker preserves queue across native delete/lost reply/browser kill. Production transition interlock and unlock/retention policy unfinished.
+
 - **2026-10-30 read-only startup inspection** ([[log_20261030_reconciliation|Log]]): [39-case evidence and status](recovery/reconciliation-inspection.md); inspection skips initialization and preserves open sessions/journal. No automatic replay, timestamp repair or delete authority.
 
 - **2026-10-30 actual native journal oracle** ([[log_20261030_native_journal|Log]]): [29-case evidence and conservative policy](recovery/native-journal-oracle.md); real SQLite receipt retry and cross-store rejection. Backup divergence and startup end-time gate remain; no production replay.

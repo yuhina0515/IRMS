@@ -4,6 +4,7 @@ import type { SensorReading } from '@shared/types'
 export const JOURNAL_LIMITS = { rows: 2000, batches: 128, bytes: 512 * 1024, batchRows: 1000, timestampBytes: 128 } as const
 export interface JournalBatch { sessionId: number; storageIdentity: string; batchId: string; readings: SensorReading[] }
 interface Totals { key: 'totals'; rows: number; batches: number; bytes: number }
+export interface HistoryFence { key: 'historyFence'; kind: 'delete' | 'restore'; operationId: string; sessionId: number | null; storageIdentity: string | null }
 interface Entry { order: number; sessionId: number; storageIdentity: string; batchId: string; payload: string; rows: number; bytes: number }
 const encoder = new TextEncoder()
 const identityPattern = /^[a-f\d]{32}\/[a-f\d]{32}$/
@@ -17,6 +18,17 @@ function header(value: Record<string, unknown>): void {
   if (!Number.isSafeInteger(value.sessionId) || (value.sessionId as number) <= 0 ||
     typeof value.storageIdentity !== 'string' || value.storageIdentity.length !== 65 || !identityPattern.test(value.storageIdentity) ||
     typeof value.batchId !== 'string' || value.batchId.length !== 36 || !batchPattern.test(value.batchId)) fail()
+}
+
+// 固定一筆未解決 intent；不可藉新操作覆蓋，也不提供自動清除／解除 API。
+function checkFence(value: unknown): HistoryFence {
+  fields(value, ['key', 'kind', 'operationId', 'sessionId', 'storageIdentity'])
+  if (value.key !== 'historyFence' || !['delete', 'restore'].includes(value.kind as string) ||
+    typeof value.operationId !== 'string' || value.operationId.length !== 36 || !batchPattern.test(value.operationId)) fail()
+  if (value.kind === 'delete') header({ sessionId: value.sessionId, storageIdentity: value.storageIdentity, batchId: value.operationId })
+  else if (value.sessionId !== null || value.storageIdentity !== null) fail()
+  return { key: 'historyFence', kind: value.kind as HistoryFence['kind'], operationId: value.operationId,
+    sessionId: value.sessionId as number | null, storageIdentity: value.storageIdentity as string | null }
 }
 
 // 固定順序與欄位，正規化 JSON 數字，不接受人口資料、額外路徑或不完整讀值。
@@ -69,7 +81,7 @@ export async function openRecoveryJournal(name: string) {
 
   // cursor audit、容量核對與變更在同一交易；callback 內不 await，避免交易提前結束。
   function transaction<T>(mode: IDBTransactionMode, operation: (entries: IDBObjectStore, meta: IDBObjectStore, totals: Totals,
-    first: Entry | null, done: (result: T) => void, abort: (reason: unknown) => void) => void): Promise<T> {
+    first: Entry | null, done: (result: T) => void, abort: (reason: unknown) => void, fence: HistoryFence | null) => void): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       let tx: IDBTransaction
       try { tx = db.transaction(['entries', 'meta'], mode, mode === 'readwrite' ? { durability: 'strict' } : undefined) }
@@ -103,10 +115,14 @@ export async function openRecoveryJournal(name: string) {
           request.onsuccess = () => guarded(() => {
             fields(request.result, ['key', 'rows', 'bytes', 'batches'])
             if (Object.keys(totals).some(key => request.result[key] !== totals[key as keyof Totals])) fail()
-            const count = meta.count()
-            count.onsuccess = () => guarded(() => {
-              if (count.result !== 1) fail()
-              operation(entries, meta, totals, first, value => { result = value; ready = true }, abort)
+            const marker = meta.get('historyFence')
+            marker.onsuccess = () => guarded(() => {
+              const fence = marker.result === undefined ? null : checkFence(marker.result)
+              const count = meta.count()
+              count.onsuccess = () => guarded(() => {
+                if (count.result !== (fence ? 2 : 1)) fail()
+                operation(entries, meta, totals, first, value => { result = value; ready = true }, abort, fence)
+              })
             })
           })
         }
@@ -119,7 +135,8 @@ export async function openRecoveryJournal(name: string) {
       // 在啟動交易前完成複製／驗證，呼叫端之後修改原陣列不會改寫已準備批次。
       const payload = canonical(batch), copy = JSON.parse(payload) as JournalBatch
       const bytes = encoder.encode(payload).length
-      return transaction<number>('readwrite', (entries, meta, totals, _first, done, abort) => {
+      return transaction<number>('readwrite', (entries, meta, totals, _first, done, abort, fence) => {
+        if (fence) fail('Journal history change unresolved')
         const request = entries.index('identity').get([copy.storageIdentity, copy.batchId])
         request.onsuccess = () => {
           try {
@@ -147,7 +164,8 @@ export async function openRecoveryJournal(name: string) {
     }),
     acknowledge: async (ack: { sessionId: number; storageIdentity: string; batchId: string; count: number }) => {
       fields(ack, ['sessionId', 'storageIdentity', 'batchId', 'count']); header(ack)
-      return transaction<void>('readwrite', (entries, meta, totals, first, done) => {
+      return transaction<void>('readwrite', (entries, meta, totals, first, done, _abort, fence) => {
+        if (fence) fail('Journal history change unresolved')
         if (!first || first.sessionId !== ack.sessionId || first.storageIdentity !== ack.storageIdentity ||
           first.batchId !== ack.batchId || first.rows !== ack.count) fail('Journal acknowledgement mismatch')
         entries.delete(first.order)
@@ -155,8 +173,17 @@ export async function openRecoveryJournal(name: string) {
         done(undefined)
       })
     },
-    stats: () => transaction<Totals & { observedDurability: IDBTransactionDurability | null }>('readonly',
-      (_entries, _meta, totals, _first, done) => done({ ...totals, observedDurability })),
+    markHistoryChange: async (intent: Omit<HistoryFence, 'key'>): Promise<void> => {
+      fields(intent, ['kind', 'operationId', 'sessionId', 'storageIdentity'])
+      const prepared = checkFence({ key: 'historyFence', ...intent })
+      return transaction<void>('readwrite', (_entries, meta, _totals, _first, done, _abort, fence) => {
+        if (fence && JSON.stringify(fence) !== JSON.stringify(prepared)) fail('Journal history intent conflict')
+        if (!fence) meta.put(prepared)
+        done(undefined)
+      })
+    },
+    stats: () => transaction<Totals & { observedDurability: IDBTransactionDurability | null; historyFence: HistoryFence | null }>('readonly',
+      (_entries, _meta, totals, _first, done, _abort, fence) => done({ ...totals, observedDurability, historyFence: fence })),
     close: () => db.close()
   }
   // 開啟損壞日誌時保留原資料，不自動清空或宣稱復原成功。
