@@ -1,6 +1,34 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 persistent local startup-readiness)
+## Current checkpoint (2026-10-30 cooperating context lease)
+
+Baseline5f74c37 clean, CI41074620172 SUCCESS. Initial43%/26%, latest91%/22% after natural5hrollover;
+no reset/purchase/auth change. No quota holdactive. Stop/checkpoint expensivework<=20; afterhold
+resumeonlyallknown>=30. One bounded taskcomplete, no productionhook/deploy/devices/app/participantdata.
+Fixed exclusive samebucket WebLock/ifAvailable before startupaudit; retainedcallbacklifetime; live
+proxy checksentry+actualdispatch. Busy/unsupported/requestfailure/deadline noowner/noaudit.
+Legalrelease sync revokesoldrefs, refusespending/uncertain. Contextdeath onlyreleasesbrowserlease.
+
+Final78actual cases (69prior+9lease),48focused (11lease+15startup+19owner+3CLI), typecheck/build/
+node syntax pass. Two actualChrome targets: contention beforeaudit/duringownerlife, nopeeraudit,
+pending/uncertainreleasefalse, oldrefsblocked, handoff, contextdeathpersistentqueueholds, completed
+historyreleasekeepsfence. Freshartifact doc/recovery/context-lease-probe-20261030.json; older preserved.
+ENG requestfailure-duringaudit orphan lifetime reproduced/fixed postawait; lead two dispatchafter-
+leaseloss bugs reproduced/fixed percallbacklivechecks. Both narrowreviews confirmed, final48/78green.
+Nativeunchanged, currentcache no-runbuildselected; baseline168Rust/7ignored/fmt/Clippy and736full
+frontend notrerun; collectorunchanged. No productionimports. Source/servedmodule/runtime hashes/
+cleanup recorded; W3CWebLocks editor draft read, not conformance proof.
+
+See plans/2026-10-30-context-lease-plan.md, doc/recovery/cooperating-context-lease.md and
+doc/coding log/log_20261030_context_lease.md. Scoped commit/push/update draftPR5; newheadCI before
+anotherpush. Next bounded software task: native original-binding precondition for history mutation
+before journalresolution; existing synthetic oracle delete targets numericID only, not bounddelete/
+restoreauthorization. Browserlease does not cancel dispatchednative or cover rawfactory/directIPC/
+otherprofile/externalrestore. Retention/deletion/unlock UX, restoregeneration, WebView/eviction/
+powerloss/actualIPC/native-global ownership remain gates. No automatic resume/rebind/recreate/
+timestamp repair/complete-tail or universal institutional/population/clinical claim.
+
+## Historical checkpoint (2026-10-30 persistent local startup-readiness)
 
 Baseline928814a clean, CI41066460644 SUCCESS. Initialquota56%/28%, latest45%/26%, no quota hold.
 20stop/30resume hysteresis still applies; checkpoint/stop expensivework<=20, resumeheldonlyall>=30.

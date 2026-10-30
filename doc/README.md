@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Cooperating context lease (2026-10-30): [78-case evidence](recovery/cooperating-context-lease.md)
+> acquires same-bucket exclusive browser ownership before startup audit, retains it for proxy lifetime
+> and revokes old/staged callbacks on loss. Not native global ownership or production hookup.
+
 > Local startup-readiness prototype (2026-10-30): [69-case evidence](recovery/startup-readiness.md)
 > exposes no owner before audited stats; pending/fenced/unavailable storage stays held. Explicit empty
 > local readiness is not a cross-window lease, strict-write proof or native-history/restore authority.

@@ -46,6 +46,6 @@ runtime/native executable hashes identify tested bytes; preserve earlier19/29/39
 Focused unit reproduction: run `historyTransitionPrototype.test.ts`, `historyStartupPrototype.test.ts`
 and `scripts/probe-recovery-journal.test.mjs` with one Vitest worker/no-file-parallelism.
 
-Next bounded gate: design/test cooperating-context ownership around audit and owner lifetime; a
-second context must not concurrently gain readiness. No automatic resume, rebind/recreate, timestamp
+Later [cooperating-context lease](cooperating-context-lease.md) holds ownership across audit/lifetime
+and blocks a competing context. It remains a browser-only prerequisite. No automatic resume, rebind/recreate, timestamp
 repair, complete-tail, clinical or universal institutional/country/population claim is made.

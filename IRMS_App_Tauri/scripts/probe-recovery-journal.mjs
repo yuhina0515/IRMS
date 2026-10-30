@@ -342,6 +342,47 @@ try {
     await check('startup-completed-audit-publishes-local-readiness', `(async()=>{releaseStartup();const s=await starting;return s.status==='ready'&&s.owner.snapshot().phase==='open'})()`)
     await check('startup-unavailable-store-withholds-owner-and-retains-data', `(async()=>{await reset();await j.enqueue(batch());j.close();const s=await gateModule.openHistoryTransitionGate(()=>j.stats());j=await mod.openRecoveryJournal(name);return s.status==='held'&&s.reason==='storageUnavailable'&&!Object.hasOwn(s,'owner')&&(await j.stats()).rows===1})()`)
     assert(native('inspect', 'backup').rows === 2)
+    await check('lease-first-context-audits-under-exclusive-grant', `(async()=>{await reset();globalThis.claim=null;globalThis.auditStarted=new Promise(y=>globalThis.signalAudit=y);globalThis.claiming=gateModule.openCooperatingHistoryOwner(()=>{signalAudit();return new Promise(y=>globalThis.finishAudit=()=>y(j.stats()))}).then(s=>{globalThis.claim=s;return s});await auditStarted;return claim===null&&typeof finishAudit==='function'})()`)
+    // 第二個 target 與第一個共用本次 profile/origin，沒有使用任何使用者分頁。
+    const firstPage = page
+    const secondTarget = await channel.send('Target.createTarget', { url: origin })
+    const secondAttached = await channel.send('Target.attachToTarget', { targetId: secondTarget.targetId, flatten: true })
+    const other = async expression => { page = secondAttached.sessionId; try { return await evaluate(expression) } finally { page = firstPage } }
+    for (let attempt = 0; attempt < 200; attempt++) {
+      if (await other(`location.origin===${JSON.stringify(origin)}&&document.readyState==='complete'`)) break
+      if (attempt === 199) throw new Error('Probe page did not load')
+      await pause(25)
+    }
+    await other(`(async()=>{globalThis.gateModule=await import('/history-gate.js');globalThis.mod=await import('/prototype.js');globalThis.j=await mod.openRecoveryJournal('irms-recovery-prototype-probe');globalThis.reads=0;globalThis.tryOwner=()=>gateModule.openCooperatingHistoryOwner(()=>{reads++;return j.stats()});return true})()`)
+    caseName = 'lease-second-context-busy-does-not-audit'
+    assert(await other(`(async()=>{const s=await tryOwner();return s.status==='held'&&s.reason==='contextBusy'&&reads===0})()`)); cases.push(caseName)
+    await check('lease-ready-owner-keeps-exclusive-lifetime', `(async()=>{finishAudit();await claiming;return claim.status==='ready'&&claim.owner.snapshot().leaseActive})()`)
+    assert(await other(`(async()=>{const s=await tryOwner();return s.reason==='contextBusy'&&reads===0})()`))
+    await check('lease-pending-append-refuses-release', `(async()=>{globalThis.active=claim.owner.append(1,()=>new Promise(y=>globalThis.finishAppend=y));await Promise.resolve();return !claim.release()&&claim.owner.snapshot().leaseActive&&claim.owner.snapshot().pendingAppend})()`)
+    assert(await other(`(async()=>{const s=await tryOwner();return s.reason==='contextBusy'&&reads===0})()`))
+    await check('lease-release-revokes-old-method-references', `(async()=>{globalThis.staleAppend=claim.owner.append;globalThis.staleChange=claim.owner.change;finishAppend(1);await active;if(!claim.release()||claim.owner.snapshot().leaseActive)return false;for(const op of [()=>staleAppend(1,async()=>1),()=>staleChange(async()=>{},async()=>{})]){try{await op();return false}catch(e){if(e.message!=='History owner unavailable')return false}}return true})()`)
+    caseName = 'lease-second-owner-audits-only-after-first-release'
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await other(`(async()=>{globalThis.claim=await tryOwner();return claim.status==='ready'})()`)) break
+      if (attempt === 99) throw new Error('Probe assertion failed')
+      await pause(10)
+    }
+    assert(await other('reads===1&&claim.owner.snapshot().leaseActive')); cases.push(caseName)
+    caseName = 'lease-uncertain-owner-refuses-release-and-blocks-peer'
+    assert(await other(`(async()=>{const b={sessionId:1,storageIdentity:'a'.repeat(32)+'/'+'b'.repeat(32),batchId:crypto.randomUUID(),readings:[{timestamp:'synthetic',kneeAngle:1,proximalAngle:2,distalAngle:3,kneeRoll:4,proximalRoll:5,distalRoll:6}]};await j.enqueue(b);await claim.owner.append(1,()=>Promise.reject(new Error('private'))).catch(()=>{});return claim.owner.snapshot().reason==='appendUncertain'&&!claim.release()})()`))
+    assert(await evaluate(`(async()=>{const s=await gateModule.openCooperatingHistoryOwner(()=>j.stats());return s.reason==='contextBusy'})()`)); cases.push(caseName)
+    caseName = 'lease-context-death-releases-lock-but-pending-journal-denies-owner'
+    await channel.send('Target.closeTarget', { targetId: secondTarget.targetId })
+    let afterDeath
+    for (let attempt = 0; attempt < 100; attempt++) {
+      afterDeath = await evaluate(`gateModule.openCooperatingHistoryOwner(()=>j.stats())`)
+      if (afterDeath.reason !== 'contextBusy') break
+      if (attempt === 99) throw new Error('Probe assertion failed')
+      await pause(10)
+    }
+    assert(afterDeath.status === 'held' && afterDeath.reason === 'pendingJournal' && !Object.hasOwn(afterDeath, 'owner'))
+    assert(await evaluate('j.stats().then(s=>s.rows===1)')); cases.push(caseName)
+    await check('lease-history-complete-release-still-preserves-fence', `(async()=>{await reset();const s=await gateModule.openCooperatingHistoryOwner(()=>j.stats());if(s.status!=='ready')return false;await s.owner.change(()=>j.markHistoryChange({kind:'restore',operationId:crypto.randomUUID(),sessionId:null,storageIdentity:null}),async()=>{});if(!s.release())return false;return (await j.stats()).historyFence.kind==='restore'})()`)
   }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
     sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'src/services/historyTransitionPrototype.ts': hash(ownerSource),
@@ -365,6 +406,8 @@ try {
         fullReplyBeforeFenceBeforeNativeDelete: true, ownerMemorySurvivesBrowserRestart: false, productionQuiescenceVerified: false },
       startupReadiness: { prototype: true, auditedJournalReader: true, noOwnerBeforeRead: true, localEmptyOnly: true,
         nativeHistoryAuthority: false, crossWindowReservation: false, productionConnected: false },
+      cooperatingLease: { prototype: true, actualSameProfileOriginTargets: 2, exclusiveIfAvailable: true,
+        auditInsideLease: true, lifetimeHeld: true, staleProxyRevoked: true, nativeGlobalLock: false, productionConnected: false },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

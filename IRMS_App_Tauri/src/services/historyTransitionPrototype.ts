@@ -8,6 +8,72 @@ export type StartupOutcome =
   | { status: 'ready'; owner: ReturnType<typeof createHistoryTransitionGate> }
   | { status: 'held'; reason: 'storageUnavailable' | 'historyUnresolved' | 'pendingJournal' }
 
+type Gate = ReturnType<typeof createHistoryTransitionGate>
+type CooperatingOwner = Omit<Gate, 'snapshot'> & { snapshot: () => ReturnType<Gate['snapshot']> & { leaseActive: boolean } }
+export type CooperatingOutcome =
+  | { status: 'ready'; owner: CooperatingOwner; release: () => boolean }
+  | { status: 'held'; reason: 'contextBusy' | 'coordinationUnavailable' | 'storageUnavailable' | 'historyUnresolved' | 'pendingJournal' }
+
+// 固定名稱且不 steal／排隊；只約束合作的同來源 contexts，不是 native 全域鎖。
+export async function openCooperatingHistoryOwner(readStats: () => Promise<unknown>, timeoutMs = 5000,
+  manager?: Pick<LockManager, 'request'> | null): Promise<CooperatingOutcome> {
+  const unavailable = (): CooperatingOutcome => ({ status: 'held', reason: 'coordinationUnavailable' })
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 60000) return unavailable()
+  let locks: Pick<LockManager, 'request'> | null | undefined
+  try {
+    locks = manager === undefined ? globalThis.navigator?.locks : manager
+    if (!locks || typeof locks.request !== 'function') return unavailable()
+  } catch { return unavailable() }
+  return new Promise(resolve => {
+    let published = false, expired = false, revoke = () => {}
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = (result: CooperatingOutcome) => {
+      if (timer !== undefined) clearTimeout(timer)
+      if (!published) { published = true; resolve(result) }
+    }
+    timer = setTimeout(() => { expired = true; finish(unavailable()) }, timeoutMs)
+    try {
+      const requested = locks.request('irms-recovery-prototype-history-owner-v1', { mode: 'exclusive', ifAvailable: true }, async lock => {
+        if (expired || published) return
+        if (timer !== undefined) clearTimeout(timer)
+        if (!lock) { finish({ status: 'held', reason: 'contextBusy' }); return }
+        const startup = await openHistoryTransitionGate(readStats, timeoutMs)
+        // request 可能在 audit 等待期間已失敗；不可替已結束的請求留下孤兒 lifetime。
+        if (expired || published) return
+        if (startup.status !== 'ready') { finish(startup); return }
+        let live = true, releaseLock!: () => void
+        const lifetime = new Promise<void>(yes => { releaseLock = yes })
+        revoke = () => { live = false; releaseLock() }
+        const error = () => new Error('History owner unavailable')
+        const owner: CooperatingOwner = {
+          snapshot: () => ({ ...startup.owner.snapshot(), leaseActive: live }),
+          append: (count, operation) => live && typeof operation === 'function' ? startup.owner.append(count, () => {
+            if (!live) throw error()
+            return operation()
+          }) : Promise.reject(error()),
+          change: (persistFence, mutate, deadline) => live && typeof persistFence === 'function' && typeof mutate === 'function'
+            ? startup.owner.change(() => {
+              if (!live) throw error()
+              return persistFence()
+            }, () => {
+              if (!live) throw error()
+              return mutate()
+            }, deadline) : Promise.reject(error()),
+        }
+        finish({ status: 'ready', owner, release: () => {
+          if (!live) return false
+          const state = startup.owner.snapshot()
+          if (state.pendingAppend || !(state.phase === 'open' || state.reason === 'historyComplete')) return false
+          // 同步撤銷所有既有函數參照，再結束 lock callback 的 lifetime promise。
+          revoke(); return true
+        } })
+        await lifetime
+      })
+      Promise.resolve(requested).then(() => { revoke(); finish(unavailable()) }, () => { revoke(); finish(unavailable()) })
+    } catch { revoke(); finish(unavailable()) }
+  })
+}
+
 // 只接可信 journal.stats 的已稽核結果；空值不是 native 歷史或跨視窗 lease 的證明。
 export async function openHistoryTransitionGate(readStats: () => Promise<unknown>, timeoutMs = 5000): Promise<StartupOutcome> {
   const unavailable = (): StartupOutcome => ({ status: 'held', reason: 'storageUnavailable' })

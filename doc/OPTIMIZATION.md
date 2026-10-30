@@ -13,6 +13,7 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 cooperating context lease (2026-10-30):78actual browser/native cases,48focused; audit inside exclusive browser lease, lifetime/old-reference control, request/audit/dispatch-loss regressions. Native-global/bound-delete/restore/retention gates remain; [contract](recovery/cooperating-context-lease.md).
 - [x] R05 persistent local startup-readiness (2026-10-30):69browser/native cases and37focused cases; pending/fenced/unavailable audit withholds owner, explicit empty only localready. Cross-context exclusive ownership and native-history/restore/eviction remain gates; [contract](recovery/startup-readiness.md).
 - [x] R05 actual owner ordering evidence (2026-10-30):61Chrome/native cases (53prior+8owner), real commit with controlled delayed/short/late count, fence-before-delete, retained queue/marker across restart with memory owner lost. Startup readiness and actualIPC remain next gates; [evidence](recovery/owner-ordering-probe.md).
 - [x] R05 isolated history-transition owner (2026-10-30):19controlled-promise cases, synchronous reservation and full append -> fence -> mutation ordering, stage deadlines and sticky late-outcome hold. Actual Chrome/native owner integration remains next; no production/cancellation proof. [Contract](recovery/history-transition-owner.md).

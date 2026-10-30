@@ -121,6 +121,11 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 cooperating context owner: [contract](recovery/cooperating-context-lease.md), fixed exclusive
+> WebLock/ifAvailable before audit, callback lifetime held, proxy checked at entry AND dispatch.
+> Pending/uncertain release refuses; no steal/reset. Browser bucket only, native bound mutation and
+> restore/retention/unlock/production gates remain; context death does not cancel native work.
+
 > R05 local startup factory: [contract](recovery/startup-readiness.md), no owner before trusted audit;
 > explicitzero totals/fence:null only localready. Pending/fenced/invalid/readerror/deadline held, late
 > outcome never upgrades. No cross-window reservation, native-history/eviction/restore authority;
