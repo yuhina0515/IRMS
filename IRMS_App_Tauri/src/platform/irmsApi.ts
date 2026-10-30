@@ -198,8 +198,8 @@ export const irms: IrmsApi = {
     remove: (id: number) => invoke<void>('mobility_delete', { id })
   },
   data: {
-    async appendBatch(sessionId: number, readings: SensorReading[]) {
-      const count = await invoke<number>('data_append_batch', { sessionId, readings })
+    async appendBatch(sessionId: number, readings: SensorReading[], batchId: string) {
+      const count = await invoke<number>('data_append_batch', { sessionId, readings, batchId })
       return { count }
     }
   },

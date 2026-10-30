@@ -236,6 +236,26 @@ describe('開始/結束的重入防護', () => {
     } finally { sessionController.setCloseProtectionAvailable(true) }
   })
 
+  it('preserves ambiguous batch identity and boundary before newer buffered readings', async () => {
+    useStore.setState((s) => ({ settings: { ...s.settings, flushIntervalSec: 1 } }))
+    let rejectWrite!: (reason: Error) => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((_, reject) => { rejectWrite = reject }))
+    await sessionController.startSession()
+    feed(REST, 3)
+    await vi.advanceTimersByTimeAsync(1000)
+    const original = stub.data.appendBatch.mock.calls[0]
+    feed(REST, 5)
+    rejectWrite(new Error('commit succeeded but reply lost'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(await sessionController.endSession()).toBe(true)
+    expect(original[2]).toMatch(/^[a-f\d-]{36}$/i)
+    const calls = stub.data.appendBatch.mock.calls
+    expect(calls.map(call => call[1].length)).toEqual([3, 3, 5])
+    expect(calls[1]).toEqual(original)
+    expect(calls[2][2]).not.toBe(original[2])
+  })
+
   it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
     await sessionController.startSession()
     feed(REST, 3)
@@ -272,6 +292,7 @@ describe('開始/結束的重入防護', () => {
     const suffix = stub.data.appendBatch.mock.calls[1][1]
     expect(await sessionController.endSession()).toBe(true)
     expect(stub.data.appendBatch.mock.calls[2][1]).toEqual(suffix)
+    expect(stub.data.appendBatch.mock.calls[2][2]).toBe(stub.data.appendBatch.mock.calls[1][2])
     expect(stub.appended).toEqual(suffix)
   })
 
@@ -308,6 +329,7 @@ describe('開始/結束的重入防護', () => {
     expect(stub.sessions.end).not.toHaveBeenCalled()
     expect(await sessionController.endSession()).toBe(true)
     expect(stub.data.appendBatch.mock.calls[1][1]).toEqual(stub.data.appendBatch.mock.calls[0][1])
+    expect(stub.data.appendBatch.mock.calls[1][2]).toBe(stub.data.appendBatch.mock.calls[0][2])
   })
 
   it.each([new Error('cannot finalize'), 'database is locked', null])('retains end failure %s and retries without reappending committed readings', async (failure) => {

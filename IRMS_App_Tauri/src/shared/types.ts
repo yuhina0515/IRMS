@@ -331,7 +331,8 @@ export interface IrmsApi {
     remove(id: number): Promise<void>
   }
   data: {
-    appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>
+    /** 同一批資料重試必須沿用識別碼與完整內容，不能改用時間戳去重。 */
+    appendBatch(sessionId: number, readings: SensorReading[], batchId: string): Promise<{ count: number }>
   }
   actions: {
     list(): Promise<CustomAction[]>

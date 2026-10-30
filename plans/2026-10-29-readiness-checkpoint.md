@@ -1,6 +1,41 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 R07 offline receiver bundle)
+## Current checkpoint (2026-10-30 R05 idempotent reading batches)
+
+Baseline54fa0a5 clean, CI40960899608 SUCCESS. Quota initial98%/48%, latest85%/46% remaining.
+No physical devices in this session. Prior external-only waiting interpretation superseded:
+software reliability/accessibility/privacy/reproducibility remains actionable. Main long-term plan
+updated; one bounded task completed, no broad rescan or unrelated paths changed.
+
+Renderer retains UUIDv4 batch identity AND original chunk size across ambiguous invoke/short ack,
+retries before new buffered data. Migration11 adds session-scoped payload-checked receipts with rows
+in one SQLite transaction; same identity/contents returns original count, conflict rejects, session
+removal cascades. Native identity and existing reading budgets validated before lock. Empty new
+batches create no receipt; existing nonempty identity plus empty content conflicts. No timestamp/value
+based dedup. Renderer/native signature changes ship together. No unsent crash recovery claim yet.
+
+Full722 frontend cases70files/TypeScript/Vite passed; final added assertion-only changes followed by
+39controller tests/typecheck passed. Full Rust155passed/6ignored, fmt/Clippy warnings-denied passed;
+7new real SQLite tests include lost reply/reopen/rollback/conflict/cascade/migration. Independent
+Python payload-v1 golden-vector assertion added afterward;7receipt tests and Clippy passed again. Engineering and
+security final reviewed, corrected security empty-payload finding confirmed. Historical write benchmark
+is not current receipt-path performance. See plans/2026-10-30-idempotent-append-plan.md,
+doc/storage-batch-retry.md and log_20261030_idempotent_append.md. Scoped commit/push/draft PR delivery;
+inspect new head CI before next push.
+
+Next bounded software task: design/implement durable unacknowledged queue and restart reconciliation.
+Independent read-only engineering/security review, lead implementation, no hardware. Preserve stable
+batch/session/calibration association, ordering, bounds, transaction failure/termination recovery,
+privacy/deletion semantics and explicit incomplete-session state. Do not automatically resume an
+exercise after restart. Existing receipts persist but cannot reconstruct unsent readings/identities;
+new identity after crash can still duplicate content. Hung invoke and total DB size remain open.
+
+Other software accessibility/privacy journeys and academic reproducibility artifacts remain later
+batches. External metrology/course/participant/native evidence is explicitly unverified but does not
+block independent software work. No universal university/country/demographic acceptance claim.
+
+
+## Historical checkpoint (2026-10-30 R07 offline receiver bundle)
 
 Baselinebc3abe5 clean; CI40952113301 SUCCESS confirmed. Initial quota47%/50%, latest35%/49%
 remaining. New bounded v1 contract/CLI embeds calibration JSON and receiver frame JSONL with exact

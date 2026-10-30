@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 R05 idempotent batch retry** ([[log_20261030_idempotent_append|Log]]): [contract](storage-batch-retry.md), atomic SQLite receipt/rows and stable retry identity/boundary. Conflicting payload rejects; unsent-buffer crash recovery remains next software task.
+
 - **2026-10-30 R07 offline receiver bundle** ([[log_20261030_capture_bundle|Log]]): [v1 contract](receiver-capture-bundle-v1.md), bounded self-contained validator and synthetic fixture;40 CLI subprocess cases. Structural identity only; source/metrology/native evidence remains open.
 
 - **2026-10-30 R07 raw receipt pairing** ([[log_20261030_raw_pairing|Log]]): Wizard B no longer fills floor/gyro samples by repeating one cached raw packet. Per-window one-use receiver receipts, corrected-input consistency, V-only/skip preservation tested. Client raw/CSV timing and source-proof limits recorded in [measurement inventory](MEASUREMENT_EVIDENCE.md).

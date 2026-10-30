@@ -21,6 +21,14 @@ vi.mock('@tauri-apps/plugin-updater', () => ({ Update: class {} }))
 
 import { irms } from './irmsApi'
 
+it('carries the caller-owned batch identity unchanged across native retries', async () => {
+  const batchId = '00000000-0000-4000-8000-000000000001'
+  mocks.invoke.mockRejectedValueOnce(new Error('reply lost')).mockResolvedValueOnce(0)
+  await expect(irms.data.appendBatch(1, [], batchId)).rejects.toThrow('reply lost')
+  await expect(irms.data.appendBatch(1, [], batchId)).resolves.toEqual({ count: 0 })
+  expect(mocks.invoke.mock.calls.slice(-2)).toEqual(Array(2).fill(['data_append_batch', { sessionId: 1, readings: [], batchId }]))
+})
+
 describe('Tauri firmware adapter', () => {
   beforeEach(() => {
     mocks.invoke.mockReset()

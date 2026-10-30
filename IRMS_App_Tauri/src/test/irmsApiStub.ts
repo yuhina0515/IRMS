@@ -109,7 +109,7 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
       exportText: async (_defaultName: string, _contents: string) => true
     },
     data: {
-      appendBatch: async (_sessionId: number, readings: SensorReading[]) => {
+      appendBatch: async (_sessionId: number, readings: SensorReading[], _batchId?: string) => {
         appended.push(...readings)
         return { count: readings.length }
       }

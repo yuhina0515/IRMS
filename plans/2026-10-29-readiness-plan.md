@@ -28,3 +28,12 @@ Workers independently inspect their disjoint scope and self-select relevant esca
 4. Publish scoped commit and stacked draft PR, handoff log and HOME entry; preserve user changes.
 5. Save checkpoint and configure a heartbeat in this chat. Each run reads checkpoint first, checks quota, performs at most one bounded task, records validation and next step. Stop expensive work when any known remaining quota <=20%; resume only when all known windows >=30%. Unknown quota allows status inspection only. No paid credits/resets or alternate credentials. At most 3 reviewers; reuse findings rather than repeated broad scans. Inform only meaningful progress/failure/user decisions; otherwise quiet.
 6. Subsequent batches address university-specific rubrics only from primary sources and mark applicability by institution, program and date. Human studies, minors, clinical claims and country-specific requirements need verified evidence and appropriate institutional review before acceptance claims.
+
+## Software-only continuation (2026-10-30 user clarification)
+
+No physical devices in this session. External measurement/institution evidence gates do not block
+independent software reliability/accessibility/privacy work. Prior external-only idle interpretation
+was too broad. Priority: batch retry deduplication, then durable unsent queue/restart reconciliation,
+then remaining software-only accessibility/privacy journeys and reproducible academic artifacts.
+Each remains a bounded independently reviewed/tested batch. See2026-10-30-idempotent-append-plan.md.
+No demographic thresholds or universal acceptance claim. Physical acceptance remains unverified.

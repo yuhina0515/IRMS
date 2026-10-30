@@ -222,10 +222,12 @@ pub fn data_append_batch(
     state: tauri::State<DbState>,
     session_id: i64,
     readings: Vec<SensorReading>,
+    batch_id: String,
 ) -> Result<usize, String> {
+    data_repo::validate_batch_id(&batch_id).map_err(to_err)?;
     validate_append_readings(&readings)?;
     let mut conn = lock_db(&state)?;
-    data_repo::append_batch(&mut conn, session_id, &readings).map_err(to_err)
+    data_repo::append_batch_once(&mut conn, session_id, &batch_id, &readings).map_err(to_err)
 }
 
 // 與前端讀取同一份交易預算；此檢查發生在 IPC 反序列化之後、資料庫鎖之前。

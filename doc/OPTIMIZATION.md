@@ -13,13 +13,14 @@
 ## 一、現有功能盤點 (Feature Inventory)
 
 ### Readiness follow-up (2026-10-29)
+- [x] R05 idempotent batch retry (2026-10-30): stable renderer identity/chunk boundary; migration11 atomic payload-checked receipts, same-identity retries acknowledge without extra rows. Conflicts reject, deletion cascades. Process-crash unsent queue remains next separate task.
 - [x] R07 offline receiver sample bundle v1 (2026-10-30): embedded artifact identity, explicit missing source/reference evidence, bounded strict CLI and synthetic fixture;40 subprocess checks. No real capture/exporter or authenticity/model/metrology acceptance.
 - [x] R07 Wizard B raw receipt pairing (2026-10-30): exclude pre-window raw after countdown, consume each receipt once, reject missing raw when floor correction active, retain V-only/skip/optional gyro. Source time/sequence, lossless capture, temporal coverage and physical synchronization remain open; no new numeric or demographic threshold.
 - [x] R07 offline replay identity (2026-10-30): report input/settings/runtime-source hashes, optional sidecar SHA/count check and explicit CRLF/LF mode; reject contradictory canonical metadata, redact private errors. Measurement inventory records missing timing/calibration/reference and authenticity limits; no metrology or population acceptance claim.
 - [x] R05/R06 updater feedback (2026-10-30): installing/retryable error replay, disabled repeat restart, handled rejection/manual retry, generic localized error and one global install announcement owner. Throwing subscribers/synchronous reentry cannot break ownership/status ordering; native installer/speech/termination evidence remains open.
 - [x] R05 updater/start/close interlock (2026-10-30): shared synchronous owner lease blocks installer during pending native start and new session/close during installation. Rollbacks release; successful install retains gate until exit. Cross-boundary regressions cover both directions; actual installer/OS termination and ambiguous rejection remain native acceptance gaps.
 - [x] R05 healthy-renderer normal-close guard: lifetime registration/start gate, pending-start/end/retained-session protection, idle-close reservation and destroy-failure release. Existing save/retry retained; physical titlebar/AltF4 and forced-exit/crash recovery remain open.
-- [x] R05 storage writes: shared1000-row/128-byte/finite command guard before DB lock; pending2000 stops acquisition before next frame, retains full failed suffix and retires acknowledged chunks. Local regressions cover failure/retry/ordering; durable crash recovery, lost-reply idempotency and native disk/IPC timing remain open.
+- [x] R05 storage writes: shared1000-row/128-byte/finite command guard before DB lock; pending2000 stops acquisition before next frame, retains full failed suffix and retires acknowledged chunks. Local regressions cover failure/retry/ordering; durable crash recovery and native disk/IPC timing remain open; lost-reply retry identity is addressed by migration11.
 - [x] Bound telemetry queue/batch by serialized bytes and isolate collector configuration generations; name Settings number fields and expose persistent toast live regions. Automated checks passed; native acceptance open.
 - [x] R01 stalled-hold continuity: receiver-monotonic timing rejects >250 ms gaps and clock anomalies while preserving rest gating and angle warnings (2026-10-29; native timing acceptance open).
 - [x] R02 bounded downloads: fixed metadata/signature caps and incremental artifact limits from verified sizes; preserve authenticity and cache fallback checks (2026-10-29; live release/OTA acceptance open).
@@ -400,7 +401,8 @@
 ### Reliability follow-up (2026-10-20)
 
 - [x] Session save recovery (2026-10-21): retain a stopped session and pending readings on append/end failure; explicit retry across normal/error views; no false saved toast/speech; pending-session guards for restart, firmware, demo/calibration and history deletion. See [[log_20261021_session_recovery]].
-- [ ] Process-crash recovery and ambiguous IPC acknowledgement deduplication remain separate work; existing failed-write buffer cap is 2,000 readings.
+- [x] Ambiguous IPC acknowledgement retry deduplication (2026-10-30): migration11 receipt+rows transaction and stable renderer batch identity.
+- [ ] Process-crash recovery of unsent buffers/identities remains separate work; existing failed-write buffer cap is 2,000 readings.
 
 - [x] Mobility C: require a timestamped two-second hold, reject gaps over 250 ms, use held evidence for sweep direction, and require aligned knee-reference samples.
 - [x] Mobility UI: compare the same leg and movement set, isolate legacy unknown-side records, cancel captures on dismissal/disconnect, refresh background saves without dismissing replacement windows, and show retry on history-load failure.

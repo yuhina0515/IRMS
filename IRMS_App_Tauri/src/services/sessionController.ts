@@ -40,6 +40,8 @@ class SessionController {
   private flushing: Promise<void> | null = null
   /** 包含目前交易與尚未送出的 snapshot 後綴，避免只計算新 buffer。 */
   private pendingWriteRows = 0
+  /** 回覆不明時保留同一身份與切分邊界；新讀值不可併入舊批次。 */
+  private retryBatch: { sessionId: number; id: string; count: number } | null = null
   private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
@@ -395,6 +397,7 @@ class SessionController {
       }
 
       this.buffer = []
+      this.retryBatch = null
       this.resetFeedbackState()
       this.startTimestamp = Date.now()
 
@@ -529,9 +532,18 @@ class SessionController {
       try {
         while (acknowledged < readings.length) {
           if (useStore.getState().session.id !== session.id) return
-          const chunk = readings.slice(acknowledged, acknowledged + storageBudget.maxBatchRows)
-          const result = await irms.data.appendBatch(session.id!, chunk)
+          // 產生身份後才進 IPC；短回覆／拒絕都不能更換身份或重新切批。
+          if (this.retryBatch?.sessionId !== session.id) this.retryBatch = null
+          const batch = this.retryBatch ?? {
+            sessionId: session.id!, id: crypto.randomUUID(),
+            count: Math.min(storageBudget.maxBatchRows, readings.length - acknowledged)
+          }
+          this.retryBatch = batch
+          const chunk = readings.slice(acknowledged, acknowledged + batch.count)
+          const result = await irms.data.appendBatch(session.id!, chunk, batch.id)
           if (result?.count !== chunk.length) throw new Error('Incomplete batch acknowledgement')
+          // 舊療程的延遲回覆不得清除新療程的待確認身份。
+          if (this.retryBatch === batch) this.retryBatch = null
           acknowledged += chunk.length
           this.pendingWriteRows = readings.length - acknowledged
         }

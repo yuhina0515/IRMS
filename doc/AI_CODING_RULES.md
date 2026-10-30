@@ -285,7 +285,12 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
 * 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
-### 4.3 SQLite Schema(目前 `user_version = 10`)
+### 4.3 SQLite Schema(目前 `user_version = 11`)
+
+> Migration11: reading_batch_receipts(sessionId,batchId,payloadHash,rowCount), WITHOUT ROWID,
+> composite primary key and ON DELETE CASCADE to sessions; no existing row rewrite. The append
+> IPC requires canonical lowercase UUIDv4 batchId. Same identity/payload returns prior count;
+> conflict rejects. Rows and receipt commit together. See [contract](storage-batch-retry.md).
 
 > Migration10: nonunique idx_sessions_start_id ON sessions(startTime DESC,id DESC), used for
 > indexed history paging. No column/row rewrite; versions1..9 unchanged.

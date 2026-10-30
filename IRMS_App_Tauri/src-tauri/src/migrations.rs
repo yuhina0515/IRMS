@@ -189,6 +189,20 @@ fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_11(conn: &Connection) -> rusqlite::Result<()> {
+    // 與讀值一起交易提交；療程刪除會同時清除收據，不留下另一份量測內容。
+    conn.execute_batch(
+        "CREATE TABLE reading_batch_receipts (
+            sessionId INTEGER NOT NULL,
+            batchId TEXT NOT NULL CHECK(length(batchId) = 36),
+            payloadHash TEXT NOT NULL CHECK(length(payloadHash) = 64),
+            rowCount INTEGER NOT NULL CHECK(rowCount > 0 AND rowCount <= 1000),
+            PRIMARY KEY(sessionId, batchId),
+            FOREIGN KEY(sessionId) REFERENCES sessions(id) ON DELETE CASCADE
+        ) WITHOUT ROWID;",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -239,6 +253,11 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 10,
         name: "stable indexed history pagination",
         up: migration_10,
+    },
+    Migration {
+        version: 11,
+        name: "transactional reading batch retry receipts",
+        up: migration_11,
     },
 ];
 
@@ -577,7 +596,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8, 9, 10]
+                vec![7, 8, 9, 10, 11]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();

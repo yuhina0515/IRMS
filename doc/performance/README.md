@@ -1,5 +1,10 @@
 # Offline readiness performance protocol
 
+Historical measurement note (2026-10-30): the old append benchmark now runs a test-only helper
+without migration11 payload hashing/receipts. Its committed numbers do not measure the current
+production append path; do not reuse them as current write-throughput or latency claims.
+
+
 Run from `IRMS_App_Tauri` with installed lockfile dependencies and the normal Rust toolchain:
 
 ```powershell

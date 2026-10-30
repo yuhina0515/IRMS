@@ -28,8 +28,14 @@ timestamps128 UTF-8 bytes and finite six angle/roll fields before acquiring the 
 after Tauri Vec deserialization; it bounds per-command DB work, not wire/parse heap/database size.
 Controller tracks buffer plus unacknowledged in-flight suffix, stops acquisition at2000 pending
 before accepting another frame and preserves all accepted samples for existing save retry.
-Acknowledged chunks retire individually. Crash loss, commit-with-lost-reply duplication and hung
-native writes remain residual risks; finite numbers do not prove physiological validity.
+Acknowledged chunks retire individually. Migration11 adds session-scoped canonical UUID batch receipts
+and payload-v1 fingerprints, committed atomically with readings. Same identity/contents retries return
+the original count, changed contents fail closed; renderer preserves original chunk boundary. Empty
+new identities create no receipt, and session deletion/demo purge cascade receipts. Identity validation
+and existing reading budgets occur before DB lock. Receipt storage grows with retained nonempty batches;
+no whole-database size/heap/latency bound is claimed. Unsent-buffer crash loss, lost process-local
+identities and hung native writes remain; this is not device attestation or end-to-end exactly-once.
+See [storage retry contract](storage-batch-retry.md). Finite numbers do not prove physiological validity.
 Method: identify the system, what can go wrong, responses and verification; describe processes,
 stores and trust boundaries following the [OWASP threat-modeling guidance](https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html).
 

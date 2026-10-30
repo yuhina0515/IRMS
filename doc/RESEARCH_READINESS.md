@@ -53,6 +53,14 @@ The label implementation follows [W3C WAI form-label guidance](https://www.w3.or
 
 Use asynchronous independent reports, then one written triage meeting. Do not manufacture consensus or run meetings without a concrete decision. Reviewers stay read-only. Antigravity is optional and was not found on PATH in this batch; do not install or route to an unverified account just to increase agent count.
 
+## Software-only priority update (2026-10-30)
+
+No physical devices in this session. R05 batch retry identity now resolves same-identity lost-reply
+replay with migration11 transactional receipts; see [contract](storage-batch-retry.md). Next is durable
+unsent queue/restart reconciliation, followed by remaining software accessibility/privacy journeys
+and reproducibility artifacts. External measurement gates do not imply all software work is blocked.
+No clinical or institution-wide conclusion follows from these software improvements.
+
 ## Ordered next batches
 
 | ID | Priority | Concrete next action | Acceptance |
