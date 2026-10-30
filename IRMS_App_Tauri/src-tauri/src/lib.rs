@@ -1,4 +1,5 @@
 mod ble;
+mod ble_lifecycle;
 mod commands;
 mod db;
 mod defaults;
@@ -11,6 +12,10 @@ mod migrate_electron;
 mod migrations;
 mod modules;
 mod protocol;
+#[cfg(test)]
+mod readiness_benchmark;
+#[cfg(test)]
+mod recovery_oracle;
 mod splash;
 mod telemetry;
 mod types;
@@ -162,7 +167,9 @@ pub fn run() {
             commands::sessions_update_reps,
             commands::sessions_end,
             commands::sessions_list,
+            commands::sessions_list_page,
             commands::sessions_get_data,
+            commands::sessions_get_review,
             commands::sessions_delete,
             commands::sessions_purge_demo,
             commands::export_write_text,

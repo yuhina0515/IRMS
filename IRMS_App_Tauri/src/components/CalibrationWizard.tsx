@@ -2,7 +2,8 @@
 // 其中第 2–5 步是擷取動作,第 1 步為佩戴確認、第 6 步為預覽。
 // 套用前不寫任何 settings;最後一步以暫存 patch 即時預覽,
 // 使用者確認「抬腿時數字變大」才寫入。
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { RawAngles } from '@shared/protocol'
 import { applyCalibration, useStore, type Settings } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
@@ -21,6 +22,7 @@ import {
 } from '../services/calibration'
 import { createTrailingThrottle } from '../services/uiThrottle'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { calibrationFocusBlocked, useCalibrationModalFocus } from '../hooks/useCalibrationModalFocus'
 import { formatNumber, getT, rich, useLocale, useT, type Messages } from '../i18n'
 
 const SAMPLE_COUNT = 30
@@ -97,6 +99,10 @@ interface Props {
 }
 
 export function CalibrationWizard({ onClose }: Props): JSX.Element {
+  // 精靈以 body portal 避開卡片 stacking context，標題與焦點生命週期各自穩定。
+  const titleId = useId()
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useCalibrationModalFocus(overlayRef)
   const isConnected = useStore((s) => s.isConnected)
   // BLE MTU 沒協商上去時 Roll 欄位根本沒送到,rawAngles 的兩個 roll 會恆為 0。
   // 這一步校的正是 roll 方向,拿一串 0 去算會得出一份看似成功、實則無意義的校準。
@@ -310,8 +316,8 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     }
   }, [step])
 
-  // 擷取進行中不讓 Esc 中斷,避免倒數到一半被誤觸而不知道發生什麼事
-  useEscapeKey(capturing ? null : onClose)
+  // 擷取中仍消耗 Escape，避免穿透背景；確認框與硬體警示保有較高優先權。
+  useEscapeKey(() => { if (!capturing && !calibrationFocusBlocked()) onClose() }, 10)
 
   const apply = (): void => {
     if (!patch) return
@@ -329,12 +335,19 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
     </button>
   )
 
-  return (
-    <div className="overlay">
-      <div className="modal glass" onClick={(e) => e.stopPropagation()}>
+  // 公告只追蹤步驟與擷取階段；倒數和高頻預覽不得放入 live region。
+  const stepTitle = [m.calibration.step1Title, c.step2Title, c.step3Title, c.step4Title, c.step5Title, m.calibration.step6Title][step]
+
+  return createPortal(
+    <div ref={overlayRef} className="overlay">
+      <div className="modal glass" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{stepTitle}{capturing ? ` · ${m.calibration.capturing}` : ''}</div>
+        {/* 固定保留錯誤節點；重試清空後，同一錯誤再次出現仍有文字變更。 */}
+        <div className="sr-only" role="alert" aria-atomic="true">{errMsg ?? ''}</div>
         <div className="modal-header">
-          <h3>{m.calibration.title}</h3>
-          <button className="close-x" onClick={onClose}>
+          <h3 id={titleId}>{m.calibration.title}</h3>
+          {/* 圖示保留外觀，以本地化動作名稱供輔助科技辨識。 */}
+          <button className="close-x" aria-label={m.common.close} onClick={onClose}>
             ×
           </button>
         </div>
@@ -385,12 +398,15 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
             <div className="row">
               <button
                 className={`btn ${wearSide === 'left' ? 'btn-primary' : 'btn-secondary'}`}
+                // 選擇僅存於本次精靈；按壓狀態反映目前側別，不提前套用設定。
+                aria-pressed={wearSide === 'left'}
                 onClick={() => setWearSide('left')}
               >
                 {m.clinical.terms.leftLeg}
               </button>
               <button
                 className={`btn ${wearSide === 'right' ? 'btn-primary' : 'btn-secondary'}`}
+                aria-pressed={wearSide === 'right'}
                 onClick={() => setWearSide('right')}
               >
                 {m.clinical.terms.rightLeg}
@@ -531,6 +547,6 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
           </div>
         )}
       </div>
-    </div>
+    </div>, document.body
   )
 }

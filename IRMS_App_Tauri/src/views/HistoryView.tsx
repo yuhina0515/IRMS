@@ -2,26 +2,26 @@
 // UI v3 療程紀錄 (PROPOSAL §4 History, §7): a paged session list, and a full-page review that
 // replaces the old modal. Statistics come from full-resolution readings; the chart shows only
 // the judged metric (the Varus/Valgus overlay is gone — roll is not validated anatomy).
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chart } from '../services/chartSetup'
 import { useUiStore } from '../store/useUiStore'
 import { chartTheme } from '../services/theme'
-import type { Session, StoredReading } from '@shared/types'
+import type { Session, SessionPage, StoredReading, SessionReviewData, ReviewAnalysisReading } from '@shared/types'
 import { computeMetricZone, metricInfo, type MetricZone } from '../services/movementMetric'
-import { analyzeSession, type SessionAnalysis } from '../services/sessionAnalysis'
+import { analyzeSession } from '../services/sessionAnalysis'
 import { calibrationDrift, parseCalibrationSnapshot } from '../services/calibration'
 import { useStore } from '../store/useStore'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { usePageSize } from '../hooks/usePageSize'
 import { irms } from '../platform/irmsApi'
-import { DATE_TIME, TIME_SECONDS, formatDateTime, formatNumber, t, useLocale, useT } from '../i18n'
+import { DATE_TIME, TIME_SECONDS, formatDateTime, formatNumber, getT, t, useLocale, useT } from '../i18n'
 
-/** 圖表抽樣後的目標點數:視覺上足夠細緻,又遠低於會拖垮 Chart.js 的量級 */
-const CHART_MAX_POINTS = 1200
+/** 原生 getReview 固定最多 1200 圖表點；空狀態保留穩定陣列身分。 */
+const EMPTY_READINGS: StoredReading[] = []
 const ROW_HEIGHT = 56
 
 /** 畫出/分析「這場實際被判定的那個指標」。舊資料沒有 triggerType 快照,退回膝角。 */
-function sessionMetricOf(session: Session, r: StoredReading): number | null {
+function sessionMetricOf(session: Session, r: ReviewAnalysisReading): number | null {
   return session.triggerType === 'segment_elevation'
     ? r.proximalAngle
     : session.triggerType === 'segment_extension'
@@ -90,8 +90,14 @@ async function exportCsv(session: Session): Promise<boolean> {
 
 function SessionReview({ session, onBack }: { session: Session; onBack: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [readings, setReadings] = useState<StoredReading[]>([])
-  const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null)
+  const [snapshot, setSnapshot] = useState<{ sessionId: number; data: SessionReviewData } | null>(null)
+  // 舊療程回應不能配上新療程標題；完整分析與圖表來自同一讀取快照。
+  const review = snapshot?.sessionId === session.id ? snapshot.data : null
+  const readings = review?.chart ?? EMPTY_READINGS
+  const analysis = useMemo(() => review ? analyzeSession(
+    review.analysis.map((r) => ({ t: Date.parse(r.timestamp), v: sessionMetricOf(session, r), k: r.kneeAngle })),
+    sessionZone(session), sessionLimits(session)
+  ) : null, [review, session])
   const settings = useStore((s) => s.settings)
   const m = useT()
   const locale = useLocale()
@@ -103,8 +109,8 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
 
   // 這條曲線是由「當時那組校準轉換」算出來的;之後重跑過精靈,意義就變了。
   // migration 6 之前的舊列沒有快照:不宣稱一致,也不宣稱不一致。
-  const snapshot = parseCalibrationSnapshot(session.calibration)
-  const drift = calibrationDrift(snapshot, settings)
+  const calibrationSnapshot = parseCalibrationSnapshot(session.calibration)
+  const drift = calibrationDrift(calibrationSnapshot, settings)
 
   useEscapeKey(onBack)
 
@@ -118,85 +124,75 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
   }
 
   useEffect(() => {
-    let chart: Chart<'line'> | null = null
-    // 資料是非同步取回的:cleanup 可能在圖表建立前就跑(StrictMode 重複掛載或 deps 變動),
-    // 此時舊流程仍會在同一個 canvas 上 new Chart。用旗標讓過期的流程直接放棄。
     let cancelled = false
-    void (async () => {
-      // LTTB 抽樣保留峰值;全量另取給摘要統計(抽樣資料不保留時間分佈)
-      const data = await irms.sessions.getData(session.id, CHART_MAX_POINTS)
-      if (cancelled) return
-      setReadings(data)
-      void irms.sessions.getData(session.id).then((full) => {
-        if (cancelled) return
-        setAnalysis(
-          analyzeSession(
-            full.map((r) => ({ t: Date.parse(r.timestamp), v: sessionMetricOf(session, r), k: r.kneeAngle })),
-            sessionZone(session),
-            sessionLimits(session)
-          )
-        )
-      })
-      if (!canvasRef.current) return
-      const th = chartTheme()
-      // Resolved inside the effect (not the render-time `m`) so the chart text always matches the
-      // locale in this effect's dependency list.
-      const mx = t(locale)
-      const constantLine = (label: string, value: number, color: string, dash: number[]) => ({
-        label,
-        data: data.map(() => value),
-        borderColor: color,
-        borderWidth: 1.5,
-        borderDash: dash,
-        pointRadius: 0,
-        fill: false
-      })
-      chart = new Chart(canvasRef.current, {
-        type: 'line',
-        data: {
-          labels: data.map((r) => formatDateTime(locale, new Date(r.timestamp), TIME_SECONDS)),
-          datasets: [
-            {
-              label: info.label,
-              data: data.map((r) => sessionMetricOf(session, r)),
-              borderColor: th.knee,
-              borderWidth: 3,
-              fill: false,
-              pointRadius: 0,
-              tension: 0.2
-            },
-            ...(zone
-              ? [
-                  constantLine(mx.history.targetMin, zone.min, th.shin, [6, 4]),
-                  ...(Number.isFinite(zone.max) ? [constantLine(mx.history.targetMax, zone.max, th.shin, [6, 4])] : [])
-                ]
-              : []),
-            // 個人範圍是膝角;只有這條曲線本身就是膝角時才畫在同一張圖上
-            ...(kneeCurve && limits.comfort != null
-              ? [constantLine(mx.clinical.terms.comfortAngle, limits.comfort, th.warning, [4, 3])]
-              : []),
-            ...(kneeCurve && limits.limit != null
-              ? [constantLine(mx.clinical.terms.limitRange, limits.limit, th.danger, [2, 3])]
-              : [])
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          scales: {
-            x: { grid: { color: th.grid }, ticks: { color: th.tick, maxTicksLimit: 8 } },
-            y: { grid: { color: th.grid }, ticks: { color: th.tick } }
+    setSnapshot(null)
+    void irms.sessions.getReview(session.id).then((data) => {
+      if (!cancelled) setSnapshot({ sessionId: session.id, data })
+    }).catch(() => {
+      if (!cancelled) useUiStore.getState().showToast(getT().history.loadFailed, 'error')
+    })
+    return () => { cancelled = true }
+  }, [session.id])
+
+  // 語系只重畫圖例/時間，不重新查詢整場資料或重跑分析模組。
+  useEffect(() => {
+    if (!review || !canvasRef.current) return
+    const data = review.chart
+    const th = chartTheme()
+    // Resolved inside the effect (not the render-time `m`) so the chart text always matches the
+    // locale in this effect's dependency list.
+    const mx = t(locale)
+    const constantLine = (label: string, value: number, color: string, dash: number[]) => ({
+      label,
+      data: data.map(() => value),
+      borderColor: color,
+      borderWidth: 1.5,
+      borderDash: dash,
+      pointRadius: 0,
+      fill: false
+    })
+    const chart = new Chart(canvasRef.current, {
+      type: 'line',
+      data: {
+        labels: data.map((r) => formatDateTime(locale, new Date(r.timestamp), TIME_SECONDS)),
+        datasets: [
+          {
+            label: info.label,
+            data: data.map((r) => sessionMetricOf(session, r)),
+            borderColor: th.knee,
+            borderWidth: 3,
+            fill: false,
+            pointRadius: 0,
+            tension: 0.2
           },
-          plugins: { legend: { labels: { color: th.text, boxHeight: 2 } } }
-        }
-      })
-    })()
-    return () => {
-      cancelled = true
-      chart?.destroy()
-    }
-  }, [session.id, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs, session.comfortAngle, session.limitAngle, locale])
+          ...(zone
+            ? [
+                constantLine(mx.history.targetMin, zone.min, th.shin, [6, 4]),
+                ...(Number.isFinite(zone.max) ? [constantLine(mx.history.targetMax, zone.max, th.shin, [6, 4])] : [])
+              ]
+            : []),
+          // 個人範圍是膝角;只有這條曲線本身就是膝角時才畫在同一張圖上
+          ...(kneeCurve && limits.comfort != null
+            ? [constantLine(mx.clinical.terms.comfortAngle, limits.comfort, th.warning, [4, 3])]
+            : []),
+          ...(kneeCurve && limits.limit != null
+            ? [constantLine(mx.clinical.terms.limitRange, limits.limit, th.danger, [2, 3])]
+            : [])
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { grid: { color: th.grid }, ticks: { color: th.tick, maxTicksLimit: 8 } },
+          y: { grid: { color: th.grid }, ticks: { color: th.tick } }
+        },
+        plugins: { legend: { labels: { color: th.text, boxHeight: 2 } } }
+      }
+    })
+    return () => chart.destroy()
+  }, [review, session.triggerType, session.targetAngle, session.tolerance, session.holdTimeMs, session.comfortAngle, session.limitAngle, locale])
 
   const wallSec =
     session.endTime != null ? (Date.parse(session.endTime) - Date.parse(session.startTime)) / 1000 : null
@@ -302,7 +298,7 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
               </div>
             </dl>
             <h3>{m.history.calibration}</h3>
-            {snapshot == null ? (
+            {calibrationSnapshot == null ? (
               <p className="v3-note">{m.history.noSnapshot}</p>
             ) : drift.length > 0 ? (
               <p className="v3-note warn">{m.history.drift({ keys: drift.join(m.common.listSeparator) })}</p>
@@ -320,44 +316,58 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
 
 export function HistoryView(): JSX.Element {
   const activeSessionId = useStore((s) => s.session.id)
-  const [sessions, setSessions] = useState<Session[]>([])
+  const [resource, setResource] = useState<{ key: string; data?: SessionPage; failed?: boolean } | null>(null)
   const [reviewing, setReviewing] = useState<Session | null>(null)
   const [page, setPage] = useState(0)
+  const [revision, setRevision] = useState(0)
+  const [deleting, setDeleting] = useState<number | null>(null)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
   const m = useT()
   const locale = useLocale()
   const bodyRef = useRef<HTMLDivElement>(null)
-  const pageRows = usePageSize(bodyRef, ROW_HEIGHT, 6)
-
-  const load = async (): Promise<void> => {
-    try {
-      setSessions(await irms.sessions.list())
-    } catch {
-      showToast(m.history.loadFailed, 'error')
-    }
-  }
+  const pageRows = Math.min(100, usePageSize(bodyRef, ROW_HEIGHT, 6))
+  // 回應綁定請求身分；換頁/resize 當下即隱藏舊頁，過期錯誤也不可污染新頁。
+  const requestKey = `${page}:${pageRows}:${revision}`
+  const currentResource = resource?.key === requestKey ? resource : null
+  const loading = currentResource == null
+  const data = currentResource?.data
+  const sessions = data?.sessions ?? []
 
   useEffect(() => {
-    void load()
-  }, [])
+    if (reviewing) return
+    let cancelled = false
+    void irms.sessions.listPage(page, pageRows).then((result) => {
+      if (!cancelled) setResource({ key: requestKey, data: result })
+    }).catch(() => {
+      if (!cancelled) {
+        setResource({ key: requestKey, failed: true })
+        useUiStore.getState().showToast(getT().history.loadFailed, 'error')
+      }
+    })
+    return () => { cancelled = true }
+  }, [page, pageRows, revision, requestKey, reviewing])
 
   const remove = async (s: Session): Promise<void> => {
-    if (useStore.getState().session.id === s.id) return
-    const ok = await requestConfirm(m.history.deleteTitle, m.history.deleteBody({ id: s.id }))
-    if (!ok) return
-    if (useStore.getState().session.id === s.id) return
-    await irms.sessions.delete(s.id)
-    showToast(m.history.deleted({ id: s.id }), 'success')
-    await load()
+    if (deleting != null || useStore.getState().session.id === s.id) return
+    setDeleting(s.id)
+    try {
+      const ok = await requestConfirm(m.history.deleteTitle, m.history.deleteBody({ id: s.id }))
+      if (!ok || useStore.getState().session.id === s.id) return
+      await irms.sessions.delete(s.id)
+      showToast(getT().history.deleted({ id: s.id }), 'success')
+      setRevision((value) => value + 1)
+    } catch {
+      showToast(getT().history.deleteFailed, 'error')
+    } finally { setDeleting(null) }
   }
 
   // 回顧取代列表;返回時頁碼保留(state 仍在這個元件)
-  if (reviewing) return <SessionReview session={reviewing} onBack={() => setReviewing(null)} />
+  if (reviewing) return <SessionReview session={reviewing} onBack={() => { setReviewing(null); setRevision((value) => value + 1) }} />
 
-  const pageCount = Math.max(1, Math.ceil(sessions.length / pageRows))
-  const current = Math.min(page, pageCount - 1)
-  const visible = sessions.slice(current * pageRows, (current + 1) * pageRows)
+  const total = data?.total ?? 0
+  const pageCount = Math.max(1, Math.ceil(total / (data?.pageSize ?? pageRows)))
+  const current = data?.page ?? 0
 
   return (
     <div className="v3-page">
@@ -376,13 +386,13 @@ export function HistoryView(): JSX.Element {
           <span>{m.history.colDuration}</span>
           <span>{m.history.colOps}</span>
         </div>
-        <div className="v3-history-body" ref={bodyRef}>
-          {sessions.length === 0 ? (
+        <div className="v3-history-body" ref={bodyRef} aria-busy={loading}>
+          {loading ? <p role="status">{m.history.loading}</p> : currentResource?.failed ? <p>{m.history.loadFailed}</p> : sessions.length === 0 ? (
             <div className="v3-empty">
               <p>{m.history.empty}</p>
             </div>
           ) : (
-            visible.map((s) => (
+            sessions.map((s) => (
               <div key={s.id} className="v3-history-row">
                 <span className="v3-history-time">{formatDateTime(locale, new Date(s.startTime), DATE_TIME)}</span>
                 <span className="v3-history-action">
@@ -410,7 +420,7 @@ export function HistoryView(): JSX.Element {
                   <button className="btn btn-primary btn-sm" onClick={() => setReviewing(s)}>
                     {m.history.review}
                   </button>
-                  <button className="btn btn-danger-ghost btn-sm" disabled={activeSessionId === s.id} aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
+                  <button className="btn btn-danger-ghost btn-sm" disabled={deleting != null || activeSessionId === s.id} aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
                     {m.common.delete}
                   </button>
                 </span>
@@ -421,15 +431,15 @@ export function HistoryView(): JSX.Element {
         </div>
         <div className="v3-pager">
           <span>
-            {m.history.pager({ total: sessions.length, page: current + 1, pages: pageCount })}
+            {m.history.pager({ total, page: current + 1, pages: pageCount })}
           </span>
           <span className="row" style={{ gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
+            <button className="btn btn-secondary btn-sm" disabled={loading || current === 0} onClick={() => setPage(current - 1)}>
               {m.common.prevPage}
             </button>
             <button
               className="btn btn-secondary btn-sm"
-              disabled={current >= pageCount - 1}
+              disabled={loading || current >= pageCount - 1}
               onClick={() => setPage(current + 1)}
             >
               {m.common.nextPage}

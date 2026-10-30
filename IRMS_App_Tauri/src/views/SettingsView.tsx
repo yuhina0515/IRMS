@@ -1,5 +1,5 @@
 // renderer/views/SettingsView.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { JOINT_PROTOCOLS } from '@shared/types'
@@ -75,10 +75,13 @@ function NumField({
   // 輸入中的字串另存:每個按鍵都立刻鉗制並回寫的話,輸入「20」會先變成 10(被 max(10,…) 擋),
   // 清空欄位則會把 0 寫進校準值。只有可解析的數字才回寫,離開欄位後才以儲存值為準。
   const [draft, setDraft] = useState<string | null>(null)
+  // 每個數字欄位都有獨立標籤關聯，讓報讀器與語音輸入能辨識用途。
+  const inputId = useId()
   return (
     <div className="field" style={{ flex: 1 }}>
-      <label>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <input
+        id={inputId}
         type="number"
         value={draft ?? value}
         disabled={disabled}
@@ -268,6 +271,8 @@ function CalibrationPane(): JSX.Element {
 }
 
 function DisplayPane(): JSX.Element {
+  // 同一設定欄位的 label、combobox 與說明共用穩定 ID，切換語系後仍可辨識。
+  const displayId = useId()
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const m = useT()
@@ -275,8 +280,11 @@ function DisplayPane(): JSX.Element {
   return (
     <>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.language}</label>
+        <label id={`${displayId}-language-label`} htmlFor={`${displayId}-language`}>{md.language}</label>
         <GlassDropdown
+          id={`${displayId}-language`}
+          aria-labelledby={`${displayId}-language-label`}
+          aria-describedby={`${displayId}-language-hint`}
           value={settings.language}
           onChange={(v) => setSettings({ language: v as LanguageSetting })}
           options={[
@@ -285,11 +293,13 @@ function DisplayPane(): JSX.Element {
             { value: 'en', label: LANGUAGE_NAMES.en }
           ]}
         />
-        <p className="field-hint">{md.languageHint}</p>
+        <p id={`${displayId}-language-hint`} className="field-hint">{md.languageHint}</p>
       </div>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.theme}</label>
+        <label id={`${displayId}-theme-label`} htmlFor={`${displayId}-theme`}>{md.theme}</label>
         <GlassDropdown
+          id={`${displayId}-theme`}
+          aria-labelledby={`${displayId}-theme-label`}
           value={settings.themeMode}
           onChange={(v) => setSettings({ themeMode: v as Settings['themeMode'] })}
           options={[
@@ -300,8 +310,10 @@ function DisplayPane(): JSX.Element {
         />
       </div>
       <div className="field" style={{ maxWidth: 360 }}>
-        <label>{md.poseDefault}</label>
+        <label id={`${displayId}-pose-label`} htmlFor={`${displayId}-pose`}>{md.poseDefault}</label>
         <GlassDropdown
+          id={`${displayId}-pose`}
+          aria-labelledby={`${displayId}-pose-label`}
           value={settings.poseView}
           onChange={(v) => setSettings({ poseView: v as Settings['poseView'] })}
           options={[
@@ -417,6 +429,10 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
       return u.downloading({ pct: status.percent })
     case 'downloaded':
       return u.downloaded({ version: status.version })
+    case 'installing':
+      return m.updateBanner.installing
+    case 'install-error':
+      return m.updateBanner.installFailed
     case 'apk-available':
       return u.apkAvailable({ version: status.version })
     case 'not-available':
@@ -427,8 +443,8 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
 }
 
 /**
- * App 軟體更新面板。下載/重啟套用本身仍然靜默——見 `UpdateBanner.tsx`,只有
- * 「已下載完成」才會在畫面下方冒出來。但「檢查」這一步本身的結果(已是最新版/
+ * App 軟體更新面板。背景檢查/下載保持靜默；使用者啟動安裝的通知由 UpdateBanner 統一負責。
+ * 下方橫幅從「已下載完成」開始出現，之後保留安裝進度與失敗提示。但「檢查」這一步本身的結果(已是最新版/
  * 失敗/發現新版本)過去完全沒有出口:`checkNow()` 只丟一句固定文案的 toast,不管
  * `performCheck()` 實際結果是什麼——2026-09-13 使用者實測回報「按下去之後就沒有任何
  * 提示了」正是這個缺口:如果檢查失敗(網路錯誤/manifest 抓不到)或單純沒有新版本,
@@ -440,7 +456,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available'].includes(status.state)
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available', 'installing', 'install-error'].includes(status.state)
   const m = useT()
   const ms = m.settings.software
 
@@ -463,11 +479,11 @@ function SoftwareUpdatePanel(): JSX.Element {
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">{ms.currentVersion({ version })}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
-          {status?.state === 'downloaded' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
+          {status?.state === 'downloaded' || status?.state === 'install-error' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
         </button>
       </div>
       {statusText && (
-        <p className="field-hint" style={{ marginTop: 8 }} role="status">
+        <p className="field-hint" style={{ marginTop: 8 }} role={status?.state === 'install-error' || status?.state === 'installing' ? undefined : 'status'}>
           {statusText}
         </p>
       )}

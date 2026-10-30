@@ -121,6 +121,162 @@ Claude Code(本檔案的主要對象)、Gemini/Antigravity CLI(見 §1.1,設計�
 
 ## 4. AI 開發參數速查表 (AI Cheat Sheet)
 
+> R05 bound-delete prerequisite: [cfg(test) contract](recovery/bound-delete-precondition.md), original
+> identity check and exact1row deletion in one transaction; error retains rows/receipts. Not wired
+> to production/oracle; no restore-generation/authentication/independent-journal erasure claim.
+
+> R05 cooperating context owner: [contract](recovery/cooperating-context-lease.md), fixed exclusive
+> WebLock/ifAvailable before audit, callback lifetime held, proxy checked at entry AND dispatch.
+> Pending/uncertain release refuses; no steal/reset. Browser bucket only, native bound mutation and
+> restore/retention/unlock/production gates remain; context death does not cancel native work.
+
+> R05 local startup factory: [contract](recovery/startup-readiness.md), no owner before trusted audit;
+> explicitzero totals/fence:null only localready. Pending/fenced/invalid/readerror/deadline held, late
+> outcome never upgrades. No cross-window reservation, native-history/eviction/restore authority;
+> full journal validation remains reader responsibility, no production hookup.
+
+> R05 owner ordering evidence: [61-case probe](recovery/owner-ordering-probe.md), actual Chrome/IDB/
+> SQLite with parent-controlled delayed ack. Register before native call; full count before fence
+> complete before delete request. Short/timeout/late remain held. Memory owner lost on restart;
+> persistent startup readiness, real IPC/cross-process ownership and production hookup unverified.
+
+> R05 isolated transition owner: [contract](recovery/history-transition-owner.md),1outstanding append,
+> exact shared-budget count, reserve before await, drain -> fence -> mutation. Per-stage1..60000ms
+> deadline/default5000, sticky first hold reason, no reset/cancellation. Controlled tests only;
+> production and cross-process ownership unconnected/unverified.
+
+> R05 history-change fence: [isolated contract](recovery/history-change-fence.md). Optional singleton
+> known meta record, complete-transaction success, same entries/meta scope for intent/queue/ack;
+> unresolved fence blocks enqueue/ack and never auto-clears. No schema/IPC/production hookup;
+> already-submitted native work and unlock/deletion UX remain explicit gates.
+
+> R05 startup inspection: [test-only status contract](recovery/reconciliation-inspection.md).
+> Reconcile opens existing DB read-only before init, no migration/orphan finalization; one snapshot
+> binds original receipt/hash/count and session state. Matched/unseen/conflict/rejected are observations,
+> never replay/journal-delete authority. No production IPC/schema/acquisition change.
+
+> R05 native journal oracle: [evidence/policy](recovery/native-journal-oracle.md),29synthetic Chrome/
+> Rust-SQLite cases; exact ignored cfg(test) helper only, shared command input validator, fixed temp
+> DBs and consistent VACUUM backup. No schema/IPC change or acquisition hookup. Startup abandoned
+> end-time reconciliation and cross-store deletion/restore policy block automatic recovery.
+
+> R05 recovery journal prototype: [isolated evidence](recovery/journal-prototype.md). Original native
+> binding/batch boundary, atomic IDB counters and transaction-complete success;2000rows/128batches/
+> 512KiB canonical payload budget. Not imported by acquisition; no schema/IPC change in this probe
+> batch. JS identity regex requires explicit65-character length because `$` permits a final newline.
+
+
+> R07 offline receiver bundle v1: [contract](receiver-capture-bundle-v1.md); fixed embedded artifacts, exact UTF-8 hashes, receiver-monotonic metadata, strict input/depth budgets and explicit unavailable source/reference fields. CLI structural success is not authenticity, valid calibration, lossless capture or device acceptance.
+
+
+
+Wizard B pairing (2026-10-30): local raw callback counter is receiver-only, not device seq/time.
+Snapshot after countdown on every record/retry; complete fresh V consumes latest newer receipt once.
+Face/any floor correction requires raw; no-correction/skip permits V-only and unique optional gyro.
+Do not mix uncorrected V when correction active. No wire/solver/threshold/persistence change or source
+freshness/synchronization claim; repeated callbacks can still represent delayed/duplicated device data.
+
+Offline replay (2026-10-30): scripts/replay-calibration.mjs accepts optional --provenance sidecar;
+same-buffer input/hash, schema1 evidence,3 runtime source hashes and Node version. Raw historical
+hash preserved; optional canonical fields require explicit crlf-to-lf-v1 and always match actual
+canonical hash, including raw-match cases. No private paths/raw settings in reports or errors.
+Consistency with caller metadata is not source/calibration/measurement proof; no timestamp inference.
+
+Updater feedback (2026-10-30): additive UpdateStatus installing/install-error carry version only,
+never raw installer error details. Installing emitted after lease/flag, persists across handoff and
+listener remount. Rejection releases then emits install-error and rethrows original object. Banner
+catches; manual retry only. Banner alone owns install polite/alert speech, Settings copies static.
+Listener/replay exceptions isolated; snapshot and lastStatus identity prevent obsolete nested delivery.
+Native promise outcome is not process-exit/installer attestation; keep native acceptance separate.
+
+Application transition (2026-10-30): appTransition.ts has one synchronous symbol-owned lease,
+shared by session start, idle normal-close reservation and updater install. It supplements, not
+replaces, retained-session checks. Release is owner-bound/idempotent; start finally and failed
+destroy/install release. Successful install keeps lease/installing until process exit. Never reopen
+session collection merely because install() resolved; no native exit proof is implied.
+
+Normal close (2026-10-29): main.tsx installs singleton sessionCloseGuard outside React/view/error
+boundaries, synchronously blocking session start until registration succeeds. Controller reserves
+idle close against start; starting/ending/session id/running/buffer/flushing deny close. Always
+preventDefault before explicit destroy; failed destruction releases reservation, failed listener
+registration keeps starts blocked. Existing manual save/retry remains authoritative. Narrow main
+window allow-destroy ACL required. Cooperative healthy-renderer close only; no crash durability claim.
+
+Storage write contract (2026-10-29): `src/shared/storage-budget.json` is imported by TS and Rust.
+`data_append_batch` accepts at most1000 rows, timestamp128 UTF-8 bytes and finite six angle/roll
+fields before DB lock, after IPC deserialization. Controller pending includes in-flight unacknowledged
+suffix plus buffer; at2000 stop before the next engine/frame, preserving all accepted readings for
+existing end/save/retry. Only full-count ack retires a chunk. No schema change (version10), durable
+queue or exactly-once guarantee; unknown commits after lost replies may duplicate on retry.
+
+> History list: sessions.listPage(page,pageSize) -> sessions_list_page; total/rows share a read
+> transaction, size1..100 and page clamped before offset. Sort startTime DESC,id DESC using migration10
+> idx_sessions_start_id. UI navigation uses returned page; stale results/errors discarded; old list
+> remains full. Row cap does not bound text bytes/COUNT/deep OFFSET; separate pages may shift.
+
+> History: sessions.getReview DTO chart + analysis (native command is
+> sessions_get_review). Chart fixed1200 via original knee LTTB; analysis keeps all timestamp/knee/
+> proximal rows and original Date.parse/metric/module semantics. Never analyze sampled chart data.
+> Locale redraw reuses snapshot; stale success/error discarded, already-issued native reads not cancelled.
+> CSV/getData stay full fidelity; no schema/BLE changes or native heap/FPS guarantee.
+
+> Wizard B speech: persistent status uses localized detection/stage/progress and capture phase;
+> persistent alert uses capture error or result-stage solver failure. Reuse visible progress formula;
+> exclude countdown ticks/raw frames/numeric solutions. Retry/recalibration clears error text.
+
+> Wizard A speech regions: persist status/alert nodes across steps; announce only localized step
+> title/capture phase and errMsg. Never make raw values, countdown or whole preview live. Preserve
+> retry clearing; DOM semantics do not prove native speech delivery or interruption ordering.
+
+> Wizard A/B modal (one at a time): useCalibrationModalFocus yields its inert lease to hardware/confirmation store
+> state and actual alertdialog presence, including closing animation. Escape: wizard 10, confirmation
+> 20, hardware 100, default 0 LIFO. Capture must consume Escape; explicit close remains available.
+> Declared paint layers: ordinary overlay 1100, confirmation 1200, emergency 1500; do not rely on portal order.
+> Do not infer native/step-announcement/Wizard B acceptance from DOM integration tests.
+
+> Calibration Wizard A: icon close uses common.close; wear-side buttons expose aria-pressed from
+> local wearSide. Do not persist selection before Apply or introduce radio arrow-key expectations
+> onto these toggle buttons. Native wizard focus/step acceptance remains separate.
+
+> 2026-10-29 emergency overlay: use shared modalIsolation leases across confirmation/hardware
+> handoff; release only own lease and preserve original inert attributes. Emergency owns initial/
+> contained focus and disabled/removed-save fallback; Escape consumes at priority 100 without
+> clearing hardwareError. Default Escape priority 0 preserves LIFO. Do not steal emergency focus
+> from ConfirmDialog or restore into disconnected/disabled/inert/hidden targets.
+
+> 2026-10-29 dropdown contract: retain portal/viewport positioning and 100ms close animation.
+> DOM focus stays on the combobox; candidate navigation is separate from committed value.
+> Enter/Space/Tab/click commits, Escape cancels through shared escapeStack; blur/outside pointer
+> cancels. Closing popup is hidden/noninteractive, options excluded from sequential Tab order.
+> Use stable label/control/listbox IDs; DOM tests do not establish native screen-reader behavior.
+
+> 2026-10-29 ownership-v1: `X-IRMS-Run-Owner` is native-only per-launch/per-canonical-collector
+> proof, never an event/status/JSON field. Collector `run_owners` stores SHA-256 digest; bind within
+> first ingest transaction, authorize before mutation/replacement, delete with run/events atomically.
+> Legacy run cannot upgrade; native/module request shape stays fixed. Capabilities/create marker
+> version=1, generation checks and one total timeout guard creation; no redirect forwarding.
+
+> 2026-10-29 share response budget: `live_share.rs` bounds incoming bodies at 64 KiB on every
+> status, rejecting excessive Content-Length early and cumulative chunks before append. No remote
+> length-based preallocation. Keep outgoing 32 KiB budget and HTTP-status/JSON/null semantics;
+> receiver body bytes are not total heap. Update compatibility evidence if collector envelopes grow.
+
+> 2026-10-29 share revocation: `IRMS_Telemetry/share.mjs` must revoke Map membership before
+> waking that viewer's pending polls. Recheck identity at completion; return 401 without state;
+> remove timer, share/viewer waiter entries and response close listener. Preserve share-close 410.
+
+> 2026-10-29 download addendum: shared HTTP response caps are firmware manifest 64 KiB,
+> module index 1 MiB, signature text 1 KiB, and artifact bytes <= verified signed size
+> (existing maxima: firmware 4 MiB / module 512 KiB). Enforce accumulated chunks before
+> extending the buffer; Content-Length alone is insufficient. Preserve signature/hash checks
+> and verified-cache fallback. No IPC, DB, BLE or signed-file format changes.
+
+> 2026-10-29 telemetry addendum: opt-in remains default OFF. `telemetry.rs` bounds event data
+> at 64 KiB serialized, pending events at 20,000 / 8 MiB serialized and batches at 2,000 /
+> approximately 512 KiB plus envelope. Endpoint/enabled changes clear pending data; in-flight
+> results are generation-gated. Already-issued requests are not recalled. IPC/DB/BLE contracts
+> are unchanged. See `RESEARCH_READINESS.md` for evidence boundaries and department triggers.
+
 AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單方面變更：
 
 ### 4.1 硬體引腳與配置 (GPIO & Hardware)
@@ -131,6 +287,18 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **I2C 位址**：大腿端（含 ESP32）`0x69`，小腿外接端 `0x68`（2026-09-15 真機逐顆晃動確認）
 
 ### 4.2 BLE 協定契約 (BLE Protocol)
+
+> 2026-10-29 connection ownership: `ble_lifecycle.rs` reserves before await, serializes attempts
+> through cleanup, and installs/publishes before listener scheduling. Ordering is attempts ->
+> peripheral -> epoch; disconnect skips attempts and checks epoch after waiting. Native scan
+> always attempts stop_scan, with cleanup errors retained even alongside cancellation. Awaited
+> OS calls are not blindly aborted; physical cleanup failure remains an explicit unknown state.
+
+> 2026-10-29 native lifecycle addendum: angle/raw/OTA dispatch and listener errors share a short
+> synchronous epoch gate with connection retirement. Teardown waits for peripheral then rechecks
+> epoch; no await, recursive epoch call or peripheral acquisition inside the gated callback.
+> Lock order is peripheral -> epoch. Already-queued frontend events and physical OS cancellation
+> timing remain separate acceptance risks. Wire protocol and IPC shapes unchanged.
 
 > **2026-09-16 Tauri WIP addendum:** the final optional `V:x/y/z/x/y/z` field carries
 > thigh then shin normalized acceleration. Both parsers require exactly six nonempty finite
@@ -162,7 +330,21 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
 * 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
 
-### 4.3 SQLite Schema(目前 `user_version = 9`)
+### 4.3 SQLite Schema(目前 `user_version = 12`)
+
+> Migration12: singleton storage_identity.databaseId and unique sessions.storageKey (32lowerhex).
+> Existing sessions backfilled; AFTER INSERT assigns future NULL keys. Atomic sessions_start returns
+> sessionId/storageIdentity; append requires the65ASCII db/session binding and checks inside its
+> transaction before receipt/empty/data. [Association contract](storage-identity.md). No journal,
+> restore-generation or authentication claim. Matched renderer/native required.
+
+> Migration11: reading_batch_receipts(sessionId,batchId,payloadHash,rowCount), WITHOUT ROWID,
+> composite primary key and ON DELETE CASCADE to sessions; no existing row rewrite. The append
+> IPC requires canonical lowercase UUIDv4 batchId. Same identity/payload returns prior count;
+> conflict rejects. Rows and receipt commit together. See [contract](storage-batch-retry.md).
+
+> Migration10: nonunique idx_sessions_start_id ON sessions(startTime DESC,id DESC), used for
+> indexed history paging. No column/row rewrite; versions1..9 unchanged.
 
 > 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
 > DB 檔存於 Tauri 的 app data 目錄(不進版控)。
@@ -215,6 +397,11 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
   * 索引：`idx_sensor_data_sessionId` on `sensor_data(sessionId)`
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
+
+> 2026-10-29 hold continuity: the current Tauri TriggerEngine uses one monotonic receive timestamp
+> per sample; >250 ms gaps, backwards or nonfinite time cannot extend a hold. Cancelling a hold
+> preserves `restPending` and personal-angle warnings. This is a receiver continuity check, not
+> source-clock synchronization, stale-payload detection or a clinical threshold.
 
 > 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
 > `CMD:`。權威來源為 `IRMS_App_Tauri/src/services/` 下的 triggerEngine

@@ -18,6 +18,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import { useStore } from '../store/useStore'
+import { acquireAppTransition } from '../services/appTransition'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
@@ -32,6 +33,8 @@ import type {
   Session,
   SensorReading,
   SessionStartInput,
+  SessionReviewData,
+  SessionPage,
   StoredReading,
   UpdateStatus
 } from '@shared/types'
@@ -65,9 +68,18 @@ let installing = false
 let allowBeta = false
 const statusListeners = new Set<(status: UpdateStatus) => void>()
 
+// UI 訂閱者不能中斷安裝交接、遮蔽原始拒絕或使其他訂閱者漏接狀態。
+function notifyStatus(cb: (status: UpdateStatus) => void, status: UpdateStatus): void {
+  try { cb(status) } catch { useStore.getState().log('Update status listener failed.') }
+}
+
 function emitStatus(status: UpdateStatus): void {
   lastStatus = status
-  statusListeners.forEach((cb) => cb(status))
+  for (const cb of [...statusListeners]) {
+    // 同步重入已發布更新狀態時，不再把較舊狀態送給後面的訂閱者。
+    if (lastStatus !== status) break
+    notifyStatus(cb, status)
+  }
 }
 
 function performCheck(): Promise<void> {
@@ -135,8 +147,13 @@ if (AUTO_CHECK_ENABLED) {
 export const irms: IrmsApi = {
   sessions: {
     async start(input: SessionStartInput) {
-      const sessionId = await invoke<number>('sessions_start', { input })
-      return { sessionId }
+      // 身份與快照由原生同一交易回傳，不在第一次寫入時重新綁定。
+      const started = await invoke<{ sessionId: number; storageIdentity: string }>('sessions_start', { input })
+      if (!Number.isSafeInteger(started?.sessionId) || started.sessionId <= 0 ||
+          typeof started.storageIdentity !== 'string' || started.storageIdentity.length !== 65 || !/^[a-f\d]{32}\/[a-f\d]{32}$/.test(started.storageIdentity)) {
+        throw new Error('Invalid session storage identity')
+      }
+      return started
     },
     async end(sessionId: number, repsCompleted: number) {
       await invoke('sessions_end', { sessionId, repsCompleted })
@@ -149,8 +166,15 @@ export const irms: IrmsApi = {
     list() {
       return invoke<Session[]>('sessions_list')
     },
+    listPage(page: number, pageSize: number) {
+      return invoke<SessionPage>('sessions_list_page', { page, pageSize })
+    },
     getData(sessionId: number, maxPoints?: number) {
       return invoke<StoredReading[]>('sessions_get_data', { sessionId, maxPoints: maxPoints ?? null })
+    },
+    getReview(sessionId: number) {
+      // 型別由共用 API 推導；一次快照避免圖表與分析重複查詢/傳輸完整欄位。
+      return invoke<SessionReviewData>('sessions_get_review', { sessionId })
     },
     async delete(sessionId: number) {
       await invoke('sessions_delete', { sessionId })
@@ -179,8 +203,8 @@ export const irms: IrmsApi = {
     remove: (id: number) => invoke<void>('mobility_delete', { id })
   },
   data: {
-    async appendBatch(sessionId: number, readings: SensorReading[]) {
-      const count = await invoke<number>('data_append_batch', { sessionId, readings })
+    async appendBatch(sessionId: number, readings: SensorReading[], batchId: string, storageIdentity: string) {
+      const count = await invoke<number>('data_append_batch', { sessionId, readings, batchId, storageIdentity })
       return { count }
     }
   },
@@ -278,8 +302,21 @@ export const irms: IrmsApi = {
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
       const { session } = useStore.getState()
       if (session.running || session.id != null || !currentUpdate || !readyToInstall || installing) return
+      const update = currentUpdate
+      const version = update.version
+      const release = acquireAppTransition()
+      if (!release) return
       installing = true
-      try { await currentUpdate.install() } finally { installing = false }
+      emitStatus({ state: 'installing', version })
+      try {
+        await update.install()
+        // 安裝程式已交接但程序未必已退出；成功後保留閘門，禁止再建立量測資料。
+      } catch (error) {
+        installing = false
+        release()
+        emitStatus({ state: 'install-error', version })
+        throw error
+      }
     },
     async openApkDownload() {
       if (currentApkUrl) await openUrl(currentApkUrl)
@@ -289,7 +326,7 @@ export const irms: IrmsApi = {
     },
     onStatusChange(cb: (status: UpdateStatus) => void) {
       statusListeners.add(cb)
-      if (lastStatus) cb(lastStatus)
+      if (lastStatus) notifyStatus(cb, lastStatus)
       return () => {
         statusListeners.delete(cb)
       }

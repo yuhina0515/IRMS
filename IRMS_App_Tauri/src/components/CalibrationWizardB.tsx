@@ -1,7 +1,8 @@
 // Calibration B (beta) wizard: floor stage (optional, needs the firmware G: stream) -> worn poses -> sagittal sweeps -> solve.
 // Engine and rationale: services/calibrationB.ts, doc/plans/2026-10-01-calibration-b-plan.md.
 // Nothing is written to settings until the user confirms the result.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { AccelVector, RawMotion } from '@shared/protocol'
 import { useStore, type Settings } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
@@ -18,6 +19,7 @@ import {
   type SweepCapture
 } from '../services/calibrationB'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { calibrationFocusBlocked, useCalibrationModalFocus } from '../hooks/useCalibrationModalFocus'
 import { getT, rich, useT } from '../i18n'
 
 type V3 = AccelVector
@@ -52,6 +54,10 @@ type Step =
   | { kind: 'result' }
 
 export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.Element {
+  // 共用精靈焦點契約，但保留 B 的 raw stream/擷取生命週期，不因警示重新掛載。
+  const titleId = useId()
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useCalibrationModalFocus(overlayRef)
   const m = useT()
   const c = m.calibrationB
   const setSettings = useStore((s) => s.setSettings)
@@ -69,12 +75,15 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   const faces = useRef<{ thigh: V3[]; shin: V3[] }>({ thigh: [], shin: [] })
   const correction = useRef<{ thigh: BiasScaleEstimate | null; shin: BiasScaleEstimate | null }>({ thigh: null, shin: null })
   const latestMotion = useRef<RawMotion | null>(null)
+  /** 接收端通知計數，不代表裝置序號、來源時間或同步量測。 */
+  const rawReceipt = useRef(0)
   const cancelled = useRef(false)
 
   useEffect(() => {
     cancelled.current = false
     const off = bluetoothService.onRawMotion((motion) => {
       latestMotion.current = motion
+      rawReceipt.current++
     })
     void bluetoothService.enableRawStream(true)
     const timer = setTimeout(() => setHasRaw(latestMotion.current !== null), RAW_DETECT_MS)
@@ -86,9 +95,10 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
     }
   }, [])
 
-  useEscapeKey(capturing ? null : onClose)
+  // 擷取中消耗 Escape，不讓背景視窗收到；確認框與硬體警示仍可優先接管。
+  useEscapeKey(() => { if (!capturing && !calibrationFocusBlocked()) onClose() }, 10)
 
-  /** Collects frames for `seconds`; each frame pairs the latest V: vectors with the latest raw motion. */
+  /** 擷取視窗內每筆新 G: 收件至多配對一筆新 V:；不推論裝置時鐘或同步。 */
   const record = async (seconds: number): Promise<Frame[] | null> => {
     setErr(null)
     setCapturing(true)
@@ -99,11 +109,18 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
     }
     setCountdown(null)
     const frames: Frame[] = []
+    // 倒數完成後才設基準，排除先前階段/重試/倒數期間留下的原始通知。
+    let consumedReceipt = rawReceipt.current
+    const requireRaw = step.kind === 'face' || SWEEPS.some((limb) => correction.current[limb] !== null)
     await new Promise<void>((resolve) => {
       const unsub = useStore.subscribe((s, prev) => {
         const a = s.rawAngles
-        if (!a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
-        frames.push({ thigh: a.thighAccel, shin: a.shinAccel, motion: latestMotion.current })
+        if (cancelled.current || !a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
+        const motion = rawReceipt.current > consumedReceipt ? latestMotion.current : null
+        // 有地面修正時不可混入未修正 V:；跳過地面/無修正仍保留既有 V-only 路徑。
+        if (requireRaw && !motion) return
+        if (motion) consumedReceipt = rawReceipt.current
+        frames.push({ thigh: a.thighAccel, shin: a.shinAccel, motion })
       })
       setTimeout(() => {
         unsub()
@@ -211,15 +228,30 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
   const legName = (limb: Limb): string => (limb === 'thigh' ? m.clinical.terms.thigh : m.clinical.terms.shin)
   const captureLabel = capturing ? (countdown != null ? `${countdown}…` : c.recording) : c.capture
   const progressTotal = (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.length
+  // 可見進度與公告共用同一個步數，避免地面階段/姿勢階段的編號分歧。
+  const progressNumber = step.kind === 'face' ? step.index + 1
+    : step.kind === 'pose' ? (hasRaw ? FACES.length : 0) + POSES.indexOf(step.pose) + 1
+      : step.kind === 'sweep' ? (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.indexOf(step.limb) + 1 : 0
+  const progress = c.progress({ n: String(progressNumber), total: String(progressTotal) })
+  // 公告僅含階段與方向標籤；倒數只區分準備/錄製，不逐秒或逐幀朗讀。
+  const stageText = step.kind === 'intro' ? (hasRaw === null ? c.rawChecking : hasRaw ? c.rawOn : c.rawOff)
+    : step.kind === 'face' ? `${progress} · ${c.floorTitle} · ${c.faces[FACES[step.index]]}`
+      : step.kind === 'pose' ? `${progress} · ${c.poses[step.pose].title}`
+        : step.kind === 'sweep' ? `${progress} · ${c.sweepTitle({ limb: legName(step.limb) })}` : c.resultTitle
+  const phaseText = capturing ? (countdown != null ? c.capture : c.recording) : ''
+  const solveError = step.kind === 'result' && result && !result.ok ? c.failed({ limb: legName(result.limb), reason: errorText(result.error) }) : ''
 
-  return (
-    <div className="overlay">
-      <div className="modal glass" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div ref={overlayRef} className="overlay">
+      <div className="modal glass" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{stageText}{phaseText ? ` · ${phaseText}` : ''}</div>
+        {/* 節點跨階段保留；既有重試/重做路徑清空文字，讓同一失敗可再次公告。 */}
+        <div className="sr-only" role="alert" aria-atomic="true">{err ?? solveError}</div>
         <div className="modal-header">
-          <h3>
+          <h3 id={titleId}>
             {c.title} <span className="badge" data-testid="calib-b-beta">{c.beta}</span>
           </h3>
-          <button className="close-x" onClick={onClose}>
+          <button className="close-x" aria-label={m.common.close} onClick={onClose}>
             ×
           </button>
         </div>
@@ -229,10 +261,11 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
             <p className="desc">{rich(c.intro)}</p>
             <p className="desc">{rich(c.sideHint)}</p>
             <div className="row">
-              <button className={`btn ${side === 'left' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSide('left')}>
+              {/* 側別仍是本次精靈暫存值；語意狀態不可只靠顏色呈現。 */}
+              <button className={`btn ${side === 'left' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={side === 'left'} onClick={() => setSide('left')}>
                 {m.clinical.terms.leftLeg}
               </button>
-              <button className={`btn ${side === 'right' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSide('right')}>
+              <button className={`btn ${side === 'right' ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={side === 'right'} onClick={() => setSide('right')}>
                 {m.clinical.terms.rightLeg}
               </button>
             </div>
@@ -252,16 +285,7 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
         {step.kind !== 'intro' && step.kind !== 'result' && (
           <div className="wizard-step">
             <p className="metric-sub">
-              {c.progress({
-                n: String(
-                  step.kind === 'face'
-                    ? step.index + 1
-                    : step.kind === 'pose'
-                      ? (hasRaw ? FACES.length : 0) + POSES.indexOf(step.pose) + 1
-                      : (hasRaw ? FACES.length : 0) + POSES.length + SWEEPS.indexOf(step.limb) + 1
-                ),
-                total: String(progressTotal)
-              })}
+              {progress}
             </p>
             {step.kind === 'face' && (
               <>
@@ -340,7 +364,7 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
           </div>
         )}
       </div>
-    </div>
+    </div>, document.body
   )
 }
 

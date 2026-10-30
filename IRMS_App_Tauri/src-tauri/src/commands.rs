@@ -7,7 +7,7 @@
 use crate::db::{actions_repo, angle_ranges_repo, data_repo, sessions_repo};
 use crate::types::{
     AngleRangeInput, AngleRangeRecord, CustomAction, CustomActionInput, SensorReading, Session,
-    SessionStartInput, StoredReading,
+    SessionPage, SessionReviewData, SessionStartInput, SessionStarted, StoredReading,
 };
 use rusqlite::Connection;
 use std::sync::{Mutex, MutexGuard};
@@ -69,9 +69,9 @@ pub fn actions_restore_defaults(state: tauri::State<DbState>) -> Result<Vec<Cust
 pub fn sessions_start(
     state: tauri::State<DbState>,
     input: SessionStartInput,
-) -> Result<i64, String> {
-    let conn = lock_db(&state)?;
-    sessions_repo::start(&conn, &input).map_err(to_err)
+) -> Result<SessionStarted, String> {
+    let mut conn = lock_db(&state)?;
+    sessions_repo::start_bound(&mut conn, &input).map_err(to_err)
 }
 
 #[tauri::command]
@@ -101,6 +101,16 @@ pub fn sessions_list(state: tauri::State<DbState>) -> Result<Vec<Session>, Strin
 }
 
 #[tauri::command]
+pub fn sessions_list_page(
+    state: tauri::State<DbState>,
+    page: usize,
+    page_size: usize,
+) -> Result<SessionPage, String> {
+    let conn = lock_db(&state)?;
+    sessions_repo::list_page(&conn, page, page_size).map_err(to_err)
+}
+
+#[tauri::command]
 pub fn sessions_get_data(
     state: tauri::State<DbState>,
     session_id: i64,
@@ -108,6 +118,15 @@ pub fn sessions_get_data(
 ) -> Result<Vec<StoredReading>, String> {
     let conn = lock_db(&state)?;
     sessions_repo::get_data(&conn, session_id, max_points).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn sessions_get_review(
+    state: tauri::State<DbState>,
+    session_id: i64,
+) -> Result<SessionReviewData, String> {
+    let conn = lock_db(&state)?;
+    sessions_repo::get_review(&conn, session_id).map_err(to_err)
 }
 
 #[tauri::command]
@@ -203,14 +222,126 @@ pub fn data_append_batch(
     state: tauri::State<DbState>,
     session_id: i64,
     readings: Vec<SensorReading>,
+    batch_id: String,
+    storage_identity: String,
 ) -> Result<usize, String> {
+    data_repo::validate_batch_id(&batch_id).map_err(to_err)?;
+    data_repo::validate_storage_identity(&storage_identity).map_err(to_err)?;
+    validate_append_readings(&readings)?;
     let mut conn = lock_db(&state)?;
-    data_repo::append_batch(&mut conn, session_id, &readings).map_err(to_err)
+    data_repo::append_bound_batch(
+        &mut conn,
+        session_id,
+        &batch_id,
+        &readings,
+        &storage_identity,
+    )
+    .map_err(to_err)
+}
+
+// 與前端讀取同一份交易預算；此檢查發生在 IPC 反序列化之後、資料庫鎖之前。
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppendBudget {
+    max_batch_rows: usize,
+    max_timestamp_bytes: usize,
+}
+
+fn append_budget() -> &'static AppendBudget {
+    static BUDGET: std::sync::OnceLock<AppendBudget> = std::sync::OnceLock::new();
+    BUDGET.get_or_init(|| {
+        serde_json::from_str(include_str!("../../src/shared/storage-budget.json"))
+            .expect("checked storage budget")
+    })
+}
+
+pub(crate) fn validate_append_readings(readings: &[SensorReading]) -> Result<(), String> {
+    let budget = append_budget();
+    if readings.len() > budget.max_batch_rows {
+        return Err("storage batch row budget exceeded".into());
+    }
+    for reading in readings {
+        if reading.timestamp.len() > budget.max_timestamp_bytes {
+            return Err("storage timestamp byte budget exceeded".into());
+        }
+        if ![
+            reading.knee_angle,
+            reading.thigh_angle,
+            reading.shin_angle,
+            reading.knee_roll,
+            reading.thigh_roll,
+            reading.shin_roll,
+        ]
+        .iter()
+        .all(|value| value.is_finite())
+        {
+            return Err("storage angles must be finite".into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn storage_reading() -> SensorReading {
+        SensorReading {
+            knee_angle: 1.0,
+            thigh_angle: 2.0,
+            shin_angle: 3.0,
+            knee_roll: 4.0,
+            thigh_roll: 5.0,
+            shin_roll: 6.0,
+            timestamp: "t".into(),
+        }
+    }
+
+    #[test]
+    fn storage_budget_accepts_empty_and_exact_rows_rejects_over_limit() {
+        let budget = append_budget();
+        assert_eq!(budget.max_batch_rows, 1000);
+        assert_eq!(budget.max_timestamp_bytes, 128);
+        assert!(validate_append_readings(&[]).is_ok());
+        let mut rows: Vec<_> = (0..1000).map(|_| storage_reading()).collect();
+        assert!(validate_append_readings(&rows).is_ok());
+        rows.push(storage_reading());
+        assert!(validate_append_readings(&rows).is_err());
+    }
+
+    #[test]
+    fn storage_timestamp_budget_counts_utf8_bytes() {
+        for (timestamp, valid) in [
+            ("a".repeat(128), true),
+            ("a".repeat(129), false),
+            (format!("{}aa", "界".repeat(42)), true),
+            ("界".repeat(43), false),
+        ] {
+            let mut reading = storage_reading();
+            reading.timestamp = timestamp;
+            assert_eq!(validate_append_readings(&[reading]).is_ok(), valid);
+        }
+    }
+
+    #[test]
+    fn storage_rejects_every_nonfinite_angle_even_in_last_row() {
+        for field in 0..6 {
+            for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let mut rows: Vec<_> = (0..1000).map(|_| storage_reading()).collect();
+                let last = rows.last_mut().unwrap();
+                let fields = [
+                    &mut last.knee_angle,
+                    &mut last.thigh_angle,
+                    &mut last.shin_angle,
+                    &mut last.knee_roll,
+                    &mut last.thigh_roll,
+                    &mut last.shin_roll,
+                ];
+                *fields.into_iter().nth(field).unwrap() = value;
+                assert!(validate_append_readings(&rows).is_err());
+            }
+        }
+    }
 
     #[test]
     fn export_target_accepts_only_absolute_csv_in_existing_dir() {

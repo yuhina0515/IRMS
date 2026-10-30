@@ -1,0 +1,9 @@
+# R03: keyboard-accessible destructive confirmations
+
+Baseline 10b2fd0, clean readiness worktree, draft PR #5; quota remaining 66% five-hour / 91% weekly. Prior goal turn is progress (R01/R02 pushed and validated). Current PR check list is empty; do not call the new head CI green or assume a job is live.
+
+Goal: focus stays within the open confirmation; background content cannot be operated while it is modal; Cancel remains initial focus; close restores the invoking control when it still exists. Preserve immediate promise resolution, 150ms exit animation, Escape-stack topmost behavior, replacement requests and cleanup on unmount. Add message description association. No layout/color redesign or native/hardware claim.
+
+Inspect native-dialog versus current overlay integration before implementation. Existing hardware ErrorOverlay and other custom overlays make preserving current stacking/appearance important. A body portal plus native inert semantics, keyboard/focus containment and capture guards is a viable scoped option; document native acceptance gaps rather than mocking conformance. Only the singleton confirmation receives this behavior in this batch; broader modal accessibility remains R06.
+
+Independent worker `/root/inclusion`, inherited model, read-only plan/diff review <=250 words; no edits, deploys, restarts, commits or other-chat messages. Lead alone implements. Prior audit already verified the missing trap/restoration; reproduce with user-event keyboard traversal before fix. Cover Tab/Shift+Tab wrap, outside focus/click, Escape, immediate decision versus delayed removal, replacement, disconnected invoker, pre-existing inert state and unmount cleanup. Full frontend tests/typecheck/build; Rust unchanged. Scoped commit/push to draft PR #5 and checkpoint/log/HOME update. R04 stale BLE notifications follows; overall objective remains active.

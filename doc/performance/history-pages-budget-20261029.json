@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-29T12:17:55.6283024Z",
+  "baselineCommit": "a2ff51bab30b13bfa7a7c6da93671bcfc9b2430a",
+  "rustc": "rustc 1.93.1 (01f6ddf75 2026-02-11)",
+  "sourceSha256": {
+    "IRMS_App_Tauri/src-tauri/src/db.rs": "66e261314889335d4772a4e40da219606c208b86f63c23aa50c9f58ec0082de6",
+    "IRMS_App_Tauri/src-tauri/src/types.rs": "eaa633acad660173a376ba892dfd19eba1b8011c2c17bd15f585ef53e8f28815",
+    "IRMS_App_Tauri/src-tauri/src/migrations.rs": "d3d3f22089c0d4de412c8c1fede681a010ac2c799fed4e8f8313d312402e6810",
+    "IRMS_App_Tauri/src-tauri/Cargo.lock": "57e5a5d2a66b4121e583c04bdbc05933f630b72478312655cef851b0becfc8f9"
+  },
+  "result": {
+    "fixtureRows": 1001,
+    "fixtureSha256": "046dd32bf9cadceed623955d1ed0677bf493285ea2cfcb7a8bc32ac34379b1a1",
+    "fullPayloadBytes": 345240,
+    "pagePayloadBytes": 34553,
+    "pageRows": 100,
+    "rowCap": 100,
+    "scope": "deterministic in-memory fixture; serialized bytes only, no latency/heap claim"
+  }
+}

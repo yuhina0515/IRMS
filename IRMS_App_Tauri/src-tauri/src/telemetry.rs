@@ -24,13 +24,17 @@ use tauri::{AppHandle, Manager};
 
 const FLUSH_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_BATCH: usize = 2000;
-const MAX_QUEUE: usize = 200_000;
+const MAX_QUEUE: usize = 20_000;
+// 同時限制序列化大小與事件數，避免離線時大量合法事件耗盡記憶體。
+const MAX_QUEUE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_BATCH_BYTES: usize = 512 * 1024;
 /// RISK-FIX (2026-10-10): largest serialized `data` a frontend event may carry; bigger payloads
 /// are counted as dropped so one oversized event cannot bloat the queue or its upload batch.
 const MAX_EVENT_DATA_BYTES: usize = 64 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Longest wait between retries after consecutive failures.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
+pub(crate) const RUN_OWNER_HEADER: &str = "x-irms-run-owner";
 
 #[derive(Debug, Clone, Serialize)]
 struct Event {
@@ -39,6 +43,8 @@ struct Event {
     kind: String,
     #[serde(skip_serializing_if = "Value::is_null")]
     data: Value,
+    #[serde(skip)]
+    serialized_bytes: usize,
 }
 
 #[derive(Default)]
@@ -47,6 +53,8 @@ struct Inner {
     endpoint: String,
     next_seq: u64,
     queue: VecDeque<Event>,
+    queued_bytes: usize,
+    generation: u64,
     sent: u64,
     dropped: u64,
     last_error: Option<String>,
@@ -54,13 +62,26 @@ struct Inner {
 
 pub struct TelemetryState {
     run_id: String,
+    // 每次啟動的原生私密金鑰；不序列化、不放入事件，也不回傳 renderer。
+    owner_master: String,
     inner: Mutex<Inner>,
+}
+
+pub(crate) struct ShareOwner {
+    pub(crate) header: reqwest::header::HeaderValue,
+    endpoint: String,
+    generation: u64,
 }
 
 impl Default for TelemetryState {
     fn default() -> Self {
         Self {
             run_id: uuid::Uuid::new_v4().to_string(),
+            owner_master: format!(
+                "{}{}",
+                uuid::Uuid::new_v4().simple(),
+                uuid::Uuid::new_v4().simple()
+            ),
             inner: Mutex::new(Inner {
                 next_seq: 1,
                 ..Inner::default()
@@ -85,6 +106,71 @@ fn now_iso() -> String {
 }
 
 impl TelemetryState {
+    #[cfg(test)]
+    pub(crate) fn test_run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_configure(&self, enabled: bool, endpoint: &str) {
+        self.configure(
+            enabled,
+            if enabled {
+                normalize_endpoint(endpoint).unwrap()
+            } else {
+                String::new()
+            },
+        );
+    }
+
+    // 不同收集器使用不同 HMAC 證明，切換目的地不重用已交給其他收集器的憑證。
+    fn owner_header(&self, endpoint: &str) -> reqwest::header::HeaderValue {
+        let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, self.owner_master.as_bytes());
+        let tag = ring::hmac::sign(&key, endpoint.as_bytes());
+        let proof: String = tag
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let mut header = reqwest::header::HeaderValue::from_str(&proof).expect("hex proof");
+        header.set_sensitive(true);
+        header
+    }
+
+    /// 在同一把鎖內綁定當下啟用狀態、run、收集器與世代，不將證明交給前端。
+    pub(crate) fn share_owner(&self, endpoint: &str, run_id: &str) -> Result<ShareOwner, String> {
+        let endpoint = normalize_endpoint(endpoint)?;
+        let inner = self.lock();
+        if !inner.enabled
+            || normalize_endpoint(&inner.endpoint)? != endpoint
+            || run_id != self.run_id
+        {
+            return Err(
+                "live share: enable telemetry for the current run and collector first".into(),
+            );
+        }
+        Ok(ShareOwner {
+            header: self.owner_header(&endpoint),
+            endpoint,
+            generation: inner.generation,
+        })
+    }
+
+    /// 每個非同步建立邊界後重驗設定；不能把過期分享碼當作目前結果回傳。
+    pub(crate) fn check_share_owner(&self, owner: &ShareOwner) -> Result<(), String> {
+        let inner = self.lock();
+        if !inner.enabled
+            || inner.generation != owner.generation
+            || normalize_endpoint(&inner.endpoint)? != owner.endpoint
+        {
+            return Err(
+                "live share: telemetry configuration changed; retry with the current collector"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         // A panic while holding this lock cannot leave the queue logically inconsistent (every
         // mutation is a single push/drain), so recover instead of propagating the poison.
@@ -96,18 +182,47 @@ impl TelemetryState {
         if !inner.enabled {
             return;
         }
+        // Rust 與前端來源共用限制，避免原生呼叫繞過 IPC 的大小檢查。
+        if kind.is_empty() || kind.len() > 40 || !data_within_limit(&data) {
+            inner.dropped += 1;
+            return;
+        }
         let seq = inner.next_seq;
         inner.next_seq += 1;
-        inner.queue.push_back(Event {
+        let mut event = Event {
             seq,
             t: now_iso(),
             kind: kind.to_string(),
             data,
-        });
-        while inner.queue.len() > MAX_QUEUE {
-            inner.queue.pop_front();
+            serialized_bytes: 0,
+        };
+        event.serialized_bytes = serde_json::to_vec(&event)
+            .expect("serializable event")
+            .len();
+        inner.queued_bytes += event.serialized_bytes;
+        inner.queue.push_back(event);
+        while inner.queue.len() > MAX_QUEUE || inner.queued_bytes > MAX_QUEUE_BYTES {
+            if let Some(evicted) = inner.queue.pop_front() {
+                inner.queued_bytes -= evicted.serialized_bytes;
+            }
             inner.dropped += 1;
         }
+    }
+
+    // 目的地／啟用狀態改變即建立新世代；舊收集器資料不得轉送到新目的地。
+    fn configure(&self, enabled: bool, endpoint: String) -> bool {
+        let mut inner = self.lock();
+        let turned_on = enabled && !inner.enabled;
+        if inner.enabled != enabled || inner.endpoint != endpoint {
+            inner.generation += 1;
+            inner.dropped += inner.queue.len() as u64;
+            inner.queue.clear();
+            inner.queued_bytes = 0;
+        }
+        inner.enabled = enabled;
+        inner.endpoint = endpoint;
+        inner.last_error = None;
+        turned_on
     }
 
     fn status(&self) -> TelemetryStatus {
@@ -133,13 +248,20 @@ pub fn record(app: &AppHandle, kind: &str, data: Value) {
 pub(crate) fn normalize_endpoint(endpoint: &str) -> Result<String, String> {
     let trimmed = endpoint.trim().trim_end_matches('/');
     let parsed = url::Url::parse(trimmed).map_err(|e| format!("無效的伺服器網址:{e}"))?;
+    if !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("伺服器網址不可包含登入資訊、查詢或片段".into());
+    }
+    // URL parser 的主機大小寫、預設 port 與路徑正規化同時用於送出與 HMAC 身分。
+    let canonical = parsed.as_str().trim_end_matches('/').to_string();
     match parsed.scheme() {
-        "https" => Ok(trimmed.to_string()),
+        "https" => Ok(canonical),
         // Plain HTTP only for a collector on this machine (development); sensor data must not
         // cross a network in clear text.
-        "http" if matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")) => {
-            Ok(trimmed.to_string())
-        }
+        "http" if matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")) => Ok(canonical),
         _ => Err("伺服器網址必須使用 https".to_string()),
     }
 }
@@ -156,19 +278,7 @@ pub fn telemetry_configure(
     } else {
         String::new()
     };
-    let turned_on = {
-        let mut inner = state.lock();
-        let turned_on = enabled && !inner.enabled;
-        inner.enabled = enabled;
-        inner.endpoint = endpoint;
-        inner.last_error = None;
-        if !enabled {
-            // Turning upload off discards what has not been sent — the user asked for no
-            // upload, so nothing queued before that decision should leave the machine later.
-            inner.queue.clear();
-        }
-        turned_on
-    };
+    let turned_on = state.configure(enabled, endpoint);
     if turned_on {
         state.record(
             "app_start",
@@ -185,13 +295,6 @@ pub fn telemetry_configure(
 /// Frontend-originated events (Session lifecycle, calibration snapshot, trigger state).
 #[tauri::command]
 pub fn telemetry_log(state: tauri::State<'_, TelemetryState>, kind: String, data: Value) {
-    if kind.is_empty() || kind.len() > 40 {
-        return;
-    }
-    if !data_within_limit(&data) {
-        state.lock().dropped += 1;
-        return;
-    }
     state.record(&kind, data);
 }
 
@@ -224,6 +327,8 @@ fn build_client() -> Option<reqwest::Client> {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
     with_platform_roots(reqwest::Client::builder())
+        // 自訂持有證明不可隨 30x 重新導向被轉交到其他目的地。
+        .redirect(reqwest::redirect::Policy::none())
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| eprintln!("[telemetry] HTTP client init failed: {e}"))
@@ -263,16 +368,18 @@ async fn flush_once(
     state: &TelemetryState,
     version: &str,
 ) -> Result<usize, ()> {
-    let (url, batch, dropped) = {
+    let (url, batch, dropped, generation, owner_header) = {
         let inner = state.lock();
         if !inner.enabled || inner.queue.is_empty() {
             return Ok(0);
         }
-        let batch: Vec<Event> = inner.queue.iter().take(MAX_BATCH).cloned().collect();
+        let batch = bounded_batch(&inner);
         (
             format!("{}/v1/ingest", inner.endpoint),
             batch,
             inner.dropped,
+            inner.generation,
+            state.owner_header(&inner.endpoint),
         )
     };
     let last_seq = batch.last().map(|e| e.seq).unwrap_or(0);
@@ -286,6 +393,7 @@ async fn flush_once(
     });
     let result = client
         .post(&url)
+        .header(RUN_OWNER_HEADER, owner_header)
         .json(&body)
         .send()
         .await
@@ -304,13 +412,41 @@ async fn flush_once(
             }
         });
 
+    apply_flush_result(state, generation, last_seq, result)
+}
+
+// 在複製事件前先限制批次大小；額外一 byte 涵蓋 JSON 陣列分隔符號。
+fn bounded_batch(inner: &Inner) -> Vec<Event> {
+    let mut bytes = 0;
+    inner
+        .queue
+        .iter()
+        .take(MAX_BATCH)
+        .take_while(|event| {
+            bytes += event.serialized_bytes + 1;
+            bytes <= MAX_BATCH_BYTES
+        })
+        .cloned()
+        .collect()
+}
+
+// 舊請求完成時不可移除新世代資料，也不可覆寫新目的地的錯誤狀態。
+fn apply_flush_result(
+    state: &TelemetryState,
+    generation: u64,
+    last_seq: u64,
+    result: Result<(), (String, bool)>,
+) -> Result<usize, ()> {
     let mut inner = state.lock();
+    if inner.generation != generation {
+        return Ok(0);
+    }
     match result {
         Ok(()) => {
             // Remove only what was sent: new events may have been queued meanwhile, and the
             // queue may have been cleared or trimmed while the request was in flight.
             let before = inner.queue.len();
-            inner.queue.retain(|e| e.seq > last_seq);
+            remove_through(&mut inner, last_seq);
             let delivered = before - inner.queue.len();
             inner.sent += delivered as u64;
             inner.last_error = None;
@@ -319,7 +455,7 @@ async fn flush_once(
         Err((err, permanent)) => {
             if permanent {
                 let before = inner.queue.len();
-                inner.queue.retain(|e| e.seq > last_seq);
+                remove_through(&mut inner, last_seq);
                 inner.dropped += (before - inner.queue.len()) as u64;
             }
             inner.last_error = Some(err);
@@ -328,14 +464,204 @@ async fn flush_once(
     }
 }
 
+// 每次淘汰或完成上傳都同步扣除 byte 計數，維持佇列預算不變式。
+fn remove_through(inner: &mut Inner, last_seq: u64) {
+    while inner
+        .queue
+        .front()
+        .is_some_and(|event| event.seq <= last_seq)
+    {
+        let event = inner.queue.pop_front().expect("front exists");
+        inner.queued_bytes -= event.serialized_bytes;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn owner_proof_is_private_scoped_and_generation_bound() {
+        let state = TelemetryState::default();
+        let a = normalize_endpoint("https://EXAMPLE.com:443/base/").unwrap();
+        assert_eq!(a, "https://example.com/base");
+        state.configure(true, a.clone());
+        let owner = state
+            .share_owner("https://EXAMPLE.com:443/base/", &state.run_id)
+            .unwrap();
+        assert!(owner.header.is_sensitive());
+        assert!(owner.header == state.owner_header(&a));
+        assert!(owner.header != state.owner_header("https://example.com/other"));
+        assert!(owner.header != TelemetryState::default().owner_header(&a));
+        assert!(state.share_owner(&a, "another-run").is_err());
+        assert!(state
+            .share_owner("https://other.example/base", &state.run_id)
+            .is_err());
+        state.record("fixture", json!({"n": 1}));
+        let public = format!(
+            "{}{}",
+            serde_json::to_string(&state.status()).unwrap(),
+            serde_json::to_string(&state.lock().queue).unwrap()
+        );
+        assert!(!public.contains(&state.owner_master));
+        assert!(!public.contains(owner.header.to_str().unwrap()));
+        state.configure(false, String::new());
+        assert!(state.check_share_owner(&owner).is_err());
+        state.configure(true, a);
+        assert!(state.check_share_owner(&owner).is_err());
+    }
+
+    #[test]
+    fn collector_identity_rejects_credential_query_and_fragment_urls() {
+        for url in [
+            "https://user:secret@example.com/base",
+            "https://example.com/base?q=x",
+            "https://example.com/base#x",
+        ] {
+            assert!(normalize_endpoint(url).is_err());
+        }
+        assert_eq!(
+            normalize_endpoint("https://EXAMPLE.com:443/base/../api/").unwrap(),
+            "https://example.com/api"
+        );
+        assert_ne!(
+            normalize_endpoint("http://localhost:8000/api").unwrap(),
+            normalize_endpoint("http://localhost:8001/api").unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn uploader_keeps_proof_in_header_and_does_not_follow_redirect() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+        let target = TcpListener::bind("127.0.0.1:0").unwrap();
+        target.set_nonblocking(true).unwrap();
+        let destination = format!(
+            "http://localhost:{}/v1/ingest",
+            target.local_addr().unwrap().port()
+        );
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = stop.clone();
+        let target_thread = std::thread::spawn(move || {
+            let mut forwarded = false;
+            while !stopping.load(Ordering::SeqCst) {
+                if let Ok((mut socket, _)) = target.accept() {
+                    forwarded = true;
+                    let _ = socket.write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            forwarded
+        });
+        let origin = TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://localhost:{}", origin.local_addr().unwrap().port());
+        let origin_thread = std::thread::spawn(move || {
+            let (mut socket, _) = origin.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            loop {
+                let mut chunk = [0; 2048];
+                let n = socket.read(&mut chunk).unwrap();
+                if n == 0 {
+                    break;
+                }
+                bytes.extend_from_slice(&chunk[..n]);
+                if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                    let headers = String::from_utf8_lossy(&bytes[..end]).to_lowercase();
+                    let size = headers
+                        .lines()
+                        .find_map(|line| {
+                            line.strip_prefix("content-length:")
+                                .and_then(|v| v.trim().parse::<usize>().ok())
+                        })
+                        .unwrap_or(0);
+                    if bytes.len() >= end + 4 + size {
+                        break;
+                    }
+                }
+            }
+            let reply = format!("HTTP/1.1 307 Redirect\r\nLocation: {destination}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket.write_all(reply.as_bytes()).unwrap();
+            String::from_utf8(bytes).unwrap()
+        });
+        let state = state_pointing_at(&endpoint);
+        state.record("fixture", json!({"n": 1}));
+        let result = flush_once(&build_client().unwrap(), &state, "fixture").await;
+        stop.store(true, Ordering::SeqCst);
+        let forwarded = target_thread.join().unwrap();
+        let request = origin_thread.join().unwrap();
+        assert!(result.is_err());
+        assert!(!forwarded);
+        assert_eq!(state.status().pending, 1);
+        let (headers, body) = request.split_once("\r\n\r\n").unwrap();
+        let proof = state.owner_header(&endpoint);
+        assert!(headers.contains(proof.to_str().unwrap()));
+        assert!(!body.contains(proof.to_str().unwrap()));
+        assert!(!body.contains(&state.owner_master));
+    }
 
     fn enabled_state() -> TelemetryState {
         let state = TelemetryState::default();
         state.lock().enabled = true;
         state
+    }
+
+    /// 手動離線壓力基準；完全不啟動 uploader，驗證溢位後的事件與位元組上限。
+    #[test]
+    #[ignore = "manual offline performance baseline"]
+    fn readiness_benchmark_telemetry() {
+        use crate::readiness_benchmark::summary;
+        use std::time::Instant;
+        let mut results = Vec::new();
+        // 小封包觸發數量上限，大封包觸發位元組上限。
+        for payload_bytes in [64, 2048] {
+            let mut timings = Vec::new();
+            let mut observation = Value::Null;
+            for run in 0..13 {
+                let state = enabled_state();
+                let payload = json!({"raw": "x".repeat(payload_bytes)});
+                let start = Instant::now();
+                for _ in 0..25000 {
+                    state.record("ble-packet", payload.clone());
+                }
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                let inner = state.lock();
+                assert!(inner.queue.len() <= MAX_QUEUE);
+                assert!(inner.queued_bytes <= MAX_QUEUE_BYTES);
+                assert_eq!(inner.queue.len() as u64 + inner.dropped, 25000);
+                assert_eq!(
+                    inner.queued_bytes,
+                    inner
+                        .queue
+                        .iter()
+                        .map(|e| e.serialized_bytes)
+                        .sum::<usize>()
+                );
+                if payload_bytes == 64 {
+                    assert_eq!(inner.queue.len(), MAX_QUEUE);
+                } else {
+                    assert!(inner.queue.len() < MAX_QUEUE);
+                }
+                observation = json!({"pending": inner.queue.len(), "serializedBytes": inner.queued_bytes, "dropped": inner.dropped});
+                if run >= 3 {
+                    timings.push(elapsed);
+                }
+            }
+            results.push(json!({"payloadBytes": payload_bytes, "eventsPerRun": 25000,
+                "replay": summary(timings), "finalQueue": observation}));
+        }
+        println!(
+            "IRMS_BENCH:{}",
+            json!({"kind": "telemetry", "mode": "debug offline queue, no uploader", "results": results})
+        );
     }
 
     #[test]
@@ -351,6 +677,88 @@ mod tests {
         let state = TelemetryState::default();
         state.record("packet", json!({ "raw": "x" }));
         assert_eq!(state.status().pending, 0);
+    }
+
+    #[test]
+    fn native_events_share_the_payload_limit() {
+        let state = enabled_state();
+        state.record("packet", json!({ "blob": "x".repeat(64 * 1024) }));
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.status().dropped, 1);
+    }
+
+    #[test]
+    fn large_legal_events_are_evicted_by_bytes_and_batches_stay_small() {
+        let state = enabled_state();
+        for _ in 0..200 {
+            state.record("packet", json!({ "blob": "x".repeat(60 * 1024) }));
+        }
+        let inner = state.lock();
+        assert!(inner.queued_bytes <= 8 * 1024 * 1024);
+        assert!(inner.dropped > 0);
+        assert_eq!(inner.queue.len() as u64 + inner.dropped, 200);
+        assert_eq!(
+            inner.queued_bytes,
+            inner
+                .queue
+                .iter()
+                .map(|e| e.serialized_bytes)
+                .sum::<usize>()
+        );
+        let batch = bounded_batch(&inner);
+        assert!(!batch.is_empty());
+        assert!(serde_json::to_vec(&batch).unwrap().len() <= 512 * 1024);
+    }
+
+    #[test]
+    fn changing_collectors_discards_old_data_and_ignores_old_results() {
+        let state = TelemetryState::default();
+        assert!(state.configure(true, "https://a.example".into()));
+        state.record("packet", json!({ "raw": "old" }));
+        let generation = state.lock().generation;
+        let old_seq = state.lock().queue.back().unwrap().seq;
+        assert!(!state.configure(true, "https://b.example".into()));
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.status().dropped, 1);
+        assert_eq!(state.lock().queued_bytes, 0);
+        state.record("packet", json!({ "raw": "new" }));
+        assert_eq!(
+            apply_flush_result(
+                &state,
+                generation,
+                old_seq,
+                Err(("old failure".into(), true))
+            ),
+            Ok(0)
+        );
+        assert_eq!(
+            apply_flush_result(&state, generation, old_seq, Ok(())),
+            Ok(0)
+        );
+        assert_eq!(state.status().pending, 1);
+        assert!(state.status().last_error.is_none());
+        let current_generation = state.lock().generation;
+        let current_seq = state.lock().queue.back().unwrap().seq;
+        assert_eq!(
+            apply_flush_result(&state, current_generation, current_seq, Ok(())),
+            Ok(1)
+        );
+        assert_eq!(state.lock().queued_bytes, 0);
+        assert_eq!(state.status().sent, 1);
+    }
+
+    #[test]
+    fn identical_configuration_preserves_queue_but_disabling_clears_it() {
+        let state = TelemetryState::default();
+        state.configure(true, "https://a.example".into());
+        state.record("packet", Value::Null);
+        let generation = state.lock().generation;
+        state.configure(true, "https://a.example".into());
+        assert_eq!(state.status().pending, 1);
+        assert_eq!(state.lock().generation, generation);
+        state.configure(false, String::new());
+        assert_eq!(state.status().pending, 0);
+        assert_eq!(state.lock().queued_bytes, 0);
     }
 
     #[test]

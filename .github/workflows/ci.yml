@@ -30,6 +30,9 @@ jobs:
           cache: npm
           cache-dependency-path: IRMS_App_Tauri/package-lock.json
 
+      - name: Check collector ownership and sharing
+        run: node --test ../IRMS_Telemetry/share.test.mjs ../IRMS_Telemetry/ownership.test.mjs
+
       - name: Set up Rust
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt,clippy

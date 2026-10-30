@@ -50,6 +50,13 @@ export function ToastHost(): JSX.Element {
 
   return (
     <div className="toast-host">
+      {/* 常駐的通知區在訊息變動時播報；錯誤獨立處理，退場動畫不重複播報。 */}
+      <div className="sr-only" role="status" aria-atomic="true">
+        {toasts.filter((t) => t.type !== 'error').map((t) => t.message).join(' ')}
+      </div>
+      <div className="sr-only" role="alert" aria-atomic="true">
+        {toasts.filter((t) => t.type === 'error').map((t) => t.message).join(' ')}
+      </div>
       {displayed.map((t) => (
         <div
           key={t.id}

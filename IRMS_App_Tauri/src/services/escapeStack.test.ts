@@ -15,6 +15,17 @@ afterEach(() => {
 })
 
 describe('escapeStack', () => {
+  it('emergency priority wins over later ordinary handlers and releases back to LIFO', () => {
+    const calls: string[] = []
+    const remove = pushEscapeHandler(() => calls.push('emergency'), 100)
+    cleanups.push(remove)
+    track(() => calls.push('later'))
+    dispatchEscape()
+    expect(calls).toEqual(['emergency'])
+    remove()
+    dispatchEscape()
+    expect(calls).toEqual(['emergency', 'later'])
+  })
   it('沒有處理者時回報未處理(不應吞掉 Esc)', () => {
     expect(dispatchEscape()).toBe(false)
   })

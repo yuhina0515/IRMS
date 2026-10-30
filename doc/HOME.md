@@ -21,6 +21,82 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-31 bound-delete prerequisite** ([[log_20261031_bound_delete|Log]]): [test-only contract](recovery/bound-delete-precondition.md),4SQLite/full172native passed; production/oracle unchanged, integration waits quota.
+
+- **2026-10-30 cooperating context lease** ([[log_20261030_context_lease|Log]]): [78-case evidence](recovery/cooperating-context-lease.md),48focused; two actual Chrome targets, lifetime/old-proxy control and request-loss fixes. Native global/bound mutation still unverified; production unconnected.
+
+- **2026-10-30 local startup-readiness** ([[log_20261030_startup_readiness|Log]]): [69-case evidence](recovery/startup-readiness.md),37focused cases; no owner before audit or while pending/fenced/unavailable. Cross-context lease remains next; production unconnected.
+
+- **2026-10-30 actual owner ordering** ([[log_20261030_owner_probe|Log]]): [61-case evidence](recovery/owner-ordering-probe.md); actual SQLite commit + controlled reply in Chrome, fence before native delete. Memory owner disappears on restart; persisted startup gate remains next.
+
+- **2026-10-30 history-transition owner** ([[log_20261030_history_transition|Log]]): [19controlled-promise cases](recovery/history-transition-owner.md); ordered drain/fence/mutation and sticky stage uncertainty. Actual native-probe integration remains next; production unconnected.
+
+- **2026-10-30 history-intent fence** ([[log_20261030_history_fence|Minutes/log]]): [53-case evidence and decision](recovery/history-change-fence.md); unresolved marker preserves queue across native delete/lost reply/browser kill. Production transition interlock and unlock/retention policy unfinished.
+
+- **2026-10-30 read-only startup inspection** ([[log_20261030_reconciliation|Log]]): [39-case evidence and status](recovery/reconciliation-inspection.md); inspection skips initialization and preserves open sessions/journal. No automatic replay, timestamp repair or delete authority.
+
+- **2026-10-30 actual native journal oracle** ([[log_20261030_native_journal|Log]]): [29-case evidence and conservative policy](recovery/native-journal-oracle.md); real SQLite receipt retry and cross-store rejection. Backup divergence and startup end-time gate remain; no production replay.
+
+- **2026-10-30 isolated journal probe** ([[log_20261030_journal_probe|Log]]): [protocol/result](recovery/journal-prototype.md),19real-Chrome synthetic cases including owned-browser kill/reopen. Production unconnected; native sink simulated. CLI redaction and trailing-newline binding guard covered.
+
+- **2026-10-30 persistent storage association** ([[log_20261030_recovery_binding|Log]]): [contract](storage-identity.md), migration12 atomic start binding and crossDB/recreated-session rejection; fixed snapshot owner. Full732frontend/161Rust passed,6ignored. Quota tool recovered; independent unsent journal remains next, not completed.
+
+- **2026-10-30 R05 idempotent batch retry** ([[log_20261030_idempotent_append|Log]]): [contract](storage-batch-retry.md), atomic SQLite receipt/rows and stable retry identity/boundary. Conflicting payload rejects; unsent-buffer crash recovery remains next software task.
+
+- **2026-10-30 R07 offline receiver bundle** ([[log_20261030_capture_bundle|Log]]): [v1 contract](receiver-capture-bundle-v1.md), bounded self-contained validator and synthetic fixture;40 CLI subprocess cases. Structural identity only; source/metrology/native evidence remains open.
+
+- **2026-10-30 R07 raw receipt pairing** ([[log_20261030_raw_pairing|Log]]): Wizard B no longer fills floor/gyro samples by repeating one cached raw packet. Per-window one-use receiver receipts, corrected-input consistency, V-only/skip preservation tested. Client raw/CSV timing and source-proof limits recorded in [measurement inventory](MEASUREMENT_EVIDENCE.md).
+
+- **2026-10-30 R07 replay identity** ([[log_20261030_replay_provenance|Log]]): [measurement inventory](MEASUREMENT_EVIDENCE.md), optional manifest hash/count verification and input/source/runtime identity. Original forensic hash retained with explicit CRLF/LF match modes; malformed/tampered inputs reject without private path/JSON leaks. No missing timing/settings/reference evidence inferred.
+
+- **2026-10-30 R05/R06 update feedback** ([[log_20261030_update_feedback|Log]]): installing/retryable failure statuses replay across remount, duplicate restart disabled, handled rejection and generic localized error. Global banner owns install announcements; Settings copy remains static. Subscriber exceptions/reentry isolated; native installer/speech/exit acceptance open.
+
+- **2026-10-30 R05 update/start/close interlock** ([[log_20261030_update_exit|Log]]): shared single-owner transition lease closes pending native-start and installer-await races. Failed operations release for retry; successful installer handoff keeps new data blocked until process exit. Actual Windows installer/exit acceptance remains open.
+
+- **2026-10-29 R05 normal-close guard** ([[log_20261029_close_guard|Log]]): application-lifetime listener blocks close with pending start/end/retained session and preserves existing save/retry. Idle close reservation blocks new starts; failed registration blocks sessions, failed destroy releases reservation. Native titlebar/AltF4 acceptance remains open.
+
+- **2026-10-29 R05 normal-close assessment** ([[log_20261029_close_recovery_assessment|Log]]): source and independent review confirm ordinary native close bypasses retained-session save protection. Next scoped implementation includes pending-start/ending races and application-lifetime registration; no runtime fix or physical close acceptance claimed.
+
+- **2026-10-29 R05 storage backpressure** ([[log_20261029_storage_budget|Log]]): shared transaction budget, acknowledged-prefix retirement and complete failed-suffix retention. Acquisition stops at pending capacity before accepting another frame; explicit save retry retained. Crash durability and lost-reply duplication remain open.
+
+- **2026-10-29 R05 native history pagination** ([[log_20261029_history_pages|Log]]): bounded native pages, stable index/order, same-snapshot count/clamp and stale/resize/delete fencing. Migration10 preserves rows; legacy full APIs retained. Native latency/heap acceptance remains open.
+
+- **2026-10-29 R05 history single-read projection** ([[log_20261029_history_review|Log]]): one snapshot supplies original LTTB chart plus complete analysis fields; locale redraw avoids DB refetch, CSV remains full. Synthetic15k-row JSON ~42.2% smaller; native FPS/IPC/heap acceptance remains open.
+
+- **2026-10-29 R06 Wizard B announcements** ([[log_20261029_b_announcements|Log]]): persistent localized raw/phase/step status, capture/solve error and retry clearing; countdown/raw/numeric solution values excluded. Native speech/metrology acceptance remains open.
+
+- **2026-10-29 R06 Wizard A announcements** ([[log_20261029_calibration_announcements|Log]]): persistent polite step/capture status and assertive retryable errors; countdown/raw values excluded. DOM transitions tested; native speech/preemption acceptance remains open.
+
+- **2026-10-29 R06 Wizard B access** ([[log_20261029_calibration_b_access|Log]]): localized close/side state, named body portal and shared focus/emergency contract. B raw detection/cleanup and capture Escape regression-tested; actual BLE, metrology and native AT acceptance remain open.
+
+- **2026-10-29 R06 Wizard A focus ownership** ([[log_20261029_calibration_focus|Log]]): named body-portal dialog, contained/restored focus and background isolation; yields through confirmation closing and hardware recovery. Capture Escape is consumed; native/step/Wizard B acceptance remains open.
+
+- **2026-10-29 R06 calibration control semantics** ([[log_20261029_calibration_controls|Log]]): localized close name and programmatic wear-side pressed state, keyboard tested in both supported locales without premature persistence. Full wizard focus/native acceptance remains open.
+
+- **2026-10-29 R06 hardware alert keyboard ownership** ([[log_20261029_hardware_alert|Log]]): standalone named emergency dialog, contained focus/background isolation, disabled/removed save handoff and recovery focus. Shared isolation leases coordinate confirmation; emergency Escape priority prevents background dismissal. DOM checks only; native hardware/AT acceptance remains open.
+
+- **2026-10-29 R06 dropdown keyboard / locale journey** ([[log_20261029_dropdown_keyboard|Log]]): select-only combobox semantics, tentative navigation/commit/cancel, shared Escape ownership and noninteractive close animation; Display language/theme/pose labels associated. Supported-language keyboard switching covered; native touch/pen/screen-reader/zoom and other overlays remain open.
+
+- **2026-10-29 S03 share ownership-v1** ([[log_20261029_share_ownership|Log]]): native-only collector-scoped proof, transactional first-ingest binding and digest-only persistence; runId/reader access cannot create or replace an owned share. Legacy/mismatched versions fail closed for sharing. 138 Rust + 13 collector tests/fmt/Clippy and independent reviews pass; native/collector rollout and real module acceptance remain open.
+
+- **2026-10-29 S01 bounded share responses** ([[log_20261029_share_response|Log]]): native bridge caps every incoming response at 64 KiB before buffer extension, including error statuses and unknown lengths. Baseline regression reproduced; 129 Rust tests/fmt/Clippy and independent review pass. Request/status/JSON semantics retained; S03 ownership and native/deployment acceptance open.
+
+- **2026-10-29 S02 share revocation** ([[log_20261029_share_revocation|Log]]): removed/departed/expired viewers' pending polls end immediately with no new state; membership rechecked at completion, per-viewer waiter/listener cleanup. Reproduced leakage then passed 10 local tests and independent review. Collector not deployed; S01/S03 remain open.
+
+- **2026-10-29 R05 offline baseline / threat model** ([[log_20261029_performance_threat|Log]]): reproducible source/fixture hashes, accelerated production engine, file-backed debug DB and offline telemetry benchmarks; actual JSON retained. Sharing response/revocation/ownership gaps prioritized. Native UI/network/device/memory and institutional/population acceptance remain open.
+
+- **2026-10-29 R08 native connect lifecycle** ([[log_20261029_connect_lifecycle|Log]]): reserve ownership before awaits, serialize cleanup/replacement and install/publish before listener scheduling. Cancellation retains simultaneous backend/cleanup errors; deterministic fake-transport tests pass. Native OS timing and physical cleanup failure remain acceptance gaps.
+
+- **2026-10-29 R04 BLE notification isolation** ([[log_20261029_ble_notification|Log]]): dispatch and retirement share an epoch gate; stale stream errors and delayed teardown are fenced. Deterministic ordering/poison regression checks pass; native pending-connect cancellation and already-queued renderer events remain separate risks.
+
+- **2026-10-29 R03 confirmation accessibility** ([[log_20261029_confirmation_access|Log]]): focus wrap/restoration, body-portal background isolation, replacement/exit cleanup and hardware-error takeover. Keyboard/DOM tests include StrictMode and disabled emergency controls; native WebView/screen-reader acceptance open.
+
+- **2026-10-29 R02 bounded downloads** ([[log_20261029_download_bounds|Log]]): firmware/module shared downloader now caps declared and incrementally received bytes, including metadata/signatures and exact signed payload sizes; signatures, hashes and cache fallback retained. Local HTTP overflow/boundary tests pass; live release and OTA acceptance open.
+
+- **2026-10-29 R01 hold continuity** ([[log_20261029_hold_continuity|Log]]): reproduced in-zone/silence false repetition; receiver-monotonic timing now restarts holds after >250 ms gaps or clock anomalies, preserving rest gating and personal angle warnings. Continuous sample fixtures and no-disconnect Session/GOAL regression added; native scheduling/source-time acceptance still open.
+
+- **2026-10-29 Squad research/inclusion readiness** ([[log_20261029_squad_readiness|Log]]): isolated current-repository worktree; telemetry queue/batch byte budgets and collector generation isolation, named Settings number fields and toast announcements. 533 frontend / 104 Rust tests passed (3 Rust live tests ignored), build/typecheck/fmt/Clippy passed. Institution-specific evidence matrix and hourly quota-aware continuation added. No release, deployment, clinical or demographic acceptance.
+
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
 
 - **2026-10-20 beta.25 reliability follow-up** ([[log_20261020_squad_progress|Log]]): timestamped mobility holds, separate leg trends, capture/save cleanup, and serialized Session persistence. Automated checks only; unified calibration remains gated on bench data. Delivered as a stacked draft PR; no merge or release.

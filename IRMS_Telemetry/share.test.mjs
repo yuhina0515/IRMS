@@ -2,17 +2,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import { createShareService, normalizeCode, HOST_IDLE_MS, MAX_VIEWERS } from './share.mjs'
+import { createShareService, normalizeCode, HOST_IDLE_MS, VIEWER_IDLE_MS, MAX_VIEWERS } from './share.mjs'
 
 function harness() {
   let t = 1_000_000
   const live = new Set(['run-live-1'])
-  const svc = createShareService({ isRunLive: (id) => live.has(id), now: () => t })
-  const call = (method, p, { token, body, params = '' } = {}) =>
+  const svc = createShareService({ isRunLive: (id) => live.has(id), isRunOwner: (id, proof) => live.has(id) && proof === 'a'.repeat(64), now: () => t })
+  const call = (method, p, { token, body, params = '', owner = 'a'.repeat(64) } = {}) =>
     svc.route(
       method,
       p,
-      { headers: token ? { authorization: `Bearer ${token}` } : {} },
+      { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(owner ? { 'x-irms-run-owner': owner } : {}) } },
       new EventEmitter(),
       async () => body ?? null,
       new URLSearchParams(params),
@@ -26,6 +26,17 @@ test('only a live telemetry run can create a share', async () => {
   const [status, body] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
   assert.equal(status, 200)
   assert.equal(normalizeCode(body.code), body.code)
+})
+
+test('knowing runId cannot create or replace a share without ownership proof', async () => {
+  const { call } = harness()
+  const body = { runId: 'run-live-1' }
+  assert.equal((await call('POST', '/v1/share', { body, owner: null }))[0], 403)
+  const [, original] = await call('POST', '/v1/share', { body })
+  for (const owner of [null, 'b'.repeat(64)]) {
+    assert.equal((await call('POST', '/v1/share', { body, owner, token: 'reader-token-only' }))[0], 403)
+    assert.equal((await call('GET', `/v1/share/${original.code}`))[0], 200)
+  }
 })
 
 test('share closes when the telemetry run stops or the host goes idle', async () => {
@@ -74,4 +85,65 @@ test('a viewer with an up-to-date version waits, then gets the next push', async
   const [status, body] = await pending
   assert.equal(status, 200)
   assert.deepEqual(body.state, { reps: 1 })
+})
+
+test('removed viewer pending poll cannot receive the next state', async () => {
+  const { call } = harness()
+  const [, s] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
+  const [, v] = await call('POST', `/v1/share/${s.code}/join`, { body: {} })
+  const pending = call('GET', `/v1/share/${s.code}/state`, { token: v.viewerToken, params: 'after=0' })
+  await call('DELETE', `/v1/share/${s.code}/viewers/${v.viewerId}`, { token: s.hostToken })
+  await call('POST', `/v1/share/${s.code}/state`, { token: s.hostToken, body: { state: { private: 'new' } } })
+  const [status, body] = await pending
+  assert.equal(status, 401)
+  assert.equal(body.state, undefined)
+})
+
+// 各種撤銷方式都必須立即清除所有等待，而非等下一筆狀態才重新檢查。
+for (const action of ['remove', 'leave', 'expire']) {
+  test(`${action} settles all revoked polls and preserves other viewers`, async () => {
+    const { svc, call, advance } = harness()
+    const [, s] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
+    const [, v] = await call('POST', `/v1/share/${s.code}/join`, { body: {} })
+    const [, other] = await call('POST', `/v1/share/${s.code}/join`, { body: {} })
+    const share = svc._shares.get(s.code)
+    const oldViewer = share.viewers.get(v.viewerId)
+    const polls = [1, 2].map(() => call('GET', `/v1/share/${s.code}/state`, { token: v.viewerToken, params: 'after=0' }))
+    const authorized = call('GET', `/v1/share/${s.code}/state`, { token: other.viewerToken, params: 'after=0' })
+    if (action === 'remove') await call('DELETE', `/v1/share/${s.code}/viewers/${v.viewerId}`, { token: s.hostToken })
+    else if (action === 'leave') await call('POST', `/v1/share/${s.code}/leave`, { token: v.viewerToken })
+    else {
+      // 模擬時鐘跳進閒置清理分支，同時維持 host 與另一觀眾存活，隔離逾期資格判定。
+      advance(VIEWER_IDLE_MS + 1)
+      share.hostSeen += VIEWER_IDLE_MS + 1
+      share.viewers.get(other.viewerId).lastSeen += VIEWER_IDLE_MS + 1
+      svc.sweep()
+    }
+    assert.equal(oldViewer.waiters.size, 0)
+    assert.equal(share.waiters.size, 1)
+    for (const [status, body] of await Promise.all(polls)) {
+      assert.equal(status, 401)
+      assert.equal(body.state, undefined)
+    }
+    await call('POST', `/v1/share/${s.code}/state`, { token: s.hostToken, body: { state: { reps: 2 } } })
+    assert.deepEqual((await authorized)[1].state, { reps: 2 })
+    assert.equal(share.waiters.size, 0)
+    assert.equal((await call('GET', `/v1/share/${s.code}/state`, { token: v.viewerToken }))[0], 401)
+  })
+}
+
+test('closing a share settles pending poll and removes close listener', async () => {
+  const { svc, call } = harness()
+  const [, s] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
+  const [, v] = await call('POST', `/v1/share/${s.code}/join`, { body: {} })
+  const res = new EventEmitter()
+  const share = svc._shares.get(s.code)
+  const viewer = share.viewers.get(v.viewerId)
+  const pending = svc.route('GET', `/v1/share/${s.code}/state`, { headers: { authorization: `Bearer ${v.viewerToken}` } },
+    res, async () => null, new URLSearchParams('after=0'))
+  await call('DELETE', `/v1/share/${s.code}`, { token: s.hostToken })
+  assert.equal((await pending)[0], 410)
+  assert.equal(res.listenerCount('close'), 0)
+  assert.equal(viewer.waiters.size, 0)
+  assert.equal(share.waiters.size, 0)
 })
