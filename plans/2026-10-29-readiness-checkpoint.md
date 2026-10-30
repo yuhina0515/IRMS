@@ -1,6 +1,36 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-30 actual native journal oracle)
+## Current checkpoint (2026-10-30 read-only reconciliation inspection)
+
+Baseline f7cd1d4 clean, CI41036086380 SUCCESS. Initial quota100%/34%, latest92%/33% remaining.
+One bounded test-only task complete: cfg(test) native read-only association/receipt inspection,
+explicit rejected/conflict/needsDecision/receiptMatched plus session abandoned/ended state. Uses
+shared bounded validation and original payload hash/count in one SELECT/read transaction. No
+production startup/UI/schema/IPC/acquisition hook. No devices, participant data or deployments.
+
+Reviewers caught init_database migration/finalization side effects; reconcile now dispatches BEFORE
+init, existing SQLITE_OPEN_READ_ONLY connection plus query_only and total_changes assertion. Open
+sessions stay open; missingDB not created, schema/read errors remain failure. Every inspection result
+retains journal and denies replay/journal-delete authority, including backup unseen/matched. Existing
+receipt is not proof of current history/row integrity or a reservation beyond transaction lifetime.
+
+New39actual synthetic browser/native cases (prior29+10inspection) in
+doc/recovery/reconciliation-probe-20261030.json, original19/29reports preserved.6newRustcases,
+full168passed/7ignored; fmt/Clippy passed;3normalCLIredaction cases/node syntax passed. Prior736
+frontend/typecheck/build not rerun, renderer unchanged; collector unchanged. Engineering/security
+final no blocker, read-only static reviews. See plans/2026-10-30-reconciliation-plan.md,
+doc/recovery/reconciliation-inspection.md and doc/coding log/log_20261030_reconciliation.md.
+Deliver scoped commit/push/update draftPR5; inspect new head CI before subsequent push.
+
+Next bounded software task: explicit cross-store deletion-intent/restore-history policy and startup
+recovery decisions before acquisition hookup. Inspection alone cannot authorize append or clearing;
+matching backup identities/receipts do not prove latest history. Preserve original binding/payload
+and abandoned/incomplete status; do not derive repaired endTime from arbitrary renderer timestamps,
+recreate/rebind sessions, resume exercises or silently discard journal. WebView persistence,
+quota/eviction/native process interruption remain later software-only gates. No universal school,
+country, demographic or clinical acceptance claim. No repeated broad scans.
+
+## Historical checkpoint (2026-10-30 actual native journal oracle)
 
 Baseline6ed5e05 clean; prior CI41030074994 SUCCESS. Initial remaining63%/37%, latest51%/35%.
 One bounded task complete: optional actual Rust/SQLite test-only oracle plus real Chrome IDB,

@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-10-30 read-only startup inspection** ([[log_20261030_reconciliation|Log]]): [39-case evidence and status](recovery/reconciliation-inspection.md); inspection skips initialization and preserves open sessions/journal. No automatic replay, timestamp repair or delete authority.
+
 - **2026-10-30 actual native journal oracle** ([[log_20261030_native_journal|Log]]): [29-case evidence and conservative policy](recovery/native-journal-oracle.md); real SQLite receipt retry and cross-store rejection. Backup divergence and startup end-time gate remain; no production replay.
 
 - **2026-10-30 isolated journal probe** ([[log_20261030_journal_probe|Log]]): [protocol/result](recovery/journal-prototype.md),19real-Chrome synthetic cases including owned-browser kill/reopen. Production unconnected; native sink simulated. CLI redaction and trailing-newline binding guard covered.

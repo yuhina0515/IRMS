@@ -1,5 +1,8 @@
 # Isolated browser journal with actual Rust/SQLite receipts
 
+Later extension: [read-only reconciliation inspection](reconciliation-inspection.md) adds10 cases
+and explicitly skips initialization for reconcile only. The29-case report below remains historical.
+
 The [recorded result](native-journal-probe-20261030.json) covers29 synthetic cases:19 existing
 Chrome IndexedDB cases and10 additional native integration cases. The prototype remains unconnected
 to production acquisition. No real devices, participant data or application database are used.

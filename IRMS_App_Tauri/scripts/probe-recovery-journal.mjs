@@ -173,10 +173,24 @@ try {
   if (nativeOracle) {
     // 真實 SQLite 交易完成後丟棄回覆；journal 不得據此自行刪除。
     const assert = condition => { if (!condition) throw new Error('Probe assertion failed') }
+    async function inspectNative(name, database, batch, expected) {
+      caseName = name
+      const before = await evaluate('j.peek()')
+      const reply = native('reconcile', database, batch)
+      if (expected === 'missingDatabase') assert(reply.status === expected)
+      else {
+        assert(reply.status === 'inspectedRecovery' && reply.automaticReplayAuthorized === false && reply.journalAcknowledgementAuthorized === false)
+        for (const [key, value] of Object.entries(expected)) assert(reply.inspection[key] === value)
+      }
+      assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(before))
+      cases.push(name)
+    }
     const begun = native('init')
     assert(begun.status === 'started')
     await check('native-original-binding-enqueued', `(async()=>{await reset();const b={...batch(2),...${JSON.stringify(begun.started)}};b.readings.forEach(r=>r.timestamp='2099-01-01T00:00:00.000Z');await j.enqueue(b);return (await j.stats()).rows===2})()`)
     const original = await evaluate('j.peek()')
+    await inspectNative('reconcile-open-unseen-retains-state-and-journal', 'native', original,
+      { status: 'needsDecision', abandoned: false, ended: false })
     caseName = 'native-commit-lost-reply-browser-kill-retry'
     assert(native('append', 'native', original).status === 'committed')
     await stopBrowser(); await startBrowser()
@@ -184,11 +198,14 @@ try {
     assert(JSON.stringify(replay) === JSON.stringify(original))
     const reply = native('append', 'native', replay), state = native('inspect')
     assert(reply.status === 'committed' && reply.count === 2 && state.rows === 2 && state.receipts === 1)
-    // 每個 oracle 都重新啟動 DB；現行 startup 會結束孤兒療程，不能視為恢復運動。
+    // append/inspect 會執行啟動孤兒收尾；唯讀 reconcile 分支不執行 init。
     assert(state.ended === 1 && state.abandoned === 1 && state.staleEnd === 1)
     cases.push(caseName)
-    caseName = 'native-changed-payload-conflicts-without-duplicate'
+    await inspectNative('reconcile-committed-abandoned-receipt-is-not-ack-authority', 'native', replay,
+      { status: 'receiptMatched', count: 2, abandoned: true, ended: true })
     const changed = structuredClone(replay); changed.readings[0].kneeAngle = 88
+    await inspectNative('reconcile-changed-payload-retains-original-journal', 'native', changed, { status: 'receiptConflict' })
+    caseName = 'native-changed-payload-conflicts-without-duplicate'
     assert(native('append', 'native', changed).status === 'rejected' && native('inspect').rows === 2)
     assert(await evaluate('j.stats().then(s=>s.rows)') === 2); cases.push(caseName)
     caseName = 'native-ack-before-journal-delete-interruption'
@@ -204,14 +221,17 @@ try {
     caseName = 'native-missing-database-retains-journal-no-create'
     assert(native('append', 'backup', pending).status === 'missingDatabase')
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-missing-database-does-not-create', 'backup', pending, 'missingDatabase')
     caseName = 'native-foreign-database-retains-original-journal'
     const foreign = native('init', 'foreign')
     assert(foreign.started.sessionId === pending.sessionId && foreign.started.storageIdentity !== pending.storageIdentity)
     assert(native('append', 'foreign', pending).status === 'rejected' && native('inspect', 'foreign').rows === 0)
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-foreign-binding-retains-journal', 'foreign', pending, { status: 'associationRejected' })
     caseName = 'native-missing-session-retains-original-journal'
     assert(native('append', 'native', { ...pending, sessionId: 99999 }).status === 'rejected')
     assert(native('inspect').rows === 2 && JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-missing-session-retains-journal', 'native', { ...pending, sessionId: 99999 }, { status: 'associationRejected' })
     // 同血統備份保留 identity；舊備份與目前刪除歷史不能僅靠 matching key 判別。
     assert(native('backup').status === 'backedUp')
     caseName = 'native-deleted-session-retains-journal-no-recreate'
@@ -220,15 +240,21 @@ try {
     const deleted = native('inspect')
     assert(deleted.rows === 0 && deleted.receipts === 0 && deleted.sessions === 0)
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-deleted-session-retains-journal', 'native', pending, { status: 'associationRejected' })
     caseName = 'native-recreated-numeric-id-rejects-old-binding'
     // SQLite AUTOINCREMENT 可能改變 ID，顯式 fixture 將重建場次固定為舊 ID。
     assert(native('recreate', 'native', pending).status === 'recreated')
     assert(native('append', 'native', pending).status === 'rejected' && native('inspect').rows === 0)
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-recreated-id-retains-old-binding', 'native', pending, { status: 'associationRejected' })
+    await inspectNative('reconcile-backup-unseen-needs-decision', 'backup', pending,
+      { status: 'needsDecision', abandoned: true, ended: true })
     caseName = 'native-backup-divergence-observed-replay-not-authorized'
     assert(native('append', 'backup', pending).status === 'committed')
     assert(native('inspect', 'backup').rows === 4 && native('inspect').rows === 0)
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    await inspectNative('reconcile-backup-matched-still-no-delete-authority', 'backup', pending,
+      { status: 'receiptMatched', count: 2, abandoned: true, ended: true })
   }
   report = { schemaVersion: 1, dataOrigin: 'synthetic', passed: cases.length, cases,
     sources: { 'src/services/recoveryJournalPrototype.ts': hash(source), 'scripts/probe-recovery-journal.mjs': hash(readFileSync(new URL(import.meta.url))) },
@@ -243,6 +269,7 @@ try {
       sourceHashes: Object.fromEntries(['recovery_oracle.rs', 'db.rs', 'commands.rs', 'migrations.rs', 'types.rs'].map(name =>
         [`src-tauri/src/${name}`, hash(readFileSync(new URL(`../src-tauri/src/${name}`, import.meta.url)))])),
       observedStartup: { abandoned: true, endedBeforeSyntheticTail: true, reconciliationImplemented: false },
+      readOnlyInspection: { prototype: true, skipsInitialization: true, readOnlyOpen: true, noReplayOrJournalAckAuthority: true },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

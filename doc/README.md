@@ -1,5 +1,9 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Startup inspection prototype (2026-10-30): [39-case evidence/status contract](recovery/reconciliation-inspection.md)
+> uses an existing read-only DB without initialization. Matching/conflicting/unseen receipts and
+> rejected associations preserve the journal; no status authorizes replay, deletion or timestamp repair.
+
 > Actual native journal oracle (2026-10-30): [29-case isolated evidence](recovery/native-journal-oracle.md)
 > connects Chrome IDB to real Rust/SQLite receipts with synthetic temporary data. Lost-reply retries
 > deduplicate; missing/foreign/deleted associations retain the journal. Startup abandoned/stale end

@@ -533,6 +533,83 @@ pub mod data_repo {
         Ok(())
     }
 
+    // 尚未接上正式啟動流程；核對結果不構成刪除 journal 或回補資料的授權。
+    #[cfg(test)]
+    #[derive(Debug, PartialEq, serde::Serialize)]
+    #[serde(tag = "status", rename_all = "camelCase")]
+    pub enum RecoveryInspection {
+        AssociationRejected,
+        ReceiptConflict,
+        NeedsDecision {
+            abandoned: bool,
+            ended: bool,
+        },
+        ReceiptMatched {
+            count: usize,
+            abandoned: bool,
+            ended: bool,
+        },
+    }
+
+    /// 單一唯讀快照同時核對 DB/session 身份、舊收據與場次狀態；不修復、不補寫。
+    #[cfg(test)]
+    pub fn inspect_recovery_batch(
+        conn: &mut Connection,
+        session_id: i64,
+        batch_id: &str,
+        readings: &[SensorReading],
+        expected_identity: &str,
+    ) -> rusqlite::Result<RecoveryInspection> {
+        crate::commands::validate_append_readings(readings)
+            .map_err(|_| rusqlite::Error::InvalidParameterName("invalid recovery batch".into()))?;
+        if session_id <= 0 || readings.is_empty() {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "invalid recovery batch".into(),
+            ));
+        }
+        validate_storage_identity(expected_identity)?;
+        validate_batch_id(batch_id)?;
+        let digest = payload_hash(readings);
+        let tx = conn.transaction()?;
+        let record = tx
+            .query_row(
+                "SELECT i.databaseId || '/' || s.storageKey, s.abandoned, s.endTime IS NOT NULL,
+                    r.payloadHash, r.rowCount
+             FROM sessions s JOIN storage_identity i ON i.singleton=1
+             LEFT JOIN reading_batch_receipts r ON r.sessionId=s.id AND r.batchId=?2
+             WHERE s.id=?1",
+                params![session_id, batch_id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, bool>(1)?,
+                        r.get::<_, bool>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                        r.get::<_, Option<usize>>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let result = match record {
+            Some((identity, abandoned, ended, hash, count)) if identity == expected_identity => {
+                match (hash, count) {
+                    (None, None) => RecoveryInspection::NeedsDecision { abandoned, ended },
+                    (Some(hash), Some(count)) if hash == digest && count == readings.len() => {
+                        RecoveryInspection::ReceiptMatched {
+                            count,
+                            abandoned,
+                            ended,
+                        }
+                    }
+                    _ => RecoveryInspection::ReceiptConflict,
+                }
+            }
+            _ => RecoveryInspection::AssociationRejected,
+        };
+        tx.commit()?;
+        Ok(result)
+    }
+
     /// payload-v1：欄位順序、位元組序與字串長度固定；±0 視為相同 JSON 數值。
     fn payload_hash(readings: &[SensorReading]) -> String {
         let mut hash = Sha256::new();
@@ -870,6 +947,7 @@ mod tests {
     // 將來的跨程序日誌必須綁定持久身份，不能只信任可能重用的數字 id。
     mod storage_binding {
         use super::*;
+        use data_repo::RecoveryInspection as RI;
         const BATCH: &str = "00000000-0000-4000-8000-000000000001";
         fn rows() -> Vec<SensorReading> {
             vec![SensorReading {
@@ -891,6 +969,243 @@ mod tests {
                     0
                 );
             }
+        }
+        #[test]
+        fn recovery_inspection_is_read_only_and_keeps_open_session_open() {
+            let mut conn = fresh_db();
+            let started = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let before = serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap();
+            let changes = conn.total_changes();
+            conn.pragma_update(None, "query_only", true).unwrap();
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &rows(),
+                    &started.storage_identity
+                )
+                .unwrap(),
+                RI::NeedsDecision {
+                    abandoned: false,
+                    ended: false
+                }
+            );
+            assert_eq!(conn.total_changes(), changes);
+            assert_eq!(
+                serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap(),
+                before
+            );
+            assert_empty(&conn);
+        }
+
+        #[test]
+        fn recovery_inspection_uses_original_hash_and_session_state_without_repair() {
+            let mut conn = fresh_db();
+            let started = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            data_repo::append_bound_batch(
+                &mut conn,
+                started.session_id,
+                BATCH,
+                &rows(),
+                &started.storage_identity,
+            )
+            .unwrap();
+            crate::migrations::finalize_orphaned_sessions(&conn, |_| {}).unwrap();
+            let before = serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap();
+            let changes = conn.total_changes();
+            conn.pragma_update(None, "query_only", true).unwrap();
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &rows(),
+                    &started.storage_identity
+                )
+                .unwrap(),
+                RI::ReceiptMatched {
+                    count: 1,
+                    abandoned: true,
+                    ended: true
+                }
+            );
+            for index in 0..7 {
+                let mut changed = rows();
+                match index {
+                    0 => changed[0].timestamp.push('x'),
+                    1 => changed[0].knee_angle += 1.0,
+                    2 => changed[0].thigh_angle += 1.0,
+                    3 => changed[0].shin_angle += 1.0,
+                    4 => changed[0].knee_roll += 1.0,
+                    5 => changed[0].thigh_roll += 1.0,
+                    _ => changed[0].shin_roll += 1.0,
+                }
+                assert_eq!(
+                    data_repo::inspect_recovery_batch(
+                        &mut conn,
+                        started.session_id,
+                        BATCH,
+                        &changed,
+                        &started.storage_identity
+                    )
+                    .unwrap(),
+                    RI::ReceiptConflict
+                );
+            }
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    started.session_id,
+                    BATCH,
+                    &[rows(), rows()].concat(),
+                    &started.storage_identity
+                )
+                .unwrap(),
+                RI::ReceiptConflict
+            );
+            assert_eq!(conn.total_changes(), changes);
+            assert_eq!(
+                serde_json::to_value(sessions_repo::list(&conn).unwrap()).unwrap(),
+                before
+            );
+            assert_eq!(
+                sessions_repo::get_data(&conn, started.session_id, None)
+                    .unwrap()
+                    .len(),
+                1
+            );
+        }
+
+        #[test]
+        fn recovery_inspection_rejects_foreign_or_deleted_association_before_receipt() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let b = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            data_repo::append_bound_batch(
+                &mut conn,
+                b.session_id,
+                BATCH,
+                &rows(),
+                &b.storage_identity,
+            )
+            .unwrap();
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    b.session_id,
+                    BATCH,
+                    &rows(),
+                    &a.storage_identity
+                )
+                .unwrap(),
+                RI::AssociationRejected
+            );
+            sessions_repo::delete(&conn, a.session_id).unwrap();
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    a.session_id,
+                    BATCH,
+                    &rows(),
+                    &a.storage_identity
+                )
+                .unwrap(),
+                RI::AssociationRejected
+            );
+            assert_eq!(
+                serde_json::to_value(RI::ReceiptMatched {
+                    count: 1,
+                    abandoned: false,
+                    ended: true
+                })
+                .unwrap(),
+                serde_json::json!({"status":"receiptMatched","count":1,"abandoned":false,"ended":true})
+            );
+        }
+
+        #[test]
+        fn recovery_inspection_rejects_unbounded_or_malformed_inputs() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            let mut bad = rows();
+            bad[0].knee_angle = f64::NAN;
+            let mut long = rows();
+            long[0].timestamp = "x".repeat(129);
+            for readings in [vec![], bad, long, vec![rows()[0].clone(); 1001]] {
+                assert!(data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    a.session_id,
+                    BATCH,
+                    &readings,
+                    &a.storage_identity
+                )
+                .is_err());
+            }
+            assert!(data_repo::inspect_recovery_batch(
+                &mut conn,
+                a.session_id,
+                BATCH,
+                &rows(),
+                "private invalid identity"
+            )
+            .is_err());
+            assert_empty(&conn);
+        }
+        #[test]
+        fn recovery_inspection_preserves_normal_end_and_signed_zero_equivalence() {
+            let mut conn = fresh_db();
+            let a = sessions_repo::start_bound(&mut conn, &sample_session_input()).unwrap();
+            sessions_repo::end(&conn, a.session_id, 0).unwrap();
+            let mut readings = rows();
+            readings[0].knee_angle = 0.0;
+            data_repo::append_bound_batch(
+                &mut conn,
+                a.session_id,
+                BATCH,
+                &readings,
+                &a.storage_identity,
+            )
+            .unwrap();
+            readings[0].knee_angle = -0.0;
+            conn.pragma_update(None, "query_only", true).unwrap();
+            assert_eq!(
+                data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    a.session_id,
+                    BATCH,
+                    &readings,
+                    &a.storage_identity
+                )
+                .unwrap(),
+                RI::ReceiptMatched {
+                    count: 1,
+                    abandoned: false,
+                    ended: true
+                }
+            );
+        }
+
+        #[test]
+        fn recovery_inspection_schema_failure_is_error_without_migration() {
+            let mut conn = Connection::open_in_memory().unwrap();
+            conn.pragma_update(None, "query_only", true).unwrap();
+            assert!(data_repo::inspect_recovery_batch(
+                &mut conn,
+                1,
+                BATCH,
+                &rows(),
+                &format!("{}/{}", "a".repeat(32), "b".repeat(32))
+            )
+            .is_err());
+            let tables: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!((tables, conn.total_changes()), (0, 0));
         }
         #[test]
         fn refuses_foreign_database_even_when_numeric_id_and_batch_match() {

@@ -87,7 +87,13 @@ fn execute() -> Result<Value, ()> {
     if request.op != "init" && !exists {
         return Ok(json!({"status":"missingDatabase"}));
     }
-    let mut conn = db::init_database(&path).map_err(|_| ())?;
+    // 核對分支不能呼叫 init：否則只看狀態也會遷移或把未結束場次標成 abandoned。
+    let mut conn = if request.op == "reconcile" {
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|_| ())?
+    } else {
+        db::init_database(&path).map_err(|_| ())?
+    };
     match request.op.as_str() {
         "init" => {
             if !db::sessions_repo::list(&conn).map_err(|_| ())?.is_empty() {
@@ -100,11 +106,30 @@ fn execute() -> Result<Value, ()> {
             let started = db::sessions_repo::start_bound(&mut conn, &input).map_err(|_| ())?;
             Ok(json!({"status":"started","started":started}))
         }
-        "append" => {
+        "append" | "reconcile" => {
             let batch = request.batch.ok_or(())?;
             validate_append_readings(&batch.readings).map_err(|_| ())?;
             if batch.session_id <= 0 || batch.readings.is_empty() {
                 return Err(());
+            }
+            if request.op == "reconcile" {
+                // 不啟動孤兒收尾；核對本身只允許 SELECT，且不得改任何計數。
+                conn.pragma_update(None, "query_only", true)
+                    .map_err(|_| ())?;
+                let before = conn.total_changes();
+                let result = db::data_repo::inspect_recovery_batch(
+                    &mut conn,
+                    batch.session_id,
+                    &batch.batch_id,
+                    &batch.readings,
+                    &batch.storage_identity,
+                )
+                .map_err(|_| ())?;
+                if conn.total_changes() != before {
+                    return Err(());
+                }
+                return Ok(json!({"status":"inspectedRecovery","inspection":result,
+                    "automaticReplayAuthorized":false,"journalAcknowledgementAuthorized":false}));
             }
             match db::data_repo::append_bound_batch(
                 &mut conn,
