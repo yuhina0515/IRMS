@@ -21,6 +21,8 @@ import { useStore } from '../store/useStore'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
+  CalibrationProfileInput,
+  CalibrationProfileRow,
   MobilityRecordInput,
   MobilityRecordRow,
   CustomAction,
@@ -177,6 +179,12 @@ export const irms: IrmsApi = {
     list: () => invoke<MobilityRecordRow[]>('mobility_list'),
     add: (input: MobilityRecordInput) => invoke<MobilityRecordRow>('mobility_add', { input }),
     remove: (id: number) => invoke<void>('mobility_delete', { id })
+  },
+  calibrationProfiles: {
+    list: () => invoke<CalibrationProfileRow[]>('calibration_profiles_list'),
+    add: (input: CalibrationProfileInput) =>
+      invoke<CalibrationProfileRow>('calibration_profiles_add', { input }),
+    remove: (id: string) => invoke<void>('calibration_profiles_delete', { id })
   },
   data: {
     async appendBatch(sessionId: number, readings: SensorReading[]) {

@@ -25,6 +25,8 @@ export interface TriggerEvents {
   onOverExtension(active: boolean): void
   /** 超出舒適角度的狀態變化(只做畫面提示) */
   onComfortExceeded?(active: boolean): void
+  /** Hyperextension state change (knee below the tolerance). The alarm path also fires via onOverExtension. */
+  onHyperextension?(active: boolean): void
 }
 
 /** 引擎階段:idle=等待進區,holding=區間內維持中,restPending=已計一下、等回休息位 */
@@ -37,6 +39,7 @@ export class TriggerEngine {
   private graceStartedAt: number | null = null
   private alarmActive = false
   private overComfort = false
+  private hyperextension = false
 
   constructor(
     private readonly events: TriggerEvents,
@@ -55,7 +58,13 @@ export class TriggerEngine {
     const limits = input.limits ?? NO_LIMITS
 
     // ── 個人角度範圍:獨立於達標狀態機,任何時刻都判定(一律比膝角)──
-    const overExtended = limits.limit != null && sample.knee > limits.limit
+    // Hyperextension is a safety condition on the same alarm path as the personal limit.
+    const hyper = sample.hyperextended === true
+    if (hyper !== this.hyperextension) {
+      this.hyperextension = hyper
+      this.events.onHyperextension?.(hyper)
+    }
+    const overExtended = (limits.limit != null && sample.knee > limits.limit) || hyper
     if (overExtended !== this.alarmActive) {
       this.alarmActive = overExtended
       this.events.onOverExtension(overExtended)
@@ -138,6 +147,10 @@ export class TriggerEngine {
     if (this.overComfort) {
       this.overComfort = false
       this.events.onComfortExceeded?.(false)
+    }
+    if (this.hyperextension) {
+      this.hyperextension = false
+      this.events.onHyperextension?.(false)
     }
     this.events.onHoldProgress(0)
   }

@@ -58,6 +58,14 @@ export function restThreshold(min: number): number {
 export const HYSTERESIS_DEG = 4
 /** 出區寬限(ms):保持中短暫跳出(雜訊尖峰)不立即清進度,逾時才算真的離區 */
 export const EXIT_GRACE_MS = 250
+/**
+ * Hyperextension tolerance (deg). A signed knee below -HYPEREXTENSION_TOLERANCE_DEG is a safety condition
+ * (unified calibration only; legacy methods never go negative). PROVISIONAL default with no evidence for a
+ * dynamic-threshold value: 5 deg is a static/passive convention in the literature (knowledge base guide 13,
+ * doc/knowledge-base/guides/13-hyperextension-and-alert-wording.md). It must be set from the bench measurement
+ * error (SEM / MDC95, validation items V01 and V02), not from this constant.
+ */
+export const HYPEREXTENSION_TOLERANCE_DEG = 5
 /** segment 類動作判定膝近乎打直所允許的最大彎曲(度) */
 export const SEGMENT_KNEE_MAX = 15
 
@@ -71,6 +79,8 @@ export interface MetricSample {
   knee: number
   /** 膝直門檻 max(SEGMENT_KNEE_MAX, tol);joint_angle 為 null */
   kneeMax: number | null
+  /** Signed knee is past the hyperextension tolerance (safety). Absent = false. */
+  hyperextended?: boolean
 }
 
 /** 主指標的判定區間(正規化空間) */
@@ -117,7 +127,8 @@ export function computeMetricSample(
     value,
     knee: angles.knee,
     kneeMax,
-    kneeStraightOk: kneeMax == null ? true : angles.knee <= kneeMax
+    kneeStraightOk: kneeMax == null ? true : angles.knee <= kneeMax,
+    hyperextended: angles.knee < -HYPEREXTENSION_TOLERANCE_DEG
   }
 }
 

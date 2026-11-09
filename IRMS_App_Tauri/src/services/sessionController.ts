@@ -48,6 +48,8 @@ class SessionController {
 
   /** 引擎目前認定的超限狀態(僅是「想不想響」,實際輸出由 applyAlarmOutput 決定) */
   private wantAlarm = false
+  /** True while the alarm is caused by knee hyperextension (picks the voice wording). */
+  private hyperextended = false
   /** 手動靜音的到期時間戳;0 = 未靜音 */
   private alarmSilencedUntil = 0
   /** 上次報讀超限語音的時間;0 = 尚未報讀(警報解除即歸零,下次超限立刻報讀) */
@@ -117,13 +119,17 @@ class SessionController {
         // 超出舒適角度只做畫面提示,不送任何裝置指令
         if (useStore.getState().session.overComfort !== active) useStore.getState().patchSession({ overComfort: active })
       },
+      onHyperextension: (active) => {
+        this.hyperextended = active
+        if (active) useStore.getState().log('⚠ Knee hyperextension beyond tolerance.')
+      },
       onOverExtension: (active) => {
         // 引擎只回報「是否超限」;要不要真的鳴響由 applyAlarmOutput 每筆封包重算,
         // 因為它還取決於 Session 是否進行中、以及使用者有沒有按靜音。
         this.wantAlarm = active
         // 回到安全範圍即解除靜音,下一次真正的超限才能立刻鳴響
         if (!active) this.alarmSilencedUntil = 0
-        if (active) useStore.getState().log('⚠ Beyond personal limit angle.')
+        if (active && !this.hyperextended) useStore.getState().log('⚠ Beyond personal limit angle.')
       }
     })
 
@@ -199,7 +205,7 @@ class SessionController {
       const now = Date.now()
       if (now - this.lastAlarmSpokenAt >= ALARM_VOICE_REPEAT_MS) {
         this.lastAlarmSpokenAt = now
-        speak(getT().voice.overLimit, 'safety')
+        speak(this.hyperextended ? getT().voice.hyperextension : getT().voice.overLimit, 'safety')
       }
     } else {
       this.lastAlarmSpokenAt = 0
@@ -304,6 +310,9 @@ class SessionController {
   private async doStartSession(): Promise<void> {
     const state = useStore.getState()
     const generation = this.connectionGeneration
+    if (state.settings.calibrationMethod === 'unified' && state.linkTruncated) {
+      throw new Error('Unified calibration needs the gravity vectors; the BLE link is truncated')
+    }
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
     // 會與當時的判定行為對不上,事後無法解讀

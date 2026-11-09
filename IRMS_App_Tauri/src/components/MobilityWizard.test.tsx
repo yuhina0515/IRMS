@@ -27,6 +27,11 @@ async function capture(angles: number[], duration: number): Promise<void> {
   await act(async () => { await vi.advanceTimersByTimeAsync(duration - angles.length * 40) })
 }
 
+// MobilityTrend pulls in the unified flow, which imports the real bluetooth service.
+vi.mock('../services/bluetooth', () => ({
+  bluetoothService: { onRawMotion: () => () => {}, enableRawStream: vi.fn().mockResolvedValue(undefined) }
+}))
+
 describe('MobilityWizard intro', () => {
   it('needs a side, then starts; deselecting every movement blocks start', async () => {
     render(<MobilityWizard onClose={() => {}} />)
@@ -66,12 +71,12 @@ describe('MobilityTrend', () => {
 
   it('discards a measurement on disconnect and keeps it closed after reconnect', async () => {
     installIrmsStub()
-    const { rerender } = render(<MobilityTrend />)
+    const { rerender } = render(<MobilityTrend legacy />)
     await userEvent.click(screen.getByTestId('mobility-open'))
     expect(screen.getByText(getT().mobility.title)).toBeInTheDocument()
-    rerender(<MobilityTrend disabled />)
+    rerender(<MobilityTrend legacy disabled />)
     expect(screen.queryByText(getT().mobility.title)).toBeNull()
-    rerender(<MobilityTrend />)
+    rerender(<MobilityTrend legacy />)
     expect(screen.queryByText(getT().mobility.title)).toBeNull()
   })
 
@@ -82,7 +87,7 @@ describe('MobilityTrend', () => {
     const stub = installIrmsStub()
     let finishSave!: () => void
     stub.mobility.add.mockImplementationOnce(() => new Promise<void>((resolve) => { finishSave = resolve }))
-    render(<MobilityTrend />)
+    render(<MobilityTrend legacy />)
     fireEvent.click(screen.getByTestId('mobility-open'))
     for (const box of screen.getAllByRole('checkbox').slice(1)) fireEvent.click(box)
     fireEvent.click(screen.getByRole('button', { name: getT().common.start }))

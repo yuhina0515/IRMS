@@ -4,8 +4,12 @@ import {
   comparableTrend,
   heldPeak,
   HOLD_MIN_SAMPLES,
+  MOBILITY_UNIFIED_SCHEMA,
+  methodKey,
   MOVEMENTS,
   solveMovement,
+  trendWithBreaks,
+  type MobilityIdentity,
   type MobilityRecord,
   type MovementResult
 } from './mobilityC'
@@ -258,5 +262,82 @@ describe('mobility record', () => {
     expect(comparableTrend(records, right)).toEqual([right])
     expect(comparableTrend(records, left)).toEqual([left])
     expect(comparableTrend(records, base)).toHaveLength(2)
+  })
+
+  describe('method identity (migration 10)', () => {
+    const id = (over: Partial<MobilityIdentity> = {}): MobilityIdentity => ({
+      schema: MOBILITY_UNIFIED_SCHEMA,
+      side: 'left',
+      referenceKind: 'straight',
+      posture: 'standing',
+      calibrationId: 'c1',
+      ...over
+    })
+    const mk = (t: string, total: number, identity?: Partial<MobilityIdentity>): MobilityRecord => ({
+      measuredAt: t,
+      movementSet: ['kneeFlexion'],
+      peaks: { kneeFlexion: total },
+      totalDeg: total,
+      ...(identity ? id(identity) : {})
+    })
+
+    it('stores the identity on the record', () => {
+      const rec = buildMobilityRecord([result(100)], 't', id())
+      expect(rec).toMatchObject({ schema: 2, side: 'left', referenceKind: 'straight', posture: 'standing' })
+      expect(buildMobilityRecord([result(100)], 't')?.schema).toBeUndefined()
+    })
+
+    it('does not compare legacy rows with unified rows, nor across reference kind, posture or side', () => {
+      const current = mk('2026-10-15', 120, {})
+      const all = [
+        mk('2026-09-01', 90),
+        mk('2026-10-01', 110, {}),
+        mk('2026-10-02', 130, { referenceKind: 'neutral' }),
+        mk('2026-10-03', 100, { posture: 'longSitting' }),
+        mk('2026-10-04', 80, { side: 'right' }),
+        mk('2026-10-05', 115, { calibrationId: 'c2' }),
+        current
+      ]
+      const same = comparableTrend(all, current)
+      expect(same.map((r) => r.measuredAt)).toEqual(['2026-10-01', '2026-10-05', '2026-10-15'])
+    })
+
+    it('puts an explicit separator wherever the method changes, never inside one method', () => {
+      // Migration 10 tags pre-unified rows with schema 1 and their leg.
+      const legacy = (t: string, total: number): MobilityRecord => ({ ...mk(t, total), schema: 1, side: 'left' })
+      const current = mk('2026-10-15', 120, {})
+      const entries = trendWithBreaks(
+        [legacy('2026-09-01', 90), legacy('2026-09-10', 100), mk('2026-10-01', 110, {}), mk('2026-10-05', 115, { calibrationId: 'c2' }), current],
+        current
+      )
+      expect(entries.map((e) => (e.kind === 'methodBreak' ? '|' : e.record.measuredAt.slice(5)))).toEqual([
+        '09-01',
+        '09-10',
+        '|',
+        '10-01',
+        '10-05',
+        '10-15'
+      ])
+    })
+
+    it('never lists the other leg or an unknown leg in the history of this leg', () => {
+      const current = mk('2026-10-15', 120, {})
+      const entries = trendWithBreaks([mk('2026-09-01', 90), mk('2026-10-04', 80, { side: 'right' }), current], current)
+      expect(entries).toEqual([{ kind: 'record', record: current }])
+    })
+
+    it('has no separator when every record shares one method', () => {
+      const current = mk('b', 2)
+      expect(trendWithBreaks([mk('a', 1), current], current).some((e) => e.kind === 'methodBreak')).toBe(false)
+    })
+  })
+})
+
+describe('methodKey for migrated legacy rows (schema 1)', () => {
+  it('keeps left and right legacy records in separate series, apart from unified ones', () => {
+    const l = methodKey({ schema: 1, side: 'left' })
+    const r = methodKey({ schema: 1, side: 'right' })
+    expect(l).not.toBe(r)
+    expect(l).not.toBe(methodKey({ schema: MOBILITY_UNIFIED_SCHEMA, side: 'left', referenceKind: 'straight', posture: 'standing' }))
   })
 })

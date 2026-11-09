@@ -155,6 +155,29 @@ pub fn mobility_delete(state: tauri::State<DbState>, id: i64) -> Result<(), Stri
 }
 
 #[tauri::command]
+pub fn calibration_profiles_list(
+    state: tauri::State<DbState>,
+) -> Result<Vec<crate::types::CalibrationProfileRow>, String> {
+    let conn = lock_db(&state)?;
+    crate::db::calibration_repo::list(&conn).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn calibration_profiles_add(
+    state: tauri::State<DbState>,
+    input: crate::types::CalibrationProfileInput,
+) -> Result<crate::types::CalibrationProfileRow, String> {
+    let mut conn = lock_db(&state)?;
+    crate::db::calibration_repo::add(&mut conn, &input).map_err(to_err)
+}
+
+#[tauri::command]
+pub fn calibration_profiles_delete(state: tauri::State<DbState>, id: String) -> Result<(), String> {
+    let conn = lock_db(&state)?;
+    crate::db::calibration_repo::delete(&conn, &id).map_err(to_err)
+}
+
+#[tauri::command]
 pub fn angle_ranges_delete(state: tauri::State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_db(&state)?;
     angle_ranges_repo::delete(&conn, id).map_err(to_err)

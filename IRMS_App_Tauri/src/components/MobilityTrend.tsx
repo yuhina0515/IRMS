@@ -2,10 +2,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { irms } from '../platform/irmsApi'
 import type { MobilityRecordRow } from '@shared/types'
-import { comparableTrend, MOVEMENT_ORDER, type MobilityRecord, type MovementId } from '../services/mobilityC'
+import { comparableTrend, MOVEMENT_ORDER, trendWithBreaks, type MobilityRecord, type MovementId } from '../services/mobilityC'
 import { useLocale, useT } from '../i18n'
 import { DATE_TIME, formatDateTime, formatNumber } from '../i18n/format'
 import { MobilityWizard } from './MobilityWizard'
+import { CalibrationFlow } from './CalibrationFlow'
 
 const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   const ids = r.movementSet.split('+').filter((x): x is MovementId => (MOVEMENT_ORDER as string[]).includes(x))
@@ -18,10 +19,22 @@ const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   } catch {
     // detail is informational; the total and set key are authoritative
   }
-  return { measuredAt: r.measuredAt, movementSet: ids, peaks, side, totalDeg: r.totalDeg }
+  return {
+    measuredAt: r.measuredAt,
+    movementSet: ids,
+    peaks,
+    totalDeg: r.totalDeg,
+    schema: r.schema,
+    // Column (migration 10) first; pre-migration wizard rows only carry the side in detail.
+    side: r.side ?? side,
+    referenceKind: r.referenceKind,
+    posture: r.posture,
+    calibrationId: r.calibrationId
+  }
 }
 
-export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX.Element {
+/** `legacy` opens the old mobility wizard (developer toggle); otherwise the unified flow with the mobility preset. */
+export function MobilityTrend({ disabled = false, legacy = false }: { disabled?: boolean; legacy?: boolean }): JSX.Element {
   const m = useT()
   const c = m.mobility
   const locale = useLocale()
@@ -43,6 +56,8 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
   const records = (rows ?? []).map(toRecord)
   const latest = records[0] // list() is newest first
   const same = latest ? comparableTrend(records, latest) : []
+  const entries = latest ? trendWithBreaks(records, latest) : []
+  const hasBreak = entries.some((e) => e.kind === 'methodBreak')
   const best = same.length ? Math.max(...same.map((r) => r.totalDeg)) : null
   const names = latest ? latest.movementSet.map((id) => c.movementNames[id]).join(m.common.listSeparator) : ''
   const fmt = (n: number): string => formatNumber(locale, n, 0)
@@ -72,16 +87,26 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
           {c.startMeasure}
         </button>
       </div>
-      {same.length > 1 && (
+      {(same.length > 1 || hasBreak) && (
         <ul className="v3-scope" data-testid="mobility-history">
-          {same.slice(-8).reverse().map((r) => (
-            <li key={r.measuredAt} className="ok">
-              {formatDateTime(locale, new Date(r.measuredAt), DATE_TIME)} · {fmt(r.totalDeg)}°
-            </li>
-          ))}
+          {entries
+            .slice(-10)
+            .reverse()
+            .map((e, i) =>
+              e.kind === 'methodBreak' ? (
+                <li key={`break-${i}`} className="warn" data-testid="mobility-method-break">
+                  {c.methodBreak}
+                </li>
+              ) : (
+                <li key={e.record.measuredAt} className="ok">
+                  {formatDateTime(locale, new Date(e.record.measuredAt), DATE_TIME)} · {fmt(e.record.totalDeg)}°
+                </li>
+              )
+            )}
         </ul>
       )}
-      {open && !disabled && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && !disabled && legacy && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && !disabled && !legacy && <CalibrationFlow preset="mobility" onClose={() => setOpen(false)} onApplied={reload} />}
     </>
   )
 }

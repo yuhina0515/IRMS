@@ -7,6 +7,8 @@ import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { CalibrationWizardB } from '../components/CalibrationWizardB'
+import { CalibrationFlow } from '../components/CalibrationFlow'
+import type { Preset } from '../services/calibrationFlow'
 import { MobilityTrend } from '../components/MobilityTrend'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
@@ -174,11 +176,19 @@ function CalibrationPane(): JSX.Element {
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardBOpen, setWizardBOpen] = useState(false)
+  const [flowPreset, setFlowPreset] = useState<Preset | null>(null)
+  const [legacyOn, setLegacyOn] = useState(false)
+  // A hand edit of a calibration number makes the wizard provenance untrue: mark it 'manual'
+  // (it cannot be detected retroactively, so this only applies from now on).
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
-    setSettings({ [key]: value } as Partial<Settings>)
+    setSettings({ [key]: value, calibrationMethod: 'manual', calibrationId: null } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
   const calibrationLocked = useStore((s) => s.session.running || s.session.id != null)
+  // The Euler-era fields below are not what a unified profile reads, and flipping the method to 'manual' would
+  // drop its signed knee (hyperextension alarm). Unified profiles are changed only through the flow.
+  const unified = settings.calibrationMethod === 'unified'
+  const manualLocked = calibrationLocked || unified
   // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
   const linkTruncated = useStore((s) => s.linkTruncated)
   const m = useT()
@@ -214,19 +224,56 @@ function CalibrationPane(): JSX.Element {
               : mc.notCalibrated}
           </p>
         </div>
-        <button className="btn btn-primary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
-          {settings.lastCalibratedAt ? mc.recalibrate : mc.start}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          {settings.calibrationMethod === 'unified' && (
+            <button
+              className="btn btn-secondary"
+              data-testid="flow-quick-rezero"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setFlowPreset('quickRezero')}
+            >
+              {mc.quickRezeroStart}
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            data-testid="flow-open"
+            disabled={!isConnected || calibrationLocked}
+            onClick={() => setFlowPreset('calibrate')}
+          >
+            {settings.lastCalibratedAt ? mc.recalibrate : mc.unifiedStart}
+          </button>
+        </div>
       </div>
-      <button
-        className="btn btn-secondary"
-        data-testid="calib-b-open"
-        disabled={!isConnected || calibrationLocked}
-        onClick={() => setWizardBOpen(true)}
-      >
-        {m.calibrationB.title} ({m.calibrationB.beta})
-      </button>
-      <MobilityTrend disabled={!isConnected} />
+      <p className="field-hint" data-testid="calibration-summary">
+        {mc.summary({
+          method: mc.method[settings.calibrationMethod],
+          reference: settings.referenceKind ? mc.referenceKind[settings.referenceKind] : '-',
+          quality: settings.calibrationQuality ? mc.qualityShort[settings.calibrationQuality] : '-'
+        })}
+      </p>
+      <label className="field-hint">
+        <input type="checkbox" data-testid="legacy-toggle" checked={legacyOn} onChange={(e) => setLegacyOn(e.target.checked)} /> {mc.legacyToggle}
+      </label>
+      {legacyOn && (
+        <>
+          <p className="field-hint">{mc.legacyHint}</p>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-secondary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
+              {mc.start} (A)
+            </button>
+            <button
+              className="btn btn-secondary"
+              data-testid="calib-b-open"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setWizardBOpen(true)}
+            >
+              {m.calibrationB.title} ({m.calibrationB.beta})
+            </button>
+          </div>
+        </>
+      )}
+      <MobilityTrend disabled={!isConnected || (calibrationLocked && !legacyOn)} legacy={legacyOn} />
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>
@@ -241,26 +288,28 @@ function CalibrationPane(): JSX.Element {
       <details className="adv-fold">
         <summary>{mc.manualSummary}</summary>
         <p className="field-hint">{mc.manualHint}</p>
+        {unified && <p className="field-hint" data-testid="manual-unified-note">{mc.manualUnifiedNote}</p>}
         <div className="row">
-          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
-          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
+          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={manualLocked} />
+          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={manualLocked} />
         </div>
         <div className="row">
-          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
-          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={manualLocked} />
+          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={manualLocked} />
         </div>
-        <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
+        <button className="btn btn-secondary" disabled={manualLocked} onClick={quickZero}>
           {mc.quickZero}
         </button>
       </details>
+      {flowPreset && <CalibrationFlow preset={flowPreset} onClose={() => setFlowPreset(null)} />}
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
       {wizardBOpen && <CalibrationWizardB onClose={() => setWizardBOpen(false)} />}
     </>

@@ -1,3 +1,5 @@
+> **Superseded 2026-10-15** by [2026-10-15-calibration-unified-plan.md](2026-10-15-calibration-unified-plan.md). Kept for history; do not extend.
+
 # Calibration strategy C: relative range of motion (plan, 2026-10-03)
 
 Status: draft architecture. Direction decided by the user on 2026-10-03; everything below the "Direction" section is a

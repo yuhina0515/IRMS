@@ -339,7 +339,12 @@ function buildCalibrationPatchFromEuler(
     proximalZeroRaw: effBase.thigh,
     distalZeroRaw: effBase.shin,
     proximalRollZeroRaw: effBase.thighRoll,
-    distalRollZeroRaw: effBase.shinRoll
+    distalRollZeroRaw: effBase.shinRoll,
+    calibrationMethod: 'legacyAEuler',
+    firmwareProtocol: 'euler',
+    referenceKind: 'straight',
+    referencePosture: 'standing',
+    calibrationQuality: null
   }
   return { ok: true, patch, couplingWarning }
 }
@@ -415,9 +420,23 @@ function buildCalibrationPatchFromVectors(
     distalHingeAxis,
     proximalZeroAccel: baseThigh,
     distalZeroAccel: baseShin,
-    kneeZeroRaw: vectorAngleDeg(baseThigh, baseShin)
+    kneeZeroRaw: vectorAngleDeg(baseThigh, baseShin),
+    calibrationMethod: 'legacyAVector',
+    firmwareProtocol: 'vector',
+    referenceKind: 'straight',
+    referencePosture: 'standing',
+    calibrationQuality: null
   }
   return { ok: true, patch, couplingWarning }
+}
+
+/** Remove the component along the axis and renormalise; returns the input unchanged without an axis or when degenerate. */
+function orthogonalToAxis(v: AccelVector, axis: AccelVector | null | undefined): AccelVector {
+  if (!axis) return v
+  const d = v.x * axis.x + v.y * axis.y + v.z * axis.z
+  const r = { x: v.x - d * axis.x, y: v.y - d * axis.y, z: v.z - d * axis.z }
+  const n = Math.hypot(r.x, r.y, r.z)
+  return n < 1e-6 ? v : { x: r.x / n, y: r.y / n, z: r.z / n }
 }
 
 /**
@@ -441,11 +460,20 @@ export function buildQuickZeroPatch(raw: RawAngles, settings: Settings): Partial
   }
   if (raw.thighAccel && raw.shinAccel) {
     // 沿用既有屈曲軸(貼裝方向沒變,只是重新定義「零位」是哪個姿勢),只重設基準向量本身。
-    patch.proximalZeroAccel = raw.thighAccel
-    patch.distalZeroAccel = raw.shinAccel
+    // 基準向量必須與屈曲軸垂直,否則 {軸, 軸×基準, 基準} 不再正交、基準姿勢本身就讀不到 0°
+    // (calibration plan finding X1);姿勢偏離屈曲平面的分量在這裡被投影掉。
+    patch.proximalZeroAccel = orthogonalToAxis(raw.thighAccel, settings.proximalHingeAxis)
+    patch.distalZeroAccel = orthogonalToAxis(raw.shinAccel, settings.distalHingeAxis)
     patch.kneeZeroRaw = vectorAngleDeg(raw.thighAccel, raw.shinAccel)
   }
   return patch
+}
+
+/** Fresh id for one wizard run; stored as `calibrationId` and later in the profile row. */
+export function newCalibrationId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  if (c?.randomUUID) return c.randomUUID()
+  return `cal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 /**

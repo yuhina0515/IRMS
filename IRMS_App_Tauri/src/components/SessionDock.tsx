@@ -7,6 +7,8 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
+import { zeroIsUpright } from '../services/calibrationCore'
+import { wearingCheck, wearingProfile } from '../services/calibrationRuntime'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
 import { SessionSaveControl } from './SessionSaveControl'
@@ -39,6 +41,10 @@ export function startBlocker(s: {
   simulated: boolean
   running: boolean
   finishing?: boolean
+  /** The selected action is a segment trigger but the calibration zero is not an upright leg. */
+  segmentNeedsUprightZero?: boolean
+  /** A unified calibration is active but the BLE link is truncated, so the gravity vectors never arrive. */
+  unifiedLinkTruncated?: boolean
 }): StartBlocker | null {
   if (s.finishing) return 'finishing'
   if (s.running) return 'running'
@@ -49,6 +55,8 @@ export function startBlocker(s: {
   // 2026-09-25 使用者裁定:未校準不得開始。實測證明角度正確性取決於校準
   // (衣物墊高讓感測器不平行);示範模式的模擬姿態本身就在校準座標系,不受此限。
   if (!s.calibrated && !s.simulated) return 'notCalibrated'
+  if (s.unifiedLinkTruncated) return 'unifiedNeedsVectors'
+  if (s.segmentNeedsUprightZero) return 'segmentNeedsUprightZero'
   return null
 }
 
@@ -58,6 +66,8 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const setParams = useStore((s) => s.setParams)
   const protocol = useStore((s) => s.settings.protocol)
   const calibrated = useStore((s) => s.settings.lastCalibratedAt != null)
+  const unifiedLinkTruncated = useStore((s) => s.settings.calibrationMethod === 'unified' && s.linkTruncated)
+  const zeroUpright = useStore((s) => zeroIsUpright(s.settings))
   const actions = useStore((s) => s.customActions)
   const selectedActionId = useStore((s) => s.selectedActionId)
   const selectAction = useStore((s) => s.selectAction)
@@ -72,6 +82,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const running = session.running
   const protocolOk = isProtocolSupported(protocol)
   const fwBusy = firmwareUpdateBusy(fwStatus)
+  const selectedTrigger = actions.find((a) => a.id === selectedActionId)?.triggerType
   const blocker = startBlocker({
     protocolOk,
     fwBusy,
@@ -80,11 +91,30 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     calibrated,
     simulated: bluetoothService.isSimulated,
     running,
-    finishing: !running && session.id != null
+    finishing: !running && session.id != null,
+    unifiedLinkTruncated,
+    segmentNeedsUprightZero: selectedTrigger != null && selectedTrigger !== 'joint_angle' && !zeroUpright
   })
   const canStart = blocker == null
 
   const handleStart = async (): Promise<void> => {
+    // Wearing check against the stored unified reference: a turned strap or shifted sensor is reported before the
+    // session, never silently corrected. The user is told which posture to take BEFORE sampling starts, and an
+    // inconclusive reading (moving, no data) asks instead of silently starting.
+    if (!bluetoothService.isSimulated) {
+      const profile = await wearingProfile()
+      if (profile) {
+        const w = m.calibrationFlow.wearing
+        const posture = profile.reference.kind === 'neutral' ? w.neutralPosture : m.calibrationFlow.postures[profile.reference.posture ?? 'standing']
+        if (!(await requestConfirm(w.title, w.posture({ posture })))) return
+        const check = await wearingCheck(profile)
+        if (!check) {
+          if (!(await requestConfirm(w.title, w.inconclusive))) return
+        } else if (check.verdict !== 'ok') {
+          if (!(await requestConfirm(w.title, check.verdict === 'rezero' ? w.rezero : w.recalibrate))) return
+        }
+      }
+    }
     // 個人角度範圍沒有預設值:未量測時判定不做任何角度警示,開始前提醒一次(仍可開始)
     if (useStore.getState().angleRange == null && !bluetoothService.isSimulated) {
       const ok = await requestConfirm(m.clinical.noRangeTitle, m.clinical.noRangeBody)
