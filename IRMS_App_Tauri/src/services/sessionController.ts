@@ -305,11 +305,16 @@ class SessionController {
   private watchMounting(): void {
     if (!this.slipMonitor) return
     const raw = useStore.getState().rawAngles
-    const event = this.slipMonitor.push(performance.now(), { thigh: raw?.thighAccel, shin: raw?.shinAccel })
+    const event = this.slipMonitor.push(performance.now(), {
+      thigh: raw?.thighAccel,
+      shin: raw?.shinAccel,
+      kneeDeg: raw ? raw.shin - raw.thigh : null
+    })
     if (!event) return
     const store = useStore.getState()
     store.patchSession({ mountShift: true })
-    store.log(`⚠ Shin sensor may have shifted: movement axis is ${event.axisDriftDeg.toFixed(0)}° off the calibrated one.`)
+    const limb = event.limb === 'thigh' ? 'Thigh' : 'Shin'
+    store.log(`⚠ ${limb} sensor may have shifted: movement axis is ${event.axisDriftDeg.toFixed(0)}° off the calibrated one.`)
     logTelemetry('mount_shift', { sessionId: store.session.id, ...event })
     useUiStore.getState().showToast(getT().sessionDock.mountShift, 'warning')
     speak(getT().voice.mountShift)
@@ -443,7 +448,7 @@ class SessionController {
       // Simulated data is read with the default calibration, so the stored hinge says nothing about it.
       this.slipMonitor =
         state.settings.calibrationMethod === 'unified' && !bluetoothService.isSimulated
-          ? new SlipMonitor(state.settings.distalHingeAxis)
+          ? new SlipMonitor(state.settings.distalHingeAxis, state.settings.proximalHingeAxis)
           : null
 
       this.startTimers()
