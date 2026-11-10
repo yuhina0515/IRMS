@@ -570,9 +570,14 @@ export function buildCalibrationPatchB(
   if (!shin.ok) return { ok: false, limb: 'shin', error: shin.error }
 
   const standing = corrected.find((p) => p.pose === 'standing')
+  // The hinge path does not solve axisRotationDeg, so this patch must not claim
+  // *AxisRotationVerified (W4 finding 3); calibrationMethod carries the provenance instead.
   const patch: Partial<Settings> = {
-    proximalAxisRotationVerified: true,
-    distalAxisRotationVerified: true,
+    calibrationMethod: 'legacyB',
+    firmwareProtocol: 'vector',
+    referenceKind: 'straight',
+    referencePosture: 'standing',
+    calibrationQuality: null,
     proximalInvert: false,
     distalInvert: false,
     proximalRollInvert: side === 'right',

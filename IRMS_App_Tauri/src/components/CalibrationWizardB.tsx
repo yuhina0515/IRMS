@@ -6,6 +6,7 @@ import type { AccelVector, RawMotion } from '@shared/protocol'
 import { useStore, type Settings } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
+import { newCalibrationId } from '../services/calibration'
 import {
   applyAccelBiasScale,
   buildCalibrationPatchB,
@@ -202,7 +203,12 @@ export function CalibrationWizardB({ onClose }: { onClose: () => void }): JSX.El
 
   const apply = (): void => {
     if (!result || !result.ok) return
-    setSettings({ ...result.patch, wearSide: side, lastCalibratedAt: new Date().toISOString() })
+    setSettings({
+      ...result.patch,
+      calibrationId: newCalibrationId(),
+      wearSide: side,
+      lastCalibratedAt: new Date().toISOString()
+    })
     showToast(m.calibration.applied, 'success')
     onClose()
   }

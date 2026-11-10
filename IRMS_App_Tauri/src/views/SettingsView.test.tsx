@@ -17,12 +17,13 @@ vi.mock('@tauri-apps/api/core', () => ({
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { FirmwareBinary } from '@shared/types'
+import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
 import { SettingsView } from './SettingsView'
+import { UpdateBanner } from '../components/UpdateBanner'
 import { getT } from '../i18n'
 
 const FIRMWARE: FirmwareBinary = {
@@ -52,6 +53,26 @@ async function pickFirmware(): Promise<void> {
   await userEvent.click(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' }))
   await screen.findByText(/IRMS_Sensor\.ino\.bin/)
 }
+
+it('reflects installer states while retaining the downloaded artifact and one global error announcement owner', async () => {
+  const listeners = new Set<(status: UpdateStatus) => void>()
+  const statusChanged = (status: UpdateStatus): void => listeners.forEach((callback) => callback(status))
+  vi.spyOn(irms.updates, 'onStatusChange').mockImplementation((callback) => {
+    listeners.add(callback)
+    callback({ state: 'downloaded', version: '2.0.0' })
+    return () => { listeners.delete(callback) }
+  })
+  render(<><SettingsView /><UpdateBanner /></>)
+  await userEvent.click(screen.getByRole('button', { name: '軟體與韌體' }))
+  act(() => statusChanged({ state: 'installing', version: '2.0.0' }))
+  expect(screen.getAllByText(getT().updateBanner.installing)).toHaveLength(2)
+  expect(screen.getAllByRole('status').filter((node) => node.textContent === getT().updateBanner.installing)).toHaveLength(1)
+  expect(screen.getByRole('button', { name: getT().settings.software.processing })).toBeDisabled()
+  act(() => statusChanged({ state: 'install-error', version: '2.0.0' }))
+  expect(screen.getAllByText(getT().updateBanner.installFailed)).toHaveLength(2)
+  expect(screen.getAllByRole('alert').filter((node) => node.textContent?.trim() === getT().updateBanner.installFailed)).toHaveLength(1)
+  expect(screen.getByRole('button', { name: getT().settings.software.downloadedWaiting })).toBeDisabled()
+})
 
 
 /** v3 Settings shows one category at a time; the OTA panel lives under 軟體與韌體. */

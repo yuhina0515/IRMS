@@ -21,10 +21,20 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6 → 用計畫第 3 節的驗收測試量現有束帶基準。
+
+- **2026-11-10 beta.26 候選:軟體整理** ([[log_20261110_beta26_software_round|Log]]): 由 PR #5 挑入 7 個修正(保持連續性、BLE 生命週期、儲存上限、關窗保護、更新交接);過度伸直警示加入 300 ms 停留與 2° 遲滯;穿戴檢查發現屈伸方向偏移(20° 內)時可直接用剛才的姿勢重設零位再開始。705 前端 / 119 Rust 測試通過;實機未驗證,BLE 原生改動需真機確認。
+
+- **2026-11-10 訓練中穿戴位移偵測** ([[log_20261110_mounting_shift_check|Log]]): 統一校準的療程中,由膝屈伸動作本身反推小腿感測器的鉸鏈軸,與校準值相差超過 12° 且持續 18 秒即提醒一次並標記該場(`session.mountShift`);不自動修正。只看小腿、大腿需靜止;繞鉸鏈軸的偏移看不到。658 前端測試通過;門檻為模擬器推得,實機未驗證。
+
+- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。未推送、未發版、實機全未驗證(裝置在測試者處)。
+
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
 
 - **2026-10-20 beta.25 reliability follow-up** ([[log_20261020_squad_progress|Log]]): timestamped mobility holds, separate leg trends, capture/save cleanup, and serialized Session persistence. Automated checks only; unified calibration remains gated on bench data. Delivered as a stacked draft PR; no merge or release.
 
+- **2026-10-16 實機測試請求已寄出給 Harold**:隊友 GitHub `harold1008` 已由使用者確認就是 Harold(測試負責人,持有 ESP32 裝置)。已寄出 15 項待測清單(連線與 OTA、issue #3 E2E、統一校準與量角器對照、過度伸直警報、遙測回傳);**尚無回覆**,所有實機項目仍未驗證。
+- **2026-10-15 統一校準實作** ([[log_20261015_unified_calibration|Log]]): 分支 `feat/unified-calibration` 完成 S0–S8(帶正負號膝角與過度伸直警示、統一精靈與快速歸零、`calibration_profiles` migration 10、活動度趨勢依校準方式分組、零位非直立時停用分段觸發與姿態);S9 硬體關卡略過,實機全未驗證;過度伸直容許值 5° 與用語待擁有者確認。未推送。
 - **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。
 - **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
 - **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。

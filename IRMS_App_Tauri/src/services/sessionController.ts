@@ -19,8 +19,10 @@ import { TriggerEngine } from './triggerEngine'
 import { currentLimits, currentTriggerConfig } from './triggerConfig'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
+import { SlipMonitor } from './slipMonitor'
+import storageBudget from '@shared/storage-budget.json'
+import { acquireAppTransition } from './appTransition'
 
-const MAX_BUFFER_RESTORE = 2000
 /** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
 const UI_SYNC_MS = 80
 /**
@@ -37,6 +39,8 @@ class SessionController {
   private buffer: SensorReading[] = []
   /** 同一時間只允許一筆批次寫入；結束時先等待它再補寫剩餘資料。 */
   private flushing: Promise<void> | null = null
+  /** 包含目前交易與尚未送出的 snapshot 後綴，避免只計算新 buffer。 */
+  private pendingWriteRows = 0
   private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
@@ -48,12 +52,16 @@ class SessionController {
 
   /** 引擎目前認定的超限狀態(僅是「想不想響」,實際輸出由 applyAlarmOutput 決定) */
   private wantAlarm = false
+  /** True while the alarm is caused by knee hyperextension (picks the voice wording). */
+  private hyperextended = false
   /** 手動靜音的到期時間戳;0 = 未靜音 */
   private alarmSilencedUntil = 0
   /** 上次報讀超限語音的時間;0 = 尚未報讀(警報解除即歸零,下次超限立刻報讀) */
   private lastAlarmSpokenAt = 0
   /** 結束原因:斷線收尾時不重複報讀「療程結束」,只報讀斷線 */
   private endedByConnectionLoss = false
+  /** Watches the shin sensor for a shift during a unified-calibration session; null otherwise. */
+  private slipMonitor: SlipMonitor | null = null
 
   // UI 同步節流:angles + holdProgress 合併為單一 set(一次重繪)
   private uiSync = createTrailingThrottle<{ angles: LiveAngles; hold: number | null }>(
@@ -117,13 +125,17 @@ class SessionController {
         // 超出舒適角度只做畫面提示,不送任何裝置指令
         if (useStore.getState().session.overComfort !== active) useStore.getState().patchSession({ overComfort: active })
       },
+      onHyperextension: (active) => {
+        this.hyperextended = active
+        if (active) useStore.getState().log('⚠ Knee hyperextension beyond tolerance.')
+      },
       onOverExtension: (active) => {
         // 引擎只回報「是否超限」;要不要真的鳴響由 applyAlarmOutput 每筆封包重算,
         // 因為它還取決於 Session 是否進行中、以及使用者有沒有按靜音。
         this.wantAlarm = active
         // 回到安全範圍即解除靜音,下一次真正的超限才能立刻鳴響
         if (!active) this.alarmSilencedUntil = 0
-        if (active) useStore.getState().log('⚠ Beyond personal limit angle.')
+        if (active && !this.hyperextended) useStore.getState().log('⚠ Beyond personal limit angle.')
       }
     })
 
@@ -199,7 +211,7 @@ class SessionController {
       const now = Date.now()
       if (now - this.lastAlarmSpokenAt >= ALARM_VOICE_REPEAT_MS) {
         this.lastAlarmSpokenAt = now
-        speak(getT().voice.overLimit, 'safety')
+        speak(this.hyperextended ? getT().voice.hyperextension : getT().voice.overLimit, 'safety')
       }
     } else {
       this.lastAlarmSpokenAt = 0
@@ -247,6 +259,13 @@ class SessionController {
     // 結束邊界之後不再判定、計數或累積資料，避免落在最後寫入之後。
     const { session } = useStore.getState()
     if (this.ending || (!session.running && session.id != null)) return
+    // 在判定引擎之前停止；未接受的下一筆不能增加次數或觸發達標。
+    if (session.running && this.buffer.length + this.pendingWriteRows >= storageBudget.maxPendingReadings) {
+      useStore.getState().log('Storage backpressure: stopping acquisition with retained readings')
+      useUiStore.getState().showToast(getT().common.storageBackpressure, 'error', 10000)
+      void this.endSession()
+      return
+    }
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
     const cfg = this.currentConfig()
@@ -264,6 +283,7 @@ class SessionController {
 
     // 僅在 Session 進行中緩衝資料
     if (session.running && session.id != null) {
+      this.watchMounting()
       this.buffer.push({
         kneeAngle: angles.knee,
         proximalAngle: angles.thigh,
@@ -273,7 +293,26 @@ class SessionController {
         distalRoll: angles.shinRoll,
         timestamp: new Date().toISOString()
       })
+      // 即使設定很長的計時週期，也不能產生無上限的單次交易。
+      if (this.buffer.length >= storageBudget.maxBatchRows && !this.flushing) void this.flush()
     }
+  }
+
+  /**
+   * Feed the mounting monitor with this packet's gravity vectors. A confirmed shift is reported once: the wearer
+   * is told, the session is marked, and nothing is corrected silently (the angles after a shift are not trusted).
+   */
+  private watchMounting(): void {
+    if (!this.slipMonitor) return
+    const raw = useStore.getState().rawAngles
+    const event = this.slipMonitor.push(performance.now(), { thigh: raw?.thighAccel, shin: raw?.shinAccel })
+    if (!event) return
+    const store = useStore.getState()
+    store.patchSession({ mountShift: true })
+    store.log(`⚠ Shin sensor may have shifted: movement axis is ${event.axisDriftDeg.toFixed(0)}° off the calibrated one.`)
+    logTelemetry('mount_shift', { sessionId: store.session.id, ...event })
+    useUiStore.getState().showToast(getT().sessionDock.mountShift, 'warning')
+    speak(getT().voice.mountShift)
   }
 
   /**
@@ -289,21 +328,54 @@ class SessionController {
   /** 開始/結束的重入防護:兩者都要 await,session.id/running 要等 await 之後才變 */
   private starting = false
   private ending = false
+  /** 啟動時安裝原生關窗保護；安裝失敗時不可建立新療程。 */
+  private closeProtectionAvailable = true
+  private closingWindow = false
+  private releaseCloseTransition: (() => void) | null = null
+
+  setCloseProtectionAvailable(available: boolean): void {
+    this.closeProtectionAvailable = available
+  }
+
+  /** 同步保留關窗權，避免閒置檢查後又開始新的療程。 */
+  reserveWindowClose(): boolean {
+    const { session } = useStore.getState()
+    if (this.closingWindow || this.starting || this.ending || session.running || session.id != null ||
+      this.buffer.length > 0 || this.flushing != null) return false
+    const release = acquireAppTransition()
+    if (!release) return false
+    this.releaseCloseTransition = release
+    this.closingWindow = true
+    return true
+  }
+
+  releaseWindowClose(): void {
+    this.closingWindow = false
+    this.releaseCloseTransition?.()
+    this.releaseCloseTransition = null
+  }
 
   async startSession(): Promise<void> {
+    if (!this.closeProtectionAvailable || this.closingWindow) throw new Error('Window close protection unavailable')
     const state = useStore.getState()
     if (this.starting || this.ending || state.session.running || state.session.id != null) return
+    const release = acquireAppTransition()
+    if (!release) throw new Error('Application transition is pending')
     this.starting = true
     try {
       await this.doStartSession()
     } finally {
       this.starting = false
+      release()
     }
   }
 
   private async doStartSession(): Promise<void> {
     const state = useStore.getState()
     const generation = this.connectionGeneration
+    if (state.settings.calibrationMethod === 'unified' && state.linkTruncated) {
+      throw new Error('Unified calibration needs the gravity vectors; the BLE link is truncated')
+    }
     const action = state.customActions.find((a) => a.id === state.selectedActionId)
     // 寫進 DB 的必須是引擎實際採用的值(已鉗制),否則歷史紀錄的 target/tolerance
     // 會與當時的判定行為對不上,事後無法解讀
@@ -365,8 +437,14 @@ class SessionController {
         overComfort: false,
         elapsedSec: 0,
         running: true,
-        phase: 'idle'
+        phase: 'idle',
+        mountShift: false
       })
+      // Simulated data is read with the default calibration, so the stored hinge says nothing about it.
+      this.slipMonitor =
+        state.settings.calibrationMethod === 'unified' && !bluetoothService.isSimulated
+          ? new SlipMonitor(state.settings.distalHingeAxis)
+          : null
 
       this.startTimers()
       stopSpeaking()
@@ -440,7 +518,8 @@ class SessionController {
       reps: session.reps,
       elapsedSec: session.elapsedSec,
       unsavedReadings: this.buffer.length,
-      endError
+      endError,
+      mounting: this.slipMonitor ? { shifted: session.mountShift, ...this.slipMonitor.summary() } : null
     })
     if (endError != null) {
       useStore.getState().setSessionSaveState('failed')
@@ -473,7 +552,7 @@ class SessionController {
     this.clockTimer = null
   }
 
-  /** 批次寫入緩衝資料;失敗則回補緩衝(上限 2000 筆防止無限堆積) */
+  /** 有限 snapshot 依序寫入；只退休完整確認的前綴，失敗後保留全部後綴。 */
   private async flush(): Promise<void> {
     if (this.flushing) return this.flushing
     const { session } = useStore.getState()
@@ -481,16 +560,26 @@ class SessionController {
 
     const readings = this.buffer
     this.buffer = []
+    this.pendingWriteRows = readings.length
     const write = async (): Promise<void> => {
+      let acknowledged = 0
       try {
-        await irms.data.appendBatch(session.id!, readings)
+        while (acknowledged < readings.length) {
+          if (useStore.getState().session.id !== session.id) return
+          const chunk = readings.slice(acknowledged, acknowledged + storageBudget.maxBatchRows)
+          const result = await irms.data.appendBatch(session.id!, chunk)
+          if (result?.count !== chunk.length) throw new Error('Incomplete batch acknowledgement')
+          acknowledged += chunk.length
+          this.pendingWriteRows = readings.length - acknowledged
+        }
       } catch (err) {
         // 防止外部狀態重設後，舊療程的資料回補到另一場療程。
         if (useStore.getState().session.id === session.id) {
-          const combined = readings.concat(this.buffer)
-          this.buffer = combined.slice(-MAX_BUFFER_RESTORE)
+          this.buffer = readings.slice(acknowledged).concat(this.buffer)
         }
-        useStore.getState().log(`Batch write failed, buffer restored: ${(err as Error).message}`)
+        useStore.getState().log(`Batch write failed, buffer restored: ${String(err)}`)
+      } finally {
+        this.pendingWriteRows = 0
       }
     }
     this.flushing = write()

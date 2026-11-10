@@ -151,6 +151,21 @@ describe('buildCalibrationPatchB', () => {
   })
 })
 
+describe('buildCalibrationPatchB provenance', () => {
+  it('stamps legacyB and no longer sets the AxisRotationVerified flags', () => {
+    const { poses, sweeps } = synth(21, 0.3, 0.5)
+    const out = buildCalibrationPatchB(poses, sweeps)
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    const p = out.patch as Record<string, unknown>
+    expect(p.calibrationMethod).toBe('legacyB')
+    expect(p.firmwareProtocol).toBe('vector')
+    expect(p.referenceKind).toBe('straight')
+    expect('proximalAxisRotationVerified' in p).toBe(false)
+    expect('distalAxisRotationVerified' in p).toBe(false)
+  })
+})
+
 describe('floor stage', () => {
   it('classifies faces and ignores tilted captures', () => {
     expect(classifyFace({ x: 0.02, y: -0.99, z: 0.03 })).toBe('-y')

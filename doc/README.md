@@ -6,7 +6,42 @@
 
 ---
 
+## BLE notification retirement (2026-10-29)
+
+Native angle/raw-calibration/OTA-status dispatch and telemetry are checked under the same short
+connection-epoch gate used by begin/invalidate. An invalidation waits for an already-running
+dispatch, and a retired listener cannot start another dispatch afterward. Stream acquisition errors
+use the same gate; stream-end teardown first waits for the peripheral lock, then rechecks the epoch
+before clearing the handle or publishing disconnect. No await or recursive BLE lock acquisition is
+allowed within the synchronous epoch callback (lock order: peripheral -> epoch). Poison recovery
+keeps retirement available after callback panic. Debug stderr output runs outside that short gate.
+
+This does not recall frontend events already queued before invalidation or add source timestamps.
+Native btleplug/OS race acceptance remains open.
+
+### Native connect ownership (2026-10-29)
+
+`ble_lifecycle.rs` reserves an epoch before its first await and serializes native attempts through
+cleanup. Current ownership is checked at awaited boundaries; native adapter/scan/setup also check
+their internal boundaries. Scan uses one stop_scan epilogue and reports cleanup failures. Installation,
+connected publication and listener scheduling run in that order under peripheral/epoch protection.
+Disconnect cannot take a newer handle or publish a stale disconnected event. Cancellation preserves
+simultaneous backend/cleanup errors. Lock order is attempts -> peripheral -> epoch; disconnect skips
+attempts so it can retire ownership promptly.
+
+OS calls already running are awaited before cleanup; cancellation does not mean instantaneous physical
+disconnect. Cleanup failure leaves physical state unverified, and arbitrary orchestration-future abort
+is not a cleanup guarantee. Fake transports verify the shared orchestration, not real OS timing.
+
 ## Mobility and session reliability (2026-10-20)
+
+Repetition-hold follow-up (2026-10-29): TriggerEngine now uses a monotonic receiver clock and reads
+it once per sample. A gap above 250 ms, backwards time or a nonfinite clock cancels the current hold;
+the next valid strictly in-zone sample starts a fresh hold. Completed repetitions still require an
+actual rest sample before rearming, and personal-angle warnings remain independent. This prevents
+notification silence from earning hold time. The 250 ms threshold is an engineering continuity
+guard; native BLE scheduling and source timestamps remain separate validation work. Visual freshness
+during total silence is not changed: this guard is evaluated when the next sample arrives.
 
 Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,
 and no inter-sample gap above 250 ms. The gap threshold is an engineering continuity guard, not a validated
@@ -188,7 +223,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--9)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--10)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。

@@ -1,7 +1,7 @@
 // TriggerEngine 狀態機單元測試
 // v3.1 穩定化:離區判定加入遲滯(HYSTERESIS_DEG)與寬限(EXIT_GRACE_MS)——
 // 「單筆出區即清進度」為刻意移除的舊行為,本檔測試即新行為的規格。
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { LiveAngles } from '@shared/protocol'
 import {
   EXIT_GRACE_MS,
@@ -45,7 +45,7 @@ interface Recorded {
   comfort: boolean[]
 }
 
-function makeEngine(): { engine: TriggerEngine; rec: Recorded; tick: (ms: number) => void } {
+function makeEngine(): { engine: TriggerEngine; rec: Recorded; tick: (ms: number) => void; setTime: (ms: number) => void } {
   let now = 0
   const rec: Recorded = { events: [], progress: [], alarms: [], comfort: [] }
   const events: TriggerEvents = {
@@ -58,12 +58,116 @@ function makeEngine(): { engine: TriggerEngine; rec: Recorded; tick: (ms: number
     onComfortExceeded: (a) => rec.comfort.push(a)
   }
   const engine = new TriggerEngine(events, () => now)
-  return { engine, rec, tick: (ms) => (now += ms) }
+  return { engine, rec, tick: (ms) => { now += ms }, setTime: (ms) => { now = ms } }
+}
+
+/** 明確提供連續 25Hz 樣本；tick 單獨呼叫仍代表沒有封包的空窗。 */
+function stream(engine: TriggerEngine, tick: (ms: number) => void, sample: EngineInput, durationMs: number): void {
+  for (let remaining = durationMs; remaining > 0;) {
+    const step = Math.min(40, remaining)
+    tick(step)
+    engine.handle(sample)
+    remaining -= step
+  }
 }
 
 const JOINT: TriggerConfig = { targetAngle: 90, tolerance: 10, holdTimeMs: 1000, triggerType: 'joint_angle' }
 
+describe('TriggerEngine — sample continuity', () => {
+  it('accepts 250ms sample spacing but restarts after 251ms', () => {
+    const { engine, rec, tick } = makeEngine()
+    const target = input(90, 0, JOINT)
+    engine.handle(target)
+    for (let i = 0; i < 4; i++) {
+      tick(250)
+      engine.handle(target)
+    }
+    expect(rec.events).toEqual(['enter', 'rep'])
+    engine.reset()
+    engine.handle(target)
+    tick(251)
+    engine.handle(target)
+    expect(rec.events).toEqual(['enter', 'rep', 'enter', 'exit', 'enter'])
+    expect(rec.progress.at(-1)).toBe(0)
+    stream(engine, tick, target, 1000)
+    expect(rec.events.filter((event) => event === 'rep')).toHaveLength(2)
+  })
+
+  it('does not erase rest gating when a completed hold is followed by silence', () => {
+    const { engine, rec, tick } = makeEngine()
+    const target = input(90, 0, JOINT)
+    engine.handle(target)
+    stream(engine, tick, target, 1000)
+    tick(10_000)
+    engine.handle(target)
+    stream(engine, tick, target, 2000)
+    expect(rec.events).toEqual(['enter', 'rep'])
+    expect(engine.phase).toBe('restPending')
+    engine.handle(input(20, 0, JOINT))
+    engine.handle(target)
+    stream(engine, tick, target, 1000)
+    expect(rec.events).toEqual(['enter', 'rep', 'rest', 'enter', 'rep'])
+  })
+
+  it.each([NaN, Infinity, -Infinity])('rejects nonfinite time %s and requires a new complete hold', (invalid) => {
+    const { engine, rec, tick, setTime } = makeEngine()
+    const target = input(90, 0, JOINT)
+    engine.handle(target)
+    stream(engine, tick, target, 800)
+    setTime(invalid)
+    engine.handle(target)
+    expect(engine.phase).toBe('idle')
+    expect(rec.progress.at(-1)).toBe(0)
+    setTime(10_000)
+    engine.handle(target)
+    expect(rec.events).not.toContain('rep')
+    stream(engine, tick, target, 1000)
+    expect(rec.events).toEqual(['enter', 'exit', 'enter', 'rep'])
+  })
+
+  it('restarts on backwards time and repeated timestamps do not add progress', () => {
+    const { engine, rec, tick, setTime } = makeEngine()
+    const target = input(90, 0, JOINT)
+    engine.handle(target)
+    stream(engine, tick, target, 800)
+    setTime(100)
+    engine.handle(target)
+    for (let i = 0; i < 100; i++) engine.handle(target)
+    expect(rec.events).toEqual(['enter', 'exit', 'enter'])
+    expect(rec.progress.at(-1)).toBe(0)
+    stream(engine, tick, target, 1000)
+    expect(rec.events.at(-1)).toBe('rep')
+  })
+
+  it('reads the monotonic default clock once per sample without consulting wall time', () => {
+    const monotonic = vi.spyOn(performance, 'now').mockReturnValue(100)
+    const wall = vi.spyOn(Date, 'now').mockReturnValue(1e15)
+    try {
+      const events: TriggerEvents = {
+        onZoneEnter() {}, onZoneExit() {}, onHoldProgress() {}, onRepCompleted() {},
+        onRestCompleted() {}, onOverExtension() {}
+      }
+      new TriggerEngine(events).handle(input(90, 0, JOINT))
+      expect(monotonic).toHaveBeenCalledTimes(1)
+      expect(wall).not.toHaveBeenCalled()
+    } finally {
+      monotonic.mockRestore()
+      wall.mockRestore()
+    }
+  })
+})
+
 describe('TriggerEngine — joint_angle 完整達標循環', () => {
+  it('does not complete a hold from an in-zone sample followed by silence', () => {
+    const { engine, rec, tick } = makeEngine()
+    engine.handle(input(90, 0, JOINT))
+    tick(3000)
+    engine.handle(input(90, 0, JOINT))
+    expect(rec.events).not.toContain('rep')
+    expect(rec.events).toEqual(['enter', 'exit', 'enter'])
+    expect(rec.progress.at(-1)).toBe(0)
+  })
+
   it('進區 → 維持滿 → 計一下 → 需回休息位才能再計(phase 全程對應)', () => {
     const { engine, rec, tick } = makeEngine()
     expect(engine.phase).toBe('idle')
@@ -76,11 +180,11 @@ describe('TriggerEngine — joint_angle 完整達標循環', () => {
     expect(rec.events).toEqual(['enter'])
     expect(engine.phase).toBe('holding')
 
-    tick(500)
+    stream(engine, tick, input(90, 0, JOINT), 500)
     engine.handle(input(85, 0, JOINT)) // 區間內(90±10),維持 50%
     expect(rec.progress.at(-1)).toBe(50)
 
-    tick(500)
+    stream(engine, tick, input(85, 0, JOINT), 500)
     engine.handle(input(90, 0, JOINT)) // 滿 1000ms → rep
     expect(rec.events).toEqual(['enter', 'rep'])
     expect(engine.phase).toBe('restPending')
@@ -110,7 +214,7 @@ describe('TriggerEngine — joint_angle 完整達標循環', () => {
   it('提早離區且寬限逾時 → 進度歸零並發 exit,不計數', () => {
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(90, 0, JOINT))
-    tick(700)
+    stream(engine, tick, input(90, 0, JOINT), 700)
     engine.handle(input(50, 0, JOINT)) // 離區:啟動寬限,尚未 exit
     expect(rec.events).toEqual(['enter'])
     expect(engine.phase).toBe('holding')
@@ -126,13 +230,13 @@ describe('TriggerEngine — 遲滯與出區寬限(v3.1 穩定化)', () => {
   it('雜訊尖峰在寬限內回區 → 進度不清零,續算至 rep', () => {
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(90, 0, JOINT)) // enter,t=0
-    tick(400)
+    stream(engine, tick, input(90, 0, JOINT), 400)
     engine.handle(input(60, 0, JOINT)) // 尖峰跳出(60 < 80−4),進度凍結
     expect(rec.events).toEqual(['enter'])
     tick(100) // 寬限內(100ms < 250ms)
     engine.handle(input(90, 0, JOINT)) // 回區:以原起點續算 → 500/1000 = 50%
     expect(rec.progress.at(-1)).toBe(50)
-    tick(500)
+    stream(engine, tick, input(90, 0, JOINT), 500)
     engine.handle(input(90, 0, JOINT)) // 滿 1000ms → rep,進度未曾歸零
     expect(rec.events).toEqual(['enter', 'rep'])
     // 首筆為進區當下的 0%,其後進度只增不歸零
@@ -142,10 +246,12 @@ describe('TriggerEngine — 遲滯與出區寬限(v3.1 穩定化)', () => {
   it('寬限期間進度凍結:不發 onHoldProgress,也不會在區外完成 rep', () => {
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(90, 0, JOINT))
-    tick(1200) // 已超過 holdTimeMs,但此刻樣本在區外
+    stream(engine, tick, input(90, 0, JOINT), 960)
+    const progressCount = rec.progress.length
+    tick(40) // 剛到 holdTimeMs,但此刻樣本在區外
     engine.handle(input(60, 0, JOINT)) // 寬限開始:凍結,不得在區外發 rep
     expect(rec.events).toEqual(['enter'])
-    expect(rec.progress).toEqual([0]) // 僅進區當下的 0%,寬限期間無新事件
+    expect(rec.progress).toHaveLength(progressCount) // 寬限期間無新進度事件
     tick(100)
     engine.handle(input(90, 0, JOINT)) // 回區的樣本上才完成 rep
     expect(rec.events).toEqual(['enter', 'rep'])
@@ -154,7 +260,7 @@ describe('TriggerEngine — 遲滯與出區寬限(v3.1 穩定化)', () => {
   it('遲滯:保持中漂到嚴格區間外、放寬區間內(min−4)→ 不離區照常計時', () => {
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(90, 0, JOINT))
-    tick(500)
+    stream(engine, tick, input(90, 0, JOINT), 500)
     engine.handle(input(80 - HYSTERESIS_DEG, 0, JOINT)) // 76:嚴格區外、放寬區內
     expect(rec.events).toEqual(['enter'])
     expect(rec.progress.at(-1)).toBe(50)
@@ -172,7 +278,7 @@ describe('TriggerEngine — 遲滯與出區寬限(v3.1 穩定化)', () => {
     const ELEV: TriggerConfig = { targetAngle: 45, tolerance: 10, holdTimeMs: 1000, triggerType: 'segment_elevation' }
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(10, 50, ELEV)) // 膝直 + 達標 → enter
-    tick(500)
+    stream(engine, tick, input(10, 50, ELEV), 500)
     engine.handle(input(15 + HYSTERESIS_DEG, 50, ELEV)) // 膝 19:嚴格門檻外、放寬內 → 續算
     expect(rec.progress.at(-1)).toBe(50)
     engine.handle(input(30, 50, ELEV)) // 膝 30 超出放寬 → 寬限開始
@@ -288,7 +394,7 @@ describe('TriggerEngine — 靜止的腿不得產生幻影 reps', () => {
     const { engine, rec, tick } = makeEngine()
 
     engine.handle(input(0, -25, BACKWARD_EXTENSION))
-    tick(2000)
+    stream(engine, tick, input(0, -25, BACKWARD_EXTENSION), 2000)
     engine.handle(input(0, -25, BACKWARD_EXTENSION))
     expect(rec.events).toEqual(['enter', 'rep'])
 
@@ -302,7 +408,7 @@ describe('TriggerEngine — 靜止的腿不得產生幻影 reps', () => {
 
     // 再做一次才是第二下
     engine.handle(input(0, -25, BACKWARD_EXTENSION))
-    tick(2000)
+    stream(engine, tick, input(0, -25, BACKWARD_EXTENSION), 2000)
     engine.handle(input(0, -25, BACKWARD_EXTENSION))
     expect(rec.events.filter((e) => e === 'rep')).toHaveLength(2)
   })

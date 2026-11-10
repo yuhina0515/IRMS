@@ -92,12 +92,39 @@ export interface MobilityRecordRow {
   movementSet: string
   totalDeg: number
   detail: string
+  /** 方法身分(migration 10);null = 統一校正方案之前量的紀錄 */
+  schema: number | null
+  side: 'left' | 'right' | null
+  referenceKind: ReferenceKind | null
+  posture: string | null
+  calibrationId: string | null
 }
 
 export interface MobilityRecordInput {
   movementSet: string
   totalDeg: number
   detail: string
+  schema?: number | null
+  side?: 'left' | 'right' | null
+  referenceKind?: ReferenceKind | null
+  posture?: string | null
+  calibrationId?: string | null
+}
+
+/** 統一校正檔案(migration 10);profile 是 App 組出的 JSON,資料庫不解讀 */
+export interface CalibrationProfileRow {
+  id: string
+  createdAt: string
+  side: 'left' | 'right'
+  profile: string
+  active: boolean
+}
+
+export interface CalibrationProfileInput {
+  id: string
+  side: 'left' | 'right'
+  profile: string
+  active: boolean
 }
 
 /** 建立/更新動作的輸入(無 id) */
@@ -154,6 +181,27 @@ export interface Session {
 }
 
 /**
+ * How the active calibration was produced (unified calibration plan, section 3.1). Stored in the
+ * Settings and in every session snapshot so old and new numbers can always be told apart.
+ * Old numbers are never reinterpreted: legacy methods keep their exact runtime path.
+ */
+export type CalibrationMethod =
+  | 'unified'
+  | 'legacyAVector'
+  | 'legacyAEuler'
+  | 'legacyB'
+  | 'legacyUnknownVector'
+  | 'manual'
+  | 'none'
+
+/** Which posture counts as 0 degrees: knee straight, or any relaxed pose chosen by a wearer who cannot straighten. */
+export type ReferenceKind = 'straight' | 'neutral'
+export type ReferencePosture = 'standing' | 'longSitting' | 'supine' | 'seated' | 'other'
+export type CalibrationQuality = 'high' | 'medium' | 'low'
+/** Wire protocol the calibration was solved against. */
+export type FirmwareProtocol = 'vector' | 'euler'
+
+/**
  * 一場 Session 開始當下實際生效的校準轉換快照(migration 6 起以單一 JSON 欄位存於 sessions)。
  *
  * 沒有它,`sensor_data` 只留下校準後的數值,而產生那些數值的仿射轉換活在 localStorage:
@@ -191,6 +239,16 @@ export interface CalibrationSnapshot {
   distalRollVerified: boolean
   /** 最近一次跑完精靈的時間;null = 從未跑過(全預設值或純手動輸入) */
   lastCalibratedAt: string | null
+  /**
+   * Provenance (unified calibration S0/S1). All optional: snapshots recorded before these fields
+   * existed have none of them and are labelled "legacy, method unknown" at read time, never rewritten.
+   */
+  calibrationMethod?: CalibrationMethod
+  calibrationId?: string | null
+  referenceKind?: ReferenceKind | null
+  referencePosture?: ReferencePosture | null
+  calibrationQuality?: CalibrationQuality | null
+  firmwareProtocol?: FirmwareProtocol | null
 }
 
 /** 開始 Session 的輸入 */
@@ -278,6 +336,8 @@ export type UpdateStatus =
   | { state: 'not-available' }
   | { state: 'downloading'; percent: number }
   | { state: 'downloaded'; version: string }
+  | { state: 'installing'; version: string }
+  | { state: 'install-error'; version: string }
   | { state: 'apk-available'; version: string }
   | { state: 'error'; message: string }
 
@@ -309,6 +369,11 @@ export interface IrmsApi {
     list(): Promise<MobilityRecordRow[]>
     add(input: MobilityRecordInput): Promise<MobilityRecordRow>
     remove(id: number): Promise<void>
+  }
+  calibrationProfiles: {
+    list(): Promise<CalibrationProfileRow[]>
+    add(input: CalibrationProfileInput): Promise<CalibrationProfileRow>
+    remove(id: string): Promise<void>
   }
   data: {
     appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>

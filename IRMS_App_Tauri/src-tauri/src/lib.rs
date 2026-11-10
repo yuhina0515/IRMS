@@ -1,4 +1,5 @@
 mod ble;
+mod ble_lifecycle;
 mod commands;
 mod db;
 mod defaults;
@@ -153,6 +154,9 @@ pub fn run() {
             commands::mobility_list,
             commands::mobility_add,
             commands::mobility_delete,
+            commands::calibration_profiles_list,
+            commands::calibration_profiles_add,
+            commands::calibration_profiles_delete,
             commands::actions_list,
             commands::actions_create,
             commands::actions_update,

@@ -61,7 +61,8 @@ function resetStore(): void {
       overComfort: false,
       elapsedSec: 0,
       running: false,
-      phase: 'idle'
+      phase: 'idle',
+      mountShift: false
     },
     angleRange: null
   })

@@ -61,7 +61,13 @@ const SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
-  voiceEnabled: true
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 describe('computeCaptureStats', () => {
@@ -393,6 +399,30 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
     expect(stand.thigh).toBeCloseTo(0)
     expect(stand.shin).toBeCloseTo(0)
     expect(stand.shinRoll).toBeCloseTo(0)
+  })
+})
+
+describe('buildQuickZeroPatch with hinge axes (finding X1)', () => {
+  it('keeps the reference perpendicular to the hinge so the re-zeroed pose reads 0 deg', () => {
+    const hinge = { x: 1, y: 0, z: 0 }
+    const hinged: Settings = { ...SETTINGS, proximalHingeAxis: hinge, distalHingeAxis: hinge }
+    // Current still pose is tilted 10 deg out of the hinge plane (x component 0.17).
+    const tilted = { x: 0.1736, y: 0, z: 0.9848 }
+    const cur: RawAngles = { ...raw(0, 0), thighAccel: tilted, shinAccel: tilted }
+    const patch = buildQuickZeroPatch(cur, hinged)
+    for (const z of [patch.proximalZeroAccel, patch.distalZeroAccel]) {
+      if (!z) throw new Error('zero missing')
+      expect(Math.abs(z.x * hinge.x + z.y * hinge.y + z.z * hinge.z)).toBeLessThan(1e-9)
+    }
+    const stand = applyCalibration(cur, { ...hinged, ...patch })
+    expect(stand.thigh).toBeCloseTo(0, 5)
+    expect(stand.shin).toBeCloseTo(0, 5)
+  })
+
+  it('without hinge axes the reference is stored unchanged', () => {
+    const v = { x: 0.1, y: 0.2, z: 0.97 }
+    const patch = buildQuickZeroPatch({ ...raw(0, 0), thighAccel: v, shinAccel: v }, SETTINGS)
+    expect(patch.proximalZeroAccel).toEqual(v)
   })
 })
 
