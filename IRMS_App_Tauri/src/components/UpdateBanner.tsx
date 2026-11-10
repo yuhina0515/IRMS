@@ -10,7 +10,7 @@ import { useT } from '../i18n'
 
 export function UpdateBanner(): JSX.Element | null {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const sessionRunning = useStore((s) => s.session.running)
+  const sessionRunning = useStore((s) => s.session.running || s.session.id != null)
   const m = useT()
 
   useEffect(() => irms.updates.onStatusChange(setStatus), [])

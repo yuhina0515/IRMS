@@ -318,6 +318,8 @@ interface StoreState {
 
   // Session 執行期
   session: SessionRuntime
+  /** 採集停止後的存檔狀態；失敗時保留療程，供使用者明確重試。 */
+  sessionSaveState: 'idle' | 'saving' | 'failed'
 
   // 設定(持久化)
   settings: Settings
@@ -344,6 +346,7 @@ interface StoreState {
   /** 切換介面語系(非校準欄位,Session 進行中亦可) */
   setLanguage(language: LanguageSetting): void
   patchSession(patch: Partial<SessionRuntime>): void
+  setSessionSaveState(state: 'idle' | 'saving' | 'failed'): void
   resetSession(): void
   log(message: string): void
 }
@@ -411,6 +414,7 @@ export const useStore = create<StoreState>()(
         running: false,
         phase: 'idle'
       },
+      sessionSaveState: 'idle',
 
       settings: DEFAULT_SETTINGS,
       logs: [],
@@ -449,7 +453,7 @@ export const useStore = create<StoreState>()(
       setCustomActions: (actions) => {
         const { settings, selectedActionId, session } = get()
         // Session 進行中不動選取,避免判定參數被中途抽換
-        if (session.running) {
+        if (session.running || session.id != null) {
           set({ customActions: actions })
           return
         }
@@ -474,7 +478,7 @@ export const useStore = create<StoreState>()(
         // Session 進行中凍結校準:見 CALIBRATION_KEYS。刻意「丟掉並留下日誌」而非
         // 靜默忽略——靜默失敗正是這個專案反覆抓到的那類缺陷。真正的防線在 UI
         // (按鈕/入口在進行中就不可按),這裡是最後一道,擋掉任何繞過 UI 的路徑。
-        if (state.session.running) {
+        if (state.session.running || state.session.id != null) {
           const { allowed, frozen } = splitCalibrationPatch(patch)
           if (frozen.length > 0) {
             state.log(`Calibration frozen during session; ignored: ${frozen.join(', ')}`)
@@ -497,9 +501,11 @@ export const useStore = create<StoreState>()(
       setLanguage: (language) => get().setSettings({ language }),
 
       patchSession: (patch) => set({ session: { ...get().session, ...patch } }),
+      setSessionSaveState: (sessionSaveState) => set({ sessionSaveState }),
 
       resetSession: () =>
         set({
+          sessionSaveState: 'idle',
           session: {
             id: null,
             reps: 0,

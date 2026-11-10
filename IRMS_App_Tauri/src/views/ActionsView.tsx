@@ -53,7 +53,7 @@ export function ActionsView(): JSX.Element {
   const protocol = useStore((s) => s.settings.protocol)
   const setSettings = useStore((s) => s.setSettings)
   const selectAction = useStore((s) => s.selectAction)
-  const running = useStore((s) => s.session.running)
+  const running = useStore((s) => s.session.running || s.session.id != null)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
   const setView = useUiStore((s) => s.setView)

@@ -339,6 +339,7 @@ export const zhHant = {
 
   sessionDock: {
     blocker: {
+      finishing: '療程儲存中…',
       running: '療程進行中',
       protocolUnsupported: '此協定尚未支援',
       firmwareUpdating: '韌體更新中',
@@ -350,6 +351,8 @@ export const zhHant = {
     started: '療程已開始',
     startFailed: '無法開始療程',
     ended: '療程已結束並儲存',
+    saveFailed: '療程已停止，但儲存失敗。請保持程式開啟，並重試儲存。',
+    retrySave: '重試儲存療程',
     completed: '已完成',
     repsUnit: ' 次',
     currentHold: '本次保持',
@@ -568,7 +571,7 @@ export const zhHant = {
     viewTitle: '活動度趨勢',
     noRecords: '還沒有紀錄。完成一次活動度測量後,這裡會顯示長期變化。',
     startMeasure: '開始測量',
-    compareNote: '只比較動作組合相同的紀錄。',
+    compareNote: '只比較同側腿、動作組合相同的紀錄。未記錄側別的舊資料會分開比較。',
     setLabel: (p: { names: string }) => `動作:${p.names}`,
     best: (p: { total: string }) => `最佳 ${p.total}°`,
     latest: (p: { total: string }) => `最近 ${p.total}°`

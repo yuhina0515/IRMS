@@ -19,7 +19,7 @@ export function installFirmwareAutoUpdate(): () => void {
       return {
         connected: s.isConnected,
         simulated: bluetoothService.isSimulated,
-        sessionRunning: s.session.running,
+        sessionRunning: s.session.running || s.session.id != null,
         hardwareError: s.hardwareError != null,
         linkTruncated: s.linkTruncated
       }
@@ -80,7 +80,7 @@ export function installFirmwareAutoUpdate(): () => void {
   }
   const unsubscribe = useStore.subscribe((s, prev) => {
     if (s.isConnected && !prev.isConnected) schedule()
-    else if (!s.session.running && prev.session.running) schedule()
+    else if (!s.session.running && s.session.id == null && (prev.session.running || prev.session.id != null)) schedule()
   })
   return () => {
     clearTimeout(timer)

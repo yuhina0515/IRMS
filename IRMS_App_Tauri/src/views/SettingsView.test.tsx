@@ -15,7 +15,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { FirmwareBinary } from '@shared/types'
 import { useStore } from '../store/useStore'
@@ -23,6 +23,7 @@ import { useUiStore } from '../store/useUiStore'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
 import { SettingsView } from './SettingsView'
+import { getT } from '../i18n'
 
 const FIRMWARE: FirmwareBinary = {
   path: 'C:\\fw\\IRMS_Sensor.ino.bin',
@@ -32,6 +33,7 @@ const FIRMWARE: FirmwareBinary = {
 }
 
 function resetStores(): void {
+  useStore.getState().resetSession()
   useStore.setState({ isConnected: false, session: { ...useStore.getState().session, running: false } })
   // 繞過真實 ConfirmDialog(本檔未渲染):預設自動核可,個別測試可覆寫回傳 false。
   useUiStore.setState({ requestConfirm: async () => true, confirm: null })
@@ -59,6 +61,12 @@ async function openFirmware(): Promise<void> {
 }
 
 describe('SettingsView 韌體 OTA 面板:連線態閘門', () => {
+  it('keeps firmware locked while a stopped session awaits persistence', async () => {
+    useStore.setState({ isConnected: true })
+    useStore.getState().patchSession({ id: 7, running: false })
+    await openFirmware()
+    expect(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' })).toBeDisabled()
+  })
   it('未連線時操作按鈕停用並顯示原因', async () => {
     await openFirmware()
     expect(screen.getByText('需要先於頂部連線真實裝置')).toBeInTheDocument()
@@ -77,6 +85,25 @@ describe('SettingsView 韌體 OTA 面板:連線態閘門', () => {
     await openFirmware()
     expect(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' })).not.toBeDisabled()
   })
+})
+
+it('blocks demo purge while a stopped session awaits saving', async () => {
+  useStore.getState().patchSession({ id: 7, running: false })
+  render(<SettingsView />)
+  await userEvent.click(screen.getByRole('button', { name: '示範模式' }))
+  expect(screen.getByRole('button', { name: getT().settings.demo.purgeButton })).toBeDisabled()
+})
+
+it('rechecks session ownership after demo purge confirmation', async () => {
+  let confirm!: (ok: boolean) => void
+  useUiStore.setState({ requestConfirm: () => new Promise((resolve) => { confirm = resolve }) })
+  const purge = vi.spyOn(irms.sessions, 'purgeDemo')
+  render(<SettingsView />)
+  await userEvent.click(screen.getByRole('button', { name: '示範模式' }))
+  await userEvent.click(screen.getByRole('button', { name: getT().settings.demo.purgeButton }))
+  act(() => useStore.getState().patchSession({ id: 7, running: false }))
+  await act(async () => { confirm(true); await Promise.resolve() })
+  expect(purge).not.toHaveBeenCalled()
 })
 
 describe('SettingsView 韌體 OTA 面板:選檔與開始更新', () => {

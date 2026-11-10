@@ -9,6 +9,7 @@ import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
+import { SessionSaveControl } from './SessionSaveControl'
 import { isProtocolSupported } from '@shared/types'
 import {
   HOLD_TIME_BOUND,
@@ -37,7 +38,9 @@ export function startBlocker(s: {
   calibrated: boolean
   simulated: boolean
   running: boolean
+  finishing?: boolean
 }): StartBlocker | null {
+  if (s.finishing) return 'finishing'
   if (s.running) return 'running'
   if (!s.protocolOk) return 'protocolUnsupported'
   if (s.fwBusy) return 'firmwareUpdating'
@@ -76,7 +79,8 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     hasAction: selectedActionId != null,
     calibrated,
     simulated: bluetoothService.isSimulated,
-    running
+    running,
+    finishing: !running && session.id != null
   })
   const canStart = blocker == null
 
@@ -101,6 +105,10 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
 
   // Ctrl/Cmd+Enter:與按鈕走同一個守衛(handler 為 null 時不掛 listener)
   useGlobalShortcut({ key: 'Enter' }, running ? () => void handleEnd() : canStart ? () => void handleStart() : null)
+
+  if (!running && session.id != null) {
+    return <div className="v3-dock"><SessionSaveControl /></div>
+  }
 
   if (running) {
     const holdSec = (session.holdProgress / 100) * (clampHoldTimeMs(params.holdTimeMs) / 1000)

@@ -36,6 +36,7 @@ const unitOf = (v: V3): V3 => {
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 interface Frame {
+  timeMs: number
   thigh: V3
   shin: V3
 }
@@ -58,11 +59,13 @@ export function MobilityWizard({ onClose, onSaved }: { onClose: () => void; onSa
   const [saving, setSaving] = useState(false)
   const neutral = useRef<Neutral | null>(null)
   const cancelled = useRef(false)
+  const cancelCapture = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     cancelled.current = false
     return () => {
       cancelled.current = true
+      cancelCapture.current?.()
     }
   }, [])
   useEscapeKey(capturing ? null : onClose)
@@ -84,15 +87,20 @@ export function MobilityWizard({ onClose, onSaved }: { onClose: () => void; onSa
       const unsub = useStore.subscribe((s, prev) => {
         const a = s.rawAngles
         if (!a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
-        frames.push({ thigh: unitOf(a.thighAccel), shin: unitOf(a.shinAccel) })
+        frames.push({ timeMs: performance.now(), thigh: unitOf(a.thighAccel), shin: unitOf(a.shinAccel) })
       })
-      setTimeout(() => {
+      // 關閉精靈即解除訂閱與計時器，避免背景量測跨越視窗生命週期。
+      const finish = (): void => {
         unsub()
+        clearTimeout(timer)
+        cancelCapture.current = null
         resolve()
-      }, seconds * 1000)
+      }
+      const timer = setTimeout(finish, seconds * 1000)
+      cancelCapture.current = finish
     })
-    setCapturing(false)
     if (cancelled.current) return null
+    setCapturing(false)
     if (frames.length < 10) {
       setErr(getT().mobility.noData)
       return null
@@ -122,7 +130,7 @@ export function MobilityWizard({ onClose, onSaved }: { onClose: () => void; onSa
       const pick = (limb: 'thigh' | 'shin'): V3[] => frames.map((f) => f[limb])
       const out = solveMovement(
         neutral.current,
-        { moverSamples: pick(spec.mover), ...(spec.reference ? { referenceSamples: pick(spec.reference) } : {}) },
+        { sampleTimesMs: frames.map((f) => f.timeMs), moverSamples: pick(spec.mover), ...(spec.reference ? { referenceSamples: pick(spec.reference) } : {}) },
         spec
       )
       if (!out.ok) {
@@ -166,10 +174,13 @@ export function MobilityWizard({ onClose, onSaved }: { onClose: () => void; onSa
           }))
         })
       })
-      showToast(c.saved, 'success')
       onSaved?.()
+      // 舊視窗的儲存完成不能關閉後來重新開啟的精靈。
+      if (cancelled.current) return
+      showToast(c.saved, 'success')
       onClose()
     } catch {
+      if (cancelled.current) return
       setErr(c.saveFailed)
       setSaving(false)
     }

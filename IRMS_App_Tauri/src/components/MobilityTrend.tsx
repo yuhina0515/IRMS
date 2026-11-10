@@ -10,12 +10,15 @@ import { MobilityWizard } from './MobilityWizard'
 const toRecord = (r: MobilityRecordRow): MobilityRecord => {
   const ids = r.movementSet.split('+').filter((x): x is MovementId => (MOVEMENT_ORDER as string[]).includes(x))
   let peaks: MobilityRecord['peaks'] = {}
+  let side: MobilityRecord['side'] = null
   try {
-    peaks = (JSON.parse(r.detail) as { peaks?: MobilityRecord['peaks'] }).peaks ?? {}
+    const detail = JSON.parse(r.detail) as { peaks?: MobilityRecord['peaks']; side?: unknown }
+    peaks = detail.peaks ?? {}
+    if (detail.side === 'left' || detail.side === 'right') side = detail.side
   } catch {
     // detail is informational; the total and set key are authoritative
   }
-  return { measuredAt: r.measuredAt, movementSet: ids, peaks, totalDeg: r.totalDeg }
+  return { measuredAt: r.measuredAt, movementSet: ids, peaks, side, totalDeg: r.totalDeg }
 }
 
 export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX.Element {
@@ -24,14 +27,18 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
   const locale = useLocale()
   const [rows, setRows] = useState<MobilityRecordRow[] | null>(null)
   const [open, setOpen] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const reload = useCallback((): void => {
+    setLoadFailed(false)
     irms.mobility
       .list()
       .then(setRows)
-      .catch(() => setRows([]))
+      .catch(() => setLoadFailed(true))
   }, [])
   useEffect(reload, [reload])
+  // 連線失效即結束這次量測；重連後須重新取得起始姿勢。
+  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
 
   const records = (rows ?? []).map(toRecord)
   const latest = records[0] // list() is newest first
@@ -53,11 +60,13 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
                 {` · ${formatDateTime(locale, new Date(latest.measuredAt), DATE_TIME)}`}
               </p>
               <p>{c.setLabel({ names })}</p>
+              {latest.side && <p>{latest.side === 'left' ? m.clinical.terms.leftLeg : m.clinical.terms.rightLeg}</p>}
               <p className="field-hint">{c.compareNote}</p>
             </>
           ) : (
-            <p>{rows === null ? '' : c.noRecords}</p>
+            <p>{rows === null || loadFailed ? '' : c.noRecords}</p>
           )}
+          {loadFailed && <p role="alert">{m.history.loadFailed} <button onClick={reload}>{m.common.retry}</button></p>}
         </div>
         <button className="btn btn-primary" data-testid="mobility-open" disabled={disabled} onClick={() => setOpen(true)}>
           {c.startMeasure}
@@ -72,7 +81,7 @@ export function MobilityTrend({ disabled = false }: { disabled?: boolean }): JSX
           ))}
         </ul>
       )}
-      {open && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && !disabled && <MobilityWizard onClose={() => setOpen(false)} onSaved={reload} />}
     </>
   )
 }

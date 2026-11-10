@@ -197,9 +197,14 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
     `comfortAngle`、`limitAngle` 選填、`note`),由獨立發佈的 `angle-range` 模組寫入;不綁動作類型。
   * `mobility_records`(migration 9):長期活動度紀錄(`id`、`measuredAt`、`movementSet` 排序後以 `+` 串接的動作 id、
     `totalDeg` 0–1000 該組動作各保持峰值之和、`detail` 不透明 JSON 預設 `'{}'`,資料庫不解讀其內容);
-    僅同一 `movementSet` 之間可比較趨勢。
+    趨勢比較需同一 `movementSet` 且 `detail.side` 相同；未記錄側別的舊資料獨立分組。
   * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
     歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
+  * Session save recovery (2026-10-21): `running = false` stops acquisition; a non-null runtime ID still owns
+    an unsaved session. Keep that ID, counters and failed readings until append and finalization succeed.
+    `sessionSaveState` distinguishes saving/failed/idle and is not persisted. Retry must not resume acquisition
+    or replay already acknowledged batches. Block destructive history actions and updater installation while
+    the runtime ID is retained. Backend demo purge skips unfinished sessions; finalization rejects missing IDs.
   * ⚠ **`source` 刻意不採「NULL = 舊行為」慣例**(migration 4/5/6 都採)。那三次的 NULL
     意思是「我們確實不知道當時是什麼」;`source` 我們知道——示範模式在那些列被寫入時
     還不存在。更關鍵的是失效模式:可為 NULL 的欄位其失效表現恰好是**靜默地呈現為真實

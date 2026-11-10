@@ -312,6 +312,7 @@ export const en = {
 
   sessionDock: {
     blocker: {
+      finishing: 'Saving session…',
       running: 'Session in progress',
       protocolUnsupported: 'Protocol not supported yet',
       firmwareUpdating: 'Updating firmware',
@@ -323,6 +324,8 @@ export const en = {
     started: 'Session started',
     startFailed: 'Could not start the session',
     ended: 'Session ended and saved',
+    saveFailed: 'The session has stopped, but saving failed. Keep the app open and retry saving.',
+    retrySave: 'Retry saving session',
     completed: 'Completed',
     repsUnit: ' reps',
     currentHold: 'Current hold',
@@ -547,7 +550,7 @@ export const en = {
     viewTitle: 'Mobility trend',
     noRecords: 'No records yet. After a range-of-motion measurement, long-term changes appear here.',
     startMeasure: 'Start measuring',
-    compareNote: 'Only records with the same movement set are compared.',
+    compareNote: 'Only records for the same leg and movement set are compared. Older records without a leg are compared separately.',
     setLabel: (p: { names: string }) => `Movements: ${p.names}`,
     best: (p: { total: string }) => `Best ${p.total}°`,
     latest: (p: { total: string }) => `Latest ${p.total}°`

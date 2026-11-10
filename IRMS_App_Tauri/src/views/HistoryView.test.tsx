@@ -10,6 +10,7 @@ import type { Session } from '@shared/types'
 import userEvent from '@testing-library/user-event'
 import { installIrmsStub } from '../test/irmsApiStub'
 import { HistoryView } from './HistoryView'
+import { useStore } from '../store/useStore'
 
 // Chart.js 需要 canvas 2D context,jsdom 與 happy-dom 都沒有。
 // 這裡測的是列表與徽章,不是圖表,所以整個 mock 掉。
@@ -55,6 +56,15 @@ function session(over: Partial<Session>): Session {
 describe('HistoryView 示範資料標記', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useStore.getState().resetSession()
+  })
+
+  it('disables deletion of the session retained for saving', async () => {
+    installIrmsStub({ sessions: { list: async () => [session({ id: 7 })] } })
+    useStore.getState().patchSession({ id: 7, running: false })
+    render(<HistoryView />)
+    expect(await screen.findByRole('button', { name: /7/ })).toBeDisabled()
+    useStore.getState().resetSession()
   })
 
   it('只有 demo 列帶「示範資料」徽章,device 列沒有', async () => {

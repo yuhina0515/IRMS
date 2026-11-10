@@ -34,8 +34,10 @@ export const MOVEMENTS: Record<MovementId, MovementSpec> = {
 /** Every movement the wizard can offer, in the order it walks the wearer through them. */
 export const MOVEMENT_ORDER: MovementId[] = ['kneeFlexion', 'hipFlexion', 'hipExtension', 'hipAbduction']
 
-/** Samples per hold window; the caller decides the stream rate, so this counts samples, not seconds. */
+/** 最少樣本數與實際維持時間共同判定，避免高頻串流提早通過。 */
 export const HOLD_MIN_SAMPLES = 10
+export const HOLD_MIN_MS = 2000
+export const HOLD_MAX_GAP_MS = 250
 export const HOLD_STILL_TOLERANCE_DEG = 4
 export const REFERENCE_MOVE_MAX_DEG = 10
 export const NEUTRAL_OFF_PLANE_MAX_DEG = 15
@@ -59,6 +61,8 @@ export interface Neutral {
 }
 
 export interface MovementCapture {
+  /** 與重力樣本對齊的單調時間戳（毫秒）。 */
+  sampleTimesMs: number[]
   /** Gravity samples in sensor frames over the whole test (sweep and hold), in time order. */
   moverSamples: V3[]
   referenceSamples?: V3[]
@@ -103,13 +107,22 @@ export function angleFromNeutral(v: V3, axis: V3, neutral: V3): number {
 }
 
 /**
- * Held peak: the highest median angle over a window of `HOLD_MIN_SAMPLES` samples whose spread stays within
- * the stillness tolerance. An instantaneous overshoot or a fast pass through the peak is not a hold.
+ * Held peak: the highest median over a continuous window spanning at least HOLD_MIN_MS and
+ * HOLD_MIN_SAMPLES, within the stillness tolerance. Gaps larger than HOLD_MAX_GAP_MS break a hold.
  */
-export function heldPeak(angles: number[]): { peakDeg: number; spreadDeg: number } | null {
+export function heldPeak(angles: number[], timesMs: number[]): { peakDeg: number; spreadDeg: number } | null {
+  if (angles.length !== timesMs.length || !angles.every(Number.isFinite) || !timesMs.every(Number.isFinite)) return null
   let best: { peakDeg: number; spreadDeg: number } | null = null
   for (let i = 0; i + HOLD_MIN_SAMPLES <= angles.length; i++) {
-    const w = angles.slice(i, i + HOLD_MIN_SAMPLES)
+    let end = i
+    // 中斷或倒序資料不能橋接成一段穩定維持。
+    while (end + 1 < angles.length && (end - i + 1 < HOLD_MIN_SAMPLES || timesMs[end] - timesMs[i] < HOLD_MIN_MS)) {
+      const gap = timesMs[end + 1] - timesMs[end]
+      if (gap <= 0 || gap > HOLD_MAX_GAP_MS) break
+      end++
+    }
+    if (end - i + 1 < HOLD_MIN_SAMPLES || timesMs[end] - timesMs[i] < HOLD_MIN_MS) continue
+    const w = angles.slice(i, end + 1)
     const spread = Math.max(...w) - Math.min(...w)
     if (spread > HOLD_STILL_TOLERANCE_DEG) continue
     const m = median(w)
@@ -122,11 +135,14 @@ export function solveMovement(neutral: Neutral, capture: MovementCapture, spec: 
   const n0 = unit(neutral[spec.mover])
   const samples = capture.moverSamples.map(unit)
   const ref = (capture.referenceSamples ?? []).map(unit)
-  if (!finite(n0) || samples.length < HOLD_MIN_SAMPLES || !samples.every(finite) || !ref.every(finite)) {
+  if (!finite(n0) || samples.length < HOLD_MIN_SAMPLES || !samples.every(finite) || !ref.every(finite) ||
+      capture.sampleTimesMs.length !== samples.length || !capture.sampleTimesMs.every(Number.isFinite) ||
+      capture.sampleTimesMs.some((t, i, ts) => i > 0 && t <= ts[i - 1])) {
     return { ok: false, error: 'invalidInput' }
   }
 
   if (spec.reference) {
+    if (ref.length !== samples.length) return { ok: false, error: 'invalidInput' }
     const refNeutral = unit(neutral[spec.reference])
     if (!finite(refNeutral)) return { ok: false, error: 'invalidInput' }
     if (ref.length > 0 && angularSpanDeg([refNeutral, ...ref]) > REFERENCE_MOVE_MAX_DEG) {
@@ -165,16 +181,17 @@ export function solveMovement(neutral: Neutral, capture: MovementCapture, spec: 
     z: n0.z - dot(n0, axis) * axis.z
   })
 
-  // The plane normal has an arbitrary sign: orient it so the sweep's largest excursion reads positive.
+  // 法向量正負任意；使用穩定維持決定方向，避免單筆反向雜訊翻轉整次量測。
   let angles = samples.map((s) => angleFromNeutral(s, axis, neutralInPlane))
-  const extreme = angles.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0)
-  if (extreme < 0) {
+  let hold = heldPeak(angles, capture.sampleTimesMs)
+  const reverseHold = heldPeak(angles.map((a) => -a), capture.sampleTimesMs)
+  if (reverseHold && (!hold || reverseHold.peakDeg > hold.peakDeg)) {
     axis = scale(axis, -1)
     angles = angles.map((a) => -a)
+    hold = reverseHold
   }
 
   const instantMaxDeg = Math.max(...angles)
-  const hold = heldPeak(angles)
   if (!hold) return { ok: false, error: 'noHold' }
   if (hold.peakDeg < MIN_PEAK_DEG) return { ok: false, error: 'peakTooSmall' }
   if (hold.peakDeg > spec.plausibleMaxDeg) return { ok: false, error: 'implausible' }
@@ -199,6 +216,8 @@ export function solveMovement(neutral: Neutral, capture: MovementCapture, spec: 
 // ---------- long-term record ----------
 
 export interface MobilityRecord {
+  /** 未記錄側別的舊資料只與同樣未知的資料比較。 */
+  side?: 'left' | 'right' | null
   measuredAt: string
   /** Sorted movement ids; trends compare only records with the same set. */
   movementSet: MovementId[]
@@ -224,5 +243,6 @@ export function buildMobilityRecord(results: MovementResult[], measuredAt: strin
 /** Records comparable with `current` (same movement set), oldest first. */
 export function comparableTrend(records: MobilityRecord[], current: MobilityRecord): MobilityRecord[] {
   const key = movementSetKey(current.movementSet)
-  return records.filter((r) => movementSetKey(r.movementSet) === key).sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
+  return records.filter((r) => movementSetKey(r.movementSet) === key && (r.side ?? null) === (current.side ?? null))
+    .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
 }

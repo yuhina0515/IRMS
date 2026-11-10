@@ -52,7 +52,7 @@ const noisy = (v: V3, deg: number, r: () => number): V3 => {
 }
 
 /** ramp out, hold at `peak`, ramp back; returns angles about the hinge relative to the neutral. */
-function profile(peak: number, ramp = 30, hold = 15): number[] {
+function profile(peak: number, ramp = 30, hold = 60): number[] {
   const out: number[] = []
   for (let i = 1; i <= ramp; i++) out.push((peak * i) / ramp)
   for (let i = 0; i < hold; i++) out.push(peak)
@@ -72,7 +72,7 @@ function run(opts: { seed: number; a0: number; peak: number; dir?: 1 | -1; noise
   const referenceSamples = angles.map((_, i) =>
     noisy(toSensor(rotThigh, seg(10, (opts.refMove ?? 0) * Math.sin(i / 5))), noise, r)
   )
-  return solveMovement(neutral, { moverSamples, referenceSamples }, MOVEMENTS.kneeFlexion)
+  return solveMovement(neutral, { moverSamples, referenceSamples, sampleTimesMs: angles.map((_, i) => i * 40) }, MOVEMENTS.kneeFlexion)
 }
 
 describe('solveMovement (strategy C)', () => {
@@ -90,7 +90,7 @@ describe('solveMovement (strategy C)', () => {
 
   it('does not count a one-sample overshoot as the held peak', () => {
     const angles = profile(80)
-    angles[30 + 14] = 100
+    angles[30 + 59] = 100
     const out = run({ seed: 11, a0: 15, peak: 80, angles })
     expect(out.ok).toBe(true)
     if (out.ok) {
@@ -135,10 +135,20 @@ describe('solveMovement (strategy C)', () => {
     const bad = { x: NaN, y: 0, z: 1 }
     const out = solveMovement(
       { thigh: { x: 0, y: 1, z: 0 }, shin: { x: 0, y: 1, z: 0 } },
-      { moverSamples: Array.from({ length: HOLD_MIN_SAMPLES }, () => bad) },
+      { moverSamples: Array.from({ length: HOLD_MIN_SAMPLES }, () => bad), sampleTimesMs: Array.from({ length: HOLD_MIN_SAMPLES }, (_, i) => i * 40) },
       MOVEMENTS.kneeFlexion
     )
     expect(out).toEqual({ ok: false, error: 'invalidInput' })
+  })
+
+  it('requires a full aligned reference stream for a knee measurement', () => {
+    const angles = profile(90)
+    const neutral = { thigh: seg(0, 0), shin: seg(0, 0) }
+    const capture = { moverSamples: angles.map((a) => seg(0, a)), sampleTimesMs: angles.map((_, i) => i * 40) }
+    expect(solveMovement(neutral, capture, MOVEMENTS.kneeFlexion)).toEqual({ ok: false, error: 'invalidInput' })
+    expect(solveMovement(neutral, { ...capture, referenceSamples: [neutral.thigh] }, MOVEMENTS.kneeFlexion))
+      .toEqual({ ok: false, error: 'invalidInput' })
+    expect(solveMovement(neutral, { ...capture, referenceSamples: angles.map(() => neutral.thigh) }, MOVEMENTS.kneeFlexion).ok).toBe(true)
   })
 })
 
@@ -149,7 +159,7 @@ describe('hip movements (thigh sensor only)', () => {
     const angles = profile(peak)
     const neutral = { thigh: toSensor(rot, seg(5, 0)), shin: { x: 0, y: 1, z: 0 } }
     const moverSamples = angles.map((a) => noisy(toSensor(rot, seg(5, dir * a)), 0.4, r))
-    return solveMovement(neutral, { moverSamples }, MOVEMENTS[id])
+    return solveMovement(neutral, { moverSamples, sampleTimesMs: angles.map((_, i) => i * 40) }, MOVEMENTS[id])
   }
 
   it('recovers flexion, extension and abduction peaks with no reference sensor', () => {
@@ -179,9 +189,31 @@ describe('hip movements (thigh sensor only)', () => {
 
 describe('heldPeak', () => {
   it('needs a still window and ignores a faster pass', () => {
-    expect(heldPeak(Array.from({ length: 30 }, (_, i) => i * 4))).toBeNull()
-    const held = heldPeak([0, 20, 40, ...Array(12).fill(70), 40, 0])
+    expect(heldPeak(Array.from({ length: 60 }, (_, i) => i * 4), Array.from({ length: 60 }, (_, i) => i * 40))).toBeNull()
+    const angles = [0, 20, 40, ...Array(60).fill(70), 40, 0]
+    const held = heldPeak(angles, angles.map((_, i) => i * 40))
     expect(held?.peakDeg).toBe(70)
+  })
+
+  it('requires two seconds at different stream rates and rejects gaps or invalid clocks', () => {
+    for (const interval of [20, 40, 100, 200]) {
+      const times = Array.from({ length: 2000 / interval + 1 }, (_, i) => i * interval)
+      const angles = times.map(() => 70)
+      expect(heldPeak(angles.slice(1), times.slice(1))).toBeNull()
+      expect(heldPeak(angles, times)?.peakDeg).toBe(70)
+    }
+    expect(heldPeak(Array(10).fill(70), Array.from({ length: 10 }, (_, i) => i * 40))).toBeNull()
+    const times = Array.from({ length: 60 }, (_, i) => i * 40 + (i >= 30 ? 1000 : 0))
+    expect(heldPeak(Array(60).fill(70), times)).toBeNull()
+    expect(heldPeak(Array(60).fill(70), Array(60).fill(0))).toBeNull()
+  })
+
+  it('ignores an opposite-direction instantaneous outlier when selecting the held direction', () => {
+    const angles = profile(80)
+    angles[30 + 59] = -100
+    const out = run({ seed: 11, a0: 15, peak: 80, angles })
+    expect(out.ok).toBe(true)
+    if (out.ok) expect(out.result.peakDeg).toBeCloseTo(80, 0)
   })
 })
 
@@ -216,5 +248,15 @@ describe('mobility record', () => {
     })
     const old = [mk('2026-09-01', 90), mk('2026-09-10', 100)]
     expect(comparableTrend([...old, { ...mk('2026-09-05', 50), movementSet: [] }], mk('x', 0))).toHaveLength(2)
+  })
+
+  it('keeps left, right and legacy unknown sides in separate trends', () => {
+    const base: MobilityRecord = { measuredAt: '2026-10-20', movementSet: ['kneeFlexion'], peaks: {}, totalDeg: 70 }
+    const right = { ...base, side: 'right' as const }
+    const left = { ...base, side: 'left' as const, totalDeg: 120 }
+    const records = [base, { ...base, side: null }, right, left]
+    expect(comparableTrend(records, right)).toEqual([right])
+    expect(comparableTrend(records, left)).toEqual([left])
+    expect(comparableTrend(records, base)).toHaveLength(2)
   })
 })
