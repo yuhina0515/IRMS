@@ -14,6 +14,7 @@ import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
+import { isVoiceSupported } from '../services/voice'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
@@ -321,6 +322,7 @@ function DisplayPane(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const m = useT()
   const md = m.settings.display
+  const voiceSupported = isVoiceSupported()
   return (
     <>
       <div className="field" style={{ maxWidth: 360 }}>
@@ -361,9 +363,14 @@ function DisplayPane(): JSX.Element {
         <p className="field-hint">{md.poseHint}</p>
       </div>
       <div style={{ maxWidth: 360 }}>
-        <Toggle label={md.voice} checked={settings.voiceEnabled} onChange={(v) => setSettings({ voiceEnabled: v })} />
-        <p className="field-hint" style={{ marginTop: 6 }}>
-          {md.voiceHint}
+        <Toggle
+          label={md.voice}
+          checked={voiceSupported && settings.voiceEnabled}
+          onChange={(v) => setSettings({ voiceEnabled: v })}
+          disabled={!voiceSupported}
+        />
+        <p className="field-hint" style={{ marginTop: 6 }} data-testid="voice-hint">
+          {voiceSupported ? md.voiceHint : md.voiceUnsupported}
         </p>
       </div>
       <details className="adv-fold">
