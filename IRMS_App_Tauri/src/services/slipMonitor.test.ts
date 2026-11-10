@@ -12,6 +12,7 @@ import {
   rotY,
   rotZ,
   simulate,
+  thighRaise,
   type ImuFrame,
   type Mat3,
   type Rig,
@@ -189,5 +190,78 @@ describe('SlipMonitor', () => {
     run(monitor, frames, 100000)
     expect(run(monitor, frames, 0)).toEqual([])
     expect(monitor.summary().last).not.toBeNull()
+  })
+})
+
+/** Calibrated thigh-raise axis in the thigh sensor frame, from a straight-knee thigh raise on this rig. */
+function thighHinge(rig: Rig) {
+  const k = thighRaise(80)
+  const f = simulate(k.traj, k.durationSec, rig, { seed: 1 })
+  const out = estimateLimbFrame({
+    reference: meanUnit(between(f, ...k.still).map((x) => x.thighV)),
+    samples: f.map((x) => x.thighV),
+    expectedSign: 1
+  })
+  if (!out.ok) throw new Error(`calibration failed: ${out.error}`)
+  return out.frame.hinge
+}
+
+/** `reps` straight-leg raises (knee held at 0) of about 6 s each. */
+function legSwings(reps: number, rig: Rig, seed = 2): ImuFrame[] {
+  const steps: Step[] = [{ to: {}, moveSec: 0, holdSec: 1 }]
+  for (let i = 0; i < reps; i++) {
+    steps.push({ to: { hipFlex: 70 }, moveSec: 2, holdSec: 1 })
+    steps.push({ to: { hipFlex: 0 }, moveSec: 2, holdSec: 1 })
+  }
+  return simulateSteps(rig, steps, seed)
+}
+
+function runThigh(monitor: SlipMonitor, frames: ImuFrame[], t0 = 0): SlipEvent[] {
+  const events: SlipEvent[] = []
+  for (const f of frames) {
+    const e = monitor.push(t0 + f.tMs, { thigh: f.thighV, shin: f.shinV, kneeDeg: f.eulerShin - f.eulerThigh })
+    if (e) events.push(e)
+  }
+  return events
+}
+
+describe('SlipMonitor thigh check', () => {
+  it('stays silent on an unchanged mounting', () => {
+    for (let seed = 1; seed <= 4; seed++) {
+      const rig = createRig({ seed, ...NOISE })
+      const monitor = new SlipMonitor(shinHinge(rig), thighHinge(rig))
+      expect(runThigh(monitor, legSwings(8, rig)), `seed ${seed}`).toEqual([])
+      expect(monitor.thighSummary().last, `seed ${seed}`).not.toBeNull()
+      expect(monitor.thighSummary().worstDeg, `seed ${seed}`).toBeLessThan(SLIP_AXIS_WARN_DEG)
+    }
+  })
+
+  it('reports a shifted thigh sensor once', () => {
+    const rig = createRig({ seed: 3, ...NOISE })
+    const hinge = thighHinge(rig)
+    const slippedThigh = (s: Mat3): Rig => ({ ...rig, mountThigh: mulM(rig.mountThigh, s) })
+    const slip = [rotX(25), rotY(25), rotZ(25)].find(
+      (s) => axisDrift(hinge, legSwings(2, slippedThigh(s)).map((f) => f.thighV))!.axisDriftDeg > 15
+    )!
+    const monitor = new SlipMonitor(shinHinge(rig), hinge)
+    const events = runThigh(monitor, legSwings(10, slippedThigh(slip)))
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ kind: 'shift', limb: 'thigh' })
+  })
+
+  it('does nothing while the knee bends, without a knee angle, or without a thigh axis', () => {
+    const rig = createRig({ seed: 3, ...NOISE })
+    const frames = exercise(8).frames(rig)
+    const withThigh = new SlipMonitor(shinHinge(rig), thighHinge(rig))
+    expect(runThigh(withThigh, frames)).toEqual([])
+    expect(withThigh.thighSummary()).toEqual({ last: null, worstDeg: 0 })
+
+    const noAngle = new SlipMonitor(shinHinge(rig), thighHinge(rig))
+    expect(run(noAngle, legSwings(6, rig))).toEqual([])
+    expect(noAngle.thighSummary().last).toBeNull()
+
+    const noAxis = new SlipMonitor(shinHinge(rig))
+    expect(runThigh(noAxis, legSwings(6, rig))).toEqual([])
+    expect(noAxis.thighSummary().last).toBeNull()
   })
 })

@@ -68,7 +68,7 @@ export const zhHant = {
       sensorFault: (p: { code: string }) => `感測器異常 · ${p.code}`,
       sensorFaultSub: '已停止回饋輸出,等待感測器復原;可隨時結束療程',
       overLimitTitle: '超出極限範圍,請停止加深',
-      mountShiftSub: '小腿感測器可能移位,之後的角度可能不準。結束後請重新檢查穿戴。',
+      mountShiftSub: '感測器可能移位,之後的角度可能不準。結束後請重新檢查穿戴。',
       overLimitSub: (p: { knee: string; limit: string }) => `膝角 ${p.knee}° · 你的極限範圍 ${p.limit}°`,
       hyperTitle: '膝蓋稍微彎一點',
       hyperSub: (p: { deg: string }) => `膝蓋往後伸多了 ${p.deg}°。稍微彎回來就好,不用往後壓`,
@@ -167,7 +167,7 @@ export const zhHant = {
     hyperextension: '膝蓋稍微彎一點',
     sessionEnd: (p: { n: number }) => `療程結束,共完成 ${p.n} 下`,
     connectionLost: '連線中斷,療程已結束',
-    mountShift: '小腿感測器可能移位了'
+    mountShift: '感測器可能移位了'
   },
 
   guidance: {
@@ -352,7 +352,7 @@ export const zhHant = {
   },
 
   sessionDock: {
-    mountShift: '小腿感測器可能移位了,之後的角度可能不準。這一組做完後請檢查穿戴,必要時重新校準。',
+    mountShift: '感測器可能移位了,之後的角度可能不準。這一組做完後請檢查穿戴,必要時重新校準。',
     blocker: {
       finishing: '療程儲存中…',
       running: '療程進行中',

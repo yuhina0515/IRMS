@@ -9,7 +9,9 @@
 // - see a tilt about the hinge axis itself (a pure zero offset); that needs the reference posture of the
 //   pre-session wearing check;
 // - judge the shin while the thigh moves (the sweep then mixes hip and knee motion and proves nothing);
-// - judge the thigh sensor at all: the hip is not a hinge, so a different sweep axis there is ordinary movement.
+// - judge the thigh while the knee bends: the hip is not a hinge, so the thigh's sweep axis only means something
+//   when the knee is held still and the whole leg swings as one piece (a straight leg raise or a hip swing in
+//   the sagittal plane). That check is opt-in: it needs the calibrated thigh axis and the knee angle.
 //
 // Pure and store-free. The thresholds are provisional: they come from the simulator, not from a worn device.
 import type { AccelVector } from '@shared/protocol'
@@ -26,6 +28,8 @@ export const SLIP_SPAN_MIN_DEG = 30
 export const SLIP_PLANARITY_MAX_DEG = 6
 /** The thigh counts as resting while its gravity vector stays within this spread over the window. */
 export const SLIP_THIGH_STILL_MAX_DEG = 8
+/** The knee counts as held while its angle stays within this spread over the window (thigh check). */
+export const SLIP_KNEE_STILL_MAX_DEG = 8
 /** Axis difference that counts as a shifted sensor. */
 export const SLIP_AXIS_WARN_DEG = 12
 /**
@@ -43,7 +47,7 @@ export interface SlipReading {
 
 export interface SlipEvent extends SlipReading {
   kind: 'shift'
-  limb: 'shin'
+  limb: 'shin' | 'thigh'
 }
 
 const finite = (v: V3): boolean => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)
@@ -88,68 +92,102 @@ export function axisDrift(hinge: V3, samples: V3[]): SlipReading | null {
   return { axisDriftDeg: (Math.acos(c) * 180) / Math.PI, spanDeg, planarityDeg: fit.planarityDeg }
 }
 
+/** Latched warning state of one sensor. */
+class LimbWatch {
+  /** Time of the first evaluation of the current unbroken run above the warning threshold. */
+  overSince: number | null = null
+  reported = false
+  last: SlipReading | null = null
+  worst = 0
+
+  /** Record a clean reading; returns true once the shift has persisted long enough to report (once only). */
+  update(tMs: number, reading: SlipReading): boolean {
+    this.last = reading
+    this.worst = Math.max(this.worst, reading.axisDriftDeg)
+    if (reading.axisDriftDeg <= SLIP_AXIS_WARN_DEG) {
+      this.overSince = null
+      return false
+    }
+    if (this.overSince == null) this.overSince = tMs
+    if (this.reported || tMs - this.overSince < SLIP_CONFIRM_MS) return false
+    this.reported = true
+    return true
+  }
+}
+
+const usable = (v: V3 | null | undefined): V3 | null => (v && finite(v) && unit(v) ? v : null)
+
 export class SlipMonitor {
   private readonly hinge: V3 | null
-  private samples: { tMs: number; thigh: V3; shin: V3 }[] = []
+  private readonly thighHinge: V3 | null
+  private samples: { tMs: number; thigh: V3; shin: V3; kneeDeg: number | null }[] = []
   private lastEval = -Infinity
-  /** Time of the first evaluation of the current unbroken run above the warning threshold. */
-  private overSince: number | null = null
-  private reported = false
-  private last: SlipReading | null = null
-  private worst = 0
+  private readonly shinWatch = new LimbWatch()
+  private readonly thighWatch = new LimbWatch()
 
-  /** `shinHinge` is the calibrated knee hinge in the shin sensor frame; without one nothing is watched. */
-  constructor(shinHinge: V3 | null | undefined) {
-    this.hinge = shinHinge && finite(shinHinge) && unit(shinHinge) ? shinHinge : null
+  /**
+   * `shinHinge` is the calibrated knee hinge in the shin sensor frame; without one nothing is watched.
+   * `thighHinge` (the calibrated thigh-raise axis in the thigh frame) additionally enables the thigh check.
+   */
+  constructor(shinHinge: V3 | null | undefined, thighHinge?: V3 | null) {
+    this.hinge = usable(shinHinge)
+    this.thighHinge = this.hinge ? usable(thighHinge) : null
   }
 
   get active(): boolean {
     return this.hinge != null
   }
 
-  /** Most recent clean reading and the largest drift seen (for logs and session notes). */
+  /** Most recent clean shin reading and the largest drift seen (for logs and session notes). */
   summary(): { last: SlipReading | null; worstDeg: number } {
-    return { last: this.last, worstDeg: this.worst }
+    return { last: this.shinWatch.last, worstDeg: this.shinWatch.worst }
+  }
+
+  /** The same for the thigh sensor; `last` stays null until a clean leg swing with a still knee was seen. */
+  thighSummary(): { last: SlipReading | null; worstDeg: number } {
+    return { last: this.thighWatch.last, worstDeg: this.thighWatch.worst }
   }
 
   /**
-   * Feed one sample of both gravity vectors (both are needed: the thigh proves the knee moved alone). Returns at
-   * most one event per monitor lifetime: the report is latched, so a shifted sensor gives one warning.
+   * Feed one sample of both gravity vectors (both are needed: the thigh proves the knee moved alone). `kneeDeg`
+   * is the current knee angle; it is only used by the thigh check. Returns at most one event per limb per monitor
+   * lifetime: each report is latched, so a shifted sensor gives one warning.
    */
-  push(tMs: number, vectors: { thigh?: V3 | null; shin?: V3 | null }): SlipEvent | null {
+  push(tMs: number, vectors: { thigh?: V3 | null; shin?: V3 | null; kneeDeg?: number | null }): SlipEvent | null {
     if (!this.hinge || !Number.isFinite(tMs)) return null
     // A clock that runs backwards (reconnect, resume) makes the window meaningless: start over.
     if (this.samples.length > 0 && tMs < this.samples[this.samples.length - 1].tMs) {
       this.samples = []
-      this.overSince = null
+      this.shinWatch.overSince = null
+      this.thighWatch.overSince = null
       this.lastEval = -Infinity
     }
     const thigh = vectors.thigh && finite(vectors.thigh) ? unit(vectors.thigh) : null
     const shin = vectors.shin && finite(vectors.shin) ? unit(vectors.shin) : null
-    if (thigh && shin) this.samples.push({ tMs, thigh, shin })
+    const kneeDeg = typeof vectors.kneeDeg === 'number' && Number.isFinite(vectors.kneeDeg) ? vectors.kneeDeg : null
+    if (thigh && shin) this.samples.push({ tMs, thigh, shin, kneeDeg })
     while (this.samples.length > 0 && this.samples[0].tMs < tMs - SLIP_WINDOW_MS) this.samples.shift()
 
     if (tMs - this.lastEval < SLIP_EVAL_EVERY_MS) return null
     this.lastEval = tMs
 
-    // No clean knee-only sweep in the window says nothing either way: the current run is left as it is.
+    // No clean sweep in the window says nothing either way: the current run is left as it is.
     if (this.samples.length < SLIP_MIN_SAMPLES) return null
-    if (angularSpanDeg(this.samples.map((s) => s.thigh)) > SLIP_THIGH_STILL_MAX_DEG) return null
-    const reading = axisDrift(
-      this.hinge,
-      this.samples.map((s) => s.shin)
-    )
-    if (!reading) return null
 
-    this.last = reading
-    this.worst = Math.max(this.worst, reading.axisDriftDeg)
-    if (reading.axisDriftDeg <= SLIP_AXIS_WARN_DEG) {
-      this.overSince = null
-      return null
+    // Shin: the thigh rests and the knee sweeps.
+    if (angularSpanDeg(this.samples.map((s) => s.thigh)) <= SLIP_THIGH_STILL_MAX_DEG) {
+      const reading = axisDrift(this.hinge, this.samples.map((s) => s.shin))
+      if (reading && this.shinWatch.update(tMs, reading)) return { kind: 'shift', limb: 'shin', ...reading }
     }
-    if (this.overSince == null) this.overSince = tMs
-    if (this.reported || tMs - this.overSince < SLIP_CONFIRM_MS) return null
-    this.reported = true
-    return { kind: 'shift', limb: 'shin', ...reading }
+
+    // Thigh: the knee is held and the whole leg swings about the hip.
+    if (this.thighHinge && this.samples.every((s) => s.kneeDeg != null)) {
+      const knees = this.samples.map((s) => s.kneeDeg as number)
+      if (Math.max(...knees) - Math.min(...knees) <= SLIP_KNEE_STILL_MAX_DEG) {
+        const reading = axisDrift(this.thighHinge, this.samples.map((s) => s.thigh))
+        if (reading && this.thighWatch.update(tMs, reading)) return { kind: 'shift', limb: 'thigh', ...reading }
+      }
+    }
+    return null
   }
 }
