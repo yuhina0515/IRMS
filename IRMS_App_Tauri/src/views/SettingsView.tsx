@@ -6,6 +6,8 @@ import { JOINT_PROTOCOLS } from '@shared/types'
 import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
+import { CalibrationWizardB } from '../components/CalibrationWizardB'
+import { MobilityTrend } from '../components/MobilityTrend'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
@@ -14,6 +16,7 @@ import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import {
   DATE_TIME,
@@ -24,6 +27,7 @@ import {
   type LanguageSetting,
   type Messages
 } from '../i18n'
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
 
 /**
  * Language names are endonyms (each written in its own language) and deliberately not translated:
@@ -68,14 +72,22 @@ function NumField({
   onChange: (v: number) => void
   disabled?: boolean
 }): JSX.Element {
+  // 輸入中的字串另存:每個按鍵都立刻鉗制並回寫的話,輸入「20」會先變成 10(被 max(10,…) 擋),
+  // 清空欄位則會把 0 寫進校準值。只有可解析的數字才回寫,離開欄位後才以儲存值為準。
+  const [draft, setDraft] = useState<string | null>(null)
   return (
     <div className="field" style={{ flex: 1 }}>
       <label>{label}</label>
       <input
         type="number"
-        value={value}
+        value={draft ?? value}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          const n = parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(n)
+        }}
+        onBlur={() => setDraft(null)}
       />
     </div>
   )
@@ -161,6 +173,7 @@ function CalibrationPane(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardBOpen, setWizardBOpen] = useState(false)
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     setSettings({ [key]: value } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
@@ -205,6 +218,15 @@ function CalibrationPane(): JSX.Element {
           {settings.lastCalibratedAt ? mc.recalibrate : mc.start}
         </button>
       </div>
+      <button
+        className="btn btn-secondary"
+        data-testid="calib-b-open"
+        disabled={!isConnected || calibrationLocked}
+        onClick={() => setWizardBOpen(true)}
+      >
+        {m.calibrationB.title} ({m.calibrationB.beta})
+      </button>
+      <MobilityTrend disabled={!isConnected} />
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>
@@ -240,6 +262,7 @@ function CalibrationPane(): JSX.Element {
         </button>
       </details>
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
+      {wizardBOpen && <CalibrationWizardB onClose={() => setWizardBOpen(false)} />}
     </>
   )
 }
@@ -288,6 +311,12 @@ function DisplayPane(): JSX.Element {
         />
         <p className="field-hint">{md.poseHint}</p>
       </div>
+      <div style={{ maxWidth: 360 }}>
+        <Toggle label={md.voice} checked={settings.voiceEnabled} onChange={(v) => setSettings({ voiceEnabled: v })} />
+        <p className="field-hint" style={{ marginTop: 6 }}>
+          {md.voiceHint}
+        </p>
+      </div>
       <details className="adv-fold">
         <summary>{m.common.advanced}</summary>
         <div className="row">
@@ -309,9 +338,11 @@ function DisplayPane(): JSX.Element {
 
 export function SettingsView(): JSX.Element {
   const [category, setCategory] = useState<SettingsCategory>('device')
+  const [navOpen, setNavOpen] = useState(false)
   const setView = useUiStore((s) => s.setView)
   const m = useT()
   const meta = m.settings.categories[category]
+  useEscapeKey(navOpen ? () => setNavOpen(false) : null)
 
   return (
     <div className="v3-page">
@@ -322,9 +353,10 @@ export function SettingsView(): JSX.Element {
         </div>
       </div>
       <section className="v3-sheet v3-settings">
-        <nav className="v3-settings-index" aria-label={m.settings.indexAria}>
+        {navOpen && <div className="v3-settings-scrim" onClick={() => setNavOpen(false)} />}
+        <nav className={`v3-settings-index${navOpen ? ' is-open' : ''}`} aria-label={m.settings.indexAria}>
           {CATEGORIES.map((id) => (
-            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => setCategory(id)}>
+            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => { setCategory(id); setNavOpen(false) }}>
               {m.settings.categories[id].label}
               <span aria-hidden>›</span>
             </button>
@@ -332,8 +364,19 @@ export function SettingsView(): JSX.Element {
         </nav>
         <div className="v3-settings-pane">
           <header className="v3-settings-head">
-            <h2>{meta.title}</h2>
-            <p>{meta.hint}</p>
+            <button
+              type="button"
+              className="v3-settings-menu"
+              aria-label={m.settings.indexAria}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              ☰
+            </button>
+            <div>
+              <h2>{meta.title}</h2>
+              <p>{meta.hint}</p>
+            </div>
           </header>
           <div className="v3-settings-body v3-scroll">
             {category === 'device' && <DevicePane />}
@@ -374,6 +417,8 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
       return u.downloading({ pct: status.percent })
     case 'downloaded':
       return u.downloaded({ version: status.version })
+    case 'apk-available':
+      return u.apkAvailable({ version: status.version })
     case 'not-available':
       return u.notAvailable
     case 'error':
@@ -395,7 +440,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded'].includes(status.state)
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available'].includes(status.state)
   const m = useT()
   const ms = m.settings.software
 
@@ -414,7 +459,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   return (
     <div className="panel glass">
       <h3 style={{ marginBottom: 14 }}>{ms.heading}</h3>
-      <p className="text-text-muted text-sm mb-3">{ms.intro}</p>
+      <p className="text-text-muted text-sm mb-3">{IS_ANDROID ? ms.introAndroid : ms.intro}</p>
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">{ms.currentVersion({ version })}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>

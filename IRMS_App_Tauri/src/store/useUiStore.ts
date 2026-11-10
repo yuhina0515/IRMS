@@ -80,7 +80,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
 
   requestConfirm: (title, message) =>
-    new Promise<boolean>((resolve) => set({ confirm: { title, message, resolve } })),
+    new Promise<boolean>((resolve) => {
+      // 被取代的對話框視為取消,否則它的 await 永遠不會結束
+      get().confirm?.resolve(false)
+      set({ confirm: { title, message, resolve } })
+    }),
 
   resolveConfirm: (ok) => {
     get().confirm?.resolve(ok)

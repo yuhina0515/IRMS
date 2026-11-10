@@ -78,6 +78,20 @@ export class TriggerEngine {
     // ── 進區:嚴格區間(遲滯的窄邊)──
     const strictIn = sample.kneeStraightOk && sample.value >= zone.min && sample.value <= zone.max
 
+    // 寬限已逾時才來下一筆(例如藍牙中斷):不論這筆是否在區內,先確認離區,
+    // 否則整段空白會被算進保持時間。
+    if (
+      this.state === 'holding' &&
+      this.graceStartedAt != null &&
+      this.now() - this.graceStartedAt > EXIT_GRACE_MS
+    ) {
+      this.state = 'idle'
+      this.inZoneStartTime = 0
+      this.graceStartedAt = null
+      this.events.onHoldProgress(0)
+      this.events.onZoneExit()
+    }
+
     if (this.state === 'idle' && strictIn) {
       this.state = 'holding'
       this.inZoneStartTime = this.now()
@@ -107,13 +121,6 @@ export class TriggerEngine {
       } else if (this.graceStartedAt == null) {
         // 剛跳出:啟動寬限計時,進度凍結(不發事件、不清零)
         this.graceStartedAt = this.now()
-      } else if (this.now() - this.graceStartedAt > EXIT_GRACE_MS) {
-        // 寬限逾時:確定離區,進度歸零
-        this.state = 'idle'
-        this.inZoneStartTime = 0
-        this.graceStartedAt = null
-        this.events.onHoldProgress(0)
-        this.events.onZoneExit()
       }
       // 寬限期間:維持 holding,等待回區或逾時
     }

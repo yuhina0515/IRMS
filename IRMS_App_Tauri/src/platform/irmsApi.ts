@@ -14,11 +14,14 @@
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getVersion } from '@tauri-apps/api/app'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
+  MobilityRecordInput,
+  MobilityRecordRow,
   CustomAction,
   CustomActionInput,
   FirmwareBinary,
@@ -52,6 +55,8 @@ const AUTO_CHECK_ENABLED = !import.meta.env.DEV
 const AUTO_CHECK_DELAY_MS = 5000
 
 let currentUpdate: Update | null = null
+let currentApkUrl: string | null = null
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
 let checkInFlight: Promise<void> | null = null
 let lastStatus: UpdateStatus | null = null
 let readyToInstall = false
@@ -74,6 +79,14 @@ function performCheck(): Promise<void> {
 async function checkAndDownload(): Promise<void> {
   emitStatus({ state: 'checking' })
   try {
+    const apk = IS_ANDROID
+      ? await invoke<{ version: string; url: string } | null>('android_update_check', { allowBeta })
+      : null
+    if (apk) {
+      currentApkUrl = apk.url
+      emitStatus({ state: 'apk-available', version: apk.version })
+      return
+    }
     const metadata = await invoke<UpdateMetadata | null>('update_check', { allowBeta })
     if (!metadata) {
       emitStatus({ state: 'not-available' })
@@ -158,6 +171,11 @@ export const irms: IrmsApi = {
     list: () => invoke<AngleRangeRecord[]>('angle_ranges_list'),
     add: (input: AngleRangeInput) => invoke<AngleRangeRecord>('angle_ranges_add', { input }),
     remove: (id: number) => invoke<void>('angle_ranges_delete', { id })
+  },
+  mobility: {
+    list: () => invoke<MobilityRecordRow[]>('mobility_list'),
+    add: (input: MobilityRecordInput) => invoke<MobilityRecordRow>('mobility_add', { input }),
+    remove: (id: number) => invoke<void>('mobility_delete', { id })
   },
   data: {
     async appendBatch(sessionId: number, readings: SensorReading[]) {
@@ -260,6 +278,9 @@ export const irms: IrmsApi = {
       if (!currentUpdate || !readyToInstall || installing) return
       installing = true
       try { await currentUpdate.install() } finally { installing = false }
+    },
+    async openApkDownload() {
+      if (currentApkUrl) await openUrl(currentApkUrl)
     },
     async setAllowPrerelease(allow: boolean) {
       allowBeta = allow

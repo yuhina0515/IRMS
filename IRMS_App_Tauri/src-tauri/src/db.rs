@@ -209,6 +209,50 @@ pub mod angle_ranges_repo {
     }
 }
 
+pub mod mobility_repo {
+    use super::*;
+    use crate::types::{MobilityRecordInput, MobilityRecordRow};
+
+    fn row_to_record(row: &rusqlite::Row) -> rusqlite::Result<MobilityRecordRow> {
+        Ok(MobilityRecordRow {
+            id: row.get("id")?,
+            measured_at: row.get("measuredAt")?,
+            movement_set: row.get("movementSet")?,
+            total_deg: row.get("totalDeg")?,
+            detail: row.get("detail")?,
+        })
+    }
+
+    /// Newest first.
+    pub fn list(conn: &Connection) -> rusqlite::Result<Vec<MobilityRecordRow>> {
+        let mut stmt =
+            conn.prepare("SELECT * FROM mobility_records ORDER BY measuredAt DESC, id DESC")?;
+        let rows = stmt.query_map([], row_to_record)?;
+        rows.collect()
+    }
+
+    pub fn add(
+        conn: &Connection,
+        input: &MobilityRecordInput,
+    ) -> rusqlite::Result<MobilityRecordRow> {
+        conn.execute(
+            "INSERT INTO mobility_records (movementSet, totalDeg, detail) VALUES (?1, ?2, ?3)",
+            params![input.movement_set, input.total_deg, input.detail],
+        )?;
+        let id = conn.last_insert_rowid();
+        conn.query_row(
+            "SELECT * FROM mobility_records WHERE id = ?1",
+            [id],
+            row_to_record,
+        )
+    }
+
+    pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+        conn.execute("DELETE FROM mobility_records WHERE id = ?1", [id])?;
+        Ok(())
+    }
+}
+
 pub mod sessions_repo {
     use super::*;
 
@@ -310,17 +354,17 @@ pub mod sessions_repo {
             .collect();
         let sampled = lttb(&points, max_points);
 
-        // Map sampled points back to their source rows by matching (x, y) — points carry no
-        // index, so recover it the same way the TS version does implicitly via array identity;
-        // here we rebuild via a parallel index scan since Rust doesn't share object identity.
+        // lttb keeps input order, so walk forward with a cursor: matching on (x, y) alone would
+        // resolve two same-millisecond, same-angle rows to the first one twice.
         let mut out = Vec::with_capacity(sampled.len());
+        let mut cursor = 0;
         for p in &sampled {
-            if let Some((idx, _)) = points
+            if let Some(offset) = points[cursor..]
                 .iter()
-                .enumerate()
-                .find(|(_, pt)| pt.x == p.x && pt.y == p.y)
+                .position(|pt| pt.x == p.x && pt.y == p.y)
             {
-                out.push(rows[idx].clone());
+                out.push(rows[cursor + offset].clone());
+                cursor += offset + 1;
             }
         }
         Ok(out)
@@ -542,6 +586,62 @@ mod tests {
 
         let sampled = sessions_repo::get_data(&conn, session_id, Some(100)).unwrap();
         assert_eq!(sampled.len(), 100);
+    }
+
+    #[test]
+    fn mobility_roundtrip_and_constraints() {
+        let db = fresh_db();
+        let a = mobility_repo::add(
+            &db,
+            &crate::types::MobilityRecordInput {
+                movement_set: "kneeFlexion".into(),
+                total_deg: 130.5,
+                detail: "{\"peaks\":{\"kneeFlexion\":130.5}}".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(a.total_deg, 130.5);
+        assert!(a.detail.contains("kneeFlexion"));
+        assert_eq!(mobility_repo::list(&db).unwrap().len(), 1);
+        for bad in [("", 10.0), ("kneeFlexion", -1.0), ("kneeFlexion", 5000.0)] {
+            assert!(mobility_repo::add(
+                &db,
+                &crate::types::MobilityRecordInput {
+                    movement_set: bad.0.into(),
+                    total_deg: bad.1,
+                    detail: "{}".into(),
+                },
+            )
+            .is_err());
+        }
+        mobility_repo::delete(&db, a.id).unwrap();
+        assert!(mobility_repo::list(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn downsampling_never_returns_the_same_row_twice() {
+        let mut conn = fresh_db();
+        let session_id = sessions_repo::start(&conn, &sample_session_input()).unwrap();
+        // Same timestamp and knee angle on every row; only thigh_angle tells them apart.
+        let readings: Vec<SensorReading> = (0..50)
+            .map(|i| SensorReading {
+                knee_angle: 30.0,
+                thigh_angle: i as f64,
+                shin_angle: 0.0,
+                knee_roll: 0.0,
+                thigh_roll: 0.0,
+                shin_roll: 0.0,
+                timestamp: "2026-09-07T10:00:00.000Z".to_string(),
+            })
+            .collect();
+        data_repo::append_batch(&mut conn, session_id, &readings).unwrap();
+
+        let sampled = sessions_repo::get_data(&conn, session_id, Some(10)).unwrap();
+        let mut thighs: Vec<i64> = sampled.iter().map(|r| r.thigh_angle as i64).collect();
+        let total = thighs.len();
+        thighs.sort_unstable();
+        thighs.dedup();
+        assert_eq!(thighs.len(), total, "duplicate rows returned");
     }
 
     #[test]

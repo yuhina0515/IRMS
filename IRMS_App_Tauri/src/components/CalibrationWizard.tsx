@@ -513,7 +513,15 @@ export function CalibrationWizard({ onClose }: Props): JSX.Element {
               </div>
             </div>
             <div className="row" style={{ justifyContent: 'flex-end', gap: 10 }}>
-              <button className="btn btn-secondary" onClick={() => setStep(1)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  // 重來是明確的重捕意圖:每一步都要重新允許自動擷取
+                  autoTriedRef.current.clear()
+                  setErrMsg(null)
+                  setStep(1)
+                }}
+              >
                 {m.calibration.recalibrate}
               </button>
               <button className="btn btn-success" onClick={apply}>

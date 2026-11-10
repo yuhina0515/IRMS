@@ -7,10 +7,12 @@ import { deriveHingeAxis } from '../services/angleMath'
 import {
   applyCalibration,
   CALIBRATION_KEYS,
+  DEFAULT_SETTINGS,
   migratePersisted,
   migrateSettings,
   reconcileSelection,
   SETTINGS_PERSIST_VERSION,
+  sanitizeSettings,
   splitCalibrationPatch,
   useStore,
   type Settings
@@ -46,6 +48,7 @@ const BASE_SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
+  voiceEnabled: true
 }
 
 describe('migrateSettings', () => {
@@ -141,12 +144,13 @@ describe('migrateSettings', () => {
     expect(settings.sidebarCollapsed).toBe(true)
   })
 
-  it('v16 的 persist 資料補上 v17 language(預設 system),且不動使用者既有值', () => {
+  it('v16 的 persist 資料補上 language / voiceEnabled 預設,且不動使用者既有值', () => {
     // 新增欄位必須 bump persist version,否則 migrate 根本不會跑(見 useStore.ts version 註解)
-    expect(SETTINGS_PERSIST_VERSION).toBe(17)
+    expect(SETTINGS_PERSIST_VERSION).toBe(18)
     const v16 = { settings: { themeMode: 'dark', maxChartPoints: 80, proximalZeroRaw: 12.5 } }
     const { settings } = migratePersisted(v16, 16)
     expect(settings.language).toBe('system')
+    expect(settings.voiceEnabled).toBe(true)
     expect(settings.themeMode).toBe('dark') // v16 以上不重設主題
     expect(settings.maxChartPoints).toBe(80)
     expect(settings.proximalZeroRaw).toBe(12.5)
@@ -533,5 +537,26 @@ describe('setSettings — Session 進行中凍結校準(migration 6 快照成立
       useStore.getState().setSettings({ [key]: next } as Partial<Settings>)
       expect(useStore.getState().settings[key]).toEqual(next)
     }
+  })
+})
+
+describe('sanitizeSettings', () => {
+  it('corrupted flush interval / chart points fall back to defaults (null, NaN, negative, text)', () => {
+    const bad = { ...DEFAULT_SETTINGS, flushIntervalSec: Number.NaN, maxChartPoints: -5 }
+    const fixed = sanitizeSettings(bad)
+    expect(fixed.flushIntervalSec).toBe(DEFAULT_SETTINGS.flushIntervalSec)
+    expect(fixed.maxChartPoints).toBe(DEFAULT_SETTINGS.maxChartPoints)
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, flushIntervalSec: null as unknown as number }).flushIntervalSec).toBe(
+      DEFAULT_SETTINGS.flushIntervalSec
+    )
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, maxChartPoints: '80' as unknown as number }).maxChartPoints).toBe(
+      DEFAULT_SETTINGS.maxChartPoints
+    )
+  })
+
+  it('keeps valid user values', () => {
+    const ok = sanitizeSettings({ ...DEFAULT_SETTINGS, flushIntervalSec: 5, maxChartPoints: 120 })
+    expect(ok.flushIntervalSec).toBe(5)
+    expect(ok.maxChartPoints).toBe(120)
   })
 })

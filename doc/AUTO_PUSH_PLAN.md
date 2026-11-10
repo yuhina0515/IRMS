@@ -6,6 +6,8 @@ date: 2026-09-25
 
 # Automatic firmware / module delivery
 
+> **Implemented (2026-09-25+)**: firmware auto-OTA lives in `yuhina0515/IRMS-Firmware` and signed modules in `yuhina0515/IRMS-Modules`. This plan is retained for design rationale.
+
 > User decisions (2026-09-25): firmware updates **automatically when idle** (connected, no
 > session running; a session in progress defers the update until it ends). Two **public**
 > repos: `yuhina0515/IRMS-Firmware`, `yuhina0515/IRMS-Modules` — public because the app

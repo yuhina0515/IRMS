@@ -96,6 +96,17 @@ describe('TriggerEngine — joint_angle 完整達標循環', () => {
     expect(rec.events).toEqual(['enter', 'rep', 'rest', 'enter'])
   })
 
+  it('離區後長時間沒有封包再回到區內 → 不得把空白算進保持時間', () => {
+    const { engine, rec, tick } = makeEngine()
+    engine.handle(input(90, 0, JOINT)) // t=0 進區
+    tick(100)
+    engine.handle(input(50, 0, JOINT)) // 離區,啟動寬限
+    tick(3000) // 藍牙中斷,沒有封包
+    engine.handle(input(90, 0, JOINT)) // 回到區內
+    expect(rec.events).not.toContain('rep')
+    expect(rec.events).toContain('exit')
+  })
+
   it('提早離區且寬限逾時 → 進度歸零並發 exit,不計數', () => {
     const { engine, rec, tick } = makeEngine()
     engine.handle(input(90, 0, JOINT))

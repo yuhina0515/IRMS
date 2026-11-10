@@ -15,6 +15,16 @@ export function UpdateBanner(): JSX.Element | null {
 
   useEffect(() => irms.updates.onStatusChange(setStatus), [])
 
+  if (status?.state === 'apk-available') {
+    return (
+      <div className="update-banner" role="status">
+        <span>{m.updateBanner.apkReady({ version: status.version })}</span>
+        <button className="btn btn-primary btn-sm" onClick={() => void irms.updates.openApkDownload()}>
+          {m.updateBanner.apkDownload}
+        </button>
+      </div>
+    )
+  }
   if (status?.state !== 'downloaded') return null
 
   return (

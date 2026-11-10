@@ -31,7 +31,6 @@ export function ConfirmDialog(): JSX.Element | null {
       clearTimeout(closeTimerRef.current)
       setClosing(false)
       setVisible(confirm)
-      cancelRef.current?.focus()
     } else if (visible) {
       setClosing(true)
       closeTimerRef.current = setTimeout(() => {
@@ -41,6 +40,11 @@ export function ConfirmDialog(): JSX.Element | null {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirm])
+
+  // 取消鈕要等對話框真正渲染(visible 設定後)才存在,所以焦點在這裡移,不能在上面的 effect
+  useEffect(() => {
+    if (visible && !closing) cancelRef.current?.focus()
+  }, [visible, closing])
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), [])
 

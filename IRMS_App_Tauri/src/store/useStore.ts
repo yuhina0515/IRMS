@@ -131,6 +131,8 @@ export interface Settings {
    * 刻意**不**列入 CALIBRATION_KEYS:它不改變任何角度算式,Session 進行中也可以切換。
    */
   language: LanguageSetting
+  /** Spoken cues during a session (rep count, hold, over-limit, end). Added in persist v18. */
+  voiceEnabled: boolean
 }
 
 /**
@@ -203,7 +205,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarCollapsed: false,
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
-  language: 'system'
+  language: 'system',
+  voiceEnabled: true
 }
 
 /**
@@ -375,7 +378,7 @@ export function reconcileSelection(
 }
 
 /** settings 的 persist 版本(說明見下方 persist 設定的 version 註解)。export 供測試鎖定。 */
-export const SETTINGS_PERSIST_VERSION = 17
+export const SETTINGS_PERSIST_VERSION = 18
 
 export const useStore = create<StoreState>()(
   persist(
@@ -550,10 +553,28 @@ export const useStore = create<StoreState>()(
       // v16:移除上方導覽列的主題切換鈕(2026-09-27 使用者指示),App 內已無處可改主題;
       //      重設為 system,否則曾手動切到日間/夜間的使用者會被永久卡在該主題。
       // v17:language(i18n P0),預設 system。
-      migrate: migratePersisted
+      // v18:voiceEnabled(語音提示),預設開啟。
+      migrate: migratePersisted,
+      // RISK-FIX (2026-10-10): migrate only runs when the stored version is older, so a corrupted
+      // same-version value (null/NaN/negative) used to flow straight into timers and the chart.
+      merge: (persisted, current) => {
+        const { settings } = migrateSettings(persisted)
+        return { ...current, settings: sanitizeSettings(settings) }
+      }
     }
   )
 )
+
+/** RISK-FIX (2026-10-10): clamp numeric display/flush settings that must be positive finite numbers. */
+export function sanitizeSettings(settings: Settings): Settings {
+  const positive = (v: unknown, fallback: number, min: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= min ? v : fallback
+  return {
+    ...settings,
+    maxChartPoints: Math.round(positive(settings.maxChartPoints, DEFAULT_SETTINGS.maxChartPoints, 10)),
+    flushIntervalSec: Math.round(positive(settings.flushIntervalSec, DEFAULT_SETTINGS.flushIntervalSec, 1))
+  }
+}
 
 /** persist 的 migrate 本體(export 供測試):版本相依的修正放這裡,欄位補齊交給 migrateSettings。 */
 export function migratePersisted(persisted: unknown, version: number): { settings: Settings } {

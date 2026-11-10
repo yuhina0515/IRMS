@@ -6,6 +6,8 @@ date: 2026-09-25
 
 # UI v3 implementation plan
 
+> **Implemented** in v1.2.0-beta.18/19 (i18n added in beta.19). Retained for design rationale.
+
 **Approved 2026-09-25 by the user:** adopt v3; 2D pose by default with a 3D toggle; block
 session start until calibrated; PR #10 (v2) is superseded. Spec: `doc/ui-v3-gpt/PROPOSAL.md`.
 

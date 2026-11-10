@@ -4,6 +4,8 @@
 > `doc/coding log/` is for). See [[HOME]] for the latest status line and [[ROADMAP]] for how this
 > relates to the desktop app's other architecture decisions (D1–D5).
 
+> **Cutover complete (2026-09)**: Tauri is the shipping desktop app; the Electron source (`IRMS_App`) is retained only as history. D5 (React Native) was superseded by Tauri mobile.
+
 ## Status at a glance
 
 **Decided (2026-09-07): proceed with Tauri v2 as the primary direction for IRMS_App.** This
@@ -52,7 +54,7 @@ independent effort, gated on desktop UI Phase 4 being done — it already is); a
 multi-relation-joint generalization, or any other item already deferred in `[[ROADMAP]]`/
 `[[OPTIMIZATION]]` — this plan doesn't reopen those.
 
-> **Status note (2026-10-01): the cutover has happened. `IRMS_App_Tauri` (v1.2.0-beta.19) is the shipped app and `IRMS_App` (Electron) is retired history. The text below is the original plan, kept as written.**
+> **Status note (2026-10-01): the cutover has happened. `IRMS_App_Tauri` (the v1.2.0-beta.x series) is the shipped app and `IRMS_App` (Electron) is retired history. The text below is the original plan, kept as written.**
 
 **`IRMS_App` (Electron) stays the shipped, production app until the cutover criteria below are
 met.** It is not frozen — bug fixes and small features may still land there — but no further

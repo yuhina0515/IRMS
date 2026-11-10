@@ -124,7 +124,8 @@ export function computeMetricSample(
 export function computeMetricZone(config: TriggerConfig): MetricZone {
   const { targetAngle, tolerance, triggerType } = config
   if (triggerType === 'joint_angle') {
-    const min = targetAngle - tolerance
+    // 膝角恆 ≥ 0:min 太低會讓 rest = min - REST_MARGIN ≤ 0 而永遠回不到休息位(只計一下就卡死)。
+    const min = Math.max(targetAngle - tolerance, 2 * REST_MARGIN)
     return { min, max: targetAngle + tolerance, rest: restThreshold(min) }
   }
   return { min: targetAngle, max: Infinity, rest: restThreshold(targetAngle) }

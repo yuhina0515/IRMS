@@ -308,6 +308,25 @@ pub struct AngleRangeRecord {
     pub note: Option<String>,
 }
 
+/// One range-of-motion total (migration 9). `detail` is app-built JSON, stored verbatim.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MobilityRecordRow {
+    pub id: i64,
+    pub measured_at: String,
+    pub movement_set: String,
+    pub total_deg: f64,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MobilityRecordInput {
+    pub movement_set: String,
+    pub total_deg: f64,
+    pub detail: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AngleRangeInput {
