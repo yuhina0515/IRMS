@@ -124,7 +124,7 @@ export function DashboardView(): JSX.Element {
                 ? { tone: 'good', mark: '✓', title: c.holding, sub: c.holdingSub({ sec: n1(params.holdTimeMs / 1000) }) }
                 : session.phase === 'restPending'
                   ? { tone: 'good', mark: '✓', title: c.restPending, sub: guidanceText(guidance, info) }
-                  : { tone: 'neutral', mark: '→', title: guidanceText(guidance, info) }
+                  : { tone: session.mountShift ? 'warn' : 'neutral', mark: session.mountShift ? '!' : '→', title: guidanceText(guidance, info), sub: session.mountShift ? c.mountShiftSub : undefined }
 
   const holdRemain = Math.max(0, (params.holdTimeMs / 1000) * (1 - session.holdProgress / 100))
   const rulerTop = Math.max(Number.isFinite(zone.max) ? zone.max : zone.min, rulerShowsKnee ? (limits.limit ?? limits.comfort ?? 0) : 0)

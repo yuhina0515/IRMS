@@ -50,6 +50,7 @@ export const en = {
       sensorFault: (p: { code: string }) => `Sensor fault · ${p.code}`,
       sensorFaultSub: 'Feedback is paused until the sensor recovers. You can end the session at any time',
       overLimitTitle: 'Past your limit range. Stop going deeper',
+      mountShiftSub: 'The shin sensor may have shifted; angles from here on may be off. Check the fit after this session.',
       overLimitSub: (p: { knee: string; limit: string }) => `Knee angle ${p.knee}° · your limit range ${p.limit}°`,
       hyperTitle: 'Bend your knee slightly',
       hyperSub: (p: { deg: string }) => `Your knee is past straight by ${p.deg}°. Bend it back slightly; no need to press backward`,
@@ -141,7 +142,8 @@ export const en = {
     overLimit: 'Beyond your limit angle, ease off slowly',
     hyperextension: 'Bend your knee slightly',
     sessionEnd: (p: { n: number }) => `Session finished, ${p.n} ${p.n === 1 ? 'rep' : 'reps'}`,
-    connectionLost: 'Connection lost, session ended'
+    connectionLost: 'Connection lost, session ended',
+    mountShift: 'The shin sensor may have shifted'
   },
 
   guidance: {
@@ -315,6 +317,7 @@ export const en = {
   },
 
   sessionDock: {
+    mountShift: 'The shin sensor may have shifted, so angles from here on may be off. Check the fit after this set and recalibrate if needed.',
     blocker: {
       finishing: 'Saving session…',
       running: 'Session in progress',

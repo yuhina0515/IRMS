@@ -19,6 +19,7 @@ import { TriggerEngine } from './triggerEngine'
 import { currentLimits, currentTriggerConfig } from './triggerConfig'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
+import { SlipMonitor } from './slipMonitor'
 
 const MAX_BUFFER_RESTORE = 2000
 /** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
@@ -56,6 +57,8 @@ class SessionController {
   private lastAlarmSpokenAt = 0
   /** 結束原因:斷線收尾時不重複報讀「療程結束」,只報讀斷線 */
   private endedByConnectionLoss = false
+  /** Watches the shin sensor for a shift during a unified-calibration session; null otherwise. */
+  private slipMonitor: SlipMonitor | null = null
 
   // UI 同步節流:angles + holdProgress 合併為單一 set(一次重繪)
   private uiSync = createTrailingThrottle<{ angles: LiveAngles; hold: number | null }>(
@@ -270,6 +273,7 @@ class SessionController {
 
     // 僅在 Session 進行中緩衝資料
     if (session.running && session.id != null) {
+      this.watchMounting()
       this.buffer.push({
         kneeAngle: angles.knee,
         proximalAngle: angles.thigh,
@@ -280,6 +284,23 @@ class SessionController {
         timestamp: new Date().toISOString()
       })
     }
+  }
+
+  /**
+   * Feed the mounting monitor with this packet's gravity vectors. A confirmed shift is reported once: the wearer
+   * is told, the session is marked, and nothing is corrected silently (the angles after a shift are not trusted).
+   */
+  private watchMounting(): void {
+    if (!this.slipMonitor) return
+    const raw = useStore.getState().rawAngles
+    const event = this.slipMonitor.push(performance.now(), { thigh: raw?.thighAccel, shin: raw?.shinAccel })
+    if (!event) return
+    const store = useStore.getState()
+    store.patchSession({ mountShift: true })
+    store.log(`⚠ Shin sensor may have shifted: movement axis is ${event.axisDriftDeg.toFixed(0)}° off the calibrated one.`)
+    logTelemetry('mount_shift', { sessionId: store.session.id, ...event })
+    useUiStore.getState().showToast(getT().sessionDock.mountShift, 'warning')
+    speak(getT().voice.mountShift)
   }
 
   /**
@@ -374,8 +395,14 @@ class SessionController {
         overComfort: false,
         elapsedSec: 0,
         running: true,
-        phase: 'idle'
+        phase: 'idle',
+        mountShift: false
       })
+      // Simulated data is read with the default calibration, so the stored hinge says nothing about it.
+      this.slipMonitor =
+        state.settings.calibrationMethod === 'unified' && !bluetoothService.isSimulated
+          ? new SlipMonitor(state.settings.distalHingeAxis)
+          : null
 
       this.startTimers()
       stopSpeaking()
@@ -449,7 +476,8 @@ class SessionController {
       reps: session.reps,
       elapsedSec: session.elapsedSec,
       unsavedReadings: this.buffer.length,
-      endError
+      endError,
+      mounting: this.slipMonitor ? { shifted: session.mountShift, ...this.slipMonitor.summary() } : null
     })
     if (endError != null) {
       useStore.getState().setSessionSaveState('failed')

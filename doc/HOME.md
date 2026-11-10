@@ -21,6 +21,8 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-11-10 訓練中穿戴位移偵測** ([[log_20261110_mounting_shift_check|Log]]): 統一校準的療程中,由膝屈伸動作本身反推小腿感測器的鉸鏈軸,與校準值相差超過 12° 且持續 18 秒即提醒一次並標記該場(`session.mountShift`);不自動修正。只看小腿、大腿需靜止;繞鉸鏈軸的偏移看不到。658 前端測試通過;門檻為模擬器推得,實機未驗證。
+
 - **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。未推送、未發版、實機全未驗證(裝置在測試者處)。
 
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.

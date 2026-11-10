@@ -192,6 +192,8 @@ export interface SessionRuntime {
   running: boolean
   /** 判定引擎當前階段(idle/holding/restPending),供 phase 徽章與教練提示 */
   phase: EnginePhase
+  /** The in-session mounting check reported a shifted shin sensor; angles since then are not trusted. */
+  mountShift: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -448,7 +450,8 @@ export const useStore = create<StoreState>()(
         overComfort: false,
         elapsedSec: 0,
         running: false,
-        phase: 'idle'
+        phase: 'idle',
+        mountShift: false
       },
       sessionSaveState: 'idle',
 
@@ -551,7 +554,8 @@ export const useStore = create<StoreState>()(
             overComfort: false,
             elapsedSec: 0,
             running: false,
-            phase: 'idle'
+            phase: 'idle',
+            mountShift: false
           }
         }),
 
