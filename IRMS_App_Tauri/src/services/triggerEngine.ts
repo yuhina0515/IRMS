@@ -5,7 +5,13 @@
 // v3.1 穩定化:進區用嚴格區間、保持中放寬 HYSTERESIS_DEG(遲滯),
 // 跳出放寬區間後再給 EXIT_GRACE_MS 寬限(進度凍結不歸零),寬限內回區即續算;
 // rep 只會在「區間內的樣本」上完成,不會在寬限期間觸發。
-import { EXIT_GRACE_MS, HYSTERESIS_DEG, NO_LIMITS, type AngleLimits, type MetricSample, type MetricZone } from './movementMetric'
+import {
+  EXIT_GRACE_MS,
+  HYPEREXTENSION_CLEAR_MARGIN_DEG,
+  HYPEREXTENSION_DWELL_MS,
+  HYPEREXTENSION_TOLERANCE_DEG,
+  HYSTERESIS_DEG,
+  NO_LIMITS, type AngleLimits, type MetricSample, type MetricZone } from './movementMetric'
 
 export interface EngineInput {
   sample: MetricSample
@@ -43,6 +49,8 @@ export class TriggerEngine {
   private alarmActive = false
   private overComfort = false
   private hyperextension = false
+  /** Start of the current unbroken run of samples past the hyperextension tolerance; null = none. */
+  private hyperSince: number | null = null
   /** 上筆樣本的接收端單調時間；不代表感測器來源時間或跨感測器同步。 */
   private lastSampleAt: number | null = null
 
@@ -57,14 +65,42 @@ export class TriggerEngine {
     return this.state
   }
 
+  /**
+   * Hyperextension with dwell and hysteresis: on after the sample flag has held for HYPEREXTENSION_DWELL_MS without
+   * a break in the data, off once the knee is back inside the tolerance by HYPEREXTENSION_CLEAR_MARGIN_DEG.
+   * A gap or a clock anomaly restarts the dwell (a stale reading must not start an alert) but never ends an
+   * active alert, the same rule the personal-limit alarm follows.
+   */
+  private hyperextensionState(sample: MetricSample, now: number, continuous: boolean): boolean {
+    if (this.hyperextension) {
+      return sample.hyperextended === true || !(sample.knee > -(HYPEREXTENSION_TOLERANCE_DEG - HYPEREXTENSION_CLEAR_MARGIN_DEG))
+    }
+    if (sample.hyperextended !== true) {
+      this.hyperSince = null
+      return false
+    }
+    if (this.hyperSince == null || !continuous) {
+      this.hyperSince = Number.isFinite(now) ? now : null
+      return false
+    }
+    return now - this.hyperSince >= HYPEREXTENSION_DWELL_MS
+  }
+
   /** 每筆即時角度(經 metric 層正規化)進來時呼叫 */
   handle(input: EngineInput): void {
     const { sample, zone, holdTimeMs } = input
     const limits = input.limits ?? NO_LIMITS
 
+    // 每筆只讀一次時鐘。空窗或時鐘異常只中止保持，不解除 restPending／個人角度警示。
+    const now = this.now()
+    const validTime = Number.isFinite(now)
+    const discontinuous = !validTime || (this.lastSampleAt != null &&
+      (now < this.lastSampleAt || now - this.lastSampleAt > ENGINE_MAX_SAMPLE_GAP_MS))
+    this.lastSampleAt = validTime ? now : null
+
     // ── 個人角度範圍:獨立於達標狀態機,任何時刻都判定(一律比膝角)──
     // Hyperextension is a safety condition on the same alarm path as the personal limit.
-    const hyper = sample.hyperextended === true
+    const hyper = this.hyperextensionState(sample, now, !discontinuous)
     if (hyper !== this.hyperextension) {
       this.hyperextension = hyper
       this.events.onHyperextension?.(hyper)
@@ -80,12 +116,6 @@ export class TriggerEngine {
       this.events.onComfortExceeded?.(overComfort)
     }
 
-    // 每筆只讀一次時鐘。空窗或時鐘異常只中止保持，不解除 restPending／個人角度警示。
-    const now = this.now()
-    const validTime = Number.isFinite(now)
-    const discontinuous = !validTime || (this.lastSampleAt != null &&
-      (now < this.lastSampleAt || now - this.lastSampleAt > ENGINE_MAX_SAMPLE_GAP_MS))
-    this.lastSampleAt = validTime ? now : null
     if (discontinuous) this.leaveHolding()
     if (!validTime) return
 
@@ -169,6 +199,7 @@ export class TriggerEngine {
       this.overComfort = false
       this.events.onComfortExceeded?.(false)
     }
+    this.hyperSince = null
     if (this.hyperextension) {
       this.hyperextension = false
       this.events.onHyperextension?.(false)

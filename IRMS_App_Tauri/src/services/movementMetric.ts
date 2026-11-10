@@ -66,6 +66,14 @@ export const EXIT_GRACE_MS = 250
  * error (SEM / MDC95, validation items V01 and V02), not from this constant.
  */
 export const HYPEREXTENSION_TOLERANCE_DEG = 5
+/**
+ * The hyperextension alert starts only after the knee has stayed past the tolerance this long, and ends only once
+ * the knee has come back by the margin below. Without both, a knee resting near the tolerance (sensor noise, a
+ * strap that moved) switches the alert and its spoken cue on and off (knowledge base guide 13, item V08).
+ * PROVISIONAL like the tolerance itself.
+ */
+export const HYPEREXTENSION_DWELL_MS = 300
+export const HYPEREXTENSION_CLEAR_MARGIN_DEG = 2
 /** segment 類動作判定膝近乎打直所允許的最大彎曲(度) */
 export const SEGMENT_KNEE_MAX = 15
 

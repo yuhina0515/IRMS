@@ -6,6 +6,8 @@ import { buildCalibrationPatch, computeCaptureStats } from './calibration'
 import { captureReference, compileProfile, solveProfile, type CalibrationProfile } from './calibrationCore'
 import { computeGuidance, guidanceText } from './guidance'
 import {
+  HYPEREXTENSION_CLEAR_MARGIN_DEG,
+  HYPEREXTENSION_DWELL_MS,
   HYPEREXTENSION_TOLERANCE_DEG,
   computeMetricSample,
   computeMetricZone,
@@ -119,29 +121,77 @@ describe('hyperextension safety path', () => {
     expect(computeMetricSample(anglesOf(120), 'segment_elevation', 10).hyperextended).toBe(false)
   })
 
-  it('raises the alarm and hyperextension events without any measured limit, and clears on recovery', () => {
+  /** Engine on a hand-driven clock; `feed` advances one 40 ms packet period per sample unless told otherwise. */
+  function hyperRig() {
     const alarms: boolean[] = []
     const hyper: boolean[] = []
+    let t = 0
     const engine = new TriggerEngine(
       {
         onZoneEnter: () => {}, onZoneExit: () => {}, onHoldProgress: () => {}, onRepCompleted: () => {}, onRestCompleted: () => {},
         onOverExtension: (a) => alarms.push(a),
         onHyperextension: (a) => hyper.push(a)
       },
-      () => 0
+      () => t
     )
-    const feed = (knee: number): void =>
-      engine.handle({ sample: computeMetricSample(anglesOf(knee), 'joint_angle', 10), zone: computeMetricZone(JOINT), holdTimeMs: 1000 })
+    const feed = (knee: number, samples = 1, stepMs = 40): void => {
+      for (let i = 0; i < samples; i++) {
+        t += stepMs
+        engine.handle({ sample: computeMetricSample(anglesOf(knee), 'joint_angle', 10), zone: computeMetricZone(JOINT), holdTimeMs: 1000 })
+      }
+    }
+    return { alarms, hyper, engine, feed }
+  }
+  const DWELL_SAMPLES = Math.ceil(HYPEREXTENSION_DWELL_MS / 40) + 1
+
+  it('raises the alarm and hyperextension events without any measured limit, and clears on recovery', () => {
+    const { alarms, hyper, engine, feed } = hyperRig()
     feed(-2)
-    feed(-9)
-    feed(-9)
+    feed(-9, DWELL_SAMPLES)
     feed(2)
     expect(alarms).toEqual([true, false])
     expect(hyper).toEqual([true, false])
-    feed(-9)
+    feed(-9, DWELL_SAMPLES)
     engine.reset()
     expect(alarms).toEqual([true, false, true, false])
     expect(hyper).toEqual([true, false, true, false])
+  })
+
+  it('ignores a dip past the tolerance that is shorter than the dwell time', () => {
+    const { alarms, hyper, feed } = hyperRig()
+    for (let i = 0; i < 5; i++) {
+      feed(-9, DWELL_SAMPLES - 2)
+      feed(-1, 2)
+    }
+    expect(alarms).toEqual([])
+    expect(hyper).toEqual([])
+  })
+
+  it('does not start from readings separated by a data gap', () => {
+    const { hyper, feed } = hyperRig()
+    // Past the tolerance, but every sample arrives after a gap: no continuous evidence.
+    feed(-9, 6, 400)
+    expect(hyper).toEqual([])
+    feed(-9, DWELL_SAMPLES)
+    expect(hyper).toEqual([true])
+  })
+
+  it('stays on while the knee hovers at the tolerance and ends only once it is back by the margin', () => {
+    const { alarms, hyper, feed } = hyperRig()
+    feed(-9, DWELL_SAMPLES)
+    const inside = -(HYPEREXTENSION_TOLERANCE_DEG - HYPEREXTENSION_CLEAR_MARGIN_DEG)
+    for (let i = 0; i < 10; i++) {
+      feed(-(HYPEREXTENSION_TOLERANCE_DEG - 0.5))
+      feed(-(HYPEREXTENSION_TOLERANCE_DEG + 0.5))
+    }
+    feed(inside - 0.2)
+    expect(hyper).toEqual([true])
+    // A data gap does not end an active alert either.
+    feed(-9, 1, 2000)
+    expect(hyper).toEqual([true])
+    feed(inside + 0.2)
+    expect(hyper).toEqual([true, false])
+    expect(alarms).toEqual([true, false])
   })
 
   it('guidance puts hyperextension first, with owner-reviewable wording in both languages', () => {
