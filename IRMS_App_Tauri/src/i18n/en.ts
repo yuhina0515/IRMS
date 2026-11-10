@@ -801,7 +801,8 @@ export const en = {
       maxChartPoints: 'Max live chart points',
       flushInterval: 'Data write interval (s)',
       voice: 'Voice prompts',
-      voiceHint: 'Speaks rep counts, hold cues and over-limit warnings during a session.'
+      voiceHint: 'Speaks rep counts, hold cues and over-limit warnings during a session.',
+      voiceUnsupported: 'Voice prompts are not available on this device (its WebView has no speech synthesis). Over-limit warnings still show on screen.'
     },
     autoPhase: {
       idle: 'Checks automatically once a device connects',
