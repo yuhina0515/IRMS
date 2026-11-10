@@ -236,6 +236,18 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 > preserves `restPending` and personal-angle warnings. This is a receiver continuity check, not
 > source-clock synchronization, stale-payload detection or a clinical threshold.
 
+> 2026-11-10 (branch `integrate/beta26`, all values provisional and simulator-derived, none bench-verified):
+> - Hyperextension alert (unified calibration only): starts after `HYPEREXTENSION_DWELL_MS` = 300 ms of
+>   continuous samples below -`HYPEREXTENSION_TOLERANCE_DEG` (5), ends once the knee is back by
+>   `HYPEREXTENSION_CLEAR_MARGIN_DEG` (2). A data gap restarts the dwell and never ends an active alert.
+> - Pre-session wearing check: in-plane offset above 5 deg up to `QUICK_REZERO_MAX_DEG` (20) offers a one-step
+>   re-zero from the pose just held (new stored profile first, live settings second); above that, or an
+>   out-of-plane turn above 10 deg, nothing is corrected automatically. Declining the re-zero does not start.
+> - In-session mounting check (`services/slipMonitor.ts`): shin sensor only, thigh must rest (within 8 deg);
+>   sweep of at least 30 deg fitted within 6 deg; axis more than 12 deg off the calibrated hinge for 18 s sets
+>   `session.mountShift` (runtime only, not a DB column), one toast, one voice cue, `mount_shift` telemetry.
+>   It never changes angles or calibration.
+
 > 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
 > `CMD:`。權威來源為 `IRMS_App_Tauri/src/services/` 下的 triggerEngine
 > 與 movementMetric 正規化層。

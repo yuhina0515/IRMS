@@ -6,6 +6,8 @@ description: 架構決策與分階段開發計畫(v2 審查後制定,2026-08-27 
 
 # 🗺 IRMS 架構與代碼計畫 (Roadmap)
 
+> **狀態註記(2026-11-10)**:現況以 [[PROJECT_STATUS]] 的「2026-11-10 現況補充」為準。候選版在分支 `integrate/beta26`(draft PR #6,合併順序 #3 → #4 → #6);12 月專題報告前的工作順序與穿戴改良見 [[2026-11-10-december-report-plan|12 月報告計畫]]。實機項目仍全數未驗證。
+
 > **狀態註記(2026-10-01)**:本文件主體撰於 Electron v2 世代。現役應用端為 Tauri 版(`IRMS_App_Tauri`),Electron 版已退場;文中提到 `bluetoothService.ts`、`navigator.bluetooth`、electron-* 與「281 tests」者為當時的歷史描述。行動版目前規劃沿用 Tauri mobile(規劃文件未隨新儲存庫公開),D5 的 React Native 決策已不是現行方向。iOS 開發自 2026-10-15 起暫停(分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程保留、未合併);Android 維持原狀。
 
 > **相關文件**:[[HOME|導覽首頁]] · [[OPTIMIZATION|優化待辦(細項)]] · [[log_20260703_architecture_audit_fixes|審查修復日誌]]
