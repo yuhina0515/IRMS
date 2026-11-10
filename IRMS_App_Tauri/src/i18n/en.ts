@@ -662,7 +662,10 @@ export const en = {
     solveFailed: (p: { limb: string; reason: string }) => `Could not build the ${p.limb} frame: ${p.reason}. Please redo.`,
     missing: { reference: 'The zero has not been measured', side: 'No leg selected', kneeFlexion: 'The knee bend has not been recorded' },
     wearing: {
-      rezero: 'The sensors are slightly offset from the zero (in the bend direction). A quick re-zero is recommended before starting. Start anyway?',
+      rezero: 'The sensors sit a little differently from the calibration (an offset in the bend direction). Reset the zero from the pose you just held, then start?',
+      rezeroDone: 'Zero reset',
+      tooFar: 'This pose is far from the calibration zero. Check that you are in the reference posture; if you are, the sensors have moved and recalibrating is recommended. Start anyway?',
+      rezeroRefused: 'That pose was not steady enough to reset the zero. Hold still and press start again.',
       recalibrate: 'The sensors are rotated sideways from the zero, possibly a turned strap. Recalibrating is recommended before starting. Start anyway?',
       title: 'Wearing check',
       posture: (p: { posture: string }) => `To check the sensors, take your calibration reference posture (${p.posture}) and hold still for 2 seconds. Start the check?`,

@@ -3,9 +3,9 @@
 import type { AccelVector } from '@shared/protocol'
 import { irms } from '../platform/irmsApi'
 import { useStore } from '../store/useStore'
-import type { CalibrationProfile } from './calibrationCore'
-import { isStillWindow, wearingVerdict } from './calibrationFlow'
-import type { ReferenceCheck } from './calibrationCore'
+import { captureReference, compileProfile, type CalibrationProfile, type Frame, type ReferenceCheck } from './calibrationCore'
+import { newCalibrationId } from './calibration'
+import { isStillWindow, rezeroProfile, wearingVerdict } from './calibrationFlow'
 
 type V3 = AccelVector
 
@@ -36,21 +36,20 @@ const mean = (vs: V3[]): V3 => {
 }
 
 /**
- * Collect live gravity vectors for `ms` and return their mean, or null when there was no data or the legs were not
- * still (an unsteady window says nothing about the strap, so the caller proceeds without a verdict).
+ * Collect live gravity vectors for `ms`, or null when there was no data or the legs were not still (an unsteady
+ * window says nothing about the strap, so the caller proceeds without a verdict). Timestamps are receiver time.
  */
-export function sampleStillPose(ms: number, maxSpreadDeg = 4): Promise<{ thigh: V3; shin: V3 } | null> {
+export function sampleStillFrames(ms: number, maxSpreadDeg = 4): Promise<Frame[] | null> {
   return new Promise((resolve) => {
-    const samples: { thigh: V3; shin: V3 }[] = []
+    const frames: Frame[] = []
     const unsub = useStore.subscribe((s, prev) => {
       const a = s.rawAngles
       if (!a || a === prev.rawAngles || !a.thighAccel || !a.shinAccel) return
-      samples.push({ thigh: a.thighAccel, shin: a.shinAccel })
+      frames.push({ tMs: performance.now(), thigh: a.thighAccel, shin: a.shinAccel })
     })
     setTimeout(() => {
       unsub()
-      if (samples.length < 5 || !isStillWindow(samples, maxSpreadDeg)) return resolve(null)
-      resolve({ thigh: mean(samples.map((x) => x.thigh)), shin: mean(samples.map((x) => x.shin)) })
+      resolve(frames.length < 5 || !isStillWindow(frames, maxSpreadDeg) ? null : frames)
     }, ms)
   })
 }
@@ -62,8 +61,57 @@ export async function wearingProfile(): Promise<CalibrationProfile | null> {
   return loadProfileById(settings.calibrationId)
 }
 
+export interface WearingResult {
+  check: ReferenceCheck
+  /** The still frames the verdict came from; a quick re-zero can reuse them instead of asking for the pose again. */
+  frames: Frame[]
+}
+
 /** Samples a still pose and compares it with `profile`; null when the reading is inconclusive (moving or no data). */
-export async function wearingCheck(profile: CalibrationProfile): Promise<ReferenceCheck | null> {
-  const current = await sampleStillPose(2000)
-  return wearingVerdict(profile, current)
+export async function wearingCheck(profile: CalibrationProfile): Promise<WearingResult | null> {
+  const frames = await sampleStillFrames(2000)
+  if (!frames) return null
+  const check = wearingVerdict(profile, { thigh: mean(frames.map((f) => f.thigh)), shin: mean(frames.map((f) => f.shin)) })
+  return check ? { check, frames } : null
+}
+
+export type QuickRezeroOutcome = 'applied' | 'refused' | 'failed'
+
+/**
+ * Largest in-plane offset the one-step re-zero will absorb. The check cannot tell a sensor that sits differently
+ * from a wearer who is not in the reference posture; a small offset is plausibly the strap, a large one is more
+ * likely the posture, and re-zeroing on a wrong posture would shift every angle of the session. Provisional.
+ */
+export const QUICK_REZERO_MAX_DEG = 20
+
+/** True when a 'rezero' verdict is small enough on every limb to be fixed on the spot. */
+export function rezeroWithinReach(check: ReferenceCheck): boolean {
+  return (
+    check.verdict === 'rezero' &&
+    Object.values(check.limbs).every((l) => l != null && Math.abs(l.inPlaneDeg) <= QUICK_REZERO_MAX_DEG)
+  )
+}
+
+/**
+ * Quick re-zero from frames already held in the reference posture: same hinge axes, new zero. Mirrors the flow's
+ * apply order (stored row first, live settings second) so a failed write never leaves an unrecorded calibration
+ * running. 'refused' = the pose was unusable (shaking, too short, off the hinge plane); nothing was changed.
+ */
+export async function applyQuickRezero(profile: CalibrationProfile, frames: Frame[]): Promise<QuickRezeroOutcome> {
+  const ref = captureReference(frames, profile.reference.kind, profile.reference.posture)
+  if (!ref.ok) return 'refused'
+  const next = rezeroProfile(profile, ref.reference, { id: newCalibrationId(), createdAt: new Date().toISOString() })
+  if (!next.ok) return 'refused'
+  try {
+    await irms.calibrationProfiles.add({ id: next.profile.id, side: next.profile.side, profile: JSON.stringify(next.profile), active: true })
+  } catch {
+    return 'failed'
+  }
+  useStore.getState().setSettings({
+    ...compileProfile(next.profile),
+    calibrationId: next.profile.id,
+    wearSide: next.profile.side,
+    lastCalibratedAt: next.profile.createdAt
+  })
+  return 'applied'
 }

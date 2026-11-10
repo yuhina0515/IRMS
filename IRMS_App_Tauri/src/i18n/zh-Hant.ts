@@ -685,7 +685,10 @@ export const zhHant = {
     solveFailed: (p: { limb: string; reason: string }) => `${p.limb}無法建立座標:${p.reason}。請重做。`,
     missing: { reference: '尚未量零位', side: '尚未選擇腿', kneeFlexion: '尚未錄膝蓋彎曲' },
     wearing: {
-      rezero: '感測器相對零位有些偏移(約在屈伸方向)。建議先「快速重設零位」再開始。仍要開始嗎?',
+      rezero: '感測器的位置和校準時有些不同(屈伸方向的偏移)。要用剛才的姿勢重設零位,然後開始嗎?',
+      rezeroDone: '零位已重設',
+      tooFar: '目前姿勢和校準時的零位差很多。請先確認是否擺出零位姿勢;若姿勢沒錯,代表感測器位置變了,建議重新校準。仍要開始嗎?',
+      rezeroRefused: '剛才的姿勢不夠穩定,無法重設零位。請站穩後再按一次開始。',
       recalibrate: '感測器相對零位出現側向旋轉,可能是綁帶轉動。建議重新校準再開始。仍要開始嗎?',
       title: '穿戴檢查',
       posture: (p: { posture: string }) => `要檢查感測器位置,請擺出校準時的零位姿勢(${p.posture}),並保持不動 2 秒。開始檢查嗎?`,

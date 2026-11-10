@@ -8,7 +8,7 @@ import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
 import { zeroIsUpright } from '../services/calibrationCore'
-import { wearingCheck, wearingProfile } from '../services/calibrationRuntime'
+import { applyQuickRezero, rezeroWithinReach, wearingCheck, wearingProfile } from '../services/calibrationRuntime'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
 import { SessionSaveControl } from './SessionSaveControl'
@@ -107,11 +107,22 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
         const w = m.calibrationFlow.wearing
         const posture = profile.reference.kind === 'neutral' ? w.neutralPosture : m.calibrationFlow.postures[profile.reference.posture ?? 'standing']
         if (!(await requestConfirm(w.title, w.posture({ posture })))) return
-        const check = await wearingCheck(profile)
-        if (!check) {
+        const worn = await wearingCheck(profile)
+        if (!worn) {
           if (!(await requestConfirm(w.title, w.inconclusive))) return
-        } else if (check.verdict !== 'ok') {
-          if (!(await requestConfirm(w.title, check.verdict === 'rezero' ? w.rezero : w.recalibrate))) return
+        } else if (rezeroWithinReach(worn.check)) {
+          // The pose just held IS the reference posture, so the offset can be removed on the spot. Starting with a
+          // known zero offset is not offered: every angle of the session would carry it.
+          if (!(await requestConfirm(w.title, w.rezero))) return
+          const outcome = await applyQuickRezero(profile, worn.frames)
+          if (outcome !== 'applied') {
+            showToast(outcome === 'refused' ? w.rezeroRefused : m.calibrationFlow.applyFailed, 'error')
+            return
+          }
+          showToast(w.rezeroDone, 'success')
+        } else if (worn.check.verdict !== 'ok') {
+          // A sideways turn, or an offset too large to be the strap alone: no automatic fix, the wearer decides.
+          if (!(await requestConfirm(w.title, worn.check.verdict === 'recalibrate' ? w.recalibrate : w.tooFar))) return
         }
       }
     }
