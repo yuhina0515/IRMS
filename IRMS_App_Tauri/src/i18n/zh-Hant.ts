@@ -821,7 +821,8 @@ export const zhHant = {
       maxChartPoints: '即時圖表最大點數',
       flushInterval: '資料寫入間隔 (秒)',
       voice: '語音提示',
-      voiceHint: '療程中以語音報讀次數、保持與超過極限角度的提醒。'
+      voiceHint: '療程中以語音報讀次數、保持與超過極限角度的提醒。',
+      voiceUnsupported: '此裝置不支援語音提示(系統 WebView 沒有語音合成),超限警示仍會顯示在畫面上。'
     },
     autoPhase: {
       idle: '連線裝置後自動檢查',
