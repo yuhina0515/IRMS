@@ -17,7 +17,7 @@ date: 2026-09-05
 逐像素的文字規格(色碼、間距、字重全部寫死,並附上可直接對照的 TSX/CSS 骨架),
 指出目前 `Sidebar.tsx` 視覺表現「像剛學會 CSS 的菜鳥」,active 狀態整塊填色的做法
 「廉價」且會干擾 Dashboard 的 bento-grid 數據判讀。按既定慣例
-([[feedback_irms_ui_design_delegated_to_gemini]])直接落地,不回頭確認設計本身。
+([[AI_CODING_RULES|設計分工慣例]])直接落地,不回頭確認設計本身。
 
 ## 🔧 變更內容
 

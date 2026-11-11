@@ -94,7 +94,7 @@ release,改用 `GH_TOKEN=$(gh auth token) npx electron-builder --publish always
 -c.publish.releaseType=prerelease` 整個重新發布——這個指令會一次把 build、簽章
 (跳過,未簽章)、打包、上傳 `.exe`/`.exe.blockmap`/`latest.yml` 三個檔案都用同一套
 命名規則做完,不會再有三種命名互不匹配的問題。**這連帶更正了 09-04 才剛定案的 beta
-發版慣例**([[irms-project-conventions]] memory 那條)——往後包含 beta 在內的所有
+發版慣例**([[AI_CODING_RULES|專案慣例]] memory 那條)——往後包含 beta 在內的所有
 發版都必須用 `electron-builder --publish`,不能再用手動 `gh release create` +
 手動上傳檔案這個路徑,即使只是為了讓人先裝來測都不行,因為那樣產生的 release 沒有
 `latest.yml`,之後即使 repo 是 public,自動更新一樣抓不到。
@@ -124,5 +124,5 @@ release,改用 `GH_TOKEN=$(gh auth token) npx electron-builder --publish always
 
 - 下次真的發布下一個版本(無論 beta 或正式)時,順便驗證一次完整的
   下載→通知→重啟→套用迴圈——這是目前唯一還沒實測過的路徑。
-- [[irms-project-conventions]] memory 的 beta 發版慣例已更正為
+- [[AI_CODING_RULES|專案慣例]] memory 的 beta 發版慣例已更正為
   「一律用 `electron-builder --publish`,不要手動 `gh release create` + 手動上傳」。

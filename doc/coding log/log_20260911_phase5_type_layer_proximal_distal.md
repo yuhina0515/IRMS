@@ -35,7 +35,7 @@ DB migration → UI 標籤 → 判定邏輯」,今天只做第一步:型別層�
   不是型別層改名的範圍。
 - **`views/SettingsView.tsx`**:進階手動校準面板的 `settings.thighZeroRaw` 等屬性存取改名;
   畫面上顯示的文字(`"Thigh Zero (raw °)"`、`"大腿"`、`"小腿"`)刻意完全不動——同樣屬於
-  UI 步驟,且本專案 UI/文案決策全權交給 Gemini(見 [[feedback_irms_ui_design_delegated_to_gemini]]
+  UI 步驟,且本專案 UI/文案決策全權交給 Gemini(見 [[AI_CODING_RULES|設計分工慣例]]
   的專案慣例),不該由這次改名順手夾帶。
 - **`src-tauri/src/types.rs`**(Rust 端):`SensorReading`/`StoredReading` 的
   `thigh_angle`/`shin_angle`/`thigh_roll`/`shin_roll` **Rust 內部欄位名稱與 SQL 欄位名稱都
