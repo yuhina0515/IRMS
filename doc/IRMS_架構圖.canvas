@@ -50,7 +50,7 @@
 		{
 			"id": "gpio",
 			"type": "text",
-			"text": "**回饋單元**(由 App 端 CMD 直控)\nGPIO25 目標區間 LED\nGPIO26 蜂鳴器(達標雙響/超限長鳴)",
+			"text": "**回饋單元**(由 App 端 CMD 控制)\n2026-09-27 起裝置已無實體蜂鳴器/LED\nCMD 指令保留相容;警示改靠畫面與語音",
 			"x": -1440,
 			"y": -230,
 			"width": 260,
@@ -60,7 +60,7 @@
 		{
 			"id": "task-comm",
 			"type": "text",
-			"text": "**Task_Comm** (Core0, P1)\nBLE 廣播 · 10Hz 角度推播\nProfile / CMD 接收解譯",
+			"text": "**Task_Comm** (Core0, P1)\nBLE 廣播 · 25Hz 角度推播\nProfile / CMD 接收解譯 · OTA service",
 			"x": -1120,
 			"y": -70,
 			"width": 280,
@@ -80,7 +80,7 @@
 		{
 			"id": "fw-note",
 			"type": "text",
-			"text": "✅ v3 韌體(2026-07-04 重寫)\nconfig.h / imu.h 模組化\n斷線即靜音 · GOAL 旗標制 · dt 夾限\n判定在 App 端 (決策 D1)",
+			"text": "✅ v3 韌體(2026-07-04 重寫) · 現行 1.0.1-beta.2\nconfig.h / imu.h 模組化\n斷線即靜音 · GOAL 旗標制 · dt 夾限 · MTU 不足拒絕 OTA\n判定在 App 端 (決策 D1)",
 			"x": -1440,
 			"y": 90,
 			"width": 260,
@@ -90,7 +90,7 @@
 		{
 			"id": "ble-tx",
 			"type": "text",
-			"text": "**Angle TX**(Notify @25Hz / 40ms)\n`T,S,K,TR,SR,KR` 或 `ERR:1`\nMTU 128\n(opt-in)`G:` 原始串流:陀螺儀 + 原始加速度(`CMD:RAW_ON`)",
+			"text": "**Angle TX**(Notify @25Hz / 40ms)\n`T,S,K,TR,SR,KR,V:加速度` 或 `ERR:1`\nMTU 128\n(opt-in)`G:` 原始串流:陀螺儀 + 原始加速度(`CMD:RAW_ON`)",
 			"x": -710,
 			"y": -240,
 			"width": 300,
@@ -110,7 +110,7 @@
 		{
 			"id": "renderer",
 			"type": "text",
-			"text": "**前端**(React 18 + TS)\nZustand 單一狀態源 · `src/i18n` 繁中/EN\nChart.js 折線 · SVG 骨架 · 進度環\n校準精靈 A / 校準 B (beta)",
+			"text": "**前端**(React 18 + TS)\nZustand 狀態 · `src/i18n` 繁中/EN · 語音提示\nChart.js 折線 · three.js 3D 姿態 · 進度環\n統一校準(舊精靈 A/B/C 保留在「舊版」開關後)",
 			"x": -260,
 			"y": -400,
 			"width": 300,
@@ -120,7 +120,7 @@
 		{
 			"id": "preload",
 			"type": "text",
-			"text": "**IPC 邊界**(Tauri command/event)\n36 個 `#[tauri::command]`\n`ble:packet` / `ble:raw` 事件",
+			"text": "**IPC 邊界**(Tauri command/event)\n44 個 `#[tauri::command]` · 唯一入口 `platform/irmsApi.ts`\n`ble:packet` / `ble:raw` / `ble:connection` 事件(欄位由 wire-shape 測試鎖住)",
 			"x": -260,
 			"y": -180,
 			"width": 300,
@@ -130,7 +130,7 @@
 		{
 			"id": "main",
 			"type": "text",
-			"text": "**Rust 原生層**(`src-tauri/src`)\n`btleplug` BLE · 韌體 OTA(簽章 manifest)\nApp 自動更新 · 模組載入 · 遙測上傳",
+			"text": "**Rust 原生層**(`src-tauri/src`)\n`btleplug` BLE · 真實封包解析 `protocol.rs`\n韌體 OTA(簽章 manifest) · App 自動更新 · 模組載入 · 遙測上傳 · 即時分享",
 			"x": -260,
 			"y": 0,
 			"width": 300,
@@ -140,7 +140,7 @@
 		{
 			"id": "db",
 			"type": "text",
-			"text": "**SQLite**(`rusqlite`,bundled)\nApp data 目錄 · `user_version = 8`\n遞增式 migration(`migrations.rs`)",
+			"text": "**SQLite**(`rusqlite`,bundled)\nApp data 目錄 · `user_version = 10`\n遞增式 migration(`migrations.rs`)",
 			"x": 110,
 			"y": 0,
 			"width": 300,
@@ -154,7 +154,16 @@
 			"y": -400,
 			"width": 300,
 			"height": 140,
-			"text": "**校準 B (beta)**\n重力平面 + 陀螺儀樞軸 + 六面地面階段\n`services/calibrationB.ts`\n輸出同流程 A 的 Settings 欄位"
+			"text": "**統一校準**(2026-10-15 起)\n取代 A/B/C 三套方案\n`services/calibrationCore.ts` · `calibrationFlow.ts`\n療程中穿戴位移監測 `slipMonitor.ts`"
+		},
+		{
+			"id": "doc-link",
+			"type": "file",
+			"file": "doc/architecture/ARCHITECTURE.md",
+			"x": -320,
+			"y": 340,
+			"width": 420,
+			"height": 120
 		}
 	],
 	"edges": [
