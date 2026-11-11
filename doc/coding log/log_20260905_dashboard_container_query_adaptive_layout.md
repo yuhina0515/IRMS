@@ -12,7 +12,7 @@ date: 2026-09-05
 
 使用者在 09-03 版面（vh/min()/clamp() 手調）之後回報：換到更小的視窗尺寸（1093×614、
 1024×600）版面仍然爆版，且每次都要手動重調常數很累，希望「一套可以自適應的系統」。
-按 [[feedback_irms_ui_design_delegated_to_gemini|既定慣例]] 把這個問題交給 Gemini
+按 [[AI_CODING_RULES|既定慣例]] 把這個問題交給 Gemini
 的 04 號簡報處理，Gemini 回覆建議改用 CSS Container Query（依容器實際尺寸而非
 viewport 尺寸响应），本篇記錄依該回覆直接實作的結果。
 
