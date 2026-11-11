@@ -308,7 +308,7 @@ pipeline established manually (2026-09-11, see below) — ⚠ not yet proven end
       release: `{version, notes, pub_date, platforms: {"windows-x86_64": {signature, url}}}` where
       `signature` is the raw contents of the generated `.sig` file and `url` is the versioned
       release's installer asset URL (mind the GitHub space→dot filename mangling noted in
-      [[irms-project-conventions]]). Upload that `latest.json` to **two** places every beta
+      [[AI_CODING_RULES|專案慣例]]). Upload that `latest.json` to **two** places every beta
       release: the versioned release itself (so `gh release view` shows a complete asset set) and
       as a replacement asset on the fixed `beta-latest` tag (`gh release upload beta-latest
       latest.json --clobber`, or delete+recreate the release, since `gh release upload` won't

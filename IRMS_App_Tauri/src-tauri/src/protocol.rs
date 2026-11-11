@@ -1,6 +1,6 @@
 // protocol.rs — port of IRMS_App's shared/protocol.ts. This is the wire contract between the
 // app and IRMS_Sensor.ino; any change here must be mirrored on the firmware side and in the
-// still-shipping Electron app's copy until/unless that's retired.
+// frontend's copy in shared/protocol.ts (the Electron app is frozen).
 //
 // Unlike ble.rs, this module has zero hardware dependency — parse_angle_packet is a pure
 // function, fully testable without a real device. The #[cfg(test)] block below mirrors
@@ -56,7 +56,14 @@ pub struct RawAngles {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+// `rename_all` on an enum renames only the variants; `rename_all_fields` is what turns the struct
+// variants' fields (`has_roll`) into the camelCase keys shared/protocol.ts reads (`hasRoll`).
+// Without it the real-device path delivered `has_roll` and `hasRoll` was always undefined.
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ParsedPacket {
     #[serde(rename = "angles")]
     Angles {
@@ -321,5 +328,53 @@ mod tests {
         assert!(FULL.len() > MTU23_PAYLOAD);
         assert!("T:-180.0,S:-180.0,".len() <= MTU23_PAYLOAD);
         assert_eq!(&FULL[..MTU23_PAYLOAD], "T:-180.0,S:-180.0,K:");
+    }
+}
+
+#[cfg(test)]
+mod wire_shape_tests {
+    use super::parse_angle_packet;
+
+    /// The `ble:packet` event payload must use the exact keys of `ParsedPacket` in
+    /// shared/protocol.ts. The fixture tests above check parsing; this one checks the wire.
+    #[test]
+    fn angle_packet_serializes_with_frontend_keys() {
+        let p =
+            parse_angle_packet("T:1.0,S:2.0,K:3.0,TR:4.0,SR:5.0,KR:9.0,V:0.1/0.2/0.3/0.4/0.5/0.6");
+        let v = serde_json::to_value(&p).unwrap();
+        let mut keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["hasRoll", "kind", "raw", "truncated"]);
+        assert_eq!(v["kind"], "angles");
+        assert_eq!(v["hasRoll"], true);
+        let mut raw: Vec<&str> = v["raw"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        raw.sort_unstable();
+        assert_eq!(
+            raw,
+            [
+                "shin",
+                "shinAccel",
+                "shinRoll",
+                "thigh",
+                "thighAccel",
+                "thighRoll"
+            ]
+        );
+    }
+
+    #[test]
+    fn error_and_malformed_packets_serialize_with_frontend_keys() {
+        let e = serde_json::to_value(parse_angle_packet("ERR:1")).unwrap();
+        assert_eq!(e, serde_json::json!({ "kind": "error", "code": "ERR:1" }));
+        let m = serde_json::to_value(parse_angle_packet("T:@@")).unwrap();
+        assert_eq!(
+            m,
+            serde_json::json!({ "kind": "malformed", "value": "T:@@" })
+        );
     }
 }

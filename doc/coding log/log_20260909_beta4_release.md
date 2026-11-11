@@ -15,7 +15,7 @@ date: 2026-09-09
 
 ## 🔧 動作
 
-依 [[irms-project-conventions]] 既有慣例:`package.json` 版本 1.1.0-beta.3 →
+依 [[AI_CODING_RULES|專案慣例]] 既有慣例:`package.json` 版本 1.1.0-beta.3 →
 1.1.0-beta.4,`npm run ci` 全綠後 `npm run dist` 打包、隔離 `--user-data-dir` 煙霧
 測試通過後,用 `GH_TOKEN=$(gh auth token) npx electron-builder --publish always
 -c.publish.releaseType=prerelease` 正確發布(非手動 `gh release create`,那樣不會

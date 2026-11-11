@@ -3,18 +3,9 @@
 import { useState } from 'react'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { ModulePanelMount } from '../components/ModulePanelMount'
-import { modulePage } from '../services/moduleFeatures'
-import { useModulesStore } from '../services/modules'
+import { useToolModules } from '../hooks/useToolModules'
 import { useUiStore } from '../store/useUiStore'
 import { useT } from '../i18n'
-
-export function useToolModules(): { id: string; name: string }[] {
-  const modules = useModulesStore((s) => s.modules)
-  return modules.flatMap((m) => {
-    const page = m.status === 'active' ? modulePage(m.id) : undefined
-    return page ? [{ id: m.id, name: page.title }] : []
-  })
-}
 
 export function ToolsView(): JSX.Element {
   const tools = useToolModules()

@@ -6,7 +6,7 @@ date: 2026-09-06
 
 # 2026-09-06 變更日誌 — 發布 1.1.0-beta.2
 
-> **相關文件**:[[HOME|導覽首頁]] · [[irms-project-conventions|beta 發版慣例]]
+> **相關文件**:[[HOME|導覽首頁]] · [[AI_CODING_RULES|beta 發版慣例]]
 
 ## 🎯 目的
 
@@ -18,7 +18,7 @@ working tree 乾淨,判斷符合發版條件。
 
 - 確認 working tree 乾淨、`npm run ci`(typecheck + 285 tests + build)全綠。
 - `package.json` 版本 `1.1.0-beta.1` → `1.1.0-beta.2`,commit。
-- 依 [[irms-project-conventions]] 的正確發版指令:
+- 依 [[AI_CODING_RULES|專案慣例]] 的正確發版指令:
   `GH_TOKEN=$(gh auth token) npx electron-builder --publish always -c.publish.releaseType=prerelease`
   ——一次產生檔名一致的 `.exe`/`.exe.blockmap`/`latest.yml` 並發布到 GitHub Release,
   確認 `gh release view v1.1.0-beta.2` 三個 asset 都在。

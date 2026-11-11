@@ -16,10 +16,15 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[PROJECT_STATUS\|開發進度]] | 各階段完成狀況與已知待驗證項目 |
 | [[OPTIMIZATION\|優化待辦]] | 待改進項目清單 |
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
+| [[ARCHITECTURE\|🧭 架構文件]] | 系統脈絡、韌體任務、App 分層、資料流、資料模型、發布管線(Mermaid + PNG) |
 | [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Tauri 原生層/前端互動圖 |
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+
+- **2026-11-12 架構檢視與架構圖** ([[log_20261112_architecture_review|Log]] · [[ARCHITECTURE|架構文件]]): 發現 Rust 送出的 `ble:packet` 欄位是 `has_roll`、前端讀 `hasRoll`(實機路徑永遠 undefined,目前無人使用故未出錯),已修正並加 wire-shape 測試;TopNav 誤把延遲載入的 ToolsView 拉進首屏(main −9.8 KB)。新增 6 張 Mermaid 架構圖(含 PNG)並更新 Canvas;大型重構列為 v1.2.0 後的提案 P1–P6。711 前端 / 121 Rust 測試通過。
+
+- **2026-11-11 語音安全警示保護** ([[log_20261111_voice_safety_hold|Log]]): 以 Windows 真實 zh-TW 語音實測 8 句提示;「超過極限角度」需 3.7 秒,原本 3 秒保護期會被計次提示切斷,改為等安全警示念完(上限 10 秒)。設定頁在不支援語音合成時顯示說明;Android WebView 是否支援仍待手機確認。711 測試通過。
 
 - **2026-11-10 訓練中大腿位移偵測** ([[log_20261110_thigh_slip_check|Log]]): 膝蓋固定(角度變化 8° 內)的抬腿/擺腿時,拿大腿的擺動軸與校準時的大腿抬舉軸比較,差 12° 以上且持續約 18 秒警告一次;警告文字改為通用的「感測器可能移位」。僅模擬器驗證(708 測試通過),門檻為暫定值,待實機。
 

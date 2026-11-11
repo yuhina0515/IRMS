@@ -27,7 +27,7 @@ summary: "Wired up the missing half of Tauri Phase 4 auto-update: tauri.conf.jso
    (官方 GitHub Action)才做的事,這個 repo 從一開始就沒有 CI,所以這步永遠得手動做。
 2. **手刻 `latest.json`**:讀出 `.sig` 檔的完整內容塞進 `platforms["windows-x86_64"].signature`,
    `url` 指向 GitHub release 上該版本安裝檔的實際下載連結(檔名裡的空格會被 GitHub 換成點,
-   沿用 [[irms-project-conventions]] 已記錄的這個坑,對照 `gh release view` 實際回傳的檔名
+   沿用 [[AI_CODING_RULES|專案慣例]] 已記錄的這個坑,對照 `gh release view` 實際回傳的檔名
    確認過)。
 3. **上傳到兩個地方**:
    - `v1.2.0-beta.2` 這個既有 release(`gh release upload`)——現在這個 release 自己也是

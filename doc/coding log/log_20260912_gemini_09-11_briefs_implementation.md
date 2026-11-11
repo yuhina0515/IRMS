@@ -13,7 +13,7 @@ summary: 裝好 Gemini CLI(取代原本的人工貼網頁流程,可直接非互�
 
 使用者裝了 `@google/gemini-cli`(`npm install -g`,已是登入狀態)。這取代了此前
 「準備截圖+README、使用者手動貼到網頁版、把回覆帶回來」的人工流程
-(見 [[feedback_irms_ui_design_delegated_to_gemini]])——現在可以用
+(見 [[AI_CODING_RULES|設計分工慣例]])——現在可以用
 `gemini --skip-trust -p "<prompt>"` 非互動呼叫,並讓它自己讀專案內的檔案(它有
 自己的 `read_file`/`grep_search` 工具,是一個跟 Claude Code 同類的 agentic CLI)。
 兩份草稿分別用**兩次獨立的 `gemini -p` 呼叫**送出,符合 `doc/gemini-handoff-20260911/
@@ -28,7 +28,7 @@ CSS Container Query 做漸進式資訊丟棄,History/Settings 排除在外(表�
 **02-sidebar-overlap-with-header**:建議「動態偏移對齊」——標題隨側邊欄展開/收合
 同步平滑挪動(`padding-left` transition,時間與 `.sidebar` 自己的展開動畫一致)。
 
-兩份回覆都附了程式碼,但**依 [[feedback_irms_ui_design_delegated_to_gemini]] 的既有
+兩份回覆都附了程式碼,但**依 [[AI_CODING_RULES|設計分工慣例]] 的既有
 紀律,可查證的技術細節仍要核實,不能照抄**:
 
 1. Gemini 假設側邊欄收合狀態存在 `settings.sidebarCollapsed`(persisted store 欄位)。
