@@ -17,7 +17,9 @@ Constraints:
 
 - The December report plan (`2026-11-10-december-report-plan.md`) keeps priority. The Tauri app
   stays the shipping line until cutover; nothing here may block `beta.26`.
-- Toolkit: Slint. egui is the fallback only if a spike gate fails on Slint alone.
+- Toolkit: Slint on both platforms. If a spike gate fails on Android, the fallback there is a
+  native Android interface (Kotlin, Jetpack Compose) over the same Rust core, with Slint kept
+  for Windows (see D5). egui is no longer the fallback.
 - No resource claim without a measurement from phase 0 and phase 1.
 
 ## What exists today (measured 2026-11-16, tracked files, tests included)
@@ -56,8 +58,9 @@ A throwaway app in a new crate, not connected to the shipping app. Each gate is 
 | G4 | What replaces the 3D leg? | Either a 3D view through Slint's GPU integration or a 2D drawing the owner accepts (D3) |
 | G5 | Is the saving real? | Memory in a live session is clearly below the phase 0 baseline on both platforms |
 
-If G1 or G2 fails on Slint, try the same gate once with egui before stopping. If G5 shows no
-clear saving, stop: the rewrite has no purpose.
+If G1 or G2 fails on Slint for Android, repeat that gate with a native Compose screen calling the
+Rust core through generated Kotlin bindings (UniFFI) before stopping. If G5 shows no clear
+saving, stop: the rewrite has no purpose.
 
 Done when each gate has a result and a recommendation is written in a coding log.
 
@@ -103,6 +106,7 @@ repeated. Then the Tauri app is frozen the way the Electron app was.
 | D2 | Module system without a WebView: WebAssembly modules, Slint markup loaded at run time, or modules compiled into the app | Decide after the spike; none is built before then |
 | D3 | The 3D leg: keep real 3D or accept a 2D drawing | Decide at gate G4 with both shown |
 | D4 | Slint license: the royalty-free license (covers proprietary desktop and mobile apps, asks for a Slint attribution) or GPLv3 | Royalty-free with attribution; the license text must be read against the IRMS source-available license before cutover |
+| D5 | Android interface: Slint (one interface for both platforms) or native Compose (second interface in Kotlin, Rust core shared) | Slint if G1 and G2 pass; native Compose if either fails |
 
 ## Risks
 
