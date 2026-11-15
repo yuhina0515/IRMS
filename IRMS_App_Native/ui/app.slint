@@ -1,0 +1,175 @@
+// Phase 1 prototype: live-session screen. Simulated data only; not connected to the shipping app.
+// Palette index = style * 2 + (night ? 1 : 0). Styles: 0 Workbook (v3 carry-over), 1 Calm companion,
+// 2 Dark studio (dark in both modes, "day" is lighter graphite).
+export global Theme {
+    in property <int> style: 0;
+    in property <bool> night: false;
+    out property <int> idx: root.style * 2 + (root.night ? 1 : 0);
+    out property <color> canvas: [#EEEAE2, #161E20, #E9F0EA, #1B2420, #1A1C21, #101114][root.idx];
+    out property <color> surface: [#FFFCF6, #1D282A, #F8FBF7, #232F29, #22252B, #181A1F][root.idx];
+    out property <color> raised: [#E8E2D8, #283638, #DCE8DF, #2F3E36, #2C3037, #23262D][root.idx];
+    out property <color> border: [#CFC6BD, #45585A, #BFD0C4, #46594D, #3A3F47, #353941][root.idx];
+    out property <color> ink: [#29252D, #E7EFEC, #25332B, #E6F0E9, #ECEDEF, #ECEDEF][root.idx];
+    out property <color> dim: [#625C65, #AEC1BF, #5E6F64, #A9BBB0, #A0A4AC, #A0A4AC][root.idx];
+    out property <color> accent: [#684563, #97CCDE, #3F8F6B, #7FD1A8, #FF8A3D, #FF8A3D][root.idx];
+    out property <color> on-accent: [#FFFFFF, #161E20, #FFFFFF, #10201A, #101114, #101114][root.idx];
+    out property <color> good: [#2E7D4F, #6FD39A, #2E7D4F, #7FD1A8, #5BD48A, #5BD48A][root.idx];
+    out property <color> danger: [#B3362F, #FF8F85, #B3362F, #FF8F85, #FF6B5E, #FF6B5E][root.idx];
+    out property <length> radius: [6px, 6px, 18px, 18px, 4px, 4px][root.idx];
+}
+
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> active: false;
+    callback clicked;
+    min-height: 40px;
+    min-width: 40px;
+    border-radius: Theme.radius;
+    background: root.primary || root.active ? Theme.accent : Theme.raised;
+    border-width: 1px;
+    border-color: root.primary || root.active ? Theme.accent : Theme.border;
+    Text {
+        text: root.text;
+        color: root.primary || root.active ? Theme.on-accent : Theme.ink;
+        font-size: 15px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component MainWindow inherits Window {
+    in property <string> angle-text: "--";
+    in property <string> coach-title: "";
+    in property <string> coach-sub: "";
+    in property <int> coach-tone: 0; // 0 neutral 1 good 2 warn/danger
+    in property <string> chart-path: "";
+    in property <string> zone-path: "";
+    in property <string> limb-path: "";
+    in property <string> stats: "";
+    in property <float> hold: 0;
+    in property <bool> running: false;
+    in property <string> style-name: "";
+    callback toggle-run;
+    callback set-style(int);
+    callback toggle-night;
+
+    title: "IRMS Native prototype";
+    preferred-width: 1100px;
+    preferred-height: 720px;
+    min-width: 800px;
+    min-height: 560px;
+    default-font-family: "Microsoft JhengHei";
+    background: Theme.canvas;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 14px;
+
+        // header: title + style switcher (prototype only)
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                Text { text: "膝關節屈曲訓練"; font-size: 26px; font-weight: 700; color: Theme.ink; }
+                Text { text: "主指標:膝角 · 目標區 60–90° · 保持 2.0 秒"; font-size: 14px; color: Theme.dim; }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Button { text: "Workbook"; active: Theme.style == 0; min-width: 96px; clicked => { root.set-style(0); } }
+            Button { text: "柔和陪伴"; active: Theme.style == 1; min-width: 96px; clicked => { root.set-style(1); } }
+            Button { text: "深色工作室"; active: Theme.style == 2; min-width: 110px; clicked => { root.set-style(2); } }
+            Button { text: Theme.night ? "☾ 夜" : "☀ 日"; min-width: 64px; clicked => { root.toggle-night(); } }
+        }
+
+        // coaching band
+        Rectangle {
+            height: 64px;
+            border-radius: Theme.radius;
+            background: root.coach-tone == 1 ? Theme.good.with-alpha(0.18) : root.coach-tone == 2 ? Theme.danger.with-alpha(0.18) : Theme.surface;
+            border-width: 1px;
+            border-color: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : Theme.border;
+            HorizontalLayout {
+                padding-left: 18px; padding-right: 18px; spacing: 14px;
+                Text { text: root.coach-title; font-size: 22px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
+                Text { text: root.coach-sub; font-size: 15px; color: Theme.dim; vertical-alignment: center; }
+            }
+        }
+
+        // main area: pose stage + metric + chart (no page scrolling)
+        HorizontalLayout {
+            spacing: 14px;
+            vertical-stretch: 1;
+
+            Rectangle {
+                width: 320px;
+                border-radius: Theme.radius;
+                background: Theme.raised;
+                Text { x: 16px; y: 12px; text: "姿態 (2D 側視)"; font-size: 13px; color: Theme.dim; }
+                Path {
+                    x: 10px; y: 30px;
+                    width: 300px; height: 300px;
+                    viewbox-width: 300; viewbox-height: 300;
+                    commands: root.limb-path;
+                    stroke: Theme.accent;
+                    stroke-width: 14px;
+                    stroke-line-cap: round;
+                    fill: transparent;
+                }
+                Text {
+                    y: parent.height - 110px;
+                    width: parent.width;
+                    text: root.angle-text;
+                    font-size: 54px;
+                    font-weight: 700;
+                    color: Theme.ink;
+                    horizontal-alignment: center;
+                }
+                Rectangle {
+                    x: 20px; y: parent.height - 26px;
+                    width: parent.width - 40px; height: 8px;
+                    border-radius: 4px; background: Theme.border;
+                    Rectangle { width: parent.width * root.hold; height: parent.height; border-radius: 4px; background: Theme.good; }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: Theme.radius;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.border;
+                Text { x: 16px; y: 12px; text: "即時膝角 (近 5 秒)"; font-size: 13px; color: Theme.dim; }
+                Rectangle {
+                    x: 16px; y: 40px;
+                    width: parent.width - 32px; height: parent.height - 56px;
+                    clip: true;
+                    chart := Rectangle {
+                        Path {
+                            width: parent.width; height: parent.height;
+                            viewbox-width: 500; viewbox-height: 200;
+                            commands: root.zone-path;
+                            fill: Theme.good.with-alpha(0.16);
+                            stroke: transparent;
+                        }
+                        Path {
+                            width: parent.width; height: parent.height;
+                            viewbox-width: 500; viewbox-height: 200;
+                            commands: root.chart-path;
+                            stroke: Theme.accent;
+                            stroke-width: 2.5px;
+                            fill: transparent;
+                        }
+                    }
+                }
+            }
+        }
+
+        // bottom dock
+        HorizontalLayout {
+            spacing: 12px;
+            height: 48px;
+            Button { text: root.running ? "結束訓練" : "開始訓練"; primary: true; min-width: 140px; clicked => { root.toggle-run(); } }
+            Text { text: root.stats; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+        }
+    }
+}

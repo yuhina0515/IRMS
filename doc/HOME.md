@@ -20,6 +20,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- 2026-11-16 Rust 原生計畫 Phase 0/1:Slint 原型 `IRMS_App_Native`(模擬資料);記憶體約 24 MB 對 Tauri 390 MB(暫定)。→ [[log_20261116_rust_native_phase1_prototype]]
 
 - **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6 → 用計畫第 3 節的驗收測試量現有束帶基準。
 
