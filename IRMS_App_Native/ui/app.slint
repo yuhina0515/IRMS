@@ -2,7 +2,7 @@
 // Palette index = style * 2 + (night ? 1 : 0). Styles: 0 Workbook (v3 carry-over), 1 Calm companion,
 // 2 Dark studio (dark in both modes, "day" is lighter graphite).
 export global Theme {
-    in property <int> style: 0;
+    in property <int> style: 1; // 1 = calm companion, chosen by the owner 2026-11-16
     in property <bool> night: false;
     out property <int> idx: root.style * 2 + (root.night ? 1 : 0);
     out property <color> canvas: [#EEEAE2, #161E20, #E9F0EA, #1B2420, #1A1C21, #101114][root.idx];

@@ -25,7 +25,7 @@ Constraints:
 - The December report plan (`2026-11-10-december-report-plan.md`) keeps priority. The Tauri app
   stays the shipping line until cutover; nothing here may block `beta.26`.
 - Toolkit: Slint (Rust-native, draws its own widgets, free styling, has a `Path` element for
-  charts). This is the planner's reading of "Rust-native"; the owner may name another toolkit.
+  charts). Confirmed by the owner on 2026-11-16.
 - No resource claim without a measurement.
 
 ## What pausing Android means
@@ -112,7 +112,7 @@ Tauri app is frozen the way the Electron app was.
 | D1 | When phases 3 onward may start | After the December report; phases 0 to 2 do not touch the shipping app |
 | D2 | Module system without a WebView | Decide after phase 2; none is built before then |
 | D3 | The 3D leg: real 3D or a 2D drawing | Decide at gate G2 with both shown |
-| D4 | Interface style direction | None; the owner picks from the directions proposed on 2026-11-16 |
+| D4 | Interface style direction | Decided 2026-11-16: calm companion (柔和陪伴), chosen from three prototyped directions; snapshots in `assets/2026-11-16-native-prototype/` |
 | D5 | Slint license: royalty-free with a Slint attribution, or GPLv3 | Royalty-free with attribution; read the license text against the IRMS license before cutover |
 
 ## Risks
