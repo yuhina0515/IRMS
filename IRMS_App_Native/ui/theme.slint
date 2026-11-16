@@ -92,7 +92,7 @@ export component PageHead inherits HorizontalLayout {
 }
 
 export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string, shown: bool }
-export struct SessionRow { started: string, action: string, reps: int, duration: string, demo: bool }
+export struct SessionRow { started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
 export global App {

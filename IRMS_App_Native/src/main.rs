@@ -7,6 +7,7 @@ use irms_core::judge::{
     TriggerConfig, TriggerEngine, TriggerType,
 };
 use irms_core::protocol::{parse_angle_packet, ParsedPacket};
+use irms_core::session_analysis::{analyze_session, MetricPoint};
 use serde_json::{json, Value};
 use std::future::Future;
 use std::pin::Pin;
@@ -105,6 +106,10 @@ struct Sim {
     alarm: bool,
     last_knee: f64,
     last_thigh: f64,
+    /// Readings of the running session (metric value and knee), for the review statistics.
+    points: Vec<MetricPoint>,
+    /// Prescription and personal range the running session is judged with.
+    cfg: Option<TriggerConfig>,
     session_s: f64,
     session_no: u32,
 }
@@ -316,6 +321,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 reps,
                 duration: duration.into(),
                 demo: true,
+                summary: "預置的示範列,沒有讀數可分析".into(),
             });
         }
     }
@@ -339,6 +345,8 @@ fn main() -> Result<(), slint::PlatformError> {
         alarm: false,
         last_knee: 0.0,
         last_thigh: 0.0,
+        points: Vec::new(),
+        cfg: None,
         session_s: 0.0,
         session_no: 0,
     }));
@@ -415,6 +423,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 s.session_s = 0.0;
                 s.engine.reset();
                 s.alarm = false;
+                s.points.clear();
                 ui.global::<Live>().set_running(true);
             }
         });
@@ -532,7 +541,10 @@ fn main() -> Result<(), slint::PlatformError> {
         }
         if judging {
             // Receive time on a monotonic clock, in ms, as the engine expects.
-            for event in s.engine.handle(&input, started.elapsed().as_secs_f64() * 1000.0) {
+            let now_ms = started.elapsed().as_secs_f64() * 1000.0;
+            s.points.push(MetricPoint { t: now_ms, v: Some(value), k: Some(angle) });
+            s.cfg = Some(cfg);
+            for event in s.engine.handle(&input, now_ms) {
                 match event {
                     EngineEvent::HoldProgress(p) => s.hold = p / 100.0,
                     EngineEvent::RepCompleted => s.reps += 1,
@@ -664,8 +676,32 @@ fn finish_session(ui: &MainWindow, s: &mut Sim, sessions: &Rc<VecModel<SessionRo
             reps: s.reps as i32,
             duration: format!("{:02}:{:02}", t / 60, t % 60).into(),
             demo: true,
+            summary: session_summary(s).into(),
         },
     );
     s.hold = 0.0;
     ui.global::<Live>().set_running(false);
+}
+
+/// One-line review of the finished session from the core's session analysis.
+fn session_summary(s: &Sim) -> String {
+    let Some(cfg) = &s.cfg else { return "這場沒有可分析的讀數".into() };
+    let zone = compute_metric_zone(cfg);
+    let a = analyze_session(&s.points, Some(&zone), &cfg.limits);
+    let num = |v: Option<f64>, unit: &str| v.map_or("—".to_string(), |v| format!("{v:.0}{unit}"));
+    let mut out = format!(
+        "有效量測 {:.1} 秒 · 峰值 {} · 平均 {} · 目標區內 {}",
+        a.active_sec,
+        num(a.peak, "°"),
+        num(a.mean, "°"),
+        num(a.in_zone_ratio.map(|r| r * 100.0), "%"),
+    );
+    match a.over_comfort_sec {
+        Some(sec) => out.push_str(&format!(" · 超出舒適角度 {sec:.1} 秒")),
+        None => out.push_str(" · 未量測舒適角度"),
+    }
+    if cfg.limits.limit.is_some() {
+        out.push_str(&format!(" · 超出極限 {} 次共 {:.1} 秒", a.over_limit_events, a.over_limit_sec));
+    }
+    out
 }

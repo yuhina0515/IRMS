@@ -98,3 +98,14 @@ comparison against the Tauri app running the same movement.
 `sessionController.ts` (606 lines, ties the engine to sessions, voice and storage), `calibrationCore.ts` /
 `calibration.ts` (calibration maths, the prototype's wizard is still a stand-in), `angleMath.ts`,
 `slipMonitor.ts`, `sessionAnalysis.ts`.
+
+## Second port: session analysis
+
+`IRMS_Core/src/session_analysis.rs` ports `sessionAnalysis.ts`: measured time without disconnect gaps,
+peak, time-weighted mean, share of time in the target zone, and time and crossings past the personal comfort
+angle and limit. The six vitest cases are ported and pass (core total 120). The optional analyser supplied by
+a runtime module is not ported, because the module system has no design without a WebView (decision D2).
+
+The prototype records the readings of a running session and shows these statistics in the History review
+panel. Checked by clicking: a 15 s simulated squat session ended with 2 reps and the review line
+"有效量測 15.4 秒 · 峰值 90° · 平均 60° · 目標區內 54% · 未量測舒適角度". The readings live in memory only.

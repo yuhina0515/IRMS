@@ -9,4 +9,5 @@ pub mod downsample;
 pub mod judge;
 pub mod migrations;
 pub mod protocol;
+pub mod session_analysis;
 pub mod types;
