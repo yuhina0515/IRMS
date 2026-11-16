@@ -20,7 +20,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
-- **2026-11-16 Rust 原生介面原型** ([[2026-11-16-rust-native-ui-plan|計畫]]): Slint 原型 `IRMS_App_Native`,模擬資料;風格定為柔和陪伴;Phase 1 量測(Tauri 療程中約 250 MB private,原型 8–100 MB 視渲染器)→ [[log_20261116_rust_native_phase1_prototype]];Phase 2 全部畫面已建、待 owner 實際點過 → [[log_20261116_rust_native_phase2_screens]];Phase 3 第一段:七個模組抽成 `IRMS_Core` → [[log_20261116_rust_native_phase3_core_slice1]];Phase 4 第一段:判定邏輯移植進核心 → [[log_20261116_rust_native_phase4_judge]]
+- **2026-11-16 Rust 原生介面原型** ([[2026-11-16-rust-native-ui-plan|計畫]]): Slint 原型 `IRMS_App_Native`,模擬資料;風格定為柔和陪伴;Phase 1 量測(Tauri 療程中約 250 MB private,原型 8–100 MB 視渲染器)→ [[log_20261116_rust_native_phase1_prototype]];Phase 2 全部畫面已建、待 owner 實際點過 → [[log_20261116_rust_native_phase2_screens]];Phase 3 第一段:七個模組抽成 `IRMS_Core` → [[log_20261116_rust_native_phase3_core_slice1]];Phase 4:判定、療程分析、角度數學、滑移監測、校準核心已移植並與 TS 逐筆比對 → [[log_20261116_rust_native_phase4_judge]];原型已走完整管線(封包→校準→判定→滑移→分析)→ [[log_20261116_rust_native_prototype_real_pipeline]]
 
 - **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6 → 用計畫第 3 節的驗收測試量現有束帶基準。
 

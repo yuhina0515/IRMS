@@ -1,13 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 // IRMS native prototype (doc/plans/2026-11-16-rust-native-ui-plan.md, phases 1 and 2): every screen
 // on simulated sensor data. Not connected to the shipping app, the device or the database.
+use irms_core::angle_math::Vec3;
 use irms_core::ble::{self, BleHost, BleState};
+use irms_core::calibration::{knee_signed, limb_angles, CalibrationProfile};
 use irms_core::judge::{
     compute_guidance, compute_metric_zone, AngleLimits, EngineEvent, EngineInput, EnginePhase, Guidance,
     TriggerConfig, TriggerEngine, TriggerType,
 };
 use irms_core::protocol::{parse_angle_packet, ParsedPacket};
 use irms_core::session_analysis::{analyze_session, MetricPoint};
+use irms_core::slip_monitor::SlipMonitor;
+use pipeline::{Rig, Script, Wizard};
 use serde_json::{json, Value};
 use std::future::Future;
 use std::pin::Pin;
@@ -18,6 +22,8 @@ use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
+
+mod pipeline;
 
 slint::include_modules!();
 
@@ -94,6 +100,8 @@ struct RealLink {
     roll: f64,
     fault: Option<String>,
     connect_error: String,
+    /// Gravity vectors from the `V:` field, when the firmware sends them.
+    vectors: Option<(Vec3, Vec3)>,
 }
 
 struct Sim {
@@ -110,6 +118,16 @@ struct Sim {
     points: Vec<MetricPoint>,
     /// Prescription and personal range the running session is judged with.
     cfg: Option<TriggerConfig>,
+    /// Simulated sensors and what the simulated wearer is doing.
+    rig: Rig,
+    script: Script,
+    wizard: Wizard,
+    /// Result of the calibration wizard; without it only the device's own Euler angles are shown.
+    profile: Option<CalibrationProfile>,
+    slip: SlipMonitor,
+    /// The slip monitor reported that the shin sensor moved during this session.
+    mount_shift: bool,
+    slip_injected: bool,
     session_s: f64,
     session_no: u32,
 }
@@ -135,45 +153,6 @@ fn limb_path(knee_deg: f64, thigh_deg: f64) -> (String, (f64, f64)) {
     let (ax, ay) = (kx + l * f.sin(), ky + l * f.cos());
     let (fx, fy) = (ax + 30.0 * f.cos(), ay - 30.0 * f.sin());
     (format!("M {hx} {hy} L {kx:.1} {ky:.1} L {ax:.1} {ay:.1} L {fx:.1} {fy:.1}"), (kx, ky))
-}
-
-/// Simulated movement, 0..1: a rep cycle of bend 2 s, hold `hold_s` + 1.5 s, return 2 s, rest 1.5 s.
-/// Every fifth rep overshoots (returns 1.4).
-fn sim_effort(t: f64, hold_s: f64) -> f64 {
-    let top = hold_s + 1.5;
-    let cycle = 2.0 + top + 2.0 + 1.5;
-    let n = (t / cycle).floor() as u64;
-    let p = t % cycle;
-    let peak = if n % 5 == 4 { 1.4 } else { 1.0 };
-    let ease = |x: f64| 0.5 - 0.5 * (std::f64::consts::PI * x.clamp(0.0, 1.0)).cos();
-    if p < 2.0 {
-        peak * ease(p / 2.0)
-    } else if p < 2.0 + top {
-        peak
-    } else if p < 4.0 + top {
-        peak * (1.0 - ease((p - 2.0 - top) / 2.0))
-    } else {
-        0.0
-    }
-}
-
-/// The simulated device speaks the real wire format (same text the ESP32 notifies), so the
-/// prototype exercises `irms_core::protocol` exactly as the shipping app does. The movement
-/// follows the selected prescription: knee flexion, thigh raise, or thigh extension.
-fn sim_packet(t: f64, fault: bool, cfg: &TriggerConfig) -> String {
-    if fault {
-        return "ERR:1".to_string();
-    }
-    let effort = sim_effort(t, cfg.hold_time_ms / 1000.0);
-    let tremor = 0.8 * (t * 37.0).sin() + 1.0 * (t * 2.3).sin();
-    let (thigh, knee) = match cfg.trigger_type {
-        TriggerType::JointAngle => (6.0 + 3.0 * (t * 0.7).sin(), 8.0 + (cfg.target_angle - 10.0) * effort + tremor),
-        TriggerType::SegmentElevation => (3.0 + (cfg.target_angle + 4.0) * effort + tremor, 5.0 + 2.0 * (t * 0.9).sin()),
-        TriggerType::SegmentExtension => (-(2.0 + (cfg.target_angle + 4.0) * effort) + tremor, 3.0 + 1.5 * (t * 0.9).sin()),
-    };
-    let shin = thigh + knee;
-    let (tr, sr) = (1.5 + 0.5 * (t * 0.9).sin(), -1.2 + 0.6 * (t * 1.1).sin());
-    format!("T:{thigh:.1},S:{shin:.1},K:{knee:.1},TR:{tr:.1},SR:{sr:.1},KR:{:.1}", sr - tr)
 }
 
 /// Three-quarter projection of a point (x forward, y up, z sideways, in leg-length units) to the stage.
@@ -226,7 +205,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --action N, --inject-fault, --log, --snapshot-after S,
+    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -257,7 +236,9 @@ fn main() -> Result<(), slint::PlatformError> {
     if has("--connected") || autorun {
         app.set_conn(2);
     }
-    app.set_calibrated(has("--calibrated") || autorun);
+    let precalibrate = has("--calibrated") || autorun;
+    // Seconds into a session after which the simulated shin sensor turns on the leg.
+    let inject_slip = int("--inject-slip").map(f64::from);
     app.set_wizard_open(has("--wizard"));
     app.set_pose_view(int("--pose").unwrap_or(0).clamp(0, 2));
     app.set_action_index(int("--action").unwrap_or(1).clamp(0, ACTIONS.len() as i32 - 1));
@@ -347,10 +328,83 @@ fn main() -> Result<(), slint::PlatformError> {
         last_thigh: 0.0,
         points: Vec::new(),
         cfg: None,
+        rig: Rig::new(),
+        script: Script::Exercise,
+        wizard: Wizard::new(),
+        profile: None,
+        slip: SlipMonitor::new(None),
+        mount_shift: false,
+        slip_injected: false,
         session_s: 0.0,
         session_no: 0,
     }));
     live.set_running(autorun);
+    if precalibrate {
+        // Same wizard logic as the window, on scripted movements: no faked profile.
+        let mut s = sim.borrow_mut();
+        let cfg = action_config(app.get_action_index().max(0) as usize, AngleLimits::default());
+        match pipeline::auto_calibrate(&s.rig, &cfg) {
+            Ok(profile) => {
+                s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
+                s.profile = Some(profile);
+                app.set_calibrated(true);
+            }
+            Err(e) => println!("calibration on the simulated rig failed: {e}"),
+        }
+    }
+    let started = Instant::now();
+    {
+        let sim = sim.clone();
+        app.on_wizard_start(move || {
+            let mut s = sim.borrow_mut();
+            let now_ms = started.elapsed().as_secs_f64() * 1000.0;
+            // The simulated wearer performs the movement this step asks for.
+            let t = s.t;
+            s.script = match s.wizard.step {
+                0 => Script::Still,
+                1 => Script::ThighRaise(t),
+                _ => Script::KneeCurl(t),
+            };
+            s.wizard.start(now_ms);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_next(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            if s.wizard.step < 2 || (s.wizard.step == 2 && s.wizard.profile.is_none()) {
+                s.wizard.next();
+                return;
+            }
+            if s.wizard.step == 2 {
+                s.wizard.next(); // to the result page
+                return;
+            }
+            // Result page accepted: the profile becomes the active calibration.
+            if let Some(profile) = s.wizard.profile.take() {
+                s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
+                s.profile = Some(profile);
+                ui.global::<App>().set_calibrated(true);
+            }
+            s.wizard = Wizard::new();
+            s.script = Script::Exercise;
+            ui.global::<App>().set_wizard_open(false);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_cancel(move || {
+            let mut s = sim.borrow_mut();
+            s.wizard = Wizard::new();
+            s.script = Script::Exercise;
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wizard_open(false);
+            }
+        });
+    }
 
     // Frame counter (GL renderers only), shown in the dock and in --log output.
     let notifier = ui.window().set_rendering_notifier(move |state, _| {
@@ -424,6 +478,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 s.engine.reset();
                 s.alarm = false;
                 s.points.clear();
+                s.mount_shift = false;
+                let hinge = s.profile.as_ref().map(|p| p.limbs.shin.hinge);
+                s.slip = SlipMonitor::new(hinge);
                 ui.global::<Live>().set_running(true);
             }
         });
@@ -446,7 +503,6 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    let started = Instant::now();
     let mut last_frames = 0u32;
     let mut last_report = Instant::now();
     let mut last_tick = Instant::now();
@@ -488,7 +544,12 @@ fn main() -> Result<(), slint::PlatformError> {
                         r.thigh = raw["thigh"].as_f64().unwrap_or(0.0);
                         r.shin = raw["shin"].as_f64().unwrap_or(0.0);
                         r.roll = raw["shinRoll"].as_f64().unwrap_or(0.0) - raw["thighRoll"].as_f64().unwrap_or(0.0);
-                        r.angle = r.shin - r.thigh;
+                        r.angle = r.thigh - r.shin;
+                        let v = |key: &str| {
+                            let a = &raw[key];
+                            Some(Vec3 { x: a["x"].as_f64()?, y: a["y"].as_f64()?, z: a["z"].as_f64()? })
+                        };
+                        r.vectors = v("thighAccel").zip(v("shinAccel"));
                         r.fault = None;
                     }
                     Some("error") => r.fault = payload["code"].as_str().map(str::to_string),
@@ -503,26 +564,67 @@ fn main() -> Result<(), slint::PlatformError> {
         let cfg = action_config(app.get_action_index().max(0) as usize, limits);
         let (metric_label, verb) = metric_words(cfg.trigger_type);
 
-        let (angle, thigh, hw_error) = if real_mode {
+        let now_ms = started.elapsed().as_secs_f64() * 1000.0;
+        // With the wizard open and nothing being captured, the simulated wearer stands still.
+        let wizard_open = app.get_wizard_open();
+        if wizard_open && !s.wizard.capturing() && s.script == Script::Exercise {
+            s.script = Script::Still;
+        }
+        if let (Some(after), false) = (inject_slip, s.slip_injected) {
+            if s.running && s.session_s > after {
+                s.rig.slip_shin(25.0);
+                s.slip_injected = true;
+            }
+        }
+
+        // One notification: the device's own Euler angles, the gravity vectors if it sends them, or a fault.
+        let (euler, vectors, hw_error): ((f64, f64, f64), Option<(Vec3, Vec3)>, Option<String>) = if real_mode {
             let r = real.borrow();
-            app.set_thigh_text(format!("{:.0}°", r.thigh).into());
-            app.set_shin_text(format!("{:.0}°", r.shin).into());
-            app.set_roll_text(format!("{:.0}°", r.roll).into());
-            (r.angle, r.thigh, r.fault.clone())
+            ((r.thigh, r.shin, r.roll), r.vectors, r.fault.clone())
         } else {
             // Simulated notification -> real parser. Malformed packets are dropped, as in the app.
             let fault = inject_fault && (s.t % 12.0) > 10.0;
-            match parse_angle_packet(&sim_packet(s.t, fault, &cfg)) {
+            let (hip, knee) = pipeline::pose(s.script, s.t, &cfg);
+            let text = if fault { "ERR:1".to_string() } else { pipeline::packet(&s.rig, hip, knee) };
+            match parse_angle_packet(&text) {
                 ParsedPacket::Angles { raw, .. } => {
-                    app.set_thigh_text(format!("{:.0}°", raw.thigh).into());
-                    app.set_shin_text(format!("{:.0}°", raw.shin).into());
-                    app.set_roll_text(format!("{:.0}°", raw.shin_roll - raw.thigh_roll).into());
-                    (raw.shin - raw.thigh, raw.thigh, None)
+                    let v = |a: irms_core::protocol::AccelVector| Vec3 { x: a.x, y: a.y, z: a.z };
+                    (
+                        (raw.thigh, raw.shin, raw.shin_roll - raw.thigh_roll),
+                        raw.thigh_accel.map(v).zip(raw.shin_accel.map(v)),
+                        None,
+                    )
                 }
-                ParsedPacket::Error { code } => (s.last_knee, s.last_thigh, Some(code)),
+                ParsedPacket::Error { code } => ((s.last_thigh, s.last_thigh - s.last_knee, 0.0), None, Some(code)),
                 ParsedPacket::Malformed { .. } => return,
             }
         };
+
+        // Calibration wizard: collects the vectors of the step being captured.
+        if wizard_open && hw_error.is_none() && s.wizard.push(now_ms, vectors.map(|v| v.0), vectors.map(|v| v.1)) {
+            s.script = Script::Still;
+        }
+        app.set_wizard_step(s.wizard.step);
+        app.set_wizard_progress(s.wizard.progress(now_ms) as f32);
+        app.set_wizard_busy(s.wizard.capturing());
+        app.set_wizard_step_done(s.wizard.step_done);
+        app.set_wizard_status(s.wizard.status.clone().into());
+        app.set_wizard_tone(s.wizard.tone);
+        app.set_wizard_result(s.wizard.result.clone().into());
+        app.set_wizard_seconds(s.wizard.capture_seconds() as f32);
+
+        // Joint angles: from the calibrated profile and the gravity vectors when both exist, otherwise
+        // the device's own Euler angles (enough to show, not trusted for a session).
+        let (angle, thigh) = match (&s.profile, vectors) {
+            (Some(p), Some((tv, sv))) => (
+                knee_signed(p.limbs.thigh.as_ref(), &p.limbs.shin, tv, sv),
+                p.limbs.thigh.as_ref().map_or(0.0, |f| limb_angles(f, tv).pitch),
+            ),
+            _ => (euler.0 - euler.1, euler.0),
+        };
+        app.set_thigh_text(format!("{thigh:.0}°").into());
+        app.set_shin_text(format!("{:.0}°", thigh - angle).into());
+        app.set_roll_text(format!("{:.0}°", euler.2).into());
         s.last_knee = angle;
         s.last_thigh = thigh;
 
@@ -540,8 +642,13 @@ fn main() -> Result<(), slint::PlatformError> {
             s.session_s += dt;
         }
         if judging {
+            // In-session mounting check: has the shin sensor turned on the leg since calibration?
+            if let Some((tv, sv)) = vectors {
+                if s.slip.push(now_ms, Some(tv), Some(sv)).is_some() {
+                    s.mount_shift = true;
+                }
+            }
             // Receive time on a monotonic clock, in ms, as the engine expects.
-            let now_ms = started.elapsed().as_secs_f64() * 1000.0;
             s.points.push(MetricPoint { t: now_ms, v: Some(value), k: Some(angle) });
             s.cfg = Some(cfg);
             for event in s.engine.handle(&input, now_ms) {
@@ -589,6 +696,9 @@ fn main() -> Result<(), slint::PlatformError> {
             match phase {
                 EnginePhase::Holding => ("很好,保持這個位置".into(), format!("已進入目標區間,保持滿 {hold_s:.1} 秒"), 1),
                 EnginePhase::RestPending => ("已完成,請回到起始位".into(), guidance_text(&guidance, verb), 1),
+                EnginePhase::Idle if s.mount_shift => {
+                    (guidance_text(&guidance, verb), "感測器可能移位,這場結束後請重新校準".into(), 3)
+                }
                 EnginePhase::Idle => (guidance_text(&guidance, verb), String::new(), 0),
             }
         };
@@ -607,7 +717,8 @@ fn main() -> Result<(), slint::PlatformError> {
         app.set_angle(angle as f32);
         app.set_angle_text(format!("{angle:.0}°").into());
         live.set_metric_label(metric_label.into());
-        live.set_metric_text(if hw_error.is_some() { "—".into() } else { format!("{value:.0}°").into() });
+        // Rounding first and adding 0.0 turns a negative zero into zero, so a resting leg never reads "-0".
+        live.set_metric_text(if hw_error.is_some() { "—".into() } else { format!("{:.0}°", value.round() + 0.0).into() });
         live.set_zone_text(zone_text.clone().into());
         live.set_zone_lo(frac(zone.min));
         live.set_zone_hi(frac(if zone.max.is_finite() { zone.max } else { RULER_MAX }));

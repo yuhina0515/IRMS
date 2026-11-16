@@ -119,6 +119,10 @@ Tauri app is frozen the way the Electron app was.
   behind a `BleHost` trait (needs a real-device run before merging). Telemetry, firmware and modules still in `src-tauri`.
 - Phase 4: started. `judge.rs` in the core ports movementMetric, guidance and triggerEngine with 37 tests;
   the native prototype judges with it. See `log_20261116_rust_native_phase4_judge.md`.
+  Also ported and checked call by call against the TypeScript on shared fixtures: session analysis, angle
+  maths, slip monitor, unified calibration core. The prototype runs the whole pipeline on a simulated
+  two-sensor rig (`log_20261116_rust_native_prototype_real_pipeline.md`). Left: sessionController, the older
+  calibration methods, mobility measurement, the translation layer.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 

@@ -117,5 +117,17 @@ export global App {
     in property <string> shin-text: "—";
     in property <string> roll-text: "—";
     callback request-connect();
+    // calibration wizard, driven from Rust (irms_core::calibration on the captured vectors)
+    in property <int> wizard-step: 0;          // 0 reference 1 thigh sweep 2 shin sweep 3 result
+    in property <float> wizard-progress: 0;
+    in property <bool> wizard-busy: false;
+    in property <bool> wizard-step-done: false;
+    in property <string> wizard-status;
+    in property <int> wizard-tone: 0;          // 0 plain 1 good 2 problem
+    in property <string> wizard-result;
+    in property <float> wizard-seconds: 2;
+    callback wizard-start();
+    callback wizard-next();
+    callback wizard-cancel();
     callback delete-session(int);
 }
