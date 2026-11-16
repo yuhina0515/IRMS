@@ -5,6 +5,7 @@ pub mod angle_math;
 pub mod ble;
 pub mod ble_lifecycle;
 pub mod calibration;
+pub mod calibration_flow;
 #[cfg(test)]
 mod calibration_contract_tests;
 pub mod db;
