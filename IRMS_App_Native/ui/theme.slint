@@ -91,11 +91,45 @@ export component PageHead inherits HorizontalLayout {
     @children
 }
 
-export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string, shown: bool }
+export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
 export global App {
+    in property <string> preferences-status;
+    in property <bool> preferences-can-retry;
+    callback retry-preferences();
+    callback request-reset-preferences();
+    in-out property <int> action-page: 0;
+    in property <int> action-matches;
+    in property <string> active-action-id;
+    in property <string> picked-action-id;
+    in property <bool> has-picked-action;
+    in property <ActionItem> picked-action;
+    callback pick-action(string);
+    callback select-action(string);
+    callback new-action();
+    callback edit-action(string);
+    callback request-delete-action(string);
+    callback request-restore-actions();
+    in property <bool> editor-open;
+    in property <bool> editor-editing;
+    in property <string> editor-error;
+    in-out property <string> editor-name;
+    in-out property <string> editor-description;
+    in-out property <string> editor-target;
+    in-out property <string> editor-tolerance;
+    in-out property <string> editor-hold;
+    in-out property <int> editor-trigger;
+    callback save-action();
+    callback cancel-editor();
+    in property <bool> confirmation-open;
+    in property <string> confirmation-title;
+    in property <string> confirmation-message;
+    in property <string> confirmation-error;
+    callback confirm-mutation();
+    callback cancel-confirmation();
+    callback request-delete-session(string);
     in property <bool> closing;
     in property <bool> disconnecting;
     in property <string> feedback-error;
@@ -121,6 +155,7 @@ export global App {
     in property <[ActionItem]> actions;      // filled from Rust; `shown` follows the search box
     in-out property <string> search;
     in-out property <int> history-page: 0;
+    out property <int> history-page-size: 5;
     callback search-edited(string);
     in property <[SessionRow]> sessions;
     // live values pushed from Rust
@@ -142,7 +177,6 @@ export global App {
     callback wizard-start();
     callback wizard-next();
     callback wizard-cancel();
-    callback delete-session(int);
     // review statistics of the session picked in History, computed from its stored readings
     in property <string> review-summary;
     callback request-review(int);

@@ -2272,6 +2272,7 @@ dependencies = [
  "irms_core",
  "rusqlite",
  "same-file",
+ "serde",
  "serde_json",
  "slint",
  "slint-build",

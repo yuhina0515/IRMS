@@ -137,6 +137,11 @@ Tauri app is frozen the way the Electron app was.
 
 ## Open decisions for the owner
 
+Development after the feedback slice adds prescription CRUD, ID-bound confirmations
+and isolated preference persistence; see [[log_20261116_native_actions_preferences]].
+Further expansion stopped when the owner cleared the goal. The remaining migration
+and acceptance gates below are still open; beta.1 artifacts were not replaced.
+
 | # | Decision | Default used until answered |
 |---|---|---|
 | D1 | When phases 3 onward may start | Started 2026-11-16 on the plan branch at the owner's request; merging to main still waits for the December report |

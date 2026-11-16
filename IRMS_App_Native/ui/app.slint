@@ -4,6 +4,7 @@ import { Theme, Btn, Card, Chip, App } from "theme.slint";
 import { Live, LiveView } from "live.slint";
 import { ActionsView, HistoryView, ToolsView, SettingsView } from "pages.slint";
 import { AboutSlint } from "std-widgets.slint";
+import { ActionEditor, MutationConfirmation } from "editors.slint";
 export { Theme, App, Live }
 
 component NavTab inherits Rectangle {
@@ -122,6 +123,8 @@ export component MainWindow inherits Window {
     }
 
     if App.wizard-open: Wizard { width: 100%; height: 100%; }
+    if App.editor-open: ActionEditor { width: 100%; height: 100%; }
+    if App.confirmation-open: MutationConfirmation { width: 100%; height: 100%; }
     // 隨應用程式顯示 Slint 官方歸屬元件，符合桌面免權利金授權條件。
     if root.about-open: Rectangle {
         width: 100%; height: 100%; background: #000000.with-alpha(0.45);
