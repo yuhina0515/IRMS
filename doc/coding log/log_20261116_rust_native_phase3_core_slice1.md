@@ -55,3 +55,41 @@ crate linked (SQLite and tokio included, not used yet).
 Differences from the shipping app left as they are for now: during a fault the big number keeps the last
 value (v3 shows a dash), and the prototype does no calibration maths (zero offset, flexion axes), which
 lives in the TypeScript services and belongs to phase 4.
+
+## Slice 2: BLE transport moved into the core crate
+
+`src-tauri/src/ble.rs` (1,169 lines: scan, connect, notification listener, commands, OTA) is now
+`IRMS_Core/src/ble.rs`. The transport no longer names Tauri. It talks to its host through a new trait:
+
+```rust
+pub trait BleHost: Clone + Send + Sync + 'static {
+    fn emit_json(&self, event: &str, payload: serde_json::Value); // ble:packet, ble:connection, ...
+    fn record(&self, kind: &str, payload: serde_json::Value);     // telemetry
+    fn ble(&self) -> &BleState;
+    fn spawn(&self, task: Pin<Box<dyn Future<Output = ()> + Send>>);
+}
+```
+
+`src-tauri/src/ble.rs` is now 75 lines: `TauriHost(AppHandle)` implements the trait (emit to the WebView,
+`telemetry::record`, the managed `BleState`, `tauri::async_runtime::spawn`) and the six `#[tauri::command]`
+functions forward to the core. Command names, arguments, event names and payload JSON are unchanged; the
+listener still runs on Tauri's runtime because the host does the spawning.
+
+Mechanical edits only (done by script, then `cargo fmt`): `telemetry::record(&app, ..)` became
+`app.record(..)` (9 places), `let _ = app.emit(..)` became `app.emit(..)` (7), `app.state::<BleState>()`
+became `app.ble()` (3), command signatures take `&H` and `&BleState`. No timing constant, lock order or
+OTA step was touched.
+
+| Check | Result |
+|---|---|
+| `cargo test` | IRMS_Core 76 passed + src-tauri 43 passed, 3 ignored (total still 119 / 3) |
+| `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` | both crates clean |
+| `IRMS_App_Native` release build against the new core | builds |
+
+**Not verified, and it matters here:** nothing was run against the ESP32. A real connect, a streaming
+session and an OTA update through the Tauri app on this layout are required before this can merge; the
+unit tests cover the lifecycle and OTA window logic, not the radio. Also still not run: frontend CI,
+`tauri build`, the Android build (the Android JNI init stays in `src-tauri/src/lib.rs`).
+
+Left in `src-tauri`: `commands` (database IPC), `telemetry`, `firmware`, `firmware_update`, `modules`,
+`live_share`, `update`, `splash`, `dpi_guard`, `migrate_electron`.

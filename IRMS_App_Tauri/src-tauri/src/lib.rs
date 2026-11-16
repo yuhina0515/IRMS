@@ -12,7 +12,7 @@ mod update;
 
 // Toolkit-free logic lives in the irms_core crate (plan phase 3); these imports keep the
 // existing `crate::db`, `crate::types`, ... paths working for the modules that stay here.
-use irms_core::{ble_lifecycle, db, protocol, types};
+use irms_core::{db, types};
 
 use ble::BleState;
 use commands::DbState;

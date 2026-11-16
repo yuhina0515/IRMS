@@ -2013,11 +2013,14 @@ dependencies = [
 name = "irms_core"
 version = "0.1.0"
 dependencies = [
+ "btleplug",
  "chrono",
+ "futures",
  "rusqlite",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

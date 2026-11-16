@@ -115,7 +115,8 @@ Tauri app is frozen the way the Electron app was.
   the owner has clicked through it.
 - Phase 3: started 2026-11-16 at the owner's request (earlier than the D1 default). Slice 1 done: `IRMS_Core`
   holds types, protocol, defaults, downsample, migrations, ble_lifecycle, db; see
-  `log_20261116_rust_native_phase3_core_slice1.md`. BLE, telemetry, firmware and modules still in `src-tauri`.
+  `log_20261116_rust_native_phase3_core_slice1.md`. Slice 2 done: the BLE transport is in the core
+  behind a `BleHost` trait (needs a real-device run before merging). Telemetry, firmware and modules still in `src-tauri`.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 
