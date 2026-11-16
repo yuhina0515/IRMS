@@ -1,7 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 // IRMS native prototype (doc/plans/2026-11-16-rust-native-ui-plan.md, phases 1 and 2): every screen
 // on simulated sensor data. Not connected to the shipping app, the device or the database.
+use irms_core::ble::{self, BleHost, BleState};
 use irms_core::protocol::{parse_angle_packet, ParsedPacket};
+use serde_json::{json, Value};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{mpsc, Arc};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::fmt::Write;
@@ -16,6 +21,39 @@ const SAMPLES: usize = 250; // 5 s window
 const ZONE: (f64, f64) = (60.0, 90.0);
 const HOLD_S: f64 = 2.0;
 static FRAME_COUNT: AtomicU32 = AtomicU32::new(0);
+
+/// Host for `irms_core::ble` (used with `--real-ble`): events go over a channel that the UI
+/// timer drains, background work runs on a small tokio runtime, there is no telemetry.
+#[derive(Clone)]
+struct NativeHost {
+    tx: mpsc::Sender<(String, Value)>,
+    state: Arc<BleState>,
+    rt: tokio::runtime::Handle,
+}
+
+impl BleHost for NativeHost {
+    fn emit_json(&self, event: &str, payload: Value) {
+        let _ = self.tx.send((event.to_string(), payload));
+    }
+    fn record(&self, _kind: &str, _payload: Value) {}
+    fn ble(&self) -> &BleState {
+        &self.state
+    }
+    fn spawn(&self, task: Pin<Box<dyn Future<Output = ()> + Send>>) {
+        self.rt.spawn(task);
+    }
+}
+
+/// Latest values received from a real device.
+#[derive(Default)]
+struct RealLink {
+    angle: f64,
+    thigh: f64,
+    shin: f64,
+    roll: f64,
+    fault: Option<String>,
+    connect_error: String,
+}
 
 struct Sim {
     t: f64,
@@ -144,6 +182,20 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_settings_tab(int("--settings-tab").unwrap_or(0).clamp(0, 5));
     let autorun = has("--run");
     let inject_fault = has("--inject-fault"); // 2 s of ERR:1 every 12 s
+    // --real-ble: the connect button scans for a real IRMS device through irms_core::ble
+    // instead of starting the simulator.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let (ble_tx, ble_rx) = mpsc::channel::<(String, Value)>();
+    let host = has("--real-ble").then(|| NativeHost {
+        tx: ble_tx.clone(),
+        state: Arc::new(BleState::default()),
+        rt: runtime.handle().clone(),
+    });
+    let real = Rc::new(RefCell::new(RealLink::default()));
     if has("--connected") || autorun {
         app.set_conn(2);
     }
@@ -252,9 +304,30 @@ fn main() -> Result<(), slint::PlatformError> {
         let sim = sim.clone();
         let sessions = sessions.clone();
         let connect_timer = connect_timer.clone();
+        let host = host.clone();
+        let real = real.clone();
         app.on_request_connect(move || {
             let Some(ui) = ui_w.upgrade() else { return };
             let app = ui.global::<App>();
+            if let Some(host) = &host {
+                // Real device: the result and every later state change arrive as events.
+                let h = host.clone();
+                if app.get_conn() == 2 {
+                    finish_session(&ui, &mut sim.borrow_mut(), &sessions);
+                    host.rt.spawn(async move {
+                        let _ = ble::ble_disconnect(&h, &h.state).await;
+                    });
+                } else if app.get_conn() == 0 {
+                    app.set_conn(1);
+                    real.borrow_mut().connect_error.clear();
+                    host.rt.spawn(async move {
+                        if let Err(message) = ble::ble_connect(&h, &h.state).await {
+                            let _ = h.tx.send(("native:connect-failed".into(), json!(message)));
+                        }
+                    });
+                }
+                return;
+            }
             if app.get_conn() == 2 {
                 finish_session(&ui, &mut sim.borrow_mut(), &sessions);
                 app.set_conn(0);
@@ -310,6 +383,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let mut last_report = Instant::now();
     let mut ticks = 0u32;
 
+    let real_mode = host.is_some();
     let ui_w = ui.as_weak();
     let timer = Timer::default();
     timer.start(TimerMode::Repeated, Duration::from_millis((1000.0 / HZ) as u64), move || {
@@ -320,17 +394,56 @@ fn main() -> Result<(), slint::PlatformError> {
         s.t += 1.0 / HZ;
         ticks += 1;
         let connected = app.get_conn() == 2;
-        // Simulated notification -> real parser. Malformed packets are dropped, as in the app.
-        let fault = inject_fault && (s.t % 12.0) > 10.0;
-        let (angle, hw_error) = match parse_angle_packet(&sim_packet(s.t, fault)) {
-            ParsedPacket::Angles { raw, .. } => {
-                app.set_thigh_text(format!("{:.0}°", raw.thigh).into());
-                app.set_shin_text(format!("{:.0}°", raw.shin).into());
-                app.set_roll_text(format!("{:.0}°", raw.shin_roll - raw.thigh_roll).into());
-                (raw.shin - raw.thigh, None)
+        // Events from a real device (only with --real-ble).
+        while let Ok((event, payload)) = ble_rx.try_recv() {
+            let mut r = real.borrow_mut();
+            match event.as_str() {
+                "ble:connection" => {
+                    let up = payload["connected"].as_bool().unwrap_or(false);
+                    if !up {
+                        finish_session(&ui, &mut s, &sessions);
+                    }
+                    app.set_conn(if up { 2 } else { 0 });
+                }
+                "native:connect-failed" => {
+                    r.connect_error = payload.as_str().unwrap_or("連線失敗").to_string();
+                    app.set_conn(0);
+                }
+                "ble:error" => r.fault = Some(payload.as_str().unwrap_or("BLE error").to_string()),
+                "ble:packet" => match payload["kind"].as_str() {
+                    Some("angles") => {
+                        let raw = &payload["raw"];
+                        r.thigh = raw["thigh"].as_f64().unwrap_or(0.0);
+                        r.shin = raw["shin"].as_f64().unwrap_or(0.0);
+                        r.roll = raw["shinRoll"].as_f64().unwrap_or(0.0) - raw["thighRoll"].as_f64().unwrap_or(0.0);
+                        r.angle = r.shin - r.thigh;
+                        r.fault = None;
+                    }
+                    Some("error") => r.fault = payload["code"].as_str().map(str::to_string),
+                    _ => {}
+                },
+                _ => {}
             }
-            ParsedPacket::Error { code } => (s.buf.last().copied().unwrap_or(0.0), Some(code)),
-            ParsedPacket::Malformed { .. } => return,
+        }
+        let (angle, hw_error) = if real_mode {
+            let r = real.borrow();
+            app.set_thigh_text(format!("{:.0}°", r.thigh).into());
+            app.set_shin_text(format!("{:.0}°", r.shin).into());
+            app.set_roll_text(format!("{:.0}°", r.roll).into());
+            (r.angle, r.fault.clone())
+        } else {
+            // Simulated notification -> real parser. Malformed packets are dropped, as in the app.
+            let fault = inject_fault && (s.t % 12.0) > 10.0;
+            match parse_angle_packet(&sim_packet(s.t, fault)) {
+                ParsedPacket::Angles { raw, .. } => {
+                    app.set_thigh_text(format!("{:.0}°", raw.thigh).into());
+                    app.set_shin_text(format!("{:.0}°", raw.shin).into());
+                    app.set_roll_text(format!("{:.0}°", raw.shin_roll - raw.thigh_roll).into());
+                    (raw.shin - raw.thigh, None)
+                }
+                ParsedPacket::Error { code } => (s.buf.last().copied().unwrap_or(0.0), Some(code)),
+                ParsedPacket::Malformed { .. } => return,
+            }
         };
         if s.buf.len() >= SAMPLES {
             s.buf.remove(0);
@@ -358,7 +471,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let limit = app.get_limit();
         let (title, sub, tone): (&str, String, i32) = if !connected {
             if app.get_conn() == 1 {
-                ("連線中…", "正在尋找裝置".into(), 0)
+                ("連線中…", "正在尋找裝置(最長 15 秒)".into(), 0)
+            } else if !real.borrow().connect_error.is_empty() {
+                ("連線失敗", real.borrow().connect_error.clone(), 2)
             } else {
                 ("裝置未連線", "請從右上角連線裝置".into(), 0)
             }

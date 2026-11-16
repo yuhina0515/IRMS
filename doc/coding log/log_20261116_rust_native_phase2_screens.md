@@ -73,4 +73,5 @@ set SLINT_BACKEND=winit-software       # software renderer (lower memory)
 ```
 
 Flags: `--style N`, `--night`, `--view N`, `--settings-tab N`, `--connected`, `--calibrated`, `--run`,
-`--wizard`, `--pose N`, `--search <text>`, `--seed-history`, `--log`, `--snapshot <png>`.
+`--wizard`, `--pose N`, `--search <text>`, `--seed-history`, `--inject-fault`, `--real-ble`, `--log`,
+`--snapshot <png>`, `--snapshot-after S`.

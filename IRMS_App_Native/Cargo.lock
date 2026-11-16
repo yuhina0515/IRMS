@@ -2249,8 +2249,10 @@ version = "0.0.1"
 dependencies = [
  "image",
  "irms_core",
+ "serde_json",
  "slint",
  "slint-build",
+ "tokio",
 ]
 
 [[package]]

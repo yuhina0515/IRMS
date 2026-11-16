@@ -93,3 +93,19 @@ unit tests cover the lifecycle and OTA window logic, not the radio. Also still n
 
 Left in `src-tauri`: `commands` (database IPC), `telemetry`, `firmware`, `firmware_update`, `modules`,
 `live_share`, `update`, `splash`, `dpi_guard`, `migrate_electron`.
+
+## Native prototype can use the real BLE transport (`--real-ble`)
+
+`IRMS_App_Native` has a `NativeHost` implementing `BleHost`: events go over a channel drained by the UI
+timer, background work runs on a two-thread tokio runtime, telemetry is ignored. With `--real-ble` the
+connect button calls `irms_core::ble::ble_connect` / `ble_disconnect`; `ble:packet`, `ble:connection` and
+`ble:error` events drive the same screens the simulator drives. Without the flag nothing changes.
+
+Checked on the desktop (Intel Bluetooth present, radio not ready, no IRMS device nearby): clicking connect
+went through the core transport and came back with the adapter's error, shown in the coaching band as
+"連線失敗" with the Windows message (HRESULT 0x800710DF, device not ready). The app stayed responsive,
+8.9 MB private memory, 0.3 % CPU while idle.
+
+Not verified: scanning with the radio on, an actual connection, packets from a device, disconnect, and the
+15 s scan timeout. The error text is the raw driver chain (same text the Tauri app shows today); it reads
+badly and should get a plain message when the connect screen is designed.
