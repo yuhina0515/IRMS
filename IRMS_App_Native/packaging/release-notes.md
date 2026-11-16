@@ -1,8 +1,10 @@
-IRMS v1.3.0-beta.1 is the first Windows x64 installer for the Rust/Slint native application.
+IRMS v1.3.0-beta.2 is the second Windows x64 installer for the Rust/Slint native application.
 
-Download `IRMS_1.3.0-beta.1_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
+Download `IRMS_1.3.0-beta.2_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
 
 The main shortcut starts simulated data. An **IRMS Device (Experimental)** Start menu entry enables the real BLE code path. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
+
+**New since beta.1:** ordered BLE session feedback, alarm mute and Windows speech; editable prescriptions with persistent preferences; a calibration wizard with leg choice, calibrate / mobility / quick re-zero presets, whose calibration is restored at startup; range-of-motion records with a comparable trend; and a wearing check before a session on a real device (an offset small enough to be the strap can be re-zeroed on the spot).
 
 Session storage includes interrupted-session recovery and retry of failed final writes. A force kill or power loss can still lose readings retained only in memory. Uninstall preserves native records in `%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`.
 
@@ -12,4 +14,4 @@ This is a separate native prerelease. Existing Tauri installations are not autom
 
 Slint attribution is available through the application's About button. IRMS and third-party license notices are included in the installation folder.
 
-Validation on the build machine: 4 native regression tests passed, Clippy passed with warnings denied, and the installed release rendered Traditional Chinese and saved a simulated session. Silent install, reinstall, shortcut targets, normal close, uninstall and data retention were checked. These checks do not establish Smart App Control compatibility or real-device acceptance.
+Validation on the build machine: native and core regression tests, Clippy with warnings denied, and an installed-release smoke test were run. The wizard, mobility and wearing logic were exercised on a simulated two-sensor rig only; none of it has been accepted on a physical device. These checks do not establish Smart App Control compatibility.

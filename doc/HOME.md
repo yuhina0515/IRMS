@@ -20,6 +20,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-17 Native mobility + wearing check** · [[log_20261117_native_mobility_wearing]]: calibration flow ported to `IRMS_Core::calibration_flow`, native wizard with presets/quick re-zero, calibration restored at startup, range-of-motion records with trend, pre-session wearing check; released as `v1.3.0-beta.2` (simulated rig only, no physical-device acceptance, unsigned).
 - **2026-11-16 Native prescriptions/preferences** · [[log_20261116_native_actions_preferences]]: CRUD, transactional refresh, confirmations and preference persistence; 15 native / 136 core tests passed. Expansion stopped after the owner cleared the goal.
 - **2026-11-16 Native session feedback** · [[log_20261116_native_session_feedback|Squad migration and verification]]: ordered generation-scoped BLE feedback, alarm mute, Windows speech and continuous unified holds. 722 frontend / 135 core / 6 native / 43 Tauri Rust tests passed; physical outputs remain unverified. Published beta.1 unchanged.
 - **2026-11-16 Native beta installer** · `v1.3.0-beta.1`, separate unsigned Windows test installer; install/reinstall/uninstall checks and signing boundary: [[log_20261116_native_beta1_installer]]. Tauri updater cutover and physical-device acceptance remain open.

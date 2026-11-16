@@ -1,6 +1,6 @@
 # IRMS Native Beta
 
-Windows x64 Rust/Slint application, version `1.3.0-beta.1`. Early test release:
+Windows x64 Rust/Slint application, version `1.3.0-beta.2`. Early test release:
 feature parity and physical device acceptance are incomplete. The existing Tauri
 release remains the shipping application.
 
@@ -9,10 +9,12 @@ passes `--real-ble`. Session data stays in
 `%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`; Tauri data is not migrated.
 Software rendering is the default; developers can override `SLINT_BACKEND`.
 
-Development source after beta.1 includes ordered BLE session feedback, temporary
-alarm mute and Windows system speech (toggle in Settings / Display, or launch with
-`--no-voice`). Physical device output and acoustic speech acceptance remain pending.
-Published beta.1 assets do not include these later development changes.
+Beta.2 adds, on top of beta.1: ordered BLE session feedback with alarm mute and Windows
+system speech (toggle in Settings / Display, or launch with `--no-voice`), editable
+prescriptions and persistent preferences, a calibration wizard with leg choice, calibrate /
+mobility / quick re-zero presets and a calibration that survives restarts, range-of-motion
+records with a comparable trend (Settings / Calibration), and a pre-session wearing check
+on real devices. Physical device output, speech and wearing-check acceptance remain pending.
 
 ## Build and package
 

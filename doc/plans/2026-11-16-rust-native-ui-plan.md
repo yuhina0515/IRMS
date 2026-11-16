@@ -132,6 +132,11 @@ Tauri app is frozen the way the Electron app was.
   speech, stop/fault/close ownership and normalized snapshots) is implemented;
   see [[log_20261116_native_session_feedback]]. Complete controller/reconnection
   parity, mobility flow, translations and the other listed gates remain open.
+- 2026-11-17: mobility measurement, the calibration flow (presets, leg, quick re-zero, restore at startup)
+  and the pre-session wearing check are ported and shown in the native app, see
+  [[log_20261117_native_mobility_wearing]]; released as `v1.3.0-beta.2`. Simulated rig only. Still open:
+  legacy/Euler branch (deliberately not ported), phase 5 (updater cutover, single instance, file dialogs,
+  Electron migration), phase 6 modules (D2), 3D leg (D3), signing and physical-device acceptance.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 

@@ -2265,7 +2265,7 @@ dependencies = [
 
 [[package]]
 name = "irms_app_native"
-version = "1.3.0-beta.1"
+version = "1.3.0-beta.2"
 dependencies = [
  "chrono",
  "image",
