@@ -50,8 +50,11 @@ installer would be about the same size as today's, without needing WebView2.
 
 ## Not done or not checked
 
-- Not click-tested: history review and delete, "use for live monitoring", settings switches, the limit
-  button and clear in tools, disconnect during a session. They compile and render; behaviour is unverified.
+- Third click pass, all worked: history delete (ten rows became nine), "use for live monitoring" (live
+  title changed to the picked prescription), disconnect during a session (session saved to history with its
+  count and duration), night switch in settings.
+- Still not confirmed by click: the history review panel (the test deleted a row right after, which closes
+  it by design), the limit and clear buttons in tools, the style buttons in settings.
 - Placeholders with no behaviour: add / edit / restore prescription, firmware and software update, live
   share, history analysis (review shows a one-line summary only).
 - Chinese input method composition (candidate window, commit) is still untested: injected Unicode key
