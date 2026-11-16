@@ -35,10 +35,46 @@ on both; nothing enforces that yet (a shared fixture file, like the packet fixtu
 translation tests and the test that spies on `performance.now`. Added: one test for the hyperextension
 dwell and clear margin, which those three files do not cover.
 
-`cargo test` in `IRMS_Core`: 113 passed (76 before + 37). `cargo fmt --check` and
-`cargo clippy --all-targets -- -D warnings` clean. All 37 passed on the first run, which is weak evidence of
-equivalence on its own: the tests were ported by the same hand as the code. The stronger check, replaying
-the same sample sequences through both engines and comparing event lists, has not been done.
+`cargo test` in `IRMS_Core`: 114 passed (76 before + 37 ported + 1 contract test, below). `cargo fmt --check`
+and `cargo clippy --all-targets -- -D warnings` clean.
+
+## Equivalence check against the TypeScript engine
+
+The 37 ported tests passed on the first run, which says little by itself: the tests were ported by the same
+hand as the code. So the two engines are now compared on shared data.
+
+- `IRMS_App_Tauri/src/services/triggerEngine.contract.test.ts` builds seven sample sequences (420 samples
+  each, deterministic generator): squat with and without a personal range, a gentle low-target movement,
+  straight leg raise, backward extension, hyperextension around the tolerance, zero hold time. They contain
+  tremor, spikes out of the zone, overshoot, 200 to 2800 ms gaps, repeated and backwards timestamps,
+  non-finite clock readings and mid-sequence resets.
+- Run with `IRMS_WRITE_FIXTURES=1` it writes `fixtures/engine-sequences.json`: every sample plus the events
+  the TypeScript engine emitted for it and the phase afterwards. Run normally it checks the engine still
+  reproduces the file, and that the file contains every event kind.
+- `judge.rs` (`contract_tests`) replays the same file through the Rust engine and requires the same events
+  in the same order, the same hold-progress values (within 1e-9) and the same phase after every sample.
+
+Result: identical on all 2,940 samples. The check was shown to be sensitive: with `EXIT_GRACE_MS` changed
+250 -> 200, and separately `HYSTERESIS_DEG` 4 -> 3, the Rust test failed at a named sequence and step; both
+changes were reverted. Regenerating the fixture gives a byte-identical file.
+
+From now on a behaviour change in either engine fails one of the two tests, which is what keeps the two
+copies in step while the Tauri app still ships.
+
+Covered by this check: `triggerEngine`, and `computeMetricSample` / `computeMetricZone` through it.
+Not covered: `computeGuidance` (only its 11 ported unit tests).
+
+## Full CI on this layout
+
+`node_modules` was installed in this worktree (`npm ci`), so the project CI could run for the first time
+since the core crate was split out:
+
+| Step | Result |
+|---|---|
+| `npm run ci:frontend` (typecheck, vitest, vite build) | pass: 72 files, 714 tests |
+| `npm run ci:rust` (core: fmt, test, clippy; src-tauri: fmt, test, clippy) | pass: 114 + 43 tests, 3 ignored |
+
+Still not run: `npx tauri build`, the app itself on the new layout, the GitHub workflow, Android.
 
 ## Native prototype judges with the core
 

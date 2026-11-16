@@ -1146,3 +1146,124 @@ mod tests {
         assert!(has(&engine.handle(&input(-2.0, 0.0, &JOINT), now), false));
     }
 }
+
+#[cfg(test)]
+mod contract_tests {
+    //! Replays `IRMS_App_Tauri/fixtures/engine-sequences.json` through this engine. The file is
+    //! produced by the TypeScript engine (`src/services/triggerEngine.contract.test.ts`), so this is
+    //! the check that the two implementations emit the same events for the same samples.
+    use super::*;
+    use serde_json::Value;
+
+    fn fmt_event(e: &EngineEvent) -> (String, Option<f64>) {
+        match *e {
+            EngineEvent::ZoneEnter => ("enter".into(), None),
+            EngineEvent::ZoneExit => ("exit".into(), None),
+            EngineEvent::HoldProgress(p) => ("progress".into(), Some(p)),
+            EngineEvent::RepCompleted => ("rep".into(), None),
+            EngineEvent::RestCompleted => ("rest".into(), None),
+            EngineEvent::OverExtension(a) => (format!("alarm:{a}"), None),
+            EngineEvent::ComfortExceeded(a) => (format!("comfort:{a}"), None),
+            EngineEvent::Hyperextension(a) => (format!("hyper:{a}"), None),
+        }
+    }
+
+    /// The TypeScript side writes `progress:<number>`; compare the number numerically.
+    fn parse_expected(s: &str) -> (String, Option<f64>) {
+        match s.strip_prefix("progress:") {
+            Some(n) => (
+                "progress".into(),
+                Some(n.parse::<f64>().expect("progress value")),
+            ),
+            None => (s.to_string(), None),
+        }
+    }
+
+    fn phase_name(p: EnginePhase) -> &'static str {
+        match p {
+            EnginePhase::Idle => "idle",
+            EnginePhase::Holding => "holding",
+            EnginePhase::RestPending => "restPending",
+        }
+    }
+
+    #[test]
+    fn engine_matches_the_typescript_engine_on_the_shared_sequences() {
+        let sequences: Vec<Value> = serde_json::from_str(include_str!(
+            "../../IRMS_App_Tauri/fixtures/engine-sequences.json"
+        ))
+        .unwrap();
+        assert!(
+            sequences.len() >= 7,
+            "fixture has {} sequences",
+            sequences.len()
+        );
+        let mut samples = 0usize;
+        let mut events = 0usize;
+        for seq in &sequences {
+            let name = seq["name"].as_str().unwrap();
+            let c = &seq["config"];
+            let config = TriggerConfig {
+                target_angle: c["targetAngle"].as_f64().unwrap(),
+                tolerance: c["tolerance"].as_f64().unwrap(),
+                hold_time_ms: c["holdTimeMs"].as_f64().unwrap(),
+                trigger_type: TriggerType::parse(c["triggerType"].as_str().unwrap()).unwrap(),
+                limits: AngleLimits {
+                    comfort: c["comfort"].as_f64(),
+                    limit: c["limit"].as_f64(),
+                },
+            };
+            let steps = seq["steps"].as_array().unwrap();
+            let expected = seq["expected"].as_array().unwrap();
+            assert_eq!(steps.len(), expected.len(), "{name}");
+            let mut engine = TriggerEngine::new();
+            for (i, (step, want)) in steps.iter().zip(expected).enumerate() {
+                let mut got = Vec::new();
+                if step["reset"].as_bool() == Some(true) {
+                    got.extend(engine.reset());
+                }
+                // A null time stands for a non-finite clock reading.
+                let now = step["t"].as_f64().unwrap_or(f64::NAN);
+                let input = EngineInput::from_angles(
+                    step["knee"].as_f64().unwrap(),
+                    step["thigh"].as_f64().unwrap(),
+                    &config,
+                );
+                got.extend(engine.handle(&input, now));
+
+                let got: Vec<_> = got.iter().map(fmt_event).collect();
+                let want_events: Vec<_> = want["events"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| parse_expected(e.as_str().unwrap()))
+                    .collect();
+                assert_eq!(
+                    got.len(),
+                    want_events.len(),
+                    "{name} step {i}: got {got:?}, want {want_events:?}"
+                );
+                for (g, w) in got.iter().zip(&want_events) {
+                    assert_eq!(
+                        g.0, w.0,
+                        "{name} step {i}: got {got:?}, want {want_events:?}"
+                    );
+                    if let (Some(a), Some(b)) = (g.1, w.1) {
+                        assert!((a - b).abs() < 1e-9, "{name} step {i}: progress {a} vs {b}");
+                    }
+                }
+                assert_eq!(
+                    phase_name(engine.phase()),
+                    want["phase"].as_str().unwrap(),
+                    "{name} step {i}"
+                );
+                samples += 1;
+                events += got.len();
+            }
+        }
+        assert!(
+            samples > 2000 && events > 1000,
+            "replayed {samples} samples, {events} events"
+        );
+    }
+}
