@@ -212,6 +212,12 @@ function build(): Call[] {
   const series = (values: number[], dtMs = 40): TimedValue[] => values.map((value, i) => ({ tMs: i * dtMs, value }))
   const ramp = [...Array(20).fill(0), ...Array(60).fill(50).map((v, i) => v + (i % 3) * 0.4), ...Array(20).fill(5)]
   const peaks: [string, TimedValue[], 1 | -1][] = [
+    ['interrupted plateau cannot bridge a missing stream', [0,40,80,120,160,200,240,280,320,2000].map(tMs => ({tMs,value:50})), 1],
+    ['250 ms intervals remain continuous', [0,250,500,750,1000,1250,1500].map(tMs => ({tMs,value:50})), 1],
+    ['251 ms gap interrupts a hold', [0,250,500,751,1001,1251,1501].map(tMs => ({tMs,value:50})), 1],
+    ['lower continuous plateau succeeds after interrupted higher peak', [...[0,40,80,120,160,200,240,280,320].map(tMs => ({tMs,value:80})), ...Array.from({length:50}, (_,i) => ({tMs:2000+i*40,value:50}))], 1],
+    ['duplicate timestamp is rejected', [0,250,500,500,1000,1250,1500].map(tMs => ({tMs,value:50})), 1],
+    ['reversed timestamp is rejected', [0,250,500,400,1000,1250,1500].map(tMs => ({tMs,value:50})), 1],
     ['plateau at 50', series(ramp), 1],
     ['plateau at 50, most negative hold', series(ramp), -1],
     ['slow link, 5 Hz', series(ramp.filter((_, i) => i % 5 === 0), 200), 1],

@@ -410,6 +410,12 @@ cancellation/disposal, compatibility and release integration requirements.
 
 ## 2026-11-10 beta.26 候選(分支 `integrate/beta26`,draft PR #6)
 
+Native migration update (2026-11-16): session feedback, temporary alarm mute,
+Windows speech and continuous unified holds are implemented in development source
+([[log_20261116_native_session_feedback]]). Remaining native parity: prescription
+CRUD/confirmation, preferences, mobility flow/history, export, translations,
+platform services and modules; physical acceptance is still open.
+
 - [x] 合併統一校準與療程存檔復原(PR #4);活動度趨勢依腿別分開;未存檔時鎖定統一校準流程。
 - [x] 由 PR #5 挑入:保持連續性、BLE 通知退場與連線圍欄、儲存交易上限、關窗保護、啟動/關閉/安裝互鎖、更新交接狀態。
 - [x] 訓練中穿戴位移偵測(小腿、大腿靜止時;`services/slipMonitor.ts`)。

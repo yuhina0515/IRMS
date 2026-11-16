@@ -14,5 +14,6 @@ pub mod judge;
 pub mod migrations;
 pub mod protocol;
 pub mod session_analysis;
+pub mod session_controller;
 pub mod slip_monitor;
 pub mod types;

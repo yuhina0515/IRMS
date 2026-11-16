@@ -96,6 +96,12 @@ export struct SessionRow { id: string, started: string, action: string, reps: in
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
 export global App {
+    in property <bool> closing;
+    in property <bool> disconnecting;
+    in property <string> feedback-error;
+    in-out property <bool> voice-enabled: true;
+    in property <string> voice-status: "語音啟動中";
+    in property <string> device-name: "IRMS-Sim (模擬裝置)";
     in-out property <string> release-version;
     in property <string> storage-error;
     in property <bool> session-locked;

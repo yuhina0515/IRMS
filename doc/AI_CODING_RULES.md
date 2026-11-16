@@ -231,6 +231,13 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
 
+> 2026-11-16 native parity: effective trigger parameters use the existing TS bounds
+> and are stored exactly as judged. Feedback writes are ordered and generation
+> scoped; stop/fault sends OFF before cleanup. Alarm mute lasts 30 seconds, safety
+> speech repeats at 8 seconds and blocks routine cues for 3 seconds. Unified held
+> peaks cannot bridge gaps over 250 ms. See [[log_20261116_native_session_feedback]];
+> physical outputs remain unverified.
+
 > 2026-10-29 hold continuity: the current Tauri TriggerEngine uses one monotonic receive timestamp
 > per sample; >250 ms gaps, backwards or nonfinite time cannot extend a hold. Cancelling a hold
 > preserves `restPending` and personal-angle warnings. This is a receiver continuity check, not

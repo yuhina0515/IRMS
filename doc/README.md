@@ -8,6 +8,13 @@
 
 ## BLE notification retirement (2026-10-29)
 
+Native development update (2026-11-16): session feedback runs through an ordered
+worker. Connection events carry an optional generation; writes check it after
+acquiring the peripheral lock. Disconnect follows OFF commands, failed cleanup
+retains its handle, and final close waits for cleanup. Unified held peaks require
+finite increasing clocks and gaps no greater than 250 ms in TS/Rust. See
+[[log_20261116_native_session_feedback]].
+
 Native angle/raw-calibration/OTA-status dispatch and telemetry are checked under the same short
 connection-epoch gate used by begin/invalidate. An invalidation waits for an already-running
 dispatch, and a retired listener cannot start another dispatch afterward. Stream acquisition errors

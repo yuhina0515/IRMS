@@ -128,6 +128,10 @@ Tauri app is frozen the way the Electron app was.
   two-sensor rig (`log_20261116_rust_native_prototype_real_pipeline.md`). Left: sessionController, the older
   calibration methods, mobility measurement, the translation layer. Native session storage, retry on write failure,
   packet-driven judging and Windows history reopen are covered in [[log_20261116_native_sqlite_recovery]].
+  The native session feedback slice (ordered BLE effects, mute/rearm, Windows
+  speech, stop/fault/close ownership and normalized snapshots) is implemented;
+  see [[log_20261116_native_session_feedback]]. Complete controller/reconnection
+  parity, mobility flow, translations and the other listed gates remain open.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 

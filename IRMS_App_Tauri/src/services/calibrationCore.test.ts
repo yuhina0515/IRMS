@@ -33,6 +33,25 @@ import {
 
 const NOISY: Omit<RigConfig, 'seed'> = { accSigmaG: 0.01, accBiasG: 0.03, accScale: 0.02 }
 
+describe('held peak stream continuity', () => {
+  const samples = (times: number[]) => times.map(tMs => ({ tMs, value: 50 }))
+  it('requires a continuous hold and restarts after a missing stream', () => {
+    expect(heldPeakTimed(samples([0,40,80,120,160,200,240,280,320,2000]))).toBeNull()
+    expect(heldPeakTimed(samples([0,250,500,750,1000,1250,1500]))).toEqual({peak:50,spread:0,holdSec:1.5})
+    expect(heldPeakTimed(samples([0,250,500,751,1001,1251,1501]))).toBeNull()
+    const resumed = [...samples([0,40,80,120,160,200,240,280,320]).map(s => ({...s,value:80})), ...samples(Array.from({length:50},(_,i)=>2000+i*40))]
+    expect(heldPeakTimed(resumed)?.peak).toBe(50)
+  })
+  it('rejects invalid timestamps and values rather than fabricating a hold', () => {
+    for (const invalid of [NaN, Infinity]) {
+      expect(heldPeakTimed([{tMs:invalid,value:50}, ...samples([250,500,750,1000,1250,1500])])).toBeNull()
+      expect(heldPeakTimed([{tMs:0,value:invalid}, ...samples([250,500,750,1000,1250,1500])])).toBeNull()
+    }
+    expect(heldPeakTimed(samples([0,250,500,500,1000,1250,1500]))).toBeNull()
+    expect(heldPeakTimed(samples([0,250,500,400,1000,1250,1500]))).toBeNull()
+  })
+})
+
 const toFrames = (fs: ImuFrame[]): Frame[] =>
   fs.map((f) => ({
     tMs: f.tMs,

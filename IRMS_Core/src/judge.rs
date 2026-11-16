@@ -67,6 +67,23 @@ pub struct TriggerConfig {
     pub limits: AngleLimits,
 }
 
+impl TriggerConfig {
+    /// 與 TypeScript clampTriggerParams 相同，宿主須儲存此實際生效的快照。
+    pub fn normalized(mut self) -> Self {
+        let clamp = |value: f64, min, max, fallback| {
+            if value.is_finite() {
+                value.clamp(min, max)
+            } else {
+                fallback
+            }
+        };
+        self.target_angle = clamp(self.target_angle, 10.0, 170.0, 45.0);
+        self.tolerance = clamp(self.tolerance, 1.0, 30.0, 10.0);
+        self.hold_time_ms = clamp(self.hold_time_ms, 500.0, 20000.0, 2000.0).round();
+        self
+    }
+}
+
 /// One live reading normalised to the main metric.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MetricSample {
