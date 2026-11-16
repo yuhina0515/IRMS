@@ -195,7 +195,7 @@ export component ToolsView inherits VerticalLayout {
             if root.tab == 1: VerticalLayout {
                 spacing: 12px; alignment: start; padding-left: 8px;
                 Text { text: "即時分享"; font-size: 17px; font-weight: 700; color: Theme.ink; }
-                Text { text: "模組系統在沒有 WebView 的情況下如何運作尚未決定(計畫 D2),此頁僅保留位置。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                Text { text: "即時分享是內建模組(計畫 D2),需要先移植遙測才能提供;目前尚未可用。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
             }
             Rectangle { vertical-stretch: 1; }
         }
@@ -309,7 +309,7 @@ export component SettingsView inherits VerticalLayout {
                         HorizontalLayout {
                             spacing: 6px;
                             VerticalLayout { alignment: center; Btn { text: "2D 側面"; active: App.pose-view == 0; clicked => { App.pose-view = 0; } } }
-                            VerticalLayout { alignment: center; Btn { text: "3D"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
+                            VerticalLayout { alignment: center; Btn { text: "立體投影"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
                         }
                     }
                 }
@@ -320,8 +320,12 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 4: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "角度範圍測量"; sub: "內建於原型,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "已啟用"; tone: Theme.good; } } }
-                    Setting { title: "即時分享"; sub: "等待模組系統設計(計畫 D2)。"; VerticalLayout { alignment: center; Chip { text: "未決定"; tone: Theme.warn; } } }
+                    Text { text: "模組內建於程式中(計畫 D2,2026-11-17 決定):不下載腳本,功能隨版本更新。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    Setting { title: "角度範圍測量"; sub: "內建,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "即時分享"; sub: "需要先移植遙測;尚未提供。"; VerticalLayout { alignment: center; Chip { text: "尚未移植"; tone: Theme.warn; } } }
+                    Setting { title: "韌體更新"; sub: "需要實體裝置驗證;尚未提供。"; VerticalLayout { alignment: center; Chip { text: "尚未移植"; tone: Theme.warn; } } }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;

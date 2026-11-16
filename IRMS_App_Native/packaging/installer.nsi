@@ -18,7 +18,7 @@ InstallDir "$LOCALAPPDATA\Programs\IRMS Native Beta"
 InstallDirRegKey HKCU "Software\IRMS\NativeBeta" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "1.3.0.2"
+VIProductVersion "1.3.0.3"
 VIAddVersionKey /LANG=1033 "ProductName" "IRMS Native Beta"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"

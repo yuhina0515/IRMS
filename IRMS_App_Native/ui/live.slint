@@ -150,7 +150,7 @@ export component LiveView inherits VerticalLayout {
                 padding-left: 18px; padding-right: 12px; spacing: 4px;
                 Text { text: "動作姿態"; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; horizontal-stretch: 1; }
                 Btn { text: "2D 側面"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 0; clicked => { App.pose-view = 0; } }
-                Btn { text: "3D"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 1; clicked => { App.pose-view = 1; } }
+                Btn { text: "立體投影"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 1; clicked => { App.pose-view = 1; } }
                 Btn { text: "數值"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 2; clicked => { App.pose-view = 2; } }
             }
             if !root.live: Text { text: "尚無即時資料"; font-size: 20px; font-weight: 700; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center; }

@@ -88,3 +88,16 @@ No physical device: the wizard, mobility totals and the wearing check ran only a
 the simulated two-sensor rig. Hip abduction on a real sensor is documented as less
 reliable (coronal plane). The installer and executable are unsigned (Smart App Control
 may still block them). The Tauri updater and `beta-latest` are untouched.
+
+## Owner decisions (2026-11-17) and beta.3
+
+- Release: CSV export and single instance ship as `v1.3.0-beta.3`; the published beta.2 is left untouched.
+- D2: modules are built into the program (no downloaded scripts). Settings / Modules lists the
+  built-ins truthfully: range measurement, mobility and session analysis are built in; live share
+  (needs telemetry ported first) and firmware update (needs a physical device) are marked unported.
+- D3: keep the projected drawing, no 3D engine; the button is renamed "立體投影".
+- Tauri updater cutover and the Electron data migration wait for physical-device acceptance and signing.
+- beta.3 installer: 5,936,790 bytes, SHA-256 `4511c7129c476e8177a968ec0ac65830a921969d377fb53d907a5af31c92d269`.
+  Silent install, version 1.3.0-beta.3, installed hash equals the build, Settings / Modules snapshot
+  inspected, silent uninstall removed files and registry, no default database created. 31 native tests
+  and Clippy passed.
