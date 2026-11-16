@@ -45,6 +45,18 @@ calibration was lost on every restart and on every disconnect.
 - Version `1.3.0-beta.2` in the crate, lockfile, installer script, NSIS numeric version and
   release notes.
 
+## Phase 5 items added after the beta.2 release (branch only, not in the beta.2 asset)
+
+- History review has a CSV export (`Store::export_csv`, same metadata header and full readings as
+  the Tauri export) through the system save dialog (`rfd`, no default features). Cancel writes
+  nothing; failures are shown in the review panel. The dialog itself was not driven automatically;
+  the CSV content is covered by a unit test.
+- Single instance (`instance.rs`, named mutex): a second launch of the default installation shows
+  the running window and exits; an explicit `--db` store is independent. Tested with two real
+  launches against a scratch `LOCALAPPDATA`.
+- Not ported on purpose: the DPI guard and WebView splash exist to work around WebView/tao
+  behaviour and have no Slint counterpart.
+
 ## Decisions
 
 - Legacy (Euler firmware) calibration branch: not ported. The native app already refuses
@@ -55,7 +67,7 @@ calibration was lost on every restart and on every disconnect.
 
 ## Verification
 
-- Core 150 tests, native 30 tests (24 before this slice's wearing tests), Clippy with
+- Core 150 tests, native 31 tests after the CSV test (30 at the beta.2 build), Clippy with
   warnings denied on both crates, `cargo fmt --check` clean.
 - Simulated rig, full mobility preset: peaks match the scripted movements (hip flexion 60,
   extension 20, abduction 30, knee 80 degrees; total 190) and are saved with identity

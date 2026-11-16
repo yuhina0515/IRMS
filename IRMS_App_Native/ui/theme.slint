@@ -220,6 +220,8 @@ export global App {
     // review statistics of the session picked in History, computed from its stored readings
     in property <string> review-summary;
     callback request-review(int);
+    callback export-session(int);
+    in-out property <string> export-notice;
     // the personal comfort / limit angles changed in Tools: store them
     callback range-changed(int, int);
 }

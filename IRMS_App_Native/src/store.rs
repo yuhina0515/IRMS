@@ -399,6 +399,72 @@ impl Store {
         Ok(rows)
     }
 
+    /// CSV of one stored session with the same metadata header as the Tauri export, from the full
+    /// readings (not the downsampled chart data). Returns the suggested file name and the text.
+    pub fn export_csv(&self, session: &Session) -> Result<(String, String), String> {
+        let readings =
+            sessions_repo::get_data(&self.conn, session.id, None).map_err(|e| e.to_string())?;
+        let opt = |v: Option<String>| v.unwrap_or_default();
+        let num = |v: Option<f64>| opt(v.map(|x| x.to_string()));
+        let calibration = session
+            .calibration
+            .clone()
+            .unwrap_or_default()
+            .replace('"', "\"\"");
+        let meta = [
+            format!("# source,{}", session.source),
+            format!("# session,{}", session.id),
+            format!("# action,{}", opt(session.action_name.clone())),
+            format!("# protocol,{}", opt(session.protocol.clone())),
+            format!("# triggerType,{}", opt(session.trigger_type.clone())),
+            format!("# targetAngle,{}", num(session.target_angle)),
+            format!("# tolerance,{}", num(session.tolerance)),
+            format!("# holdTimeMs,{}", opt(session.hold_time_ms.map(|v| v.to_string()))),
+            format!("# comfortAngle,{}", num(session.comfort_angle)),
+            format!("# limitAngle,{}", num(session.limit_angle)),
+            format!("# startTime,{}", session.start_time),
+            format!("# endTime,{}", opt(session.end_time.clone())),
+            format!("# repsCompleted,{}", session.reps_completed),
+            format!("# abandoned,{}", session.abandoned != 0),
+            format!("# calibration,\"{calibration}\""),
+            "# note,thighRoll/shinRoll/kneeRoll are sensor-mounting diagnostics, not validated varus/valgus".to_string(),
+        ]
+        .join("
+");
+        let body = readings
+            .iter()
+            .map(|r| {
+                format!(
+                    "{},{},{},{},{},{},{}",
+                    r.timestamp,
+                    r.knee_angle,
+                    r.thigh_angle,
+                    r.shin_angle,
+                    r.knee_roll,
+                    r.thigh_roll,
+                    r.shin_roll
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(
+                "
+",
+            );
+        let name = if session.source == "demo" {
+            format!("irms_DEMO_session_{}.csv", session.id)
+        } else {
+            format!("irms_session_{}.csv", session.id)
+        };
+        Ok((
+            name,
+            format!(
+                "{meta}
+timestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll
+{body}"
+            ),
+        ))
+    }
+
     /// Review statistics of a stored session, computed from its stored readings (full readings, not
     /// the downsampled chart data) with the prescription and personal range it was recorded with.
     pub fn review(&self, session: &Session) -> String {
@@ -523,6 +589,43 @@ mod tests {
             shin_roll: 4.0,
             timestamp: format!("2026-11-16T09:00:00.{i:03}Z"),
         }
+    }
+
+    #[test]
+    fn csv_export_has_the_metadata_header_and_every_stored_reading() {
+        let mut store = memory();
+        start(&mut store).unwrap();
+        for i in 0..7 {
+            store.push_reading(reading(i)).unwrap();
+        }
+        store.end_session(1).unwrap();
+        let session = store.sessions().unwrap().remove(0);
+        let (name, text) = store.export_csv(&session).unwrap();
+        assert_eq!(
+            name,
+            format!("irms_session_{}.csv", session.id).replace(
+                "irms_session",
+                if session.source == "demo" {
+                    "irms_DEMO_session"
+                } else {
+                    "irms_session"
+                }
+            )
+        );
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines[0].starts_with("# source,"));
+        assert!(lines.iter().any(|l| l.starts_with("# calibration,\"")));
+        assert!(lines.iter().any(|l| l.starts_with("# note,")));
+        let header = lines
+            .iter()
+            .position(|l| l.starts_with("timestamp,"))
+            .unwrap();
+        assert_eq!(
+            lines.len() - header - 1,
+            7,
+            "all readings, not a downsample"
+        );
+        assert!(lines[header + 1].split(',').count() == 7);
     }
 
     #[test]

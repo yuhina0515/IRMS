@@ -29,6 +29,7 @@ use wizard::Wizard;
 
 mod action_edit;
 mod action_ui;
+mod instance;
 mod outputs;
 mod pipeline;
 mod preferences;
@@ -343,6 +344,18 @@ fn arg_value(args: &[String], name: &str) -> Option<String> {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // 預設資料庫只允許一個執行個體；第二次啟動會把已開啟的視窗帶到前景。指定 --db 的是獨立資料庫。
+    let _single = if std::env::args().any(|a| a == "--db") {
+        None
+    } else {
+        match instance::acquire(&format!(
+            "IRMS v{} · Native Beta",
+            env!("CARGO_PKG_VERSION")
+        )) {
+            instance::Outcome::Second => return Ok(()),
+            instance::Outcome::First(guard) => guard,
+        }
+    };
     // 安裝後預設採用已驗證的軟體渲染；保留環境變數供開發者切換後端。
     if std::env::var_os("SLINT_BACKEND").is_none() {
         slint::BackendSelector::new()
@@ -558,6 +571,41 @@ fn main() -> Result<(), slint::PlatformError> {
                 Err(e) => format!("讀取失敗：{e}"),
             };
             ui.global::<App>().set_review_summary(text.into());
+            ui.global::<App>().set_export_notice("".into());
+        });
+    }
+    {
+        // 匯出完整讀數為 CSV：檔案位置由使用者在系統對話框選擇，取消不寫任何東西。
+        let sim = sim.clone();
+        let sessions = sessions.clone();
+        let ui_w = ui.as_weak();
+        app.on_export_session(move |row| {
+            let (Some(ui), Some(target)) = (ui_w.upgrade(), sessions.row_data(row.max(0) as usize))
+            else {
+                return;
+            };
+            let s = sim.borrow();
+            let notice = match s.store.sessions() {
+                Ok(rows) => match rows.iter().find(|x| Some(x.id) == target.id.parse().ok()) {
+                    None => "找不到這場療程".to_string(),
+                    Some(session) => match s.store.export_csv(session) {
+                        Err(e) => format!("匯出失敗:{e}"),
+                        Ok((name, text)) => match rfd::FileDialog::new()
+                            .set_file_name(&name)
+                            .add_filter("CSV", &["csv"])
+                            .save_file()
+                        {
+                            None => String::new(),
+                            Some(path) => match std::fs::write(&path, text) {
+                                Ok(()) => format!("已匯出:{}", path.display()),
+                                Err(e) => format!("匯出失敗:{e}"),
+                            },
+                        },
+                    },
+                },
+                Err(e) => format!("讀取失敗:{e}"),
+            };
+            ui.global::<App>().set_export_notice(notice.into());
         });
     }
     {
