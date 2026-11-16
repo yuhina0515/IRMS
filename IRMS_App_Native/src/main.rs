@@ -455,13 +455,33 @@ fn main() -> Result<(), slint::PlatformError> {
     // Prescriptions, sessions and the personal range live in the prototype's own database (--db <path>,
     // or :memory: to keep nothing). It is never the Tauri app's database.
     let db_error = |e: rusqlite::Error| slint::PlatformError::Other(e.to_string());
-    let store = match Store::open(arg_value(&args, "--db")) {
+    let mut store = match Store::open(arg_value(&args, "--db")) {
         Ok(store) => store,
         Err(error) => {
             storage_error(&ui, error);
             return ui.run();
         }
     };
+    // First launch after the update from the Tauri app: bring its records over (default store only).
+    let mut import_notice = String::new();
+    if arg_value(&args, "--db").is_none() {
+        if let Some(source) = store::tauri_db_path() {
+            match store.import_tauri(&source) {
+                Ok(Some(r)) => {
+                    import_notice = format!(
+                        "已從 Tauri 版匯入:{} 場療程、{} 筆讀數、{} 個動作處方、{} 筆活動度。Tauri 版的資料沒有被更動。",
+                        r.sessions, r.readings, r.actions, r.mobility
+                    );
+                }
+                Ok(None) => {}
+                Err(e) => storage_error(
+                    &ui,
+                    format!("匯入 Tauri 版資料失敗(原生資料庫未被更動):{e}"),
+                ),
+            }
+        }
+    }
+    app.set_import_notice(import_notice.into());
     if log {
         println!("database: {}", store.location);
     }

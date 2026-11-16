@@ -12,6 +12,7 @@ pub mod db;
 pub mod defaults;
 pub mod downsample;
 pub mod firmware_update;
+pub mod import_tauri;
 pub mod judge;
 pub mod live_share;
 pub mod migrations;

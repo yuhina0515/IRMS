@@ -1,10 +1,12 @@
-IRMS v1.3.0-beta.5 is the fifth Windows x64 installer for the Rust/Slint native application.
+IRMS v1.3.0-beta.6 is the sixth Windows x64 installer for the Rust/Slint native application.
 
-Download `IRMS_1.3.0-beta.5_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
+Download `IRMS_1.3.0-beta.6_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. Installed by hand it runs alongside the Tauri application; installed by the updater it replaces it. No WebView2 installation is required.
 
 The main shortcut starts simulated data. An **IRMS Device (Experimental)** Start menu entry enables the real BLE code path. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
 
-**New since beta.4:** firmware check in Settings (fetches the channel manifest, verifies its Ed25519 signature with the built-in key and compares it with the connected device). There is no install button: OTA through the Windows BLE backend is not validated on a physical device, use the Tauri app to update firmware.
+**New since beta.5:** the Tauri beta updater now offers this build. Updating removes the Tauri app (its data folder is left alone) and installs this one, which opens itself afterwards. On the first launch it copies the Tauri records (sessions, readings, prescriptions, personal ranges, mobility records, calibrations) into its own database; the Tauri database is read through a copy and never modified. Import runs once, only into an empty native database. Not carried over: settings the Tauri app kept in its WebView (alarm limits, display choices); re-enter them. This is a beta channel build; physical-device acceptance is still pending.
+
+**New in beta.5 (since beta.4):** firmware check in Settings (fetches the channel manifest, verifies its Ed25519 signature with the built-in key and compares it with the connected device). There is no install button: OTA through the Windows BLE backend is not validated on a physical device, use the Tauri app to update firmware.
 
 **New in beta.4 (since beta.3):** opt-in telemetry upload (Settings / Data and privacy; off at every launch, nothing leaves the computer until it is turned on, no name or computer name is sent) and live share (Tools): share this device's live numbers with a code, or watch another device. Remote setting changes from a viewer are refused.
 
@@ -16,7 +18,7 @@ Session storage includes interrupted-session recovery and retry of failed final 
 
 **Windows security:** the installer and application are unsigned. Smart App Control may still block this release. An installer or a self-signed certificate does not resolve public trust. Public signing is pending a trusted signing service or CA-issued certificate. This release does not modify Windows security settings. [Microsoft signing guidance](https://learn.microsoft.com/windows/apps/develop/smart-app-control/code-signing-for-smart-app-control).
 
-This is a separate native prerelease. Existing Tauri installations are not automatically updated to it; the Tauri updater channel is unchanged.
+This is a beta-channel build: Tauri beta installations are offered it as an update.
 
 Slint attribution is available through the application's About button. IRMS and third-party license notices are included in the installation folder.
 

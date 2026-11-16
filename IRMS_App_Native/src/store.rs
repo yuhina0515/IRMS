@@ -41,6 +41,16 @@ pub struct ActionChange {
     pub actions: Vec<CustomAction>,
 }
 
+/// Where the Tauri app keeps its database.
+pub fn tauri_db_path() -> Option<PathBuf> {
+    let base = std::env::var_os("APPDATA")?;
+    Some(
+        PathBuf::from(base)
+            .join("com.irms.app.tauri")
+            .join("irms.sqlite"),
+    )
+}
+
 fn default_path() -> Option<PathBuf> {
     let base = std::env::var_os("LOCALAPPDATA")?;
     Some(
@@ -253,6 +263,39 @@ impl Store {
             .execute("DELETE FROM angle_range_records", [])
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    /// One-time import of the Tauri app's records, on the first launch after the update. Only into a
+    /// fresh database; the outcome is remembered in a marker file beside the database so a later launch
+    /// never imports again (and never overwrites records made since). `Ok(None)` = nothing to do.
+    pub fn import_tauri(
+        &mut self,
+        source: &std::path::Path,
+    ) -> Result<Option<irms_core::import_tauri::Report>, String> {
+        if self.location == ":memory:" || !source.exists() {
+            return Ok(None);
+        }
+        let marker = PathBuf::from(format!("{}.tauri-import", self.location));
+        if marker.exists() {
+            return Ok(None);
+        }
+        if !irms_core::import_tauri::is_fresh(&self.conn).map_err(|e| e.to_string())? {
+            let _ = std::fs::write(
+                &marker,
+                "skipped: database already had data
+",
+            );
+            return Ok(None);
+        }
+        let report = irms_core::import_tauri::import_from(&mut self.conn, source)?;
+        let _ = std::fs::write(
+            &marker,
+            format!(
+                "imported: {report:?}
+"
+            ),
+        );
+        Ok(Some(report))
     }
 
     /// The calibration in force, restored at startup. A stored profile that no longer parses is
@@ -589,6 +632,54 @@ mod tests {
             shin_roll: 4.0,
             timestamp: format!("2026-11-16T09:00:00.{i:03}Z"),
         }
+    }
+
+    #[test]
+    fn the_tauri_import_runs_once_into_a_fresh_store_and_leaves_a_marker() {
+        let dir = std::env::temp_dir().join(format!("irms-store-import-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("tauri.sqlite");
+        {
+            let conn = irms_core::db::init_database(&source).unwrap();
+            actions_repo::create(
+                &conn,
+                &irms_core::types::CustomActionInput {
+                    name: "從 Tauri 來的".into(),
+                    description: None,
+                    protocol: "knee".into(),
+                    target_angle: 50.0,
+                    tolerance: 5.0,
+                    hold_time_ms: 2000,
+                    trigger_type: "joint_angle".into(),
+                    safety_limit: None,
+                },
+            )
+            .unwrap();
+        }
+        let db = dir.join("native.sqlite");
+        let mut store = Store::open(Some(db.display().to_string())).unwrap();
+        let report = store.import_tauri(&source).unwrap().expect("imported");
+        assert!(report.actions >= 1);
+        assert!(store
+            .actions()
+            .unwrap()
+            .iter()
+            .any(|a| a.name == "從 Tauri 來的"));
+        assert!(db.with_extension("sqlite.tauri-import").exists());
+        assert!(
+            store.import_tauri(&source).unwrap().is_none(),
+            "the marker stops a second import"
+        );
+        // A missing source is not an error and writes nothing.
+        let mut other = Store::open(Some(dir.join("other.sqlite").display().to_string())).unwrap();
+        assert!(other
+            .import_tauri(&dir.join("absent.sqlite"))
+            .unwrap()
+            .is_none());
+        assert!(!dir.join("other.sqlite.tauri-import").exists());
+        drop((store, other));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

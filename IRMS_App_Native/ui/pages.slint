@@ -351,6 +351,7 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;
+                    if App.import-notice != "": Text { text: App.import-notice; font-size: 13px; color: Theme.good; wrap: word-wrap; }
                     Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
                     Setting { title: "遙測"; sub: App.telemetry-status; VerticalLayout { alignment: center; Btn { text: App.telemetry-on ? "關閉上傳" : "開啟上傳"; primary: !App.telemetry-on; clicked => { App.telemetry-set(!App.telemetry-on); } } } }
                     Text { text: "開啟後會把原始藍牙封包、連線與療程開始/結束的事件傳給開發者的收集器(不含姓名或電腦名稱)。預設關閉,每次啟動都需要重新開啟;關閉會丟棄尚未傳出的資料。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }

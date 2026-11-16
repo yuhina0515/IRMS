@@ -132,3 +132,23 @@ may still block them). The Tauri updater and `beta-latest` are untouched.
   documentation says the chunk pacing and reconnect through the Windows BLE backend are not validated on
   hardware, so flashing stays in the Tauri app until a device run exists.
 - 37 native tests, 181 core tests (3 ignored live), Clippy clean.
+
+## beta.6: updater cutover and Tauri data import (owner decision 2026-11-17: beta channel, just do it)
+
+- Installer (`installer.nsi`) understands the Tauri updater's command line (`/P /UPDATE /R /ARGS ...`): it runs
+  without a wizard, removes the Tauri app through its own uninstaller (`/S`, so the data folder is kept) and, with
+  `/R`, starts the native app afterwards. A manual install is unchanged and leaves the Tauri app alone.
+- `IRMS_Core::import_tauri` + `Store::import_tauri`: first launch of the default native store copies the Tauri
+  database (with its WAL) to a scratch folder, migrates the copy to the current schema, and copies sessions,
+  readings, prescriptions, personal ranges, mobility records and calibrations with their ids in one transaction.
+  Only into an empty store; a marker file `irms.sqlite.tauri-import` stops a second import; the Tauri file is
+  never modified. Settings kept in the WebView's localStorage (alarm limits, display) cannot be read and are not
+  carried over.
+- Verification: core import tests (full copy with ids and references, source bytes unchanged, non-empty target
+  refused, newer source refused, missing source); store test (marker, once only); an ignored test against a copy
+  of this machine's real Tauri database (5 prescriptions, no sessions). Cutover test with a FAKE Tauri install
+  under its own registry key (the real Tauri install was not touched): the updater-style command line removed the
+  fake app and its registry key, installed the native build, relaunched it, and the relaunched app imported the
+  Tauri database copy (marker written).
+- Not verified: a real Tauri updater run end to end (download, signature check, passive install) and a real
+  Tauri uninstaller; the first can only happen when a Tauri beta app next checks for updates.

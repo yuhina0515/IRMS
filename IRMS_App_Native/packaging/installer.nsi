@@ -1,12 +1,18 @@
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
+!include "FileFunc.nsh"
+!insertmacro GetParameters
+!insertmacro GetOptions
 
 !ifndef APP_VERSION
   !error "APP_VERSION is required"
 !endif
 !ifndef APP_EXE
   !error "APP_EXE is required"
+!endif
+!ifndef TAURI_UNINSTALL_KEY
+  !define TAURI_UNINSTALL_KEY "IRMS Dashboard"
 !endif
 !ifndef OUTPUT_FILE
   !error "OUTPUT_FILE is required"
@@ -18,7 +24,7 @@ InstallDir "$LOCALAPPDATA\Programs\IRMS Native Beta"
 InstallDirRegKey HKCU "Software\IRMS\NativeBeta" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "1.3.0.5"
+VIProductVersion "1.3.0.6"
 VIAddVersionKey /LANG=1033 "ProductName" "IRMS Native Beta"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
@@ -36,10 +42,49 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Copyright (c) 2026 IRMS Team"
 !insertmacro MUI_LANGUAGE "TradChinese"
 !insertmacro MUI_LANGUAGE "English"
 
+Var Updating
+Var Relaunch
+
 Function .onInit
   ${IfNot} ${RunningX64}
     MessageBox MB_ICONSTOP "IRMS requires 64-bit Windows."
     Abort
+  ${EndIf}
+  ; The Tauri app's updater starts this installer with `/P /UPDATE /R /ARGS ...`: run it without a
+  ; wizard, replace the Tauri app, and open the native app when it is done.
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/UPDATE" $R1
+  ${IfNot} ${Errors}
+    StrCpy $Updating 1
+    SetSilent silent
+  ${EndIf}
+  ClearErrors
+  ${GetOptions} $R0 "/R" $R1
+  ${IfNot} ${Errors}
+    StrCpy $Relaunch 1
+  ${EndIf}
+  ClearErrors
+FunctionEnd
+
+; Removes the Tauri app (not its data: the native app imports that on first launch).
+Function RemoveTauriApp
+  ReadRegStr $R2 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${TAURI_UNINSTALL_KEY}" "UninstallString"
+  ReadRegStr $R3 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${TAURI_UNINSTALL_KEY}" "InstallLocation"
+  StrCmp $R2 "" done
+  StrCpy $R4 $R3 1
+  StrCmp $R4 '"' 0 +3
+    StrCpy $R3 $R3 "" 1
+    StrCpy $R3 $R3 -1
+  ExecWait '$R2 /S _?=$R3'
+  Delete "$R3\uninstall.exe"
+  RMDir "$R3"
+  done:
+FunctionEnd
+
+Function .onInstSuccess
+  ${If} $Relaunch == 1
+    Exec '"$INSTDIR\irms_app_native.exe"'
   ${EndIf}
 FunctionEnd
 
@@ -73,6 +118,9 @@ Section "IRMS Native Beta" SEC_MAIN
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\IRMSNativeBeta" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\IRMSNativeBeta" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\IRMSNativeBeta" "NoRepair" 1
+  ${If} $Updating == 1
+    Call RemoveTauriApp
+  ${EndIf}
 SectionEnd
 
 Section "Uninstall"
