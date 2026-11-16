@@ -109,3 +109,16 @@ a runtime module is not ported, because the module system has no design without 
 The prototype records the readings of a running session and shows these statistics in the History review
 panel. Checked by clicking: a 15 s simulated squat session ended with 2 reps and the review line
 "有效量測 15.4 秒 · 峰值 90° · 平均 60° · 目標區內 54% · 未量測舒適角度". The readings live in memory only.
+
+## The Tauri app runs on the new layout
+
+With `node_modules` and a real `dist`, the app was built from this branch
+(`cargo build --release --features tauri/custom-protocol` in `src-tauri`, 9.5 MB) and started. Checked by
+clicking: the window and all strings load, the prescriptions come from the database through the core crate,
+"connect" goes through `irms_core::ble` and reports the adapter failure as "連線失敗", demo mode plays, a
+session starts, counts a rep, ends, and appears in History (written through `irms_core::db`).
+
+This run also used the real database on this desktop by mistake; see the correction in
+[[log_20261116_rust_native_phase1_prototype]]. Its one demo session was removed with the other.
+
+Not done: `npx tauri build` (installer, signing), a run against the ESP32, Android.

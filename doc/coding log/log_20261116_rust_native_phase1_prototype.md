@@ -18,7 +18,7 @@ text uses the system Microsoft JhengHei.
 
 ## Measurements (one machine, 2026-11-16)
 
-Tauri = installed 1.2.0-beta.25 with a scratch `APPDATA`, whole process tree (7 processes, WebView2
+Tauri = installed 1.2.0-beta.25 (see the correction at the end: the scratch `APPDATA` did not take effect), whole process tree (7 processes, WebView2
 included), demo mode playing the "rep-cycle" scenario. Native = `IRMS_App_Native` release build, one
 process, simulated 50 Hz data with `--run`. CPU is percent of one core over 20 s.
 
@@ -67,3 +67,24 @@ The layout follows the v3 live screen: coaching band, judged metric with ruler, 
 - Style switching and start/stop were verified through launch flags (`--style`, `--night`, `--run`), not by
   clicking the buttons.
 - Prototype flags: `--style N`, `--night`, `--run`, `--log`, `--snapshot <png>`.
+
+## Correction (same day): the Tauri runs used the real database
+
+The baseline runs set `APPDATA` and `LOCALAPPDATA` to a scratch folder before starting the Tauri app. That
+does not redirect it: the app resolves its data folder through the Windows known-folder API, not the
+environment variable. The scratch folders stayed empty and the app used the real
+`%APPDATA%\com.irms.app.tauri\irms.sqlite` on this desktop. Found later the same day, when a second test
+session showed the first one in History.
+
+What it did there: two demo sessions (the 10-minute run, killed mid-session and so marked "not ended
+normally", and an 11-second one) with 16,629 `sensor_data` rows, all `source = 'demo'`. The database held
+no sessions before; schema version unchanged (10); the five prescriptions untouched.
+
+Cleanup done: the three database files were copied to
+`%APPDATA%\com.irms.app.tauriackup-20261116-before-demo-cleanup\`, then exactly those two sessions and
+their rows were deleted. Now 0 sessions, 0 sensor rows, 5 prescriptions. The session id counter stays at 2,
+so the next real session gets id 3.
+
+The measurements themselves are unaffected (same binary, same work). For future runs, isolate the Tauri app
+with a different app identifier (the existing `com.irms.app.tauri.v3check` folders show that method), not
+with environment variables, and check the real database's row counts before and after.
