@@ -373,11 +373,21 @@ pub mod sessions_repo {
     }
 
     pub fn end(conn: &Connection, session_id: i64, reps_completed: i64) -> rusqlite::Result<()> {
+        end_at(conn, session_id, reps_completed, None)
+    }
+
+    /// A delayed save can preserve the instant the recording stopped.
+    pub fn end_at(
+        conn: &Connection,
+        session_id: i64,
+        reps_completed: i64,
+        stopped_at: Option<&str>,
+    ) -> rusqlite::Result<()> {
         let changed = conn.execute(
             "UPDATE sessions
-             SET endTime = COALESCE(endTime, strftime('%Y-%m-%dT%H:%M:%fZ','now')), repsCompleted = ?1
+             SET endTime = COALESCE(endTime, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now')), repsCompleted = ?1
              WHERE id = ?2",
-            params![reps_completed, session_id],
+            params![reps_completed, session_id, stopped_at],
         )?;
         // 不存在的療程不能回報已儲存；重試則保留首次成功結束的時間。
         if changed != 1 {
