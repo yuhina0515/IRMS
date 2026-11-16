@@ -1984,6 +1984,7 @@ dependencies = [
  "btleplug",
  "chrono",
  "futures",
+ "irms_core",
  "jni 0.19.0",
  "jni-utils",
  "md5",
@@ -2006,6 +2007,17 @@ dependencies = [
  "url",
  "uuid",
  "webpki-root-certs",
+]
+
+[[package]]
+name = "irms_core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

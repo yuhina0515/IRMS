@@ -113,6 +113,9 @@ Tauri app is frozen the way the Electron app was.
   memory (no CPU saving shown), G2 not started. Style chosen: calm companion.
 - Phase 2: all screens built on simulated data, see `log_20261116_rust_native_phase2_screens.md`. Open until
   the owner has clicked through it.
+- Phase 3: started 2026-11-16 at the owner's request (earlier than the D1 default). Slice 1 done: `IRMS_Core`
+  holds types, protocol, defaults, downsample, migrations, ble_lifecycle, db; see
+  `log_20261116_rust_native_phase3_core_slice1.md`. BLE, telemetry, firmware and modules still in `src-tauri`.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 
@@ -120,7 +123,7 @@ Tauri app is frozen the way the Electron app was.
 
 | # | Decision | Default used until answered |
 |---|---|---|
-| D1 | When phases 3 onward may start | After the December report; phases 0 to 2 do not touch the shipping app |
+| D1 | When phases 3 onward may start | Started 2026-11-16 on the plan branch at the owner's request; merging to main still waits for the December report |
 | D2 | Module system without a WebView | Decide after phase 2; none is built before then |
 | D3 | The 3D leg: real 3D or a 2D drawing | Decide at gate G2 with both shown |
 | D4 | Interface style direction | Decided 2026-11-16: calm companion (柔和陪伴), chosen from three prototyped directions; snapshots in `assets/2026-11-16-native-prototype/` |
