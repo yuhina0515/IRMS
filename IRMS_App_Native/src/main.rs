@@ -29,6 +29,7 @@ use wizard::Wizard;
 
 mod action_edit;
 mod action_ui;
+mod firmware_ui;
 mod instance;
 mod outputs;
 mod pipeline;
@@ -679,8 +680,15 @@ fn main() -> Result<(), slint::PlatformError> {
     let started = Instant::now();
     wire_wizard(&ui, sim.clone(), started);
     share_ui::wire(&ui, sharing.clone());
+    let firmware = firmware_ui::FirmwareCheck::default();
+    firmware_ui::wire(
+        &ui,
+        firmware.clone(),
+        runtime.handle().clone(),
+        host.as_ref().map(|h| h.state.clone()),
+    );
     {
-        // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE.
+        // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE, --firmware-check.
         let s = sharing.borrow();
         if has("--telemetry-on") {
             if let Err(e) = s
@@ -694,6 +702,9 @@ fn main() -> Result<(), slint::PlatformError> {
             s.viewer
                 .join(s.endpoint.clone(), &code, "IRMS 原生版".into());
         }
+    }
+    if has("--firmware-check") {
+        app.invoke_firmware_check();
     }
     if let Some(i) = int("--tools-tab") {
         app.set_tools_tab(i);
@@ -1106,6 +1117,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     );
                 }
                 share_ui::sync(&app, &sharing);
+                firmware_ui::sync(&app, &firmware);
             }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.

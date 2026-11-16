@@ -338,7 +338,7 @@ export component SettingsView inherits VerticalLayout {
                 if root.tab == 3: VerticalLayout {
                     spacing: 16px;
                     Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
-                    Setting { title: "韌體"; sub: App.conn == 2 ? (App.device-mode ? "真機韌體更新尚未移植" : "模擬裝置沒有韌體") : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
+                    Setting { title: "韌體"; sub: App.firmware-status != "" ? App.firmware-status : "檢查最新韌體(只讀取已簽章的發布清單)。"; VerticalLayout { alignment: center; Btn { text: "檢查韌體"; clicked => { App.firmware-check(); } } } }
                 }
                 if root.tab == 4: VerticalLayout {
                     spacing: 16px;
@@ -347,7 +347,7 @@ export component SettingsView inherits VerticalLayout {
                     Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "即時分享"; sub: "內建,位於「工具」分頁;需要先開啟遙測。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "韌體更新"; sub: "需要實體裝置驗證;尚未提供。"; VerticalLayout { alignment: center; Chip { text: "尚未移植"; tone: Theme.warn; } } }
+                    Setting { title: "韌體更新"; sub: "檢查已內建;實機 OTA 尚未驗證,不提供更新按鈕。"; VerticalLayout { alignment: center; Chip { text: "僅檢查"; tone: Theme.warn; } } }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;

@@ -1,10 +1,12 @@
-IRMS v1.3.0-beta.4 is the fourth Windows x64 installer for the Rust/Slint native application.
+IRMS v1.3.0-beta.5 is the fifth Windows x64 installer for the Rust/Slint native application.
 
-Download `IRMS_1.3.0-beta.4_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
+Download `IRMS_1.3.0-beta.5_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
 
 The main shortcut starts simulated data. An **IRMS Device (Experimental)** Start menu entry enables the real BLE code path. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
 
-**New since beta.3:** opt-in telemetry upload (Settings / Data and privacy; off at every launch, nothing leaves the computer until it is turned on, no name or computer name is sent) and live share (Tools): share this device's live numbers with a code, or watch another device. Remote setting changes from a viewer are refused. Firmware update is not ported yet.
+**New since beta.4:** firmware check in Settings (fetches the channel manifest, verifies its Ed25519 signature with the built-in key and compares it with the connected device). There is no install button: OTA through the Windows BLE backend is not validated on a physical device, use the Tauri app to update firmware.
+
+**New in beta.4 (since beta.3):** opt-in telemetry upload (Settings / Data and privacy; off at every launch, nothing leaves the computer until it is turned on, no name or computer name is sent) and live share (Tools): share this device's live numbers with a code, or watch another device. Remote setting changes from a viewer are refused.
 
 **New in beta.3 (since beta.2):** session CSV export from History (system save dialog, same metadata header and full readings as the Tauri export) and single-instance launch (a second start shows the running window). Modules are built into the program (design decision D2).
 

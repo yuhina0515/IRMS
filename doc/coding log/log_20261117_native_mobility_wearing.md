@@ -121,3 +121,14 @@ may still block them). The Tauri updater and `beta-latest` are untouched.
   viewer. Native 34 tests, Clippy clean. The public collector was not used.
 - Not done: firmware update (needs a physical device and the signed image path), persisting the telemetry
   choice, hardware validation of the real-device event stream.
+
+## beta.5: firmware check
+
+- `IRMS_Core::firmware_update` is a port of the Tauri module (manifest signature, channel rule, size/SHA-256/MD5
+  verification, version comparison). Its tests include the real signed sample manifest. An ignored live
+  test fetched the real beta channel manifest and verified it with the compiled-in key (firmware 1.0.1-beta.2).
+- Native Settings / Software and firmware has "檢查韌體": latest signed version, size, notes, and the
+  connected device's version when there is one. **No install button on purpose**: the core's own OTA
+  documentation says the chunk pacing and reconnect through the Windows BLE backend are not validated on
+  hardware, so flashing stays in the Tauri app until a device run exists.
+- 37 native tests, 181 core tests (3 ignored live), Clippy clean.

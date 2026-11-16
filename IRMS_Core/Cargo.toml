@@ -18,6 +18,12 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 url = "2"
+# Firmware delivery (firmware_update.rs): Ed25519 manifest signatures, SHA-256 / MD5 of the image, semver.
+ring = "0.17"
+sha2 = "0.10"
+md5 = "0.7"
+semver = "1"
+base64 = "0.22"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
