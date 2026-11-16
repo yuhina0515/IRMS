@@ -143,3 +143,24 @@ State after this port: core 123 tests, frontend 73 files / 716 tests, typecheck 
 
 Remaining in phase 4: `calibrationCore.ts` / `calibration.ts` / `calibrationB.ts` / `calibrationFlow.ts`
 (the prototype's wizard is still a stand-in), `sessionController.ts`, `slipMonitor.ts`, `mobilityC.ts`.
+
+## Fourth port: slip monitor
+
+`IRMS_Core/src/slip_monitor.rs` ports `slipMonitor.ts` (the in-session check that the shin sensor has not
+turned on the leg) together with the two helpers it takes from `calibrationB.ts`: the cyclic Jacobi
+eigen solver and the angular span. Thresholds are unchanged and still provisional (simulator-derived).
+
+Checked against the TypeScript on `fixtures/slip-monitor.json`, written by
+`slipMonitor.contract.test.ts` from the project's own IMU simulator: seven sessions as the monitor sees
+them (time and both gravity vectors per sample, rounded to 4 decimals so both sides read the same input):
+unchanged mounting, a shin sensor that shifts and stays shifted, a brief disturbance, thigh movement,
+unusable input with time running backwards, a movement too small to read, and no calibrated hinge; plus six
+direct eigen-solver cases. The Rust monitor reports the one shift at the same sample index with the same
+reading, the same final summaries, and the same helper results (within 1e-7). Two deliberate breaks each
+failed the test and were reverted: thigh-still threshold 8 -> 80, and picking the largest eigenvalue
+instead of the smallest.
+
+Not connected to anything yet: the monitor needs the calibrated hinge, which comes from the calibration
+maths that is not ported.
+
+State: core 125 tests, frontend 74 files / 718 tests, typecheck, fmt and clippy clean.
