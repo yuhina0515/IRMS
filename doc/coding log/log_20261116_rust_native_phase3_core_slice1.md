@@ -40,3 +40,18 @@ workflow. This worktree has no `node_modules`; a placeholder `dist/index.html` (
 `ble` (15 references), `commands` (45), `telemetry` (11), `migrate_electron` (13), `splash`, `update`,
 `firmware`, `firmware_update`, `modules`, `live_share`, `dpi_guard`. Next slices: `ble` behind an event
 callback instead of `AppHandle` emit, then telemetry, firmware delivery and module verification.
+
+## Native prototype now uses the core crate
+
+`IRMS_App_Native` depends on `IRMS_Core`. The simulated device emits the real wire text
+(`T:..,S:..,K:..,TR:..,SR:..,KR:..`, or `ERR:1` with `--inject-fault`) and the prototype reads it through
+`irms_core::protocol::parse_angle_packet`, the same parser the shipping app uses. Knee angle is shin minus
+thigh from the parsed packet; the values view shows the parsed thigh, shin and roll difference.
+
+Checked by snapshot: values view (`p3-live-values-from-core-parser.png`) and the sensor-fault state
+(`p3-live-sensor-fault.png`, red band "感測器異常 · 裝置回報 ERR:1"). Executable is 10.2 MB with the core
+crate linked (SQLite and tokio included, not used yet).
+
+Differences from the shipping app left as they are for now: during a fault the big number keeps the last
+value (v3 shows a dash), and the prototype does no calibration maths (zero offset, flexion axes), which
+lives in the TypeScript services and belongs to phase 4.

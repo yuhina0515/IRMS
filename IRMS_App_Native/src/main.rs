@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 // IRMS native prototype (doc/plans/2026-11-16-rust-native-ui-plan.md, phases 1 and 2): every screen
 // on simulated sensor data. Not connected to the shipping app, the device or the database.
+use irms_core::protocol::{parse_angle_packet, ParsedPacket};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::fmt::Write;
@@ -105,6 +106,19 @@ fn grid3d_path() -> String {
     s
 }
 
+/// The simulated device speaks the real wire format (same text the ESP32 notifies), so the
+/// prototype exercises `irms_core::protocol` exactly as the shipping app does.
+fn sim_packet(t: f64, fault: bool) -> String {
+    if fault {
+        return "ERR:1".to_string();
+    }
+    let knee = sim_angle(t);
+    let thigh = 6.0 + 3.0 * (t * 0.7).sin();
+    let shin = thigh + knee;
+    let (tr, sr) = (1.5 + 0.5 * (t * 0.9).sin(), -1.2 + 0.6 * (t * 1.1).sin());
+    format!("T:{thigh:.1},S:{shin:.1},K:{knee:.1},TR:{tr:.1},SR:{sr:.1},KR:{:.1}", sr - tr)
+}
+
 fn arg_value(args: &[String], name: &str) -> Option<String> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
 }
@@ -116,7 +130,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --log,
+    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --inject-fault, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -129,6 +143,7 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_view(int("--view").unwrap_or(0).clamp(0, 4));
     app.set_settings_tab(int("--settings-tab").unwrap_or(0).clamp(0, 5));
     let autorun = has("--run");
+    let inject_fault = has("--inject-fault"); // 2 s of ERR:1 every 12 s
     if has("--connected") || autorun {
         app.set_conn(2);
     }
@@ -277,7 +292,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let snap_timer = Timer::default();
     if let Some(path) = arg_value(&args, "--snapshot") {
         let ui_w = ui.as_weak();
-        snap_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
+        let after = int("--snapshot-after").unwrap_or(3).max(1) as u64;
+        snap_timer.start(TimerMode::SingleShot, Duration::from_secs(after), move || {
             let Some(ui) = ui_w.upgrade() else { return };
             match ui.window().take_snapshot() {
                 Ok(buf) => {
@@ -304,13 +320,24 @@ fn main() -> Result<(), slint::PlatformError> {
         s.t += 1.0 / HZ;
         ticks += 1;
         let connected = app.get_conn() == 2;
-        let angle = sim_angle(s.t);
+        // Simulated notification -> real parser. Malformed packets are dropped, as in the app.
+        let fault = inject_fault && (s.t % 12.0) > 10.0;
+        let (angle, hw_error) = match parse_angle_packet(&sim_packet(s.t, fault)) {
+            ParsedPacket::Angles { raw, .. } => {
+                app.set_thigh_text(format!("{:.0}°", raw.thigh).into());
+                app.set_shin_text(format!("{:.0}°", raw.shin).into());
+                app.set_roll_text(format!("{:.0}°", raw.shin_roll - raw.thigh_roll).into());
+                (raw.shin - raw.thigh, None)
+            }
+            ParsedPacket::Error { code } => (s.buf.last().copied().unwrap_or(0.0), Some(code)),
+            ParsedPacket::Malformed { .. } => return,
+        };
         if s.buf.len() >= SAMPLES {
             s.buf.remove(0);
         }
         s.buf.push(angle);
 
-        let in_zone = angle >= ZONE.0 && angle <= ZONE.1;
+        let in_zone = hw_error.is_none() && angle >= ZONE.0 && angle <= ZONE.1;
         if s.running {
             s.session_s += 1.0 / HZ;
             if in_zone {
@@ -335,6 +362,8 @@ fn main() -> Result<(), slint::PlatformError> {
             } else {
                 ("裝置未連線", "請從右上角連線裝置".into(), 0)
             }
+        } else if let Some(code) = &hw_error {
+            ("感測器異常", format!("裝置回報 {code},請檢查感測器接線後重新連線"), 2)
         } else if limit >= 0 && angle > limit as f64 {
             ("超過個人極限範圍", format!("膝角 {angle:.0}° · 極限 {limit}° · 請放鬆"), 2)
         } else if !app.get_calibrated() {

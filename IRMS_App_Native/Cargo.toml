@@ -6,6 +6,7 @@ description = "Phase 1 prototype: Rust-native (Slint) live-session screen on sim
 publish = false
 
 [dependencies]
+irms_core = { path = "../IRMS_Core" }
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "renderer-femtovg", "renderer-software", "compat-1-2"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 

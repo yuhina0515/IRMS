@@ -179,10 +179,10 @@ export component LiveView inherits VerticalLayout {
             if root.live && App.pose-view == 2: VerticalLayout {
                 x: 24px; y: 70px; width: parent.width - 48px; spacing: 10px; alignment: start;
                 for row in [
-                    { k: "大腿", n: "相對零位", v: "12°" },
-                    { k: "小腿", n: "相對零位", v: App.angle-text },
+                    { k: "大腿", n: "相對零位", v: App.thigh-text },
+                    { k: "小腿", n: "相對零位", v: App.shin-text },
                     { k: "膝角", n: "判定用主指標", v: App.angle-text },
-                    { k: "側向差", n: "主要反映佩戴,非解剖角度", v: "3°" },
+                    { k: "側向差", n: "主要反映佩戴,非解剖角度", v: App.roll-text },
                 ]: HorizontalLayout {
                     VerticalLayout {
                         Text { text: row.k; font-size: 15px; font-weight: 700; color: Theme.ink; }
