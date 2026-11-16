@@ -164,3 +164,36 @@ Not connected to anything yet: the monitor needs the calibrated hinge, which com
 maths that is not ported.
 
 State: core 125 tests, frontend 74 files / 718 tests, typecheck, fmt and clippy clean.
+
+## Fifth port: calibration core
+
+`IRMS_Core/src/calibration.rs` ports `calibrationCore.ts` (the unified calibration) and the three helpers
+it takes from `calibrationB.ts` (plane fit, gyro principal axis, axis fusion): frame conditioning,
+reference capture, the time-based held peak, hinge estimation per limb (sweep plane, gyro fusion,
+two-point fallback, reference orthogonalisation, axis orientation), quality grading, profile solve,
+movement evaluation for knee flexion and the three hip movements, quick re-zero, and the pre-session
+wearing check. The profile types serialise to the same JSON shape as the TypeScript `CalibrationProfile`,
+so a stored profile can be read by either side.
+
+Not ported: `compileProfile`, `isUnified`, `zeroIsUpright` (they map a profile onto the Tauri app's flat
+`Settings`), and the rest of `calibrationB.ts` (pose-based mounting solve, bias estimation), the older
+`calibration.ts`, `calibrationFlow.ts` and `calibrationRuntime.ts`.
+
+Checked against the TypeScript on `fixtures/calibration-core.json`, written by
+`calibrationCore.contract.test.ts` from the IMU simulator: 50 recorded calls with rounded inputs. Three
+full solves (left leg with gyro, right leg without, shin only), the limb-frame paths a full solve does not
+reach (two-point fallback, too small, invalid, reference off the plane, reversed sign), reference capture
+and its three failures, frame gating, fifteen movement evaluations covering every result the function can
+return, seven held-peak series, re-zero, and the wearing check with all three verdicts. The TypeScript
+test also asserts that list of outcomes is present, so the fixture cannot quietly lose a case.
+
+The Rust side replays all calls and compares whole results structurally within 1e-6: identical. Three
+deliberate breaks each failed and were reverted: gyro weight 1.5 -> 1.0 (hinge axis differs in the fourth
+decimal), reversed axis orientation, hold spread limit 4 -> 0.5. NaN inputs cannot travel in JSON and
+have a small Rust-only test.
+
+Nothing was run on a device, and the calibration it mirrors is itself simulator-validated only: agreement
+with the TypeScript says the port is faithful, not that the calibration is right on a leg.
+
+State: core 127 tests, frontend 75 files / 720 tests, typecheck, fmt and clippy clean. The fixture is
+658 KB; the four fixtures together are about 1.3 MB.
