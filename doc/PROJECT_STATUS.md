@@ -14,6 +14,13 @@ coding log,不憑印象轉述。
 
 ---
 
+## 2026-11-16 原生 Windows 測試版
+
+Rust/Slint 原生版 `v1.3.0-beta.1` 已完成 x64 安裝包與本機安裝、重新安裝、啟動、解除安裝及資料保留檢查。
+這是獨立的未簽章測試版,與 Tauri 版並存;尚未完成功能對等或真機驗收,也未切換 Tauri 自動更新頻道。
+Smart App Control 仍可能阻擋安裝包或程式。詳見 [[log_20261116_native_beta1_installer]] 與
+[預發布頁面](https://github.com/yuhina0515/IRMS/releases/tag/v1.3.0-beta.1)。
+
 ## 🧭 2026-11-10 現況補充(以本節為準,下方舊敘述與本節衝突時以本節為準)
 
 | 項目 | 現況(2026-11-10) |

@@ -286,8 +286,17 @@ fn arg_value(args: &[String], name: &str) -> Option<String> {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // 安裝後預設採用已驗證的軟體渲染；保留環境變數供開發者切換後端。
+    if std::env::var_os("SLINT_BACKEND").is_none() {
+        slint::BackendSelector::new()
+            .backend_name("winit".into())
+            .renderer_name("software".into())
+            .select()?;
+    }
     let ui = MainWindow::new()?;
+    ui.set_release_version(env!("CARGO_PKG_VERSION").into());
     let app = ui.global::<App>();
+    app.set_release_version(env!("CARGO_PKG_VERSION").into());
     let live = ui.global::<Live>();
     let theme = ui.global::<Theme>();
 

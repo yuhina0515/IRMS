@@ -3,6 +3,7 @@
 import { Theme, Btn, Card, Chip, App } from "theme.slint";
 import { Live, LiveView } from "live.slint";
 import { ActionsView, HistoryView, ToolsView, SettingsView } from "pages.slint";
+import { AboutSlint } from "std-widgets.slint";
 export { Theme, App, Live }
 
 component NavTab inherits Rectangle {
@@ -63,7 +64,9 @@ component Wizard inherits Rectangle {
 }
 
 export component MainWindow inherits Window {
-    title: "IRMS Native prototype";
+    in property <string> release-version;
+    private property <bool> about-open: false;
+    title: "IRMS v" + root.release-version + " · Native Beta";
     preferred-width: 1280px;
     preferred-height: 800px;
     min-width: 1024px;
@@ -111,10 +114,26 @@ export component MainWindow inherits Window {
 
         HorizontalLayout {
             height: 30px; padding-left: 24px; padding-right: 24px;
-            Text { text: "IRMS 智慧復健監測 · 原生介面原型"; font-size: 12px; color: Theme.dim; vertical-alignment: center; }
+            Text { text: "IRMS v" + root.release-version + " · 原生測試版"; font-size: 12px; color: Theme.dim; vertical-alignment: center; }
+            Btn { text: "關於"; min-height: 26px; clicked => { root.about-open = true; } }
             Text { text: App.device-mode ? "裝置資料" : "模擬資料 · 不是真實量測"; font-size: 12px; color: Theme.warn; horizontal-alignment: right; vertical-alignment: center; }
         }
     }
 
     if App.wizard-open: Wizard { width: 100%; height: 100%; }
+    // 隨應用程式顯示 Slint 官方歸屬元件，符合桌面免權利金授權條件。
+    if root.about-open: Rectangle {
+        width: 100%; height: 100%; background: #000000.with-alpha(0.45);
+        TouchArea { }
+        Card {
+            width: 480px; height: 300px;
+            VerticalLayout {
+                padding: 24px; spacing: 16px;
+                Text { text: "IRMS v" + root.release-version; font-size: 22px; color: Theme.ink; }
+                Text { text: "Windows 原生測試版 · 真機驗收尚未完成"; color: Theme.dim; }
+                AboutSlint { }
+                Btn { text: "關閉"; clicked => { root.about-open = false; } }
+            }
+        }
+    }
 }

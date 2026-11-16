@@ -96,6 +96,7 @@ export struct SessionRow { id: string, started: string, action: string, reps: in
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
 export global App {
+    in-out property <string> release-version;
     in property <string> storage-error;
     in property <bool> session-locked;
     in property <bool> save-pending;

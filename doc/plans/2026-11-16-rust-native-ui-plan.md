@@ -107,6 +107,10 @@ Tauri app is frozen the way the Electron app was.
 
 ## Status (2026-11-16)
 
+- The owner requested the first native installer as `v1.3.0-beta.1`; see
+  [[2026-11-16-native-beta1-installer]]. This is a separate, unsigned test release,
+  with no Tauri updater cutover or claim of feature parity. The existing database
+  isolation remains in place. Public code signing is still pending.
 - Phase 0: measured, see `doc/coding log/log_20261116_rust_native_phase1_prototype.md`. Cold start to first
   frame and installer size are still owed.
 - Phase 1: prototype built; G1 pass on simulated data, G3 display pass (input method untested), G4 pass for

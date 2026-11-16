@@ -289,7 +289,7 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 3: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "軟體版本"; sub: "IRMS Native 原型 0.0.1 · 尚未接上更新機制(計畫 Phase 5)"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
+                    Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
                     Setting { title: "韌體"; sub: App.conn == 2 ? "模擬裝置沒有韌體" : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
                 }
                 if root.tab == 4: VerticalLayout {
@@ -299,7 +299,7 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "本機紀錄"; sub: "原型的療程只存在記憶體中,關閉後消失;不會讀寫正式資料庫。"; VerticalLayout { alignment: center; Chip { text: "僅模擬"; tone: Theme.warn; } } }
+                    Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
                     Setting { title: "遙測"; sub: "預設關閉。"; VerticalLayout { alignment: center; Chip { text: "關閉"; } } }
                 }
             }
