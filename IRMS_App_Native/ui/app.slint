@@ -96,6 +96,7 @@ export component MainWindow inherits Window {
             Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border; }
         }
 
+        if App.storage-error != "": Text { text: App.storage-error; color: Theme.danger; wrap: word-wrap; }
         Rectangle {
             vertical-stretch: 1;
             VerticalLayout {
@@ -111,7 +112,7 @@ export component MainWindow inherits Window {
         HorizontalLayout {
             height: 30px; padding-left: 24px; padding-right: 24px;
             Text { text: "IRMS 智慧復健監測 · 原生介面原型"; font-size: 12px; color: Theme.dim; vertical-alignment: center; }
-            Text { text: "模擬資料 · 不是真實量測"; font-size: 12px; color: Theme.warn; horizontal-alignment: right; vertical-alignment: center; }
+            Text { text: App.device-mode ? "裝置資料" : "模擬資料 · 不是真實量測"; font-size: 12px; color: Theme.warn; horizontal-alignment: right; vertical-alignment: center; }
         }
     }
 

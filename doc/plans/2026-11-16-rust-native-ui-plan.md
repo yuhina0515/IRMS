@@ -122,7 +122,8 @@ Tauri app is frozen the way the Electron app was.
   Also ported and checked call by call against the TypeScript on shared fixtures: session analysis, angle
   maths, slip monitor, unified calibration core. The prototype runs the whole pipeline on a simulated
   two-sensor rig (`log_20261116_rust_native_prototype_real_pipeline.md`). Left: sessionController, the older
-  calibration methods, mobility measurement, the translation layer.
+  calibration methods, mobility measurement, the translation layer. Native session storage, retry on write failure,
+  packet-driven judging and Windows history reopen are covered in [[log_20261116_native_sqlite_recovery]].
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 

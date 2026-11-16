@@ -41,7 +41,7 @@ export component LiveView inherits VerticalLayout {
         sub: Live.subtitle;
         VerticalLayout {
             alignment: center;
-            if !App.calibrated: Btn { text: "尚未校準 · 開始校準"; ink: Theme.warn; enabled: root.live; clicked => { App.wizard-open = true; } }
+            if !App.calibrated: Btn { text: "尚未校準 · 開始校準"; ink: Theme.warn; enabled: root.live && !App.session-locked; clicked => { App.wizard-open = true; } }
             if App.calibrated: Chip { text: "已校準"; tone: Theme.good; }
         }
     }
@@ -230,9 +230,9 @@ export component LiveView inherits VerticalLayout {
                 alignment: center;
                 Btn {
                     // v3 rule: a session cannot start until the device is connected and calibrated.
-                    text: Live.running ? "結束療程" : !root.live ? "請先連線裝置" : !App.calibrated ? "請先完成校準" : "開始療程";
+                    text: App.save-pending ? "重試儲存" : Live.running ? "結束療程" : !root.live ? "請先連線裝置" : !App.calibrated ? "請先完成校準" : "開始療程";
                     primary: true; min-width: 160px; min-height: 48px;
-                    enabled: Live.running || (root.live && App.calibrated);
+                    enabled: App.save-pending || Live.running || (root.live && App.calibrated && App.actions.length > 0);
                     clicked => { Live.toggle-run(); }
                 }
             }

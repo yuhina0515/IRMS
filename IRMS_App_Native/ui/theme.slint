@@ -92,10 +92,16 @@ export component PageHead inherits HorizontalLayout {
 }
 
 export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string, shown: bool }
-export struct SessionRow { started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
+export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
 export global App {
+    in property <string> storage-error;
+    in property <bool> session-locked;
+    in property <bool> save-pending;
+    in property <bool> device-mode;
+    in property <bool> valid-angle;
+    in-out property <int> review: -1;
     in-out property <int> view: 0;            // 0 live 1 actions 2 history 3 tools 4 settings
     in-out property <int> conn: 0;            // 0 disconnected 1 connecting 2 connected
     in-out property <bool> calibrated: false;
@@ -130,4 +136,9 @@ export global App {
     callback wizard-next();
     callback wizard-cancel();
     callback delete-session(int);
+    // review statistics of the session picked in History, computed from its stored readings
+    in property <string> review-summary;
+    callback request-review(int);
+    // the personal comfort / limit angles changed in Tools: store them
+    callback range-changed(int, int);
 }

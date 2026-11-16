@@ -2247,8 +2247,11 @@ dependencies = [
 name = "irms_app_native"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "image",
  "irms_core",
+ "rusqlite",
+ "same-file",
  "serde_json",
  "slint",
  "slint-build",

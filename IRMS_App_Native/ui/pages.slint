@@ -68,7 +68,7 @@ export component ActionsView inherits VerticalLayout {
                 }
                 HorizontalLayout {
                     spacing: 10px; alignment: start;
-                    Btn { text: App.action-index == root.picked ? "目前使用中" : "用於即時監測"; primary: true; enabled: App.action-index != root.picked; clicked => { App.action-index = root.picked; App.view = 0; } }
+                    Btn { text: App.action-index == root.picked ? "目前使用中" : "用於即時監測"; primary: true; enabled: !App.session-locked && App.action-index != root.picked; clicked => { App.action-index = root.picked; App.view = 0; } }
                     Btn { text: "編輯"; }
                 }
             }
@@ -78,7 +78,7 @@ export component ActionsView inherits VerticalLayout {
 
 export component HistoryView inherits VerticalLayout {
     spacing: 14px;
-    property <int> review: -1;
+
     PageHead { title: "療程紀錄"; sub: "每一場療程的處方、次數與來源;點「回顧」查看完整分析。"; }
     Card {
         vertical-stretch: 1;
@@ -102,7 +102,7 @@ export component HistoryView inherits VerticalLayout {
                 property <bool> on-page: floor(i / 8) == App.history-page;
                 height: self.on-page ? 56px : 0px;
                 visible: self.on-page;
-                selected: root.review == i;
+                selected: App.review == i;
                 HorizontalLayout {
                     padding-left: 16px; padding-right: 16px; spacing: 12px;
                     Text { width: 190px; text: s.started; font-size: 15px; color: Theme.ink; vertical-alignment: center; }
@@ -115,34 +115,34 @@ export component HistoryView inherits VerticalLayout {
                     Text { width: 80px; text: s.duration; font-size: 15px; color: Theme.ink; vertical-alignment: center; }
                     HorizontalLayout {
                         width: 170px; spacing: 6px; alignment: start;
-                        VerticalLayout { alignment: center; Btn { text: "回顧"; min-height: 36px; primary: true; clicked => { root.review = i; } } }
-                        VerticalLayout { alignment: center; Btn { text: "刪除"; min-height: 36px; quiet: true; ink: Theme.danger; clicked => { root.review = -1; App.delete-session(i); } } }
+                        VerticalLayout { alignment: center; Btn { text: "回顧"; min-height: 36px; primary: true; clicked => { App.review = i; App.request-review(i); } } }
+                        VerticalLayout { alignment: center; Btn { text: "刪除"; min-height: 36px; quiet: true; ink: Theme.danger; clicked => { App.review = -1; App.delete-session(i); } } }
                     }
                 }
             }
             if App.sessions.length > 0: Rectangle { vertical-stretch: 1; }
-            if root.review >= 0 && root.review < App.sessions.length: Rectangle {
+            if App.review >= 0 && App.review < App.sessions.length: Rectangle {
                 height: 86px; border-radius: min(Theme.radius, 12px); background: Theme.raised;
                 HorizontalLayout {
                     padding-left: 16px; padding-right: 12px; spacing: 16px;
                     VerticalLayout {
                         alignment: center; horizontal-stretch: 1; spacing: 4px;
                         Text {
-                            text: "回顧 · " + App.sessions[root.review].action + " · 完成 " + App.sessions[root.review].reps + " 次 · 時長 " + App.sessions[root.review].duration;
+                            text: "回顧 · " + App.sessions[App.review].action + " · 完成 " + App.sessions[App.review].reps + " 次 · 時長 " + App.sessions[App.review].duration;
                             font-size: 15px; font-weight: 700; color: Theme.ink;
                         }
                         // Statistics from irms_core::session_analysis (full readings, time-weighted).
-                        Text { text: App.sessions[root.review].summary; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                        Text { text: App.review-summary; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
                     }
-                    VerticalLayout { alignment: center; Btn { text: "關閉"; min-height: 36px; clicked => { root.review = -1; } } }
+                    VerticalLayout { alignment: center; Btn { text: "關閉"; min-height: 36px; clicked => { App.review = -1; } } }
                 }
             }
             HorizontalLayout {
                 spacing: 8px;
                 property <int> pages: max(1, ceil(App.sessions.length / 8));
                 Text { text: "共 " + App.sessions.length + " 場 · 第 " + (App.history-page + 1) + " / " + parent.pages + " 頁"; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
-                Btn { text: "上一頁"; min-height: 34px; enabled: App.history-page > 0; clicked => { root.review = -1; App.history-page -= 1; } }
-                Btn { text: "下一頁"; min-height: 34px; enabled: App.history-page < parent.pages - 1; clicked => { root.review = -1; App.history-page += 1; } }
+                Btn { text: "上一頁"; min-height: 34px; enabled: App.history-page > 0; clicked => { App.review = -1; App.history-page -= 1; } }
+                Btn { text: "下一頁"; min-height: 34px; enabled: App.history-page < parent.pages - 1; clicked => { App.review = -1; App.history-page += 1; } }
             }
         }
     }
@@ -173,9 +173,9 @@ export component ToolsView inherits VerticalLayout {
                 Text { text: "步驟 1:慢慢彎曲膝蓋。開始感到疼痛或拉筋的感覺時,停住並按下「記錄舒適角度」。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
                 HorizontalLayout {
                     spacing: 10px; alignment: start;
-                    Btn { text: "記錄舒適角度"; primary: true; enabled: App.conn == 2; clicked => { App.comfort = round(App.angle); } }
-                    Btn { text: "記錄極限範圍 (選填)"; enabled: App.conn == 2 && App.comfort >= 0; clicked => { App.limit = round(App.angle); } }
-                    Btn { text: "清除"; quiet: true; ink: Theme.danger; enabled: App.comfort >= 0; clicked => { App.comfort = -1; App.limit = -1; } }
+                    Btn { text: "記錄舒適角度"; primary: true; enabled: !App.session-locked && App.valid-angle && App.angle >= 0 && App.conn == 2; clicked => { App.range-changed(round(App.angle), -1); } }
+                    Btn { text: "記錄極限範圍 (選填)"; enabled: !App.session-locked && App.valid-angle && App.conn == 2 && App.comfort >= 0 && App.angle >= App.comfort; clicked => { App.range-changed(App.comfort, round(App.angle)); } }
+                    Btn { text: "清除"; quiet: true; ink: Theme.danger; enabled: !App.session-locked && App.comfort >= 0; clicked => { App.range-changed(-1, -1); } }
                 }
                 Text { text: "量測紀錄"; font-size: 14px; font-weight: 700; color: Theme.ink; }
                 Text {
@@ -247,7 +247,7 @@ export component SettingsView inherits VerticalLayout {
                     Setting {
                         title: "校準精靈";
                         sub: App.calibrated ? "已校準,可以開始療程" : "尚未校準——未校準時無法開始療程";
-                        VerticalLayout { alignment: center; Btn { text: App.calibrated ? "重新校準" : "開始校準"; primary: !App.calibrated; enabled: App.conn == 2; clicked => { App.wizard-open = true; } } }
+                        VerticalLayout { alignment: center; Btn { text: App.calibrated ? "重新校準" : "開始校準"; primary: !App.calibrated; enabled: !App.session-locked && App.conn == 2; clicked => { App.wizard-open = true; } } }
                     }
                     HorizontalLayout {
                         spacing: 8px; alignment: start;

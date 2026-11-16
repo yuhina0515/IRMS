@@ -35,14 +35,14 @@ const ERROR_PREFIX: &str = "ERR:";
 /// Order matters: longer TR/SR/KR must be checked before T:/S:/K:, or "T:" would match inside "TR:".
 const FIELD_PREFIXES: [&str; 6] = ["TR:", "SR:", "KR:", "T:", "S:", "K:"];
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
 pub struct AccelVector {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawAngles {
     pub thigh: f64,
