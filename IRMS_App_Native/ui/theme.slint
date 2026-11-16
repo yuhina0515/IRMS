@@ -1,0 +1,101 @@
+// Shared palette and small widgets. Palette index = style * 2 + (night ? 1 : 0).
+// Styles: 0 Workbook (v3 carry-over), 1 Calm companion (chosen 2026-11-16), 2 Dark studio.
+export global Theme {
+    in-out property <int> style: 1;
+    in-out property <bool> night: false;
+    out property <int> idx: root.style * 2 + (root.night ? 1 : 0);
+    out property <color> canvas: [#EEEAE2, #161E20, #E9F0EA, #1B2420, #1A1C21, #101114][root.idx];
+    out property <color> surface: [#FFFCF6, #1D282A, #F8FBF7, #232F29, #22252B, #181A1F][root.idx];
+    out property <color> raised: [#E8E2D8, #283638, #DCE8DF, #2F3E36, #2C3037, #23262D][root.idx];
+    out property <color> border: [#CFC6BD, #45585A, #BFD0C4, #46594D, #3A3F47, #353941][root.idx];
+    out property <color> ink: [#29252D, #E7EFEC, #25332B, #E6F0E9, #ECEDEF, #ECEDEF][root.idx];
+    out property <color> dim: [#625C65, #AEC1BF, #5E6F64, #A9BBB0, #A0A4AC, #A0A4AC][root.idx];
+    out property <color> accent: [#684563, #97CCDE, #3F8F6B, #7FD1A8, #FF8A3D, #FF8A3D][root.idx];
+    out property <color> on-accent: [#FFFFFF, #161E20, #FFFFFF, #10201A, #101114, #101114][root.idx];
+    out property <color> good: [#2E7D4F, #6FD39A, #2E7D4F, #7FD1A8, #5BD48A, #5BD48A][root.idx];
+    out property <color> warn: [#9A6412, #F0BE6A, #9A6412, #F0BE6A, #F0BE6A, #F0BE6A][root.idx];
+    out property <color> danger: [#B3362F, #FF8F85, #B3362F, #FF8F85, #FF6B5E, #FF6B5E][root.idx];
+    out property <length> radius: [6px, 6px, 18px, 18px, 4px, 4px][root.idx];
+}
+
+export component Btn inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> active: false;
+    in property <bool> enabled: true;
+    in property <bool> quiet: false;
+    in property <color> ink: Theme.ink;
+    callback clicked;
+    min-height: 40px;
+    min-width: label.preferred-width + 32px;
+    border-radius: min(Theme.radius, self.height / 2);
+    opacity: root.enabled ? 1 : 0.45;
+    background: root.primary || root.active ? Theme.accent : root.quiet ? transparent : ta.has-hover && root.enabled ? Theme.border : Theme.raised;
+    border-width: root.quiet ? 0 : 1px;
+    border-color: root.primary || root.active ? Theme.accent : Theme.border;
+    label := Text {
+        text: root.text;
+        color: root.primary || root.active ? Theme.on-accent : root.ink;
+        font-size: 15px;
+        font-weight: root.primary ? 700 : 500;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <color> tone: Theme.dim;
+    height: 24px;
+    width: t.preferred-width + 20px;
+    border-radius: 12px;
+    background: root.tone.with-alpha(0.14);
+    t := Text { text: root.text; font-size: 12px; color: root.tone; horizontal-alignment: center; vertical-alignment: center; }
+}
+
+export component Card inherits Rectangle {
+    border-radius: Theme.radius;
+    background: Theme.surface;
+    border-width: 1px;
+    border-color: Theme.border;
+}
+
+export component PageHead inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> sub;
+    spacing: 10px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        Text { text: root.title; font-size: 26px; font-weight: 700; color: Theme.ink; }
+        Text { text: root.sub; font-size: 13px; color: Theme.dim; }
+    }
+    @children
+}
+
+export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string }
+export struct SessionRow { started: string, action: string, reps: int, duration: string, demo: bool }
+
+// Simulated app state shared by all screens (phase 2: no real device or database behind it).
+export global App {
+    in-out property <int> view: 0;            // 0 live 1 actions 2 history 3 tools 4 settings
+    in-out property <int> conn: 0;            // 0 disconnected 1 connecting 2 connected
+    in-out property <bool> calibrated: false;
+    in-out property <bool> wizard-open: false;
+    in-out property <int> action-index: 1;
+    in-out property <int> settings-tab: 0;
+    in-out property <int> pose-view: 0;       // 0 2D 1 3D 2 values
+    in-out property <int> comfort: -1;        // personal comfort angle, -1 = not measured
+    in-out property <int> limit: -1;
+    in property <[ActionItem]> actions: [
+        { name: "Backward Extension (直膝後擺)", kind: "肢段後伸", target: "≥ 20°", hold: "2.0 秒", note: "站姿,膝蓋伸直向後擺腿。" },
+        { name: "Squat (深蹲屈膝)", kind: "關節角度", target: "90° ±10°", hold: "3.0 秒", note: "雙腳與肩同寬,緩慢下蹲到目標角度後保持。" },
+        { name: "Straight Leg Raise (直膝抬腿)", kind: "肢段抬高", target: "≥ 45°", hold: "3.0 秒", note: "仰臥,膝蓋伸直抬腿到目標高度後保持。" },
+    ];
+    in property <[SessionRow]> sessions;
+    // live values pushed from Rust
+    in property <float> angle: 0;
+    in property <string> angle-text: "—";
+    callback request-connect();
+    callback delete-session(int);
+}

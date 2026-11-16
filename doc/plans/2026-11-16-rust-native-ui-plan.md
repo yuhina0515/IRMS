@@ -105,6 +105,17 @@ Implement the design chosen in D2.
 Feature checklist against the Tauri app, device sessions, phase 0 measurements repeated. Then the
 Tauri app is frozen the way the Electron app was.
 
+## Status (2026-11-16)
+
+- Phase 0: measured, see `doc/coding log/log_20261116_rust_native_phase1_prototype.md`. Cold start to first
+  frame and installer size are still owed.
+- Phase 1: prototype built; G1 pass on simulated data, G3 display pass (input method untested), G4 pass for
+  memory (no CPU saving shown), G2 not started. Style chosen: calm companion.
+- Phase 2: all screens built on simulated data, see `log_20261116_rust_native_phase2_screens.md`. Open until
+  the owner has clicked through it.
+- New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
+  not be confirmed on screen from a remote capture.
+
 ## Open decisions for the owner
 
 | # | Decision | Default used until answered |

@@ -1,0 +1,217 @@
+// Live monitoring: coaching band, judged metric with ruler, pose stage, bottom dock (v3 layout).
+import { Theme, Btn, Card, Chip, PageHead, App } from "theme.slint";
+
+export global Live {
+    in property <string> coach-title;
+    in property <string> coach-sub;
+    in property <string> coach-right;
+    in property <int> coach-tone;      // 0 neutral 1 good 2 danger 3 warn
+    in property <string> chart-path;
+    in property <string> limb-path;
+    in property <string> knee-label;
+    in property <string> stats;
+    in property <float> hold;
+    in property <float> ruler-pos;
+    in property <bool> running;
+    in property <string> reps-text: "0 次";
+    in property <string> hold-text: "0.0 / 2.0 秒";
+    in property <string> time-text: "00:00";
+    in-out property <length> chart-w;
+    in-out property <length> chart-h;
+    callback toggle-run();
+}
+
+export component LiveView inherits VerticalLayout {
+    spacing: 14px;
+    property <bool> live: App.conn == 2;
+
+    PageHead {
+        title: App.actions[App.action-index].name;
+        sub: "膝關節屈曲角 · " + App.actions[App.action-index].kind + " · 目標 60–90° · 保持 2.0 秒";
+        VerticalLayout {
+            alignment: center;
+            if !App.calibrated: Btn { text: "尚未校準 · 開始校準"; ink: Theme.warn; enabled: root.live; clicked => { App.wizard-open = true; } }
+            if App.calibrated: Chip { text: "已校準"; tone: Theme.good; }
+        }
+    }
+
+    band := Rectangle {
+        height: 72px;
+        border-radius: Theme.radius;
+        property <color> tone: Live.coach-tone == 1 ? Theme.good : Live.coach-tone == 2 ? Theme.danger : Live.coach-tone == 3 ? Theme.warn : Theme.dim;
+        background: Live.coach-tone == 0 ? Theme.surface : self.tone.with-alpha(0.16);
+        border-width: 1px;
+        border-color: Live.coach-tone == 0 ? Theme.border : self.tone;
+        HorizontalLayout {
+            padding-left: 22px; padding-right: 22px; spacing: 16px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 30px; height: 30px; border-radius: 15px;
+                    border-width: 3px;
+                    border-color: band.tone;
+                    background: Live.coach-tone == 0 ? transparent : band.tone;
+                    if Live.coach-tone == 1: Path {
+                        width: 30px; height: 30px; viewbox-width: 30; viewbox-height: 30;
+                        commands: "M 8 15.5 L 13 20.5 L 22 10.5";
+                        stroke: Theme.surface; stroke-width: 3px; fill: transparent;
+                    }
+                    if Live.coach-tone >= 2: Text { text: "!"; font-size: 20px; font-weight: 700; color: Theme.surface; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                Text { text: Live.coach-title; font-size: 23px; font-weight: 700; color: Theme.ink; }
+                Text { text: Live.coach-sub; font-size: 13px; color: Theme.dim; }
+            }
+            Text { text: Live.coach-right; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 14px;
+        vertical-stretch: 1;
+
+        Card {
+            horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 22px;
+                spacing: 6px;
+                Text { text: "主指標 · 膝關節屈曲角"; font-size: 14px; color: Theme.dim; }
+                Text { text: root.live ? App.angle-text : "—"; font-size: 96px; font-weight: 700; color: Theme.ink; }
+                Text {
+                    text: "60–90° 目標區間 · " + (App.comfort < 0 ? "尚未量測個人角度範圍" : "舒適 " + App.comfort + "°" + (App.limit < 0 ? "" : " · 極限 " + App.limit + "°"));
+                    font-size: 14px; color: Theme.dim;
+                }
+                Rectangle {
+                    height: 34px;
+                    Rectangle { y: 12px; height: 10px; border-radius: 5px; background: Theme.raised; }
+                    Rectangle {
+                        x: parent.width * 60 / 160; y: 8px;
+                        width: parent.width * 30 / 160; height: 18px;
+                        border-radius: 5px; border-width: 2px;
+                        border-color: Theme.good; background: Theme.good.with-alpha(0.2);
+                    }
+                    if App.comfort >= 0: Rectangle { x: parent.width * App.comfort / 160; y: 6px; width: 2px; height: 22px; background: Theme.warn; }
+                    if App.limit >= 0: Rectangle { x: parent.width * App.limit / 160; y: 6px; width: 2px; height: 22px; background: Theme.danger; }
+                    if root.live: Rectangle {
+                        x: parent.width * Live.ruler-pos - 2px; y: 2px;
+                        width: 4px; height: 30px; border-radius: 2px; background: Theme.ink;
+                    }
+                }
+                HorizontalLayout {
+                    Text { text: "0°"; font-size: 12px; color: Theme.dim; }
+                    Text { text: "160°"; font-size: 12px; color: Theme.dim; horizontal-alignment: right; }
+                }
+                Text { text: "近 5 秒趨勢"; font-size: 12px; color: Theme.dim; }
+                trend := Rectangle {
+                    vertical-stretch: 1;
+                    min-height: 50px;
+                    clip: true;
+                    init => { Live.chart-w = self.width; Live.chart-h = self.height; }
+                    changed width => { Live.chart-w = self.width; }
+                    changed height => { Live.chart-h = self.height; }
+                    Rectangle {
+                        x: 0; y: parent.height * (1 - 90 / 160);
+                        width: parent.width; height: parent.height * 30 / 160;
+                        background: Theme.good.with-alpha(0.16);
+                    }
+                    if root.live: Path {
+                        width: parent.width; height: parent.height;
+                        viewbox-width: parent.width / 1px; viewbox-height: parent.height / 1px;
+                        commands: Live.chart-path;
+                        stroke: Theme.accent; stroke-width: 2.5px; fill: transparent;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            width: 360px;
+            border-radius: Theme.radius;
+            background: Theme.raised;
+            HorizontalLayout {
+                x: 0; y: 10px; width: parent.width; height: 34px;
+                padding-left: 18px; padding-right: 12px; spacing: 4px;
+                Text { text: "動作姿態"; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; horizontal-stretch: 1; }
+                Btn { text: "2D 側面"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 0; clicked => { App.pose-view = 0; } }
+                Btn { text: "3D"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 1; clicked => { App.pose-view = 1; } }
+                Btn { text: "數值"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 2; clicked => { App.pose-view = 2; } }
+            }
+            if !root.live: Text { text: "尚無即時資料"; font-size: 20px; font-weight: 700; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center; }
+            if root.live && App.pose-view == 0: Rectangle {
+                x: (parent.width - 300px) / 2; y: 56px;
+                width: 300px; height: 300px;
+                Text { x: 210px; y: 0px; text: "前方 →"; font-size: 13px; color: Theme.dim; }
+                Path {
+                    width: 300px; height: 300px;
+                    viewbox-width: 300; viewbox-height: 300;
+                    commands: Live.limb-path;
+                    stroke: Theme.accent; stroke-width: 14px;
+                    stroke-line-cap: round; stroke-line-join: round;
+                    fill: transparent;
+                }
+                Rectangle { x: 139px; y: 29px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                Rectangle { x: 139px; y: 139px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                Text { x: 172px; y: 128px; text: Live.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
+            }
+            if root.live && App.pose-view == 1: Text {
+                text: "3D 視圖尚未決定 (閘門 G2)\n待與 2D 方案一併比較";
+                font-size: 15px; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center;
+            }
+            if root.live && App.pose-view == 2: VerticalLayout {
+                x: 24px; y: 70px; width: parent.width - 48px; spacing: 10px; alignment: start;
+                for row in [
+                    { k: "大腿", n: "相對零位", v: "12°" },
+                    { k: "小腿", n: "相對零位", v: App.angle-text },
+                    { k: "膝角", n: "判定用主指標", v: App.angle-text },
+                    { k: "側向差", n: "主要反映佩戴,非解剖角度", v: "3°" },
+                ]: HorizontalLayout {
+                    VerticalLayout {
+                        Text { text: row.k; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                        Text { text: row.n; font-size: 12px; color: Theme.dim; }
+                    }
+                    Text { text: row.v; font-size: 20px; font-weight: 700; color: Theme.ink; horizontal-alignment: right; vertical-alignment: center; }
+                }
+            }
+        }
+    }
+
+    Card {
+        height: 76px;
+        HorizontalLayout {
+            padding-left: 22px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px;
+            spacing: 28px;
+            VerticalLayout {
+                Text { text: "已完成"; font-size: 12px; color: Theme.dim; }
+                Text { text: Live.reps-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
+            }
+            VerticalLayout {
+                width: 150px;
+                Text { text: "本次保持"; font-size: 12px; color: Theme.dim; }
+                Text { text: Live.hold-text; font-size: 20px; font-weight: 700; color: Theme.ink; }
+                Rectangle {
+                    height: 6px; border-radius: 3px; background: Theme.raised;
+                    Rectangle { x: 0; width: parent.width * Live.hold; height: parent.height; border-radius: 3px; background: Theme.good; }
+                }
+            }
+            VerticalLayout {
+                Text { text: "療程時間"; font-size: 12px; color: Theme.dim; }
+                Text { text: Live.time-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
+            }
+            Text { text: Live.stats; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+            VerticalLayout {
+                alignment: center;
+                Btn {
+                    // v3 rule: a session cannot start until the device is connected and calibrated.
+                    text: Live.running ? "結束療程" : !root.live ? "請先連線裝置" : !App.calibrated ? "請先完成校準" : "開始療程";
+                    primary: true; min-width: 160px; min-height: 48px;
+                    enabled: Live.running || (root.live && App.calibrated);
+                    clicked => { Live.toggle-run(); }
+                }
+            }
+        }
+    }
+}

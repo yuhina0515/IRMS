@@ -1,245 +1,119 @@
-// Phase 1 prototype: live-session screen. Simulated data only; not connected to the shipping app.
-// Palette index = style * 2 + (night ? 1 : 0). Styles: 0 Workbook (v3 carry-over), 1 Calm companion,
-// 2 Dark studio (dark in both modes, "day" is lighter graphite).
-export global Theme {
-    in property <int> style: 1; // 1 = calm companion, chosen by the owner 2026-11-16
-    in property <bool> night: false;
-    out property <int> idx: root.style * 2 + (root.night ? 1 : 0);
-    out property <color> canvas: [#EEEAE2, #161E20, #E9F0EA, #1B2420, #1A1C21, #101114][root.idx];
-    out property <color> surface: [#FFFCF6, #1D282A, #F8FBF7, #232F29, #22252B, #181A1F][root.idx];
-    out property <color> raised: [#E8E2D8, #283638, #DCE8DF, #2F3E36, #2C3037, #23262D][root.idx];
-    out property <color> border: [#CFC6BD, #45585A, #BFD0C4, #46594D, #3A3F47, #353941][root.idx];
-    out property <color> ink: [#29252D, #E7EFEC, #25332B, #E6F0E9, #ECEDEF, #ECEDEF][root.idx];
-    out property <color> dim: [#625C65, #AEC1BF, #5E6F64, #A9BBB0, #A0A4AC, #A0A4AC][root.idx];
-    out property <color> accent: [#684563, #97CCDE, #3F8F6B, #7FD1A8, #FF8A3D, #FF8A3D][root.idx];
-    out property <color> on-accent: [#FFFFFF, #161E20, #FFFFFF, #10201A, #101114, #101114][root.idx];
-    out property <color> good: [#2E7D4F, #6FD39A, #2E7D4F, #7FD1A8, #5BD48A, #5BD48A][root.idx];
-    out property <color> danger: [#B3362F, #FF8F85, #B3362F, #FF8F85, #FF6B5E, #FF6B5E][root.idx];
-    out property <length> radius: [6px, 6px, 18px, 18px, 4px, 4px][root.idx];
-}
+// IRMS native prototype shell: top navigation, the five screens, calibration wizard.
+// Simulated data only; not connected to the shipping app. No page-level scrolling anywhere.
+import { Theme, Btn, Card, Chip, App } from "theme.slint";
+import { Live, LiveView } from "live.slint";
+import { ActionsView, HistoryView, ToolsView, SettingsView } from "pages.slint";
+export { Theme, App, Live }
 
-component Button inherits Rectangle {
+component NavTab inherits Rectangle {
     in property <string> text;
-    in property <bool> primary: false;
-    in property <bool> active: false;
+    in property <bool> active;
     callback clicked;
-    min-height: 40px;
-    min-width: 40px;
-    border-radius: Theme.radius;
-    background: root.primary || root.active ? Theme.accent : Theme.raised;
-    border-width: 1px;
-    border-color: root.primary || root.active ? Theme.accent : Theme.border;
-    Text {
-        text: root.text;
-        color: root.primary || root.active ? Theme.on-accent : Theme.ink;
-        font-size: 15px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
+    width: t.preferred-width + 28px;
+    Text { x: 14px; text: root.text; font-size: 15px; font-weight: root.active ? 700 : 500; color: root.active ? Theme.accent : Theme.ink; vertical-alignment: center; }
+    t := Text { text: root.text; font-size: 15px; font-weight: 700; visible: false; }
+    Rectangle { x: 14px; y: parent.height - 4px; width: parent.width - 28px; height: 4px; border-radius: 2px; background: root.active ? Theme.accent : transparent; }
     TouchArea { clicked => { root.clicked(); } }
 }
 
-export component MainWindow inherits Window {
-    in property <string> angle-text: "--";
-    in property <string> coach-title: "";
-    in property <string> coach-sub: "";
-    in property <int> coach-tone: 0; // 0 neutral 1 good 2 warn/danger
-    in property <string> chart-path: "";
-    in property <string> limb-path: "";
-    in property <string> stats: "";
-    in property <float> hold: 0;
-    in property <float> ruler-pos: 0;
-    out property <length> chart-w: trend.width;
-    out property <length> chart-h: trend.height;
-    in property <string> coach-right: "";
-    in property <string> knee-label: "";
-    in property <string> reps-text: "0 次";
-    in property <string> hold-text: "0.0 / 2.0 秒";
-    in property <string> time-text: "00:00";
-    in property <bool> running: false;
-    callback toggle-run;
-    callback set-style(int);
-    callback toggle-night;
+component Wizard inherits Rectangle {
+    property <int> step: 0;
+    property <float> progress: 0;
+    property <[string]> titles: ["步驟 1 / 3 · 捕捉零位", "步驟 2 / 3 · 抬大腿", "步驟 3 / 3 · 勾小腿"];
+    property <[string]> bodies: [
+        "自然站直,保持不動,讓系統記下這個姿勢作為零位。",
+        "大腿向前抬高至少 20°(建議 40–60°),再慢慢放下。",
+        "大腿保持不動,小腿向後勾起,再慢慢放下。",
+    ];
+    background: #000000.with-alpha(0.45);
+    TouchArea { }
+    Timer {
+        interval: 50ms;
+        running: root.progress > 0 && root.progress < 1;
+        triggered => { root.progress = min(1, root.progress + 0.035); }
+    }
+    Card {
+        width: 520px; height: 300px;
+        VerticalLayout {
+            padding: 26px; spacing: 14px;
+            Text { text: "校準精靈"; font-size: 13px; color: Theme.dim; }
+            Text { text: root.titles[root.step]; font-size: 22px; font-weight: 700; color: Theme.ink; }
+            Text { text: root.bodies[root.step]; font-size: 15px; color: Theme.dim; wrap: word-wrap; }
+            Rectangle {
+                height: 10px; border-radius: 5px; background: Theme.raised;
+                Rectangle { x: 0; width: parent.width * root.progress; height: parent.height; border-radius: 5px; background: Theme.good; }
+            }
+            Text { text: root.progress >= 1 ? "已完成這個步驟" : root.progress > 0 ? "擷取中…請保持動作" : "準備好後按「開始擷取」"; font-size: 13px; color: root.progress >= 1 ? Theme.good : Theme.dim; }
+            Rectangle { vertical-stretch: 1; }
+            HorizontalLayout {
+                spacing: 10px;
+                Btn { text: "取消"; clicked => { root.step = 0; root.progress = 0; App.wizard-open = false; } }
+                Rectangle { horizontal-stretch: 1; }
+                if root.progress < 1: Btn { text: "開始擷取"; primary: true; enabled: root.progress == 0; clicked => { root.progress = 0.01; } }
+                if root.progress >= 1: Btn {
+                    text: root.step == 2 ? "完成校準" : "下一步"; primary: true;
+                    clicked => {
+                        if (root.step == 2) { App.calibrated = true; App.wizard-open = false; root.step = 0; } else { root.step += 1; }
+                        root.progress = 0;
+                    }
+                }
+            }
+        }
+    }
+}
 
+export component MainWindow inherits Window {
     title: "IRMS Native prototype";
-    preferred-width: 1100px;
-    preferred-height: 720px;
-    min-width: 800px;
-    min-height: 560px;
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 1024px;
+    min-height: 680px;
     default-font-family: "Microsoft JhengHei";
     background: Theme.canvas;
 
     VerticalLayout {
-        padding: 20px;
-        spacing: 14px;
-
-        // header: title + style switcher (prototype only)
-        HorizontalLayout {
-            spacing: 8px;
-            VerticalLayout {
-                Text { text: "膝關節屈曲訓練 (原型)"; font-size: 26px; font-weight: 700; color: Theme.ink; }
-                Text { text: "膝關節屈曲角 · 目標 60–90° · 保持 2.0 秒"; font-size: 14px; color: Theme.dim; }
-            }
-            Rectangle { horizontal-stretch: 1; }
-            Button { text: "Workbook"; active: Theme.style == 0; min-width: 96px; clicked => { root.set-style(0); } }
-            Button { text: "柔和陪伴"; active: Theme.style == 1; min-width: 96px; clicked => { root.set-style(1); } }
-            Button { text: "深色工作室"; active: Theme.style == 2; min-width: 110px; clicked => { root.set-style(2); } }
-            Button { text: Theme.night ? "夜間" : "日間"; min-width: 64px; clicked => { root.toggle-night(); } }
-        }
-
-        // coaching band (v3 state contract: one mark, one title, one sub line)
+        // top navigation
         Rectangle {
-            height: 72px;
-            border-radius: Theme.radius;
-            background: root.coach-tone == 1 ? Theme.good.with-alpha(0.18) : root.coach-tone == 2 ? Theme.danger.with-alpha(0.18) : Theme.surface;
-            border-width: 1px;
-            border-color: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : Theme.border;
-            HorizontalLayout {
-                padding-left: 22px; padding-right: 22px; spacing: 16px;
-                // state mark drawn as shapes, so it does not depend on symbol glyphs in the font
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        width: 30px; height: 30px; border-radius: 15px;
-                        border-width: 3px;
-                        border-color: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : Theme.dim;
-                        background: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : transparent;
-                        if root.coach-tone == 1: Path {
-                            width: 30px; height: 30px; viewbox-width: 30; viewbox-height: 30;
-                            commands: "M 8 15.5 L 13 20.5 L 22 10.5";
-                            stroke: Theme.surface; stroke-width: 3px; fill: transparent;
-                        }
-                        if root.coach-tone == 2: Text { text: "!"; font-size: 20px; font-weight: 700; color: Theme.surface; horizontal-alignment: center; vertical-alignment: center; }
-                    }
-                }
-                VerticalLayout {
-                    alignment: center;
-                    Text { text: root.coach-title; font-size: 23px; font-weight: 700; color: Theme.ink; }
-                    Text { text: root.coach-sub; font-size: 13px; color: Theme.dim; }
-                }
-                Rectangle { horizontal-stretch: 1; }
-                Text { text: root.coach-right; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
-            }
-        }
-
-        // main area: judged metric + ruler + trend on the left, pose stage on the right (no page scrolling)
-        HorizontalLayout {
-            spacing: 14px;
-            vertical-stretch: 1;
-
-            Rectangle {
-                horizontal-stretch: 1;
-                border-radius: Theme.radius;
-                background: Theme.surface;
-                border-width: 1px;
-                border-color: Theme.border;
-                VerticalLayout {
-                    padding: 22px;
-                    spacing: 6px;
-                    Text { text: "主指標 · 膝關節屈曲角"; font-size: 14px; color: Theme.dim; }
-                    Text { text: root.angle-text; font-size: 96px; font-weight: 700; color: Theme.ink; }
-                    Text { text: "60–90° 目標區間"; font-size: 14px; color: Theme.dim; }
-                    // ruler 0..160 deg with target zone and live marker
-                    ruler := Rectangle {
-                        height: 34px;
-                        Rectangle { y: 12px; height: 10px; border-radius: 5px; background: Theme.raised; }
-                        Rectangle {
-                            x: parent.width * 60 / 160; y: 8px;
-                            width: parent.width * 30 / 160; height: 18px;
-                            border-radius: 5px; border-width: 2px;
-                            border-color: Theme.good; background: Theme.good.with-alpha(0.2);
-                        }
-                        Rectangle {
-                            x: parent.width * root.ruler-pos - 2px; y: 2px;
-                            width: 4px; height: 30px; border-radius: 2px; background: Theme.ink;
-                        }
-                    }
-                    HorizontalLayout {
-                        Text { text: "0°"; font-size: 12px; color: Theme.dim; }
-                        Text { text: "160°"; font-size: 12px; color: Theme.dim; horizontal-alignment: right; }
-                    }
-                    Text { text: "近 5 秒趨勢"; font-size: 12px; color: Theme.dim; }
-                    trend := Rectangle {
-                        vertical-stretch: 1;
-                        min-height: 60px;
-                        clip: true;
-                        // target zone band (60..90 of a 0..160 scale)
-                        Rectangle {
-                            x: 0; y: parent.height * (1 - 90 / 160);
-                            width: parent.width; height: parent.height * 30 / 160;
-                            background: Theme.good.with-alpha(0.16);
-                        }
-                        // commands are generated in pixels for the current size, so the line fills the box
-                        Path {
-                            width: parent.width; height: parent.height;
-                            viewbox-width: parent.width / 1px; viewbox-height: parent.height / 1px;
-                            commands: root.chart-path;
-                            stroke: Theme.accent;
-                            stroke-width: 2.5px;
-                            fill: transparent;
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                width: 360px;
-                border-radius: Theme.radius;
-                background: Theme.raised;
-                Text { x: 18px; y: 14px; text: "動作姿態 · 2D 側面"; font-size: 14px; font-weight: 700; color: Theme.ink; }
-                Text { x: parent.width - self.width - 18px; y: 16px; text: "前方 →"; font-size: 13px; color: Theme.dim; }
-                stage := Rectangle {
-                    x: (parent.width - 300px) / 2; y: 44px;
-                    width: 300px; height: 300px;
-                    Path {
-                        width: 300px; height: 300px;
-                        viewbox-width: 300; viewbox-height: 300;
-                        commands: root.limb-path;
-                        stroke: Theme.accent;
-                        stroke-width: 14px;
-                        stroke-line-cap: round;
-                        stroke-line-join: round;
-                        fill: transparent;
-                    }
-                    // hip and knee joints
-                    Rectangle { x: 150px - 11px; y: 40px - 11px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
-                    Rectangle { x: 150px - 11px; y: 150px - 11px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
-                    Text { x: 172px; y: 128px; text: root.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
-                    Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
-                }
-            }
-        }
-
-        // bottom dock: session counters + primary action
-        Rectangle {
-            height: 76px;
-            border-radius: Theme.radius;
+            height: 60px;
             background: Theme.surface;
-            border-width: 1px;
-            border-color: Theme.border;
             HorizontalLayout {
-                padding-left: 22px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px;
-                spacing: 28px;
-                VerticalLayout {
-                    Text { text: "已完成"; font-size: 12px; color: Theme.dim; }
-                    Text { text: root.reps-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
+                padding-left: 24px; padding-right: 20px; spacing: 6px;
+                Text { text: "IRMS"; font-size: 21px; font-weight: 800; color: Theme.accent; vertical-alignment: center; }
+                Rectangle { width: 14px; }
+                for t[i] in ["即時監測", "動作處方", "療程紀錄", "工具", "設定"]: NavTab { text: t; active: App.view == i; clicked => { App.view = i; } }
+                Rectangle { horizontal-stretch: 1; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout { alignment: center; Rectangle { width: 10px; height: 10px; border-radius: 5px; background: App.conn == 2 ? Theme.good : App.conn == 1 ? Theme.warn : Theme.border; } }
+                    Text { text: App.conn == 2 ? "裝置已連線" : App.conn == 1 ? "連線中…" : "未連線"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
                 }
+                Rectangle { width: 6px; }
                 VerticalLayout {
-                    width: 150px;
-                    Text { text: "本次保持"; font-size: 12px; color: Theme.dim; }
-                    Text { text: root.hold-text; font-size: 20px; font-weight: 700; color: Theme.ink; }
-                    Rectangle {
-                        height: 6px; border-radius: 3px; background: Theme.raised;
-                        Rectangle { x: 0; width: parent.width * root.hold; height: parent.height; border-radius: 3px; background: Theme.good; }
-                    }
+                    alignment: center;
+                    Btn { text: App.conn == 2 ? "中斷連線" : App.conn == 1 ? "連線中…" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1; clicked => { App.request-connect(); } }
                 }
-                VerticalLayout {
-                    Text { text: "療程時間"; font-size: 12px; color: Theme.dim; }
-                    Text { text: root.time-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
-                }
-                Text { text: root.stats; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
-                Button { text: root.running ? "結束療程" : "開始療程"; primary: true; min-width: 150px; clicked => { root.toggle-run(); } }
             }
+            Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border; }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 22px; padding-bottom: 10px;
+                if App.view == 0: LiveView { }
+                if App.view == 1: ActionsView { }
+                if App.view == 2: HistoryView { }
+                if App.view == 3: ToolsView { }
+                if App.view == 4: SettingsView { }
+            }
+        }
+
+        HorizontalLayout {
+            height: 30px; padding-left: 24px; padding-right: 24px;
+            Text { text: "IRMS 智慧復健監測 · 原生介面原型"; font-size: 12px; color: Theme.dim; vertical-alignment: center; }
+            Text { text: "模擬資料 · 不是真實量測"; font-size: 12px; color: Theme.warn; horizontal-alignment: right; vertical-alignment: center; }
         }
     }
+
+    if App.wizard-open: Wizard { width: 100%; height: 100%; }
 }
