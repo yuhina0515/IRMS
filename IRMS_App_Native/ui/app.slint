@@ -45,12 +45,18 @@ export component MainWindow inherits Window {
     in property <string> coach-sub: "";
     in property <int> coach-tone: 0; // 0 neutral 1 good 2 warn/danger
     in property <string> chart-path: "";
-    in property <string> zone-path: "";
     in property <string> limb-path: "";
     in property <string> stats: "";
     in property <float> hold: 0;
+    in property <float> ruler-pos: 0;
+    out property <length> chart-w: trend.width;
+    out property <length> chart-h: trend.height;
+    in property <string> coach-right: "";
+    in property <string> knee-label: "";
+    in property <string> reps-text: "0 次";
+    in property <string> hold-text: "0.0 / 2.0 秒";
+    in property <string> time-text: "00:00";
     in property <bool> running: false;
-    in property <string> style-name: "";
     callback toggle-run;
     callback set-style(int);
     callback toggle-night;
@@ -71,66 +77,55 @@ export component MainWindow inherits Window {
         HorizontalLayout {
             spacing: 8px;
             VerticalLayout {
-                Text { text: "膝關節屈曲訓練"; font-size: 26px; font-weight: 700; color: Theme.ink; }
-                Text { text: "主指標:膝角 · 目標區 60–90° · 保持 2.0 秒"; font-size: 14px; color: Theme.dim; }
+                Text { text: "膝關節屈曲訓練 (原型)"; font-size: 26px; font-weight: 700; color: Theme.ink; }
+                Text { text: "膝關節屈曲角 · 目標 60–90° · 保持 2.0 秒"; font-size: 14px; color: Theme.dim; }
             }
             Rectangle { horizontal-stretch: 1; }
             Button { text: "Workbook"; active: Theme.style == 0; min-width: 96px; clicked => { root.set-style(0); } }
             Button { text: "柔和陪伴"; active: Theme.style == 1; min-width: 96px; clicked => { root.set-style(1); } }
             Button { text: "深色工作室"; active: Theme.style == 2; min-width: 110px; clicked => { root.set-style(2); } }
-            Button { text: Theme.night ? "☾ 夜" : "☀ 日"; min-width: 64px; clicked => { root.toggle-night(); } }
+            Button { text: Theme.night ? "夜間" : "日間"; min-width: 64px; clicked => { root.toggle-night(); } }
         }
 
-        // coaching band
+        // coaching band (v3 state contract: one mark, one title, one sub line)
         Rectangle {
-            height: 64px;
+            height: 72px;
             border-radius: Theme.radius;
             background: root.coach-tone == 1 ? Theme.good.with-alpha(0.18) : root.coach-tone == 2 ? Theme.danger.with-alpha(0.18) : Theme.surface;
             border-width: 1px;
             border-color: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : Theme.border;
             HorizontalLayout {
-                padding-left: 18px; padding-right: 18px; spacing: 14px;
-                Text { text: root.coach-title; font-size: 22px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
-                Text { text: root.coach-sub; font-size: 15px; color: Theme.dim; vertical-alignment: center; }
+                padding-left: 22px; padding-right: 22px; spacing: 16px;
+                // state mark drawn as shapes, so it does not depend on symbol glyphs in the font
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 30px; height: 30px; border-radius: 15px;
+                        border-width: 3px;
+                        border-color: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : Theme.dim;
+                        background: root.coach-tone == 1 ? Theme.good : root.coach-tone == 2 ? Theme.danger : transparent;
+                        if root.coach-tone == 1: Path {
+                            width: 30px; height: 30px; viewbox-width: 30; viewbox-height: 30;
+                            commands: "M 8 15.5 L 13 20.5 L 22 10.5";
+                            stroke: Theme.surface; stroke-width: 3px; fill: transparent;
+                        }
+                        if root.coach-tone == 2: Text { text: "!"; font-size: 20px; font-weight: 700; color: Theme.surface; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Text { text: root.coach-title; font-size: 23px; font-weight: 700; color: Theme.ink; }
+                    Text { text: root.coach-sub; font-size: 13px; color: Theme.dim; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.coach-right; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
             }
         }
 
-        // main area: pose stage + metric + chart (no page scrolling)
+        // main area: judged metric + ruler + trend on the left, pose stage on the right (no page scrolling)
         HorizontalLayout {
             spacing: 14px;
             vertical-stretch: 1;
-
-            Rectangle {
-                width: 320px;
-                border-radius: Theme.radius;
-                background: Theme.raised;
-                Text { x: 16px; y: 12px; text: "姿態 (2D 側視)"; font-size: 13px; color: Theme.dim; }
-                Path {
-                    x: 10px; y: 30px;
-                    width: 300px; height: 300px;
-                    viewbox-width: 300; viewbox-height: 300;
-                    commands: root.limb-path;
-                    stroke: Theme.accent;
-                    stroke-width: 14px;
-                    stroke-line-cap: round;
-                    fill: transparent;
-                }
-                Text {
-                    y: parent.height - 110px;
-                    width: parent.width;
-                    text: root.angle-text;
-                    font-size: 54px;
-                    font-weight: 700;
-                    color: Theme.ink;
-                    horizontal-alignment: center;
-                }
-                Rectangle {
-                    x: 20px; y: parent.height - 26px;
-                    width: parent.width - 40px; height: 8px;
-                    border-radius: 4px; background: Theme.border;
-                    Rectangle { width: parent.width * root.hold; height: parent.height; border-radius: 4px; background: Theme.good; }
-                }
-            }
 
             Rectangle {
                 horizontal-stretch: 1;
@@ -138,22 +133,46 @@ export component MainWindow inherits Window {
                 background: Theme.surface;
                 border-width: 1px;
                 border-color: Theme.border;
-                Text { x: 16px; y: 12px; text: "即時膝角 (近 5 秒)"; font-size: 13px; color: Theme.dim; }
-                Rectangle {
-                    x: 16px; y: 40px;
-                    width: parent.width - 32px; height: parent.height - 56px;
-                    clip: true;
-                    chart := Rectangle {
-                        Path {
-                            width: parent.width; height: parent.height;
-                            viewbox-width: 500; viewbox-height: 200;
-                            commands: root.zone-path;
-                            fill: Theme.good.with-alpha(0.16);
-                            stroke: transparent;
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 6px;
+                    Text { text: "主指標 · 膝關節屈曲角"; font-size: 14px; color: Theme.dim; }
+                    Text { text: root.angle-text; font-size: 96px; font-weight: 700; color: Theme.ink; }
+                    Text { text: "60–90° 目標區間"; font-size: 14px; color: Theme.dim; }
+                    // ruler 0..160 deg with target zone and live marker
+                    ruler := Rectangle {
+                        height: 34px;
+                        Rectangle { y: 12px; height: 10px; border-radius: 5px; background: Theme.raised; }
+                        Rectangle {
+                            x: parent.width * 60 / 160; y: 8px;
+                            width: parent.width * 30 / 160; height: 18px;
+                            border-radius: 5px; border-width: 2px;
+                            border-color: Theme.good; background: Theme.good.with-alpha(0.2);
                         }
+                        Rectangle {
+                            x: parent.width * root.ruler-pos - 2px; y: 2px;
+                            width: 4px; height: 30px; border-radius: 2px; background: Theme.ink;
+                        }
+                    }
+                    HorizontalLayout {
+                        Text { text: "0°"; font-size: 12px; color: Theme.dim; }
+                        Text { text: "160°"; font-size: 12px; color: Theme.dim; horizontal-alignment: right; }
+                    }
+                    Text { text: "近 5 秒趨勢"; font-size: 12px; color: Theme.dim; }
+                    trend := Rectangle {
+                        vertical-stretch: 1;
+                        min-height: 60px;
+                        clip: true;
+                        // target zone band (60..90 of a 0..160 scale)
+                        Rectangle {
+                            x: 0; y: parent.height * (1 - 90 / 160);
+                            width: parent.width; height: parent.height * 30 / 160;
+                            background: Theme.good.with-alpha(0.16);
+                        }
+                        // commands are generated in pixels for the current size, so the line fills the box
                         Path {
                             width: parent.width; height: parent.height;
-                            viewbox-width: 500; viewbox-height: 200;
+                            viewbox-width: parent.width / 1px; viewbox-height: parent.height / 1px;
                             commands: root.chart-path;
                             stroke: Theme.accent;
                             stroke-width: 2.5px;
@@ -162,14 +181,65 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+
+            Rectangle {
+                width: 360px;
+                border-radius: Theme.radius;
+                background: Theme.raised;
+                Text { x: 18px; y: 14px; text: "動作姿態 · 2D 側面"; font-size: 14px; font-weight: 700; color: Theme.ink; }
+                Text { x: parent.width - self.width - 18px; y: 16px; text: "前方 →"; font-size: 13px; color: Theme.dim; }
+                stage := Rectangle {
+                    x: (parent.width - 300px) / 2; y: 44px;
+                    width: 300px; height: 300px;
+                    Path {
+                        width: 300px; height: 300px;
+                        viewbox-width: 300; viewbox-height: 300;
+                        commands: root.limb-path;
+                        stroke: Theme.accent;
+                        stroke-width: 14px;
+                        stroke-line-cap: round;
+                        stroke-line-join: round;
+                        fill: transparent;
+                    }
+                    // hip and knee joints
+                    Rectangle { x: 150px - 11px; y: 40px - 11px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                    Rectangle { x: 150px - 11px; y: 150px - 11px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                    Text { x: 172px; y: 128px; text: root.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                    Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
+                }
+            }
         }
 
-        // bottom dock
-        HorizontalLayout {
-            spacing: 12px;
-            height: 48px;
-            Button { text: root.running ? "結束訓練" : "開始訓練"; primary: true; min-width: 140px; clicked => { root.toggle-run(); } }
-            Text { text: root.stats; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+        // bottom dock: session counters + primary action
+        Rectangle {
+            height: 76px;
+            border-radius: Theme.radius;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            HorizontalLayout {
+                padding-left: 22px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px;
+                spacing: 28px;
+                VerticalLayout {
+                    Text { text: "已完成"; font-size: 12px; color: Theme.dim; }
+                    Text { text: root.reps-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
+                }
+                VerticalLayout {
+                    width: 150px;
+                    Text { text: "本次保持"; font-size: 12px; color: Theme.dim; }
+                    Text { text: root.hold-text; font-size: 20px; font-weight: 700; color: Theme.ink; }
+                    Rectangle {
+                        height: 6px; border-radius: 3px; background: Theme.raised;
+                        Rectangle { x: 0; width: parent.width * root.hold; height: parent.height; border-radius: 3px; background: Theme.good; }
+                    }
+                }
+                VerticalLayout {
+                    Text { text: "療程時間"; font-size: 12px; color: Theme.dim; }
+                    Text { text: root.time-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
+                }
+                Text { text: root.stats; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+                Button { text: root.running ? "結束療程" : "開始療程"; primary: true; min-width: 150px; clicked => { root.toggle-run(); } }
+            }
         }
     }
 }

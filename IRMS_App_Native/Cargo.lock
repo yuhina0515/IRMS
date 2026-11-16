@@ -2109,6 +2109,7 @@ dependencies = [
 name = "irms_app_native"
 version = "0.0.1"
 dependencies = [
+ "image",
  "slint",
  "slint-build",
 ]
