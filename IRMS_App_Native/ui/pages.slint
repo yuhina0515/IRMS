@@ -262,6 +262,13 @@ export component SettingsView inherits VerticalLayout {
                         for c in ["零位已捕捉", "大腿軸已建立", "小腿軸已建立", "側向方向已驗證"]: Chip { text: c; tone: App.calibrated ? Theme.good : Theme.dim; }
                     }
                     Text { text: "感測器不需要貼得很正:精靈會從「抬大腿」與「勾小腿」兩個動作算出各自的屈曲軸。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    Rectangle { height: 1px; background: Theme.border; }
+                    Setting {
+                        title: "活動度";
+                        sub: App.mobility-latest;
+                        VerticalLayout { alignment: center; Btn { text: "量測活動度"; enabled: !App.session-locked && App.conn == 2; clicked => { App.wizard-open = true; App.wizard-set-preset(1); } } }
+                    }
+                    for line[i] in App.mobility-history: Text { visible: i < 5; height: i < 5 ? 18px : 0px; text: line; font-size: 12px; color: Theme.dim; }
                     if App.conn != 2: Text { text: "校準需要即時感測器數值,請先連線裝置。"; font-size: 13px; color: Theme.warn; }
                 }
                 if root.tab == 2: VerticalLayout {

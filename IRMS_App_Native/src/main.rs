@@ -12,7 +12,7 @@ use irms_core::protocol::{parse_angle_packet, ParsedPacket, RawAngles};
 use irms_core::session_controller::{Effect, SessionFeedback};
 use irms_core::slip_monitor::SlipMonitor;
 use irms_core::types::{CustomAction, SensorReading};
-use pipeline::{Rig, Script, Wizard};
+use pipeline::{Rig, Script};
 use serde_json::{json, Value};
 use slint::{ComponentHandle, Model, ModelRc, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
@@ -24,6 +24,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use store::Store;
+use wearing::{Verdict, WearingCheck};
+use wizard::Wizard;
 
 mod action_edit;
 mod action_ui;
@@ -31,6 +33,8 @@ mod outputs;
 mod pipeline;
 mod preferences;
 mod store;
+mod wearing;
+mod wizard;
 
 slint::include_modules!();
 
@@ -205,6 +209,8 @@ struct Sim {
     rig: Rig,
     script: Script,
     wizard: Wizard,
+    /// Pre-session wearing check in progress (real device only).
+    wearing: Option<WearingCheck>,
     /// Result of the calibration wizard; without it only the device's own Euler angles are shown.
     profile: Option<CalibrationProfile>,
     slip: SlipMonitor,
@@ -240,7 +246,8 @@ impl Sim {
             cfg: None,
             rig: Rig::new(),
             script: Script::Exercise,
-            wizard: Wizard::new(),
+            wizard: Wizard::new(None),
+            wearing: None,
             profile: None,
             slip: SlipMonitor::new(None),
             mount_shift: false,
@@ -351,7 +358,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
+    // --connected, --calibrated, --mobility-demo, --wizard, --wizard-preset N, --run, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -467,6 +474,41 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_sessions(ModelRc::from(sessions.clone()));
 
     let sim = Rc::new(RefCell::new(Sim::new(store, stored_actions)));
+    {
+        // The calibration in force survives a restart; it is replaced only by applying a new one.
+        let mut s = sim.borrow_mut();
+        if let Some(profile) = s.store.active_profile() {
+            s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
+            s.profile = Some(profile);
+            s.wizard = Wizard::new(s.profile.clone());
+            app.set_calibrated(true);
+        }
+    }
+    if has("--mobility-demo") {
+        // Same wizard logic as the window on scripted movements, applied through the real store.
+        let mut s = sim.borrow_mut();
+        let cfg = action_config(&s.actions, 0, AngleLimits::default());
+        match pipeline::run_preset(&s.rig, &cfg, irms_core::calibration_flow::Preset::Mobility) {
+            Ok(w) => {
+                let at = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+                if let Some(a) = w.apply(&at) {
+                    match s.store.apply_calibration(&a.profile, a.mobility.as_ref()) {
+                        Ok(_) => {
+                            s.slip = SlipMonitor::new(Some(a.profile.limbs.shin.hinge));
+                            s.profile = Some(a.profile);
+                            app.set_calibrated(true);
+                        }
+                        Err(e) => println!("mobility demo could not store: {e}"),
+                    }
+                }
+            }
+            Err(e) => println!("mobility demo failed: {e}"),
+        }
+    }
+    if let Some(i) = int("--wizard-preset") {
+        sim.borrow_mut().wizard.set_preset(i);
+    }
+    refresh_mobility(&ui, &sim.borrow().store);
     action_ui::wire(&ui, sim.clone(), actions.clone(), sessions.clone());
     if let Some(q) = arg_value(&args, "--search") {
         app.set_search(q.clone().into());
@@ -565,58 +607,8 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     }
     let started = Instant::now();
-    {
-        let sim = sim.clone();
-        app.on_wizard_start(move || {
-            let mut s = sim.borrow_mut();
-            let now_ms = started.elapsed().as_secs_f64() * 1000.0;
-            // The simulated wearer performs the movement this step asks for.
-            let t = s.t;
-            s.script = match s.wizard.step {
-                0 => Script::Still,
-                1 => Script::ThighRaise(t),
-                _ => Script::KneeCurl(t),
-            };
-            s.wizard.start(now_ms);
-        });
-    }
-    {
-        let sim = sim.clone();
-        let ui_w = ui.as_weak();
-        app.on_wizard_next(move || {
-            let Some(ui) = ui_w.upgrade() else { return };
-            let mut s = sim.borrow_mut();
-            if s.wizard.step < 2 || (s.wizard.step == 2 && s.wizard.profile.is_none()) {
-                s.wizard.next();
-                return;
-            }
-            if s.wizard.step == 2 {
-                s.wizard.next(); // to the result page
-                return;
-            }
-            // Result page accepted: the profile becomes the active calibration.
-            if let Some(profile) = s.wizard.profile.take() {
-                s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
-                s.profile = Some(profile);
-                ui.global::<App>().set_calibrated(true);
-            }
-            s.wizard = Wizard::new();
-            s.script = Script::Exercise;
-            ui.global::<App>().set_wizard_open(false);
-        });
-    }
-    {
-        let sim = sim.clone();
-        let ui_w = ui.as_weak();
-        app.on_wizard_cancel(move || {
-            let mut s = sim.borrow_mut();
-            s.wizard = Wizard::new();
-            s.script = Script::Exercise;
-            if let Some(ui) = ui_w.upgrade() {
-                ui.global::<App>().set_wizard_open(false);
-            }
-        });
-    }
+    wire_wizard(&ui, sim.clone(), started);
+    wire_wearing(&ui, sim.clone(), started);
 
     // Frame counter (GL renderers only), shown in the dock and in --log output.
     let notifier = ui.window().set_rendering_notifier(move |state, _| {
@@ -695,7 +687,13 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut s = sim.borrow_mut();
             if s.store.active() {
                 finish_session(&ui, &mut s, &sessions);
-            } else {
+            } else if real_mode_flag && s.wearing.is_none() && session_can_start(&ui, &s, false) {
+                // A real device is checked against the stored reference first; the simulator is not.
+                if let Some(profile) = s.profile.clone() {
+                    s.wearing = Some(WearingCheck::new(profile));
+                    ui.global::<App>().set_wearing_open(true);
+                }
+            } else if s.wearing.is_none() {
                 start_session(&ui, &mut s, !real_mode_flag);
             }
         });
@@ -808,9 +806,9 @@ fn main() -> Result<(), slint::PlatformError> {
                             if s.running {
                                 finish_session_with_notice(&ui, &mut s, &sessions, false);
                             }
-                            s.wizard = Wizard::new();
-                            s.profile = None;
-                            app.set_calibrated(false);
+                            s.wizard = Wizard::new(s.profile.clone());
+                            s.wearing = None;
+                            app.set_wearing_open(false);
                             app.set_wizard_open(false);
                         }
                         if up {
@@ -917,7 +915,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 let text = if inject_fault && (s.t % 12.0) > 10.0 {
                     "ERR:1".into()
                 } else {
-                    pipeline::packet(&s.rig, hip, knee)
+                    pipeline::packet_abd(&s.rig, hip, knee, pipeline::abduction(s.script, s.t))
                 };
                 match parse_angle_packet(&text) {
                     ParsedPacket::Angles { raw, .. } => {
@@ -938,16 +936,12 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let hw_error = link.fault.as_deref().or(stale.then_some("等待新的量測"));
             app.set_valid_angle(connected && hw_error.is_none());
-            app.set_wizard_step(s.wizard.step);
-            app.set_wizard_progress(
-                s.wizard.progress(started.elapsed().as_secs_f64() * 1000.0) as f32
+            sync_wizard(&app, &s.wizard, started.elapsed().as_secs_f64() * 1000.0);
+            sync_wearing(
+                &app,
+                s.wearing.as_ref(),
+                started.elapsed().as_secs_f64() * 1000.0,
             );
-            app.set_wizard_busy(s.wizard.capturing());
-            app.set_wizard_step_done(s.wizard.step_done);
-            app.set_wizard_status(s.wizard.status.clone().into());
-            app.set_wizard_tone(s.wizard.tone);
-            app.set_wizard_result(s.wizard.result.clone().into());
-            app.set_wizard_seconds(s.wizard.capture_seconds() as f32);
 
             let angle = s.last_knee;
             let thigh = s.last_thigh;
@@ -1113,6 +1107,312 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.run()
 }
 
+fn refresh_mobility(ui: &MainWindow, store: &Store) {
+    use irms_core::calibration_flow::{
+        movement_from_name, record_from_row, trend_with_breaks, TrendEntry,
+    };
+    let app = ui.global::<App>();
+    let Ok(rows) = store.mobility_rows() else {
+        app.set_mobility_latest("讀取活動度紀錄失敗".into());
+        app.set_mobility_history(ModelRc::default());
+        return;
+    };
+    let records: Vec<_> = rows.iter().map(record_from_row).collect();
+    let Some(latest) = records.first() else {
+        app.set_mobility_latest("尚無活動度紀錄".into());
+        app.set_mobility_history(ModelRc::default());
+        return;
+    };
+    let names = latest
+        .movement_set
+        .iter()
+        .filter_map(|n| movement_from_name(n))
+        .map(wizard::movement_label)
+        .collect::<Vec<_>>()
+        .join("、");
+    let entries = trend_with_breaks(&records, latest);
+    let best = entries
+        .iter()
+        .filter_map(|e| {
+            if let TrendEntry::Record(i) = e {
+                Some(records[*i].total_deg)
+            } else {
+                None
+            }
+        })
+        .fold(f64::MIN, f64::max);
+    let side = match latest.identity.side.as_deref() {
+        Some("left") => " · 左腿",
+        Some("right") => " · 右腿",
+        _ => "",
+    };
+    app.set_mobility_latest(
+        format!(
+            "最新合計 {:.0}° · 最佳 {:.0}° · {}{side}
+動作:{names}",
+            latest.total_deg,
+            best.max(latest.total_deg),
+            local_minute(&latest.measured_at)
+        )
+        .into(),
+    );
+    let lines: Vec<slint::SharedString> = entries
+        .iter()
+        .rev()
+        .take(10)
+        .map(|e| match e {
+            TrendEntry::MethodBreak => "—— 量測方式不同,以上不可直接比較 ——".into(),
+            TrendEntry::Record(i) => format!(
+                "{} · {:.0}°",
+                local_minute(&records[*i].measured_at),
+                records[*i].total_deg
+            )
+            .into(),
+        })
+        .collect();
+    app.set_mobility_history(ModelRc::from(Rc::new(VecModel::from(lines))));
+}
+
+fn local_minute(iso: &str) -> String {
+    DateTime::parse_from_rfc3339(iso)
+        .or_else(|_| DateTime::parse_from_rfc3339(&format!("{}Z", iso.trim_end_matches('Z'))))
+        .map(|d| {
+            d.with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M")
+                .to_string()
+        })
+        .unwrap_or_else(|_| iso.to_string())
+}
+
+fn sync_wizard(app: &App, w: &Wizard, now_ms: f64) {
+    app.set_wizard_page(w.page());
+    app.set_wizard_title(w.title().into());
+    app.set_wizard_body(w.body().into());
+    app.set_wizard_label(w.step_label().into());
+    app.set_wizard_progress(w.progress(now_ms) as f32);
+    app.set_wizard_busy(w.capturing());
+    app.set_wizard_step_done(w.step_done);
+    app.set_wizard_status(w.status.clone().into());
+    app.set_wizard_tone(w.tone);
+    app.set_wizard_result(w.result.clone().into());
+    app.set_wizard_seconds(w.capture_seconds() as f32);
+    app.set_wizard_side(w.side_index());
+    app.set_wizard_preset(w.preset_index());
+    app.set_wizard_neutral(w.flow.neutral);
+    app.set_wizard_posture(w.posture_index());
+    app.set_wizard_posture_name(wizard::posture_label(w.posture).into());
+    app.set_wizard_has_stored(w.has_stored());
+    app.set_wizard_can_begin(w.can_begin());
+    app.set_wizard_can_skip(w.can_skip());
+    app.set_wizard_can_apply(w.can_apply());
+    app.set_wizard_can_redo(w.can_redo());
+    app.set_wizard_can_save_mobility(w.can_save_mobility());
+    app.set_wizard_save_mobility(w.save_mobility);
+}
+
+fn wire_wizard(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
+    let app = ui.global::<App>();
+    let now_ms = move || started.elapsed().as_secs_f64() * 1000.0;
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_side(move |i| sim.borrow_mut().wizard.set_side(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_preset(move |i| sim.borrow_mut().wizard.set_preset(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_neutral(move |n| sim.borrow_mut().wizard.set_neutral(n));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_posture(move |i| sim.borrow_mut().wizard.set_posture(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_begin(move || sim.borrow_mut().wizard.begin());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_start(move || {
+            let mut s = sim.borrow_mut();
+            // The simulated wearer performs the movement this step asks for.
+            s.script = pipeline::script_for(&s.wizard, s.t);
+            s.wizard.start(now_ms());
+        });
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_next(move || sim.borrow_mut().wizard.next());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_skip(move || sim.borrow_mut().wizard.skip());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_recapture(move || sim.borrow_mut().wizard.recapture());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_redo(move || sim.borrow_mut().wizard.redo());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_toggle_save(move || sim.borrow_mut().wizard.toggle_save_mobility());
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_apply(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            let measured_at = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+            let Some(applied) = s.wizard.apply(&measured_at) else {
+                return;
+            };
+            // The stored row comes first: a calibration that could not be recorded is not applied.
+            let mobility_saved = match s
+                .store
+                .apply_calibration(&applied.profile, applied.mobility.as_ref())
+            {
+                Ok(saved) => saved,
+                Err(e) => {
+                    s.wizard.status = format!("校準未能儲存:{e}");
+                    s.wizard.tone = 2;
+                    return;
+                }
+            };
+            s.slip = SlipMonitor::new(Some(applied.profile.limbs.shin.hinge));
+            s.profile = Some(applied.profile);
+            s.wizard = Wizard::new(s.profile.clone());
+            s.script = Script::Exercise;
+            let app = ui.global::<App>();
+            app.set_calibrated(true);
+            app.set_wizard_open(false);
+            refresh_mobility(&ui, &s.store);
+            if !mobility_saved {
+                storage_error(&ui, "校準已套用,但活動度紀錄未能儲存");
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_cancel(move || {
+            let mut s = sim.borrow_mut();
+            s.wizard = Wizard::new(s.profile.clone());
+            s.script = Script::Exercise;
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wizard_open(false);
+            }
+        });
+    }
+}
+
+fn sync_wearing(app: &App, check: Option<&WearingCheck>, now_ms: f64) {
+    let Some(c) = check else { return };
+    app.set_wearing_page(c.page());
+    app.set_wearing_body(c.body().into());
+    app.set_wearing_progress(c.progress(now_ms) as f32);
+    app.set_wearing_verdict(match c.verdict() {
+        None => 0,
+        Some(Verdict::Ok) => 1,
+        Some(Verdict::Inconclusive) => 2,
+        Some(Verdict::Rezero) => 3,
+        Some(Verdict::Recalibrate) => 4,
+        Some(Verdict::TooFar) => 5,
+    });
+}
+
+fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
+    let app = ui.global::<App>();
+    let now_ms = move || started.elapsed().as_secs_f64() * 1000.0;
+    let close = |ui: &MainWindow, s: &mut Sim| {
+        s.wearing = None;
+        ui.global::<App>().set_wearing_open(false);
+    };
+    {
+        let sim = sim.clone();
+        app.on_wearing_begin(move || {
+            if let Some(c) = sim.borrow_mut().wearing.as_mut() {
+                c.begin(now_ms());
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        app.on_wearing_retry(move || {
+            if let Some(c) = sim.borrow_mut().wearing.as_mut() {
+                c.retry();
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_cancel(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                close(&ui, &mut sim.borrow_mut());
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_start_anyway(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            close(&ui, &mut s);
+            start_session(&ui, &mut s, false);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_recalibrate(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            close(&ui, &mut s);
+            ui.global::<App>().set_wizard_open(true);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_rezero(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            let now = chrono::Utc::now();
+            let id = format!("cal-{}", now.timestamp_millis());
+            let at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+            let Some(check) = s.wearing.as_ref() else {
+                return;
+            };
+            let fixed = match check.rezeroed(&id, &at) {
+                Ok(p) => p,
+                Err(why) => {
+                    storage_error(&ui, why);
+                    close(&ui, &mut s);
+                    return;
+                }
+            };
+            // Stored first, like the wizard: a calibration that could not be recorded is not applied.
+            if let Err(e) = s.store.apply_calibration(&fixed, None) {
+                storage_error(&ui, e);
+                close(&ui, &mut s);
+                return;
+            }
+            s.slip = SlipMonitor::new(Some(fixed.limbs.shin.hinge));
+            s.profile = Some(fixed);
+            s.wizard = Wizard::new(s.profile.clone());
+            close(&ui, &mut s);
+            start_session(&ui, &mut s, false);
+        });
+    }
+}
+
 fn storage_error(ui: &MainWindow, error: impl std::fmt::Display) {
     ui.global::<App>()
         .set_storage_error(format!("儲存或讀取失敗：{error}").into());
@@ -1204,9 +1504,10 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
     sessions.set_vec(rows);
 }
 
-fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
+/// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+fn session_can_start(ui: &MainWindow, s: &Sim, simulated: bool) -> bool {
     let app = ui.global::<App>();
-    if s.closing
+    !(s.closing
         || app.get_editor_open()
         || app.get_confirmation_open()
         || s.disconnecting
@@ -1214,8 +1515,12 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
         || app.get_conn() != 2
         || app.get_wizard_open()
         || s.profile.is_none()
-        || s.store.active()
-    {
+        || s.store.active())
+}
+
+fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
+    let app = ui.global::<App>();
+    if !session_can_start(ui, s, simulated) {
         return;
     }
     let index = app.get_action_index() as usize;
@@ -1335,6 +1640,18 @@ fn accept_sample(
     link.last = Some(received);
     link.fault = None;
     let app = ui.global::<App>();
+    if s.wearing.as_ref().is_some_and(WearingCheck::sampling) {
+        let done = s
+            .wearing
+            .as_mut()
+            .is_some_and(|c| c.push(now_ms, vectors.map(|v| v.0), vectors.map(|v| v.1)));
+        if done && s.wearing.as_ref().and_then(|c| c.verdict()) == Some(&Verdict::Ok) {
+            // Worn as calibrated: nothing to ask, the session starts.
+            s.wearing = None;
+            app.set_wearing_open(false);
+            start_session(ui, s, false);
+        }
+    }
     if app.get_wizard_open()
         && s.wizard
             .push(now_ms, vectors.map(|v| v.0), vectors.map(|v| v.1))
@@ -1545,5 +1862,71 @@ mod tests {
             (Some(45.0), Some(1.0), Some(500))
         );
         action_ui::exercise_crud_and_confirmation_flow(&ui);
+
+        // 穿戴檢查：與校準一致時直接開始療程；位置不同時留在檢查畫面，由使用者決定。
+        let profile = s.profile.clone().unwrap();
+        let hold_pose = |s: &mut Sim, link: &mut RealLink, shin: Vec3| {
+            let mut ms = 20_000u64;
+            while s.wearing.as_ref().is_some_and(WearingCheck::sampling) {
+                ms += 40;
+                let vec = |v: Vec3| irms_core::protocol::AccelVector {
+                    x: v.x,
+                    y: v.y,
+                    z: v.z,
+                };
+                let mut r = raw;
+                r.thigh_accel = Some(vec(profile.reference.thigh));
+                r.shin_accel = Some(vec(shin));
+                accept_sample(
+                    &ui,
+                    s,
+                    link,
+                    &cfg,
+                    r,
+                    Receipt {
+                        monotonic: start + Duration::from_millis(ms),
+                        utc: wall + chrono::Duration::milliseconds(ms as i64),
+                    },
+                    start,
+                );
+                // The wizard clock in `accept_sample` is the receipt time since `start`; the check began
+                // at the same clock, so it finishes after SAMPLE_MS of receipts.
+                let _ = ms;
+            }
+        };
+        s.wearing = Some(WearingCheck::new(profile.clone()));
+        s.wearing.as_mut().unwrap().begin(20_000.0);
+        app.set_wearing_open(true);
+        hold_pose(&mut s, &mut link, profile.reference.shin);
+        assert!(s.wearing.is_none(), "matching pose closes the check");
+        assert!(!app.get_wearing_open());
+        assert!(s.store.active(), "and starts the session");
+        assert!(finish_session(&ui, &mut s, &sessions));
+        // A pose 40 degrees off the reference does not start anything.
+        let shifted = {
+            let a = profile.limbs.shin.hinge;
+            let v = profile.reference.shin;
+            let (sn, c) = 40f64.to_radians().sin_cos();
+            let k = Vec3 {
+                x: a.y * v.z - a.z * v.y,
+                y: a.z * v.x - a.x * v.z,
+                z: a.x * v.y - a.y * v.x,
+            };
+            let d = (a.x * v.x + a.y * v.y + a.z * v.z) * (1.0 - c);
+            Vec3 {
+                x: v.x * c + k.x * sn + a.x * d,
+                y: v.y * c + k.y * sn + a.y * d,
+                z: v.z * c + k.z * sn + a.z * d,
+            }
+        };
+        s.wearing = Some(WearingCheck::new(profile.clone()));
+        s.wearing.as_mut().unwrap().begin(20_000.0);
+        hold_pose(&mut s, &mut link, shifted);
+        assert!(s.wearing.is_some(), "a shifted sensor waits for the wearer");
+        assert_eq!(
+            s.wearing.as_ref().unwrap().verdict(),
+            Some(&Verdict::TooFar)
+        );
+        assert!(!s.store.active());
     }
 }

@@ -137,7 +137,11 @@ impl FlowState {
         if self.step != FlowStep::Prepare || self.side.is_none() {
             return;
         }
-        self.step = if legacy { FlowStep::Legacy } else { FlowStep::Reference };
+        self.step = if legacy {
+            FlowStep::Legacy
+        } else {
+            FlowStep::Reference
+        };
     }
 
     pub fn reference_captured(&mut self, reference: Reference) {
@@ -146,7 +150,11 @@ impl FlowState {
         }
         let first = !preset_movements(self.preset).is_empty();
         self.reference = Some(reference);
-        self.step = if first { FlowStep::Movement(0) } else { FlowStep::Review };
+        self.step = if first {
+            FlowStep::Movement(0)
+        } else {
+            FlowStep::Review
+        };
     }
 
     fn after_movement(&self, index: usize) -> FlowStep {
@@ -162,7 +170,9 @@ impl FlowState {
         if self.current_movement() != Some(id) {
             return;
         }
-        let FlowStep::Movement(i) = self.step else { return };
+        let FlowStep::Movement(i) = self.step else {
+            return;
+        };
         self.captured.insert(key(id), frames);
         self.skipped.retain(|s| *s != id);
         self.step = self.after_movement(i);
@@ -173,7 +183,9 @@ impl FlowState {
         if self.current_movement() != Some(id) || is_mandatory(id) {
             return;
         }
-        let FlowStep::Movement(i) = self.step else { return };
+        let FlowStep::Movement(i) = self.step else {
+            return;
+        };
         self.captured.remove(&key(id));
         self.skipped.retain(|s| *s != id);
         self.skipped.push(id);
@@ -234,7 +246,10 @@ pub struct FlowOutcome {
 }
 
 fn gyro_of(frames: &[Frame], thigh: bool) -> Option<Vec<Vec3>> {
-    let g: Vec<Option<Vec3>> = frames.iter().map(|f| if thigh { f.thigh_gyro } else { f.shin_gyro }).collect();
+    let g: Vec<Option<Vec3>> = frames
+        .iter()
+        .map(|f| if thigh { f.thigh_gyro } else { f.shin_gyro })
+        .collect();
     (!g.is_empty() && g.iter().all(Option::is_some)).then(|| g.into_iter().flatten().collect())
 }
 
@@ -246,7 +261,9 @@ pub fn solve_flow(
     created_at: &str,
     firmware: Firmware,
 ) -> Result<FlowOutcome, SolveFailure> {
-    let reference = state.reference.ok_or(SolveFailure::Missing(MissingPart::Reference))?;
+    let reference = state
+        .reference
+        .ok_or(SolveFailure::Missing(MissingPart::Reference))?;
     let side = state.side.ok_or(SolveFailure::Missing(MissingPart::Side))?;
     let knee = state
         .captured_frames(MovementId::KneeFlexion)
@@ -258,8 +275,14 @@ pub fn solve_flow(
         side,
         firmware,
         reference,
-        shin_sweep: Sweep { samples: knee.iter().map(|f| f.shin).collect(), gyro: gyro_of(knee, false) },
-        thigh_sweep: hip.map(|h| Sweep { samples: h.iter().map(|f| f.thigh).collect(), gyro: gyro_of(h, true) }),
+        shin_sweep: Sweep {
+            samples: knee.iter().map(|f| f.shin).collect(),
+            gyro: gyro_of(knee, false),
+        },
+        thigh_sweep: hip.map(|h| Sweep {
+            samples: h.iter().map(|f| f.thigh).collect(),
+            gyro: gyro_of(h, true),
+        }),
     })
     .map_err(SolveFailure::Solve)?;
     let mut results = Vec::new();
@@ -276,7 +299,11 @@ pub fn solve_flow(
             Err(e) => failed.push((movement, e)),
         }
     }
-    Ok(FlowOutcome { profile, results, failed })
+    Ok(FlowOutcome {
+        profile,
+        results,
+        failed,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -307,13 +334,20 @@ pub fn rezero_profile(
     let mut out = profile.clone();
     out.id = id.to_string();
     out.created_at = created_at.to_string();
-    out.reference = Reference { kind: profile.reference.kind, posture: profile.reference.posture, ..reference };
+    out.reference = Reference {
+        kind: profile.reference.kind,
+        posture: profile.reference.posture,
+        ..reference
+    };
     out.limbs = crate::calibration::Limbs { thigh, shin };
     Ok(out)
 }
 
 /// Pre-session wearing check; `None` when there is no profile or no live vectors.
-pub fn wearing_verdict(profile: Option<&CalibrationProfile>, current: Option<(Vec3, Vec3)>) -> Option<ReferenceCheck> {
+pub fn wearing_verdict(
+    profile: Option<&CalibrationProfile>,
+    current: Option<(Vec3, Vec3)>,
+) -> Option<ReferenceCheck> {
     let (profile, (thigh, shin)) = (profile?, current?);
     Some(check_reference(profile, thigh, shin))
 }
@@ -325,9 +359,10 @@ pub fn is_still_window(frames: &[(Vec3, Vec3)], max_spread_deg: f64) -> bool {
         return false;
     }
     let first = frames[0];
-    frames
-        .iter()
-        .all(|f| vector_angle_deg(f.0, first.0) <= max_spread_deg && vector_angle_deg(f.1, first.1) <= max_spread_deg)
+    frames.iter().all(|f| {
+        vector_angle_deg(f.0, first.0) <= max_spread_deg
+            && vector_angle_deg(f.1, first.1) <= max_spread_deg
+    })
 }
 
 // ---------- mobility record and trend ----------
@@ -378,9 +413,14 @@ pub fn movement_name(id: MovementId) -> &'static str {
 }
 
 pub fn movement_from_name(name: &str) -> Option<MovementId> {
-    [MovementId::KneeFlexion, MovementId::HipFlexion, MovementId::HipExtension, MovementId::HipAbduction]
-        .into_iter()
-        .find(|m| movement_name(*m) == name)
+    [
+        MovementId::KneeFlexion,
+        MovementId::HipFlexion,
+        MovementId::HipExtension,
+        MovementId::HipAbduction,
+    ]
+    .into_iter()
+    .find(|m| movement_name(*m) == name)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -519,7 +559,10 @@ pub fn record_from_row(row: &MobilityRecordRow) -> MobilityRecord {
 }
 
 /// Records comparable with `current` (same movement set AND same method identity), oldest first.
-pub fn comparable_trend<'a>(records: &'a [MobilityRecord], current: &MobilityRecord) -> Vec<&'a MobilityRecord> {
+pub fn comparable_trend<'a>(
+    records: &'a [MobilityRecord],
+    current: &MobilityRecord,
+) -> Vec<&'a MobilityRecord> {
     let set = movement_set_key(&current.movement_set);
     let method = method_key(&current.identity);
     let mut out: Vec<&MobilityRecord> = records
@@ -543,7 +586,10 @@ pub fn trend_with_breaks(records: &[MobilityRecord], current: &MobilityRecord) -
     let set = movement_set_key(&current.movement_set);
     // Legs are never listed together; only method changes within one leg get a separator.
     let mut idx: Vec<usize> = (0..records.len())
-        .filter(|i| movement_set_key(&records[*i].movement_set) == set && records[*i].identity.side == current.identity.side)
+        .filter(|i| {
+            movement_set_key(&records[*i].movement_set) == set
+                && records[*i].identity.side == current.identity.side
+        })
         .collect();
     idx.sort_by(|a, b| records[*a].measured_at.cmp(&records[*b].measured_at));
     let mut out = Vec::new();
@@ -560,7 +606,14 @@ pub fn trend_with_breaks(records: &[MobilityRecord], current: &MobilityRecord) -
 mod tests {
     use super::*;
 
-    fn rec(at: &str, set: &[&str], total: f64, side: Option<&str>, schema: Option<i64>, kind: Option<&str>) -> MobilityRecord {
+    fn rec(
+        at: &str,
+        set: &[&str],
+        total: f64,
+        side: Option<&str>,
+        schema: Option<i64>,
+        kind: Option<&str>,
+    ) -> MobilityRecord {
         MobilityRecord {
             measured_at: at.into(),
             movement_set: set.iter().map(|s| s.to_string()).collect(),
@@ -580,8 +633,16 @@ mod tests {
         Reference {
             kind: ReferenceKind::Straight,
             posture: ReferencePosture::Standing,
-            thigh: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-            shin: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+            thigh: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
+            shin: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
             still_rms_deg: 0.1,
             duration_ms: 2000.0,
             frames: 40,
@@ -591,8 +652,16 @@ mod tests {
     fn frame() -> Frame {
         Frame {
             t_ms: 0.0,
-            thigh: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-            shin: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+            thigh: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
+            shin: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
             thigh_gyro: None,
             shin_gyro: None,
             thigh_raw_g: None,
@@ -602,7 +671,10 @@ mod tests {
 
     #[test]
     fn presets_list_knee_first_and_quick_rezero_has_no_movements() {
-        assert_eq!(preset_movements(Preset::Calibrate), &[MovementId::KneeFlexion, MovementId::HipFlexion]);
+        assert_eq!(
+            preset_movements(Preset::Calibrate),
+            &[MovementId::KneeFlexion, MovementId::HipFlexion]
+        );
         assert_eq!(preset_movements(Preset::Mobility).len(), 4);
         assert!(preset_movements(Preset::QuickRezero).is_empty());
         assert!(is_mandatory(MovementId::KneeFlexion) && !is_mandatory(MovementId::HipFlexion));
@@ -630,7 +702,11 @@ mod tests {
         let mut s = FlowState::new(Preset::Calibrate, Some(Side::Left));
         s.start(true);
         assert_eq!(s.step, FlowStep::Legacy);
-        assert!(needs_legacy_branch(true, false) && needs_legacy_branch(false, true) && !needs_legacy_branch(false, false));
+        assert!(
+            needs_legacy_branch(true, false)
+                && needs_legacy_branch(false, true)
+                && !needs_legacy_branch(false, false)
+        );
     }
 
     #[test]
@@ -691,7 +767,10 @@ mod tests {
     #[test]
     fn solving_without_the_knee_sweep_reports_what_is_missing() {
         let mut s = FlowState::new(Preset::Calibrate, Some(Side::Left));
-        let fw = || Firmware { version: None, raw_stream: false };
+        let fw = || Firmware {
+            version: None,
+            raw_stream: false,
+        };
         assert_eq!(
             solve_flow(&s, "a", "t", fw()).unwrap_err(),
             SolveFailure::Missing(MissingPart::Reference)
@@ -703,24 +782,47 @@ mod tests {
             SolveFailure::Missing(MissingPart::KneeFlexion)
         );
         s.side = None;
-        assert_eq!(solve_flow(&s, "a", "t", fw()).unwrap_err(), SolveFailure::Missing(MissingPart::Side));
+        assert_eq!(
+            solve_flow(&s, "a", "t", fw()).unwrap_err(),
+            SolveFailure::Missing(MissingPart::Side)
+        );
     }
 
     #[test]
     fn still_window_needs_two_frames_within_the_spread() {
         let v = |x: f64, z: f64| Vec3 { x, y: 0.0, z };
         assert!(!is_still_window(&[(v(0.0, 1.0), v(0.0, 1.0))], 5.0));
-        assert!(is_still_window(&[(v(0.0, 1.0), v(0.0, 1.0)), (v(0.02, 1.0), v(0.0, 1.0))], 5.0));
-        assert!(!is_still_window(&[(v(0.0, 1.0), v(0.0, 1.0)), (v(1.0, 1.0), v(0.0, 1.0))], 5.0));
+        assert!(is_still_window(
+            &[(v(0.0, 1.0), v(0.0, 1.0)), (v(0.02, 1.0), v(0.0, 1.0))],
+            5.0
+        ));
+        assert!(!is_still_window(
+            &[(v(0.0, 1.0), v(0.0, 1.0)), (v(1.0, 1.0), v(0.0, 1.0))],
+            5.0
+        ));
     }
 
     #[test]
     fn method_key_separates_schema_side_kind_and_posture_but_not_calibration() {
-        let a = rec("1", &["kneeFlexion"], 100.0, Some("left"), Some(2), Some("straight"));
+        let a = rec(
+            "1",
+            &["kneeFlexion"],
+            100.0,
+            Some("left"),
+            Some(2),
+            Some("straight"),
+        );
         let mut b = a.clone();
         b.identity.calibration_id = Some("other".into());
         assert_eq!(method_key(&a.identity), method_key(&b.identity));
-        let c = rec("1", &["kneeFlexion"], 100.0, Some("left"), Some(2), Some("neutral"));
+        let c = rec(
+            "1",
+            &["kneeFlexion"],
+            100.0,
+            Some("left"),
+            Some(2),
+            Some("neutral"),
+        );
         assert_ne!(method_key(&a.identity), method_key(&c.identity));
         let legacy = rec("1", &["kneeFlexion"], 100.0, Some("left"), None, None);
         assert_eq!(method_key(&legacy.identity), "legacy|left");
@@ -730,48 +832,128 @@ mod tests {
     #[test]
     fn comparable_trend_needs_the_same_set_and_method_and_is_oldest_first() {
         let rs = vec![
-            rec("2026-11-03", &["hipFlexion", "kneeFlexion"], 200.0, Some("left"), Some(2), Some("straight")),
-            rec("2026-11-01", &["kneeFlexion", "hipFlexion"], 190.0, Some("left"), Some(2), Some("straight")),
-            rec("2026-11-02", &["kneeFlexion"], 120.0, Some("left"), Some(2), Some("straight")),
-            rec("2026-11-04", &["kneeFlexion", "hipFlexion"], 90.0, Some("left"), Some(2), Some("neutral")),
+            rec(
+                "2026-11-03",
+                &["hipFlexion", "kneeFlexion"],
+                200.0,
+                Some("left"),
+                Some(2),
+                Some("straight"),
+            ),
+            rec(
+                "2026-11-01",
+                &["kneeFlexion", "hipFlexion"],
+                190.0,
+                Some("left"),
+                Some(2),
+                Some("straight"),
+            ),
+            rec(
+                "2026-11-02",
+                &["kneeFlexion"],
+                120.0,
+                Some("left"),
+                Some(2),
+                Some("straight"),
+            ),
+            rec(
+                "2026-11-04",
+                &["kneeFlexion", "hipFlexion"],
+                90.0,
+                Some("left"),
+                Some(2),
+                Some("neutral"),
+            ),
         ];
         let t = comparable_trend(&rs, &rs[0]);
-        assert_eq!(t.iter().map(|r| r.total_deg).collect::<Vec<_>>(), vec![190.0, 200.0]);
+        assert_eq!(
+            t.iter().map(|r| r.total_deg).collect::<Vec<_>>(),
+            vec![190.0, 200.0]
+        );
     }
 
     #[test]
     fn trend_breaks_where_method_changes_and_never_mixes_legs() {
         let rs = vec![
-            rec("2026-11-01", &["kneeFlexion"], 100.0, Some("left"), None, None),
-            rec("2026-11-02", &["kneeFlexion"], 110.0, Some("left"), Some(2), Some("straight")),
-            rec("2026-11-03", &["kneeFlexion"], 115.0, Some("left"), Some(2), Some("straight")),
-            rec("2026-11-04", &["kneeFlexion"], 50.0, Some("right"), Some(2), Some("straight")),
+            rec(
+                "2026-11-01",
+                &["kneeFlexion"],
+                100.0,
+                Some("left"),
+                None,
+                None,
+            ),
+            rec(
+                "2026-11-02",
+                &["kneeFlexion"],
+                110.0,
+                Some("left"),
+                Some(2),
+                Some("straight"),
+            ),
+            rec(
+                "2026-11-03",
+                &["kneeFlexion"],
+                115.0,
+                Some("left"),
+                Some(2),
+                Some("straight"),
+            ),
+            rec(
+                "2026-11-04",
+                &["kneeFlexion"],
+                50.0,
+                Some("right"),
+                Some(2),
+                Some("straight"),
+            ),
         ];
         let t = trend_with_breaks(&rs, &rs[2]);
         assert_eq!(
             t,
-            vec![TrendEntry::Record(0), TrendEntry::MethodBreak, TrendEntry::Record(1), TrendEntry::Record(2)]
+            vec![
+                TrendEntry::Record(0),
+                TrendEntry::MethodBreak,
+                TrendEntry::Record(1),
+                TrendEntry::Record(2)
+            ]
         );
     }
 
     #[test]
     fn mobility_record_sums_peaks_and_refuses_empty_or_duplicate_sets() {
-        let r = |m, p| MovementResult { movement: m, peak_deg: p, hold_sec: 2.0, spread_deg: 1.0, instant_max_deg: p, warnings: vec![] };
+        let r = |m, p| MovementResult {
+            movement: m,
+            peak_deg: p,
+            hold_sec: 2.0,
+            spread_deg: 1.0,
+            instant_max_deg: p,
+            warnings: vec![],
+        };
         assert!(mobility_record_from_results(&[], "t", MobilityIdentity::default()).is_none());
         assert!(mobility_record_from_results(
-            &[r(MovementId::KneeFlexion, 100.0), r(MovementId::KneeFlexion, 90.0)],
+            &[
+                r(MovementId::KneeFlexion, 100.0),
+                r(MovementId::KneeFlexion, 90.0)
+            ],
             "t",
             MobilityIdentity::default()
         )
         .is_none());
         let rec = mobility_record_from_results(
-            &[r(MovementId::KneeFlexion, 100.0), r(MovementId::HipFlexion, 80.0)],
+            &[
+                r(MovementId::KneeFlexion, 100.0),
+                r(MovementId::HipFlexion, 80.0),
+            ],
             "t",
             MobilityIdentity::default(),
         )
         .unwrap();
         assert_eq!(rec.total_deg, 180.0);
-        assert_eq!(rec.movement_set, vec!["hipFlexion".to_string(), "kneeFlexion".to_string()]);
+        assert_eq!(
+            rec.movement_set,
+            vec!["hipFlexion".to_string(), "kneeFlexion".to_string()]
+        );
     }
 
     #[test]
@@ -789,7 +971,10 @@ mod tests {
             calibration_id: None,
         };
         let r = record_from_row(&row);
-        assert_eq!(r.movement_set, vec!["hipFlexion".to_string(), "kneeFlexion".to_string()]);
+        assert_eq!(
+            r.movement_set,
+            vec!["hipFlexion".to_string(), "kneeFlexion".to_string()]
+        );
         assert_eq!(r.identity.side.as_deref(), Some("right"));
         assert_eq!(r.peaks["kneeFlexion"], 100.0);
         row.side = Some("left".into());

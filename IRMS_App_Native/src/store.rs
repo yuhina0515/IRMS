@@ -6,12 +6,19 @@
 //! or the path given with `--db` (`:memory:` keeps nothing).
 
 use chrono::{DateTime, Local, Utc};
-use irms_core::db::{actions_repo, angle_ranges_repo, data_repo, init_database, sessions_repo};
+use irms_core::calibration::CalibrationProfile;
+use irms_core::db::{
+    actions_repo, angle_ranges_repo, calibration_repo, data_repo, init_database, mobility_repo,
+    sessions_repo,
+};
 use irms_core::judge::{
     compute_metric_sample, compute_metric_zone, AngleLimits, TriggerConfig, TriggerType,
 };
 use irms_core::session_analysis::{analyze_session, MetricPoint};
-use irms_core::types::{AngleRangeInput, CustomAction, SensorReading, Session, SessionStartInput};
+use irms_core::types::{
+    AngleRangeInput, CalibrationProfileInput, CustomAction, MobilityRecordInput, MobilityRecordRow,
+    SensorReading, Session, SessionStartInput,
+};
 use rusqlite::Connection;
 use std::path::PathBuf;
 
@@ -246,6 +253,46 @@ impl Store {
             .execute("DELETE FROM angle_range_records", [])
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    /// The calibration in force, restored at startup. A stored profile that no longer parses is
+    /// ignored (the wearer calibrates again) instead of blocking the app.
+    pub fn active_profile(&self) -> Option<CalibrationProfile> {
+        calibration_repo::list(&self.conn)
+            .ok()?
+            .into_iter()
+            .find(|row| row.active)
+            .and_then(|row| serde_json::from_str(&row.profile).ok())
+    }
+
+    /// Stores `profile` as the only active calibration. A mobility record, when given, is saved
+    /// separately afterwards: its failure leaves the calibration applied and is reported back.
+    pub fn apply_calibration(
+        &mut self,
+        profile: &CalibrationProfile,
+        mobility: Option<&MobilityRecordInput>,
+    ) -> Result<bool, String> {
+        self.allow_mutation()?;
+        let json = serde_json::to_string(profile).map_err(|e| e.to_string())?;
+        calibration_repo::add(
+            &mut self.conn,
+            &CalibrationProfileInput {
+                id: profile.id.clone(),
+                side: irms_core::calibration_flow::side_name(profile.side).to_string(),
+                profile: json,
+                active: true,
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(match mobility {
+            Some(input) => mobility_repo::add(&self.conn, input).is_ok(),
+            None => true,
+        })
+    }
+
+    /// Range-of-motion totals, newest first.
+    pub fn mobility_rows(&self) -> rusqlite::Result<Vec<MobilityRecordRow>> {
+        mobility_repo::list(&self.conn)
     }
 
     pub fn active(&self) -> bool {
