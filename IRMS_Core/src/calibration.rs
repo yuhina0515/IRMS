@@ -29,6 +29,7 @@ pub const TWO_POINT_SPAN_MIN_DEG: f64 = 20.0;
 pub const HOLD_SEC: f64 = 1.5;
 pub const HOLD_MAX_SAMPLES: usize = 10;
 pub const HOLD_SPREAD_MAX_DEG: f64 = 4.0;
+pub const HOLD_MAX_SAMPLE_GAP_MS: f64 = 250.0;
 pub const MIN_PEAK_DEG: f64 = 5.0;
 pub const REFERENCE_DRIFT_WARN_DEG: f64 = 10.0;
 pub const REFERENCE_DRIFT_FAIL_DEG: f64 = 20.0;
@@ -396,7 +397,12 @@ pub fn median_interval_ms(times: &[f64]) -> f64 {
 /// stillness tolerance. The sample count needed scales with the stream rate, so a slow link is judged
 /// by time, not by a fixed count. `direction` -1 finds the most negative hold instead.
 pub fn held_peak_timed(samples: &[TimedValue], direction: i8) -> Option<HeldPeak> {
-    if samples.len() < 3 {
+    if samples.len() < 3
+        || samples
+            .iter()
+            .any(|s| !s.t_ms.is_finite() || !s.value.is_finite())
+        || samples.windows(2).any(|w| w[1].t_ms <= w[0].t_ms)
+    {
         return None;
     }
     let dt = median_interval_ms(&samples.iter().map(|s| s.t_ms).collect::<Vec<_>>());
@@ -416,6 +422,12 @@ pub fn held_peak_timed(samples: &[TimedValue], direction: i8) -> Option<HeldPeak
             break; // the window would run past the end: not a full hold
         }
         let w = &samples[i..=j];
+        // 維持時間只能由連續樣本構成；稍後的新連續區段仍可獨立通過。
+        if w.windows(2)
+            .any(|pair| pair[1].t_ms - pair[0].t_ms > HOLD_MAX_SAMPLE_GAP_MS)
+        {
+            continue;
+        }
         if w.len() < needed {
             continue;
         }

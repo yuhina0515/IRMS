@@ -1,29 +1,31 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 // Native prototype with an isolated SQLite database and simulated or BLE input.
+use chrono::{DateTime, SecondsFormat, Utc};
 use irms_core::angle_math::Vec3;
 use irms_core::ble::{self, BleHost, BleState};
 use irms_core::calibration::{knee_signed, limb_angles, CalibrationProfile};
 use irms_core::judge::{
-    compute_guidance, compute_metric_zone, AngleLimits, EngineEvent, EngineInput, EnginePhase, Guidance,
-    TriggerConfig, TriggerEngine, TriggerType,
+    compute_guidance, compute_metric_zone, AngleLimits, EngineEvent, EngineInput, EnginePhase,
+    Guidance, TriggerConfig, TriggerEngine, TriggerType,
 };
 use irms_core::protocol::{parse_angle_packet, ParsedPacket, RawAngles};
-use chrono::{DateTime, SecondsFormat, Utc};
+use irms_core::session_controller::{Effect, SessionFeedback};
 use irms_core::slip_monitor::SlipMonitor;
 use irms_core::types::{CustomAction, SensorReading};
 use pipeline::{Rig, Script, Wizard};
-use store::Store;
 use serde_json::{json, Value};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{mpsc, Arc};
 use slint::{ComponentHandle, Model, ModelRc, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::fmt::Write;
+use std::future::Future;
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
+use store::Store;
 
+mod outputs;
 mod pipeline;
 mod store;
 
@@ -35,7 +37,7 @@ const RULER_MAX: f64 = 160.0;
 
 /// Judging configuration of a stored prescription plus the user's own measured range.
 fn action_config(actions: &[CustomAction], index: usize, limits: AngleLimits) -> TriggerConfig {
-    match actions.get(index.min(actions.len().saturating_sub(1))) {
+    let config = match actions.get(index.min(actions.len().saturating_sub(1))) {
         Some(a) => TriggerConfig {
             target_angle: a.target_angle,
             tolerance: a.tolerance,
@@ -51,7 +53,8 @@ fn action_config(actions: &[CustomAction], index: usize, limits: AngleLimits) ->
             trigger_type: TriggerType::JointAngle,
             limits,
         },
-    }
+    };
+    config.normalized()
 }
 
 fn kind_label(t: TriggerType) -> &'static str {
@@ -82,7 +85,8 @@ fn action_item(a: &CustomAction) -> ActionItem {
 fn session_rows(store: &Store) -> rusqlite::Result<Vec<SessionRow>> {
     Ok(store
         .sessions()?
-        .iter().filter(|x| x.end_time.is_some())
+        .iter()
+        .filter(|x| x.end_time.is_some())
         .map(|x| SessionRow {
             id: x.id.to_string().into(),
             started: store::local_start(x).into(),
@@ -113,8 +117,13 @@ fn guidance_text(g: &Guidance, verb: &str) -> String {
         Guidance::StraightenKnee { excess_deg } => format!("膝蓋再打直 {excess_deg:.1}°"),
         Guidance::Raise { delta_deg } => format!("再{verb} {delta_deg:.1}°"),
         Guidance::Lower { delta_deg } => format!("回降 {delta_deg:.1}° 進入目標區"),
-        Guidance::Hold { held_sec, total_sec } => format!("保持!{held_sec:.1}s / {total_sec:.1}s"),
-        Guidance::ReturnToRest { delta_deg } if delta_deg > 0.0 => format!("完成!回到起始位(再回 {delta_deg:.1}°)"),
+        Guidance::Hold {
+            held_sec,
+            total_sec,
+        } => format!("保持!{held_sec:.1}s / {total_sec:.1}s"),
+        Guidance::ReturnToRest { delta_deg } if delta_deg > 0.0 => {
+            format!("完成!回到起始位(再回 {delta_deg:.1}°)")
+        }
         Guidance::ReturnToRest { .. } => "完成!已回起始位".into(),
     }
 }
@@ -128,7 +137,10 @@ struct Receipt {
 
 impl Receipt {
     fn now() -> Self {
-        Self { monotonic: Instant::now(), utc: Utc::now() }
+        Self {
+            monotonic: Instant::now(),
+            utc: Utc::now(),
+        }
     }
 }
 
@@ -160,10 +172,16 @@ struct RealLink {
     last: Option<Instant>,
     fault: Option<String>,
     connect_error: String,
-
 }
 
 struct Sim {
+    feedback_clock: Instant,
+    feedback: SessionFeedback,
+    outputs: Option<outputs::Outputs>,
+    connection_generation: Option<u64>,
+    voice_enabled: bool,
+    closing: bool,
+    disconnecting: bool,
     t: f64,
     buf: Vec<f64>,
     running: bool,
@@ -194,6 +212,13 @@ struct Sim {
 impl Sim {
     fn new(store: Store, actions: Vec<CustomAction>) -> Self {
         Self {
+            feedback_clock: Instant::now(),
+            feedback: SessionFeedback::default(),
+            outputs: None,
+            connection_generation: None,
+            voice_enabled: true,
+            closing: false,
+            disconnecting: false,
             t: 0.0,
             buf: vec![0.0; SAMPLES],
             running: false,
@@ -215,6 +240,14 @@ impl Sim {
             session_s: 0.0,
             store,
             actions,
+        }
+    }
+
+    /// Effects 在同一條宿主路徑送出，測試可直接檢查核心 effects 而不啟動硬體。
+    fn emit(&mut self, effects: Vec<Effect>) {
+        self.alarm = self.feedback.alarm_active;
+        if let Some(outputs) = &self.outputs {
+            outputs.dispatch(effects, self.connection_generation, self.voice_enabled);
         }
     }
 }
@@ -239,7 +272,10 @@ fn limb_path(knee_deg: f64, thigh_deg: f64) -> (String, (f64, f64)) {
     let f = (thigh_deg - knee_deg).to_radians();
     let (ax, ay) = (kx + l * f.sin(), ky + l * f.cos());
     let (fx, fy) = (ax + 30.0 * f.cos(), ay - 30.0 * f.sin());
-    (format!("M {hx} {hy} L {kx:.1} {ky:.1} L {ax:.1} {ay:.1} L {fx:.1} {fy:.1}"), (kx, ky))
+    (
+        format!("M {hx} {hy} L {kx:.1} {ky:.1} L {ax:.1} {ay:.1} L {fx:.1} {fy:.1}"),
+        (kx, ky),
+    )
 }
 
 /// Three-quarter projection of a point (x forward, y up, z sideways, in leg-length units) to the stage.
@@ -276,13 +312,19 @@ fn grid3d_path() -> String {
         let v = i as f64 * 0.5;
         let (a, b) = (project(v, 0.0, -1.5), project(v, 0.0, 1.5));
         let (c, d) = (project(-1.5, 0.0, v), project(1.5, 0.0, v));
-        let _ = write!(s, "M {:.1} {:.1} L {:.1} {:.1} M {:.1} {:.1} L {:.1} {:.1} ", a.0, a.1, b.0, b.1, c.0, c.1, d.0, d.1);
+        let _ = write!(
+            s,
+            "M {:.1} {:.1} L {:.1} {:.1} M {:.1} {:.1} L {:.1} {:.1} ",
+            a.0, a.1, b.0, b.1, c.0, c.1, d.0, d.1
+        );
     }
     s
 }
 
 fn arg_value(args: &[String], name: &str) -> Option<String> {
-    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
+    args.iter()
+        .position(|a| a == name)
+        .and_then(|i| args.get(i + 1).cloned())
 }
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -307,6 +349,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let has = |n: &str| args.iter().any(|a| a == n);
     let int = |n: &str| arg_value(&args, n).and_then(|v| v.parse::<i32>().ok());
     let log = has("--log");
+    app.set_voice_enabled(!has("--no-voice"));
     if let Some(n) = int("--style") {
         theme.set_style(n.clamp(0, 2));
     }
@@ -316,8 +359,20 @@ fn main() -> Result<(), slint::PlatformError> {
     let autorun = has("--run");
     let inject_fault = has("--inject-fault"); // 2 s of ERR:1 every 12 s
     let real_mode_flag = has("--real-ble");
-    if real_mode_flag && ["--connected", "--calibrated", "--run", "--inject-fault", "--inject-slip"].iter().any(|flag| has(flag)) {
-        return Err(slint::PlatformError::Other("Real BLE cannot use simulator startup options".into()));
+    if real_mode_flag
+        && [
+            "--connected",
+            "--calibrated",
+            "--run",
+            "--inject-fault",
+            "--inject-slip",
+        ]
+        .iter()
+        .any(|flag| has(flag))
+    {
+        return Err(slint::PlatformError::Other(
+            "Real BLE cannot use simulator startup options".into(),
+        ));
     }
     app.set_device_mode(real_mode_flag);
     // --real-ble: the connect button scans for a real IRMS device through irms_core::ble
@@ -347,21 +402,33 @@ fn main() -> Result<(), slint::PlatformError> {
     let db_error = |e: rusqlite::Error| slint::PlatformError::Other(e.to_string());
     let store = match Store::open(arg_value(&args, "--db")) {
         Ok(store) => store,
-        Err(error) => { storage_error(&ui, error); return ui.run(); }
+        Err(error) => {
+            storage_error(&ui, error);
+            return ui.run();
+        }
     };
     if log {
         println!("database: {}", store.location);
     }
     let stored_actions = store.actions().map_err(db_error)?;
-    let default_action = stored_actions.iter().position(|a| a.trigger_type == "joint_angle").unwrap_or(0) as i32;
-    app.set_action_index(int("--action").unwrap_or(default_action).clamp(0, (stored_actions.len() as i32 - 1).max(0)));
+    let default_action = stored_actions
+        .iter()
+        .position(|a| a.trigger_type == "joint_angle")
+        .unwrap_or(0) as i32;
+    app.set_action_index(
+        int("--action")
+            .unwrap_or(default_action)
+            .clamp(0, (stored_actions.len() as i32 - 1).max(0)),
+    );
     let range = store.latest_range().map_err(db_error)?;
     app.set_comfort(range.comfort.map_or(-1, |v| v.round() as i32));
     app.set_limit(range.limit.map_or(-1, |v| v.round() as i32));
     live.set_grid3d_path(grid3d_path().into());
 
     // `shown` follows the search box.
-    let actions = Rc::new(VecModel::from(stored_actions.iter().map(action_item).collect::<Vec<_>>()));
+    let actions = Rc::new(VecModel::from(
+        stored_actions.iter().map(action_item).collect::<Vec<_>>(),
+    ));
     app.set_actions(ModelRc::from(actions.clone()));
     {
         let actions = actions.clone();
@@ -387,18 +454,43 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_sessions(ModelRc::from(sessions.clone()));
 
     let sim = Rc::new(RefCell::new(Sim::new(store, stored_actions)));
+    {
+        let mut s = sim.borrow_mut();
+        s.voice_enabled = app.get_voice_enabled();
+        s.outputs = Some(outputs::Outputs::new(
+            host.clone(),
+            runtime.handle(),
+            ble_tx.clone(),
+        ));
+    }
+    {
+        let sim = sim.clone();
+        live.on_silence_alarm(move || {
+            let mut s = sim.borrow_mut();
+            let now = s.feedback_clock.elapsed().as_secs_f64() * 1000.0;
+            let effects = s.feedback.silence(now);
+            s.emit(effects);
+        });
+    }
 
     {
         let sim = sim.clone();
         let sessions = sessions.clone();
         let ui_w = ui.as_weak();
         app.on_delete_session(move |row| {
-            let Some(ui) = ui_w.upgrade() else {return};
-            let Some(target) = sessions.row_data(row as usize) else { return };
+            let Some(ui) = ui_w.upgrade() else { return };
+            let Some(target) = sessions.row_data(row as usize) else {
+                return;
+            };
             let s = sim.borrow();
             if let Ok(id) = target.id.parse() {
-                let result = s.store.delete_session(id).and_then(|_| refresh_history(&ui, &s.store, &sessions));
-                if let Err(e) = result { storage_error(&ui, e); }
+                let result = s
+                    .store
+                    .delete_session(id)
+                    .and_then(|_| refresh_history(&ui, &s.store, &sessions));
+                if let Err(e) = result {
+                    storage_error(&ui, e);
+                }
             }
         });
     }
@@ -407,10 +499,15 @@ fn main() -> Result<(), slint::PlatformError> {
         let sessions = sessions.clone();
         let ui_w = ui.as_weak();
         app.on_request_review(move |row| {
-            let (Some(ui), Some(target)) = (ui_w.upgrade(), sessions.row_data(row as usize)) else { return };
+            let (Some(ui), Some(target)) = (ui_w.upgrade(), sessions.row_data(row as usize)) else {
+                return;
+            };
             let s = sim.borrow();
             let text = match s.store.sessions() {
-                Ok(rows) => rows.iter().find(|x| Some(x.id) == target.id.parse().ok()).map_or_else(|| "找不到這場療程".into(), |x| s.store.review(x)),
+                Ok(rows) => rows
+                    .iter()
+                    .find(|x| Some(x.id) == target.id.parse().ok())
+                    .map_or_else(|| "找不到這場療程".into(), |x| s.store.review(x)),
                 Err(e) => format!("讀取失敗：{e}"),
             };
             ui.global::<App>().set_review_summary(text.into());
@@ -423,7 +520,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(ui) = ui_w.upgrade() else { return };
             let app = ui.global::<App>();
             let s = sim.borrow();
-            if s.store.active() { return; }
+            if s.store.active() {
+                return;
+            }
             let result = if comfort < 0 {
                 s.store.clear_range()
             } else {
@@ -443,7 +542,11 @@ fn main() -> Result<(), slint::PlatformError> {
     if precalibrate {
         // Same wizard logic as the window, on scripted movements: no faked profile.
         let mut s = sim.borrow_mut();
-        let cfg = action_config(&s.actions, app.get_action_index().max(0) as usize, AngleLimits::default());
+        let cfg = action_config(
+            &s.actions,
+            app.get_action_index().max(0) as usize,
+            AngleLimits::default(),
+        );
         match pipeline::auto_calibrate(&s.rig, &cfg) {
             Ok(profile) => {
                 s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
@@ -532,14 +635,23 @@ fn main() -> Result<(), slint::PlatformError> {
         app.on_request_connect(move || {
             let Some(ui) = ui_w.upgrade() else { return };
             let app = ui.global::<App>();
+            if sim.borrow().closing || sim.borrow().disconnecting {
+                return;
+            }
             if let Some(host) = &host {
                 // Real device: the result and every later state change arrive as events.
                 let h = host.clone();
                 if app.get_conn() == 2 {
-                    finish_session(&ui, &mut sim.borrow_mut(), &sessions);
-                    host.rt.spawn(async move {
-                        let _ = ble::ble_disconnect(&h, &h.state).await;
-                    });
+                    let mut s = sim.borrow_mut();
+                    finish_session_with_notice(&ui, &mut s, &sessions, false);
+                    let effects = s.feedback.stop();
+                    s.emit(effects);
+                    s.disconnecting = true;
+                    app.set_session_locked(true);
+                    app.set_disconnecting(true);
+                    if let Some(outputs) = &s.outputs {
+                        outputs.disconnect(s.connection_generation, false);
+                    }
                 } else if app.get_conn() == 0 {
                     app.set_conn(1);
                     real.borrow_mut().connect_error.clear();
@@ -557,11 +669,15 @@ fn main() -> Result<(), slint::PlatformError> {
             } else if app.get_conn() == 0 {
                 app.set_conn(1);
                 let ui_w = ui.as_weak();
-                connect_timer.start(TimerMode::SingleShot, Duration::from_millis(1200), move || {
-                    if let Some(ui) = ui_w.upgrade() {
-                        ui.global::<App>().set_conn(2);
-                    }
-                });
+                connect_timer.start(
+                    TimerMode::SingleShot,
+                    Duration::from_millis(1200),
+                    move || {
+                        if let Some(ui) = ui_w.upgrade() {
+                            ui.global::<App>().set_conn(2);
+                        }
+                    },
+                );
             }
         });
     }
@@ -587,7 +703,21 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.window().on_close_requested(move || {
             if let Some(ui) = ui_w.upgrade() {
                 let mut s = sim.borrow_mut();
+                if s.closing {
+                    return slint::CloseRequestResponse::KeepWindowShown;
+                }
                 if s.store.active() && !finish_session(&ui, &mut s, &sessions) {
+                    return slint::CloseRequestResponse::KeepWindowShown;
+                }
+                if real_mode_flag {
+                    s.closing = true;
+                    let effects = s.feedback.stop();
+                    s.emit(effects);
+                    ui.global::<App>().set_closing(true);
+                    ui.global::<App>().set_session_locked(true);
+                    if let Some(outputs) = &s.outputs {
+                        outputs.disconnect(s.connection_generation, true);
+                    }
                     return slint::CloseRequestResponse::KeepWindowShown;
                 }
             }
@@ -600,16 +730,26 @@ fn main() -> Result<(), slint::PlatformError> {
     if let Some(path) = arg_value(&args, "--snapshot") {
         let ui_w = ui.as_weak();
         let after = int("--snapshot-after").unwrap_or(3).max(1) as u64;
-        snap_timer.start(TimerMode::SingleShot, Duration::from_secs(after), move || {
-            let Some(ui) = ui_w.upgrade() else { return };
-            match ui.window().take_snapshot() {
-                Ok(buf) => {
-                    let r = image::save_buffer(&path, buf.as_bytes(), buf.width(), buf.height(), image::ColorType::Rgba8);
-                    println!("snapshot {}x{}: {r:?}", buf.width(), buf.height());
+        snap_timer.start(
+            TimerMode::SingleShot,
+            Duration::from_secs(after),
+            move || {
+                let Some(ui) = ui_w.upgrade() else { return };
+                match ui.window().take_snapshot() {
+                    Ok(buf) => {
+                        let r = image::save_buffer(
+                            &path,
+                            buf.as_bytes(),
+                            buf.width(),
+                            buf.height(),
+                            image::ColorType::Rgba8,
+                        );
+                        println!("snapshot {}x{}: {r:?}", buf.width(), buf.height());
+                    }
+                    Err(e) => println!("snapshot failed: {e}"),
                 }
-                Err(e) => println!("snapshot failed: {e}"),
-            }
-        });
+            },
+        );
     }
 
     let mut last_frames = 0u32;
@@ -620,195 +760,345 @@ fn main() -> Result<(), slint::PlatformError> {
     let real_mode = host.is_some();
     let ui_w = ui.as_weak();
     let timer = Timer::default();
-    timer.start(TimerMode::Repeated, Duration::from_millis((1000.0 / HZ) as u64), move || {
-        let Some(ui) = ui_w.upgrade() else { return };
-        let app = ui.global::<App>();
-        let live = ui.global::<Live>();
-        let mut s = sim.borrow_mut();
-        // Real elapsed time, not a nominal 1/HZ: the UI timer does not fire at exactly 50 Hz.
-        let dt = last_tick.elapsed().as_secs_f64().min(0.25);
-        last_tick = Instant::now();
-        s.t += dt;
-        ticks += 1;
-        let lim = |v: i32| (v >= 0).then_some(f64::from(v));
-        let limits = AngleLimits { comfort: lim(app.get_comfort()), limit: lim(app.get_limit()) };
-        let cfg = s.cfg.unwrap_or_else(|| action_config(&s.actions, app.get_action_index().max(0) as usize, limits));
-        let limits = cfg.limits;
-        let wizard_open = app.get_wizard_open();
-        let mut link = real.borrow_mut();
-        while let Ok((receipt, event, payload)) = ble_rx.try_recv() {
-            match event.as_str() {
-                "ble:connection" => {
-                    let up = payload["connected"].as_bool().unwrap_or(false);
-                    if !up {
-                        if s.running { finish_session(&ui, &mut s, &sessions); }
-                        s.wizard = Wizard::new();
-                        s.profile = None;
-                        app.set_calibrated(false);
-                        app.set_wizard_open(false);
-                    }
-                    *link = RealLink::default();
-                    app.set_conn(if up { 2 } else { 0 });
+    timer.start(
+        TimerMode::Repeated,
+        Duration::from_millis((1000.0 / HZ) as u64),
+        move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let app = ui.global::<App>();
+            let live = ui.global::<Live>();
+            let mut s = sim.borrow_mut();
+            // Real elapsed time, not a nominal 1/HZ: the UI timer does not fire at exactly 50 Hz.
+            let dt = last_tick.elapsed().as_secs_f64().min(0.25);
+            last_tick = Instant::now();
+            s.t += dt;
+            if s.voice_enabled != app.get_voice_enabled() {
+                s.voice_enabled = app.get_voice_enabled();
+                if !s.voice_enabled {
+                    s.emit(vec![Effect::StopSpeech]);
                 }
-                "native:connect-failed" => {
-                    link.connect_error = payload.as_str().unwrap_or("連線失敗").to_string();
-                    app.set_conn(0);
-                }
-                "ble:error" => sample_fault(&mut s, &mut link, payload.as_str().unwrap_or("BLE error")),
-                "ble:packet" if app.get_conn() == 2 => match payload["kind"].as_str() {
-                    Some("angles") => match serde_json::from_value::<RawAngles>(payload["raw"].clone()) {
-                        Ok(raw) => accept_sample(&ui, &mut s, &mut link, &cfg, raw, receipt, started),
-                        Err(_) => sample_fault(&mut s, &mut link, "無效的角度封包"),
-                    },
-                    Some("error") => sample_fault(&mut s, &mut link, payload["code"].as_str().unwrap_or("BLE error")),
-                    Some("malformed") => sample_fault(&mut s, &mut link, "無效的角度封包"),
-                    _ => {}
-                },
-                _ => {}
             }
-        }
-        let connected = app.get_conn() == 2;
-        let (metric_label, verb) = metric_words(cfg.trigger_type);
-
-        // With the wizard open and nothing being captured, the simulated wearer stands still.
-        if wizard_open && !s.wizard.capturing() && s.script == Script::Exercise {
-            s.script = Script::Still;
-        }
-        if let (Some(after), false) = (inject_slip, s.slip_injected) {
-            if s.running && s.session_s > after {
-                s.rig.slip_shin(25.0);
-                s.slip_injected = true;
-            }
-        }
-
-        if !real_mode && connected {
-            let (hip, knee) = pipeline::pose(s.script, s.t, &cfg);
-            let text = if inject_fault && (s.t % 12.0) > 10.0 {
-                "ERR:1".into()
-            } else {
-                pipeline::packet(&s.rig, hip, knee)
+            ticks += 1;
+            let lim = |v: i32| (v >= 0).then_some(f64::from(v));
+            let limits = AngleLimits {
+                comfort: lim(app.get_comfort()),
+                limit: lim(app.get_limit()),
             };
-            match parse_angle_packet(&text) {
-                ParsedPacket::Angles { raw, .. } => accept_sample(&ui, &mut s, &mut link, &cfg, raw, Receipt::now(), started),
-                ParsedPacket::Error { code } => sample_fault(&mut s, &mut link, &code),
-                ParsedPacket::Malformed { .. } => sample_fault(&mut s, &mut link, "無效的角度封包"),
-            }
-        }
-        let stale = real_mode && link.last.is_none_or(|t| t.elapsed().as_secs_f64() * 1000.0 > irms_core::judge::ENGINE_MAX_SAMPLE_GAP_MS);
-        let hw_error = link.fault.as_deref().or(stale.then_some("等待新的量測"));
-        app.set_valid_angle(connected && hw_error.is_none());
-        app.set_wizard_step(s.wizard.step);
-        app.set_wizard_progress(s.wizard.progress(started.elapsed().as_secs_f64() * 1000.0) as f32);
-        app.set_wizard_busy(s.wizard.capturing());
-        app.set_wizard_step_done(s.wizard.step_done);
-        app.set_wizard_status(s.wizard.status.clone().into());
-        app.set_wizard_tone(s.wizard.tone);
-        app.set_wizard_result(s.wizard.result.clone().into());
-        app.set_wizard_seconds(s.wizard.capture_seconds() as f32);
-
-        let angle = s.last_knee;
-        let thigh = s.last_thigh;
-        let input = EngineInput::from_angles(angle, thigh, &cfg);
-        let zone = compute_metric_zone(&cfg);
-        let value = input.sample.value;
-        if s.running { s.session_s += dt; }
-        let phase = s.engine.phase();
-        let guidance = compute_guidance(
-            connected.then_some(&input.sample),
-            &zone,
-            phase,
-            s.hold * 100.0,
-            cfg.hold_time_ms,
-            &limits,
-        );
-        let hold_s = cfg.hold_time_ms / 1000.0;
-
-        // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
-        let (title, sub, tone): (String, String, i32) = if !connected {
-            if app.get_conn() == 1 {
-                ("連線中…".into(), "正在尋找裝置(最長 15 秒)".into(), 0)
-            } else if !link.connect_error.is_empty() {
-                ("連線失敗".into(), link.connect_error.clone(), 2)
-            } else {
-                ("裝置未連線".into(), "請從右上角連線裝置".into(), 0)
-            }
-        } else if let Some(code) = &hw_error {
-            ("感測器異常".into(), format!("裝置回報 {code},請檢查感測器接線後重新連線"), 2)
-        } else if matches!(guidance, Guidance::Hyperextension { .. } | Guidance::OverLimit { .. }) {
-            (guidance_text(&guidance, verb), "安全優先,先回到舒適範圍".into(), 2)
-        } else if !app.get_calibrated() {
-            ("尚未校準".into(), "未校準時無法開始療程,請先完成校準精靈".into(), 3)
-        } else if !s.running {
-            ("準備開始".into(), "確認動作與參數後按「開始療程」".into(), 0)
-        } else {
-            match phase {
-                EnginePhase::Holding => ("很好,保持這個位置".into(), format!("已進入目標區間,保持滿 {hold_s:.1} 秒"), 1),
-                EnginePhase::RestPending => ("已完成,請回到起始位".into(), guidance_text(&guidance, verb), 1),
-                EnginePhase::Idle if s.mount_shift => {
-                    (guidance_text(&guidance, verb), "感測器可能移位,這場結束後請重新校準".into(), 3)
+            let cfg = s.cfg.unwrap_or_else(|| {
+                action_config(&s.actions, app.get_action_index().max(0) as usize, limits)
+            });
+            let limits = cfg.limits;
+            let wizard_open = app.get_wizard_open();
+            let mut link = real.borrow_mut();
+            while let Ok((receipt, event, payload)) = ble_rx.try_recv() {
+                match event.as_str() {
+                    "ble:connection" => {
+                        let up = payload["connected"].as_bool().unwrap_or(false);
+                        let was_running = s.running;
+                        if !up {
+                            if s.running {
+                                finish_session_with_notice(&ui, &mut s, &sessions, false);
+                            }
+                            s.wizard = Wizard::new();
+                            s.profile = None;
+                            app.set_calibrated(false);
+                            app.set_wizard_open(false);
+                        }
+                        if up {
+                            s.connection_generation = payload["generation"].as_u64();
+                            app.set_device_name(
+                                payload["deviceName"].as_str().unwrap_or("IRMS 裝置").into(),
+                            );
+                            app.set_feedback_error("".into());
+                            let effects = s.feedback.connected();
+                            s.emit(effects);
+                        } else {
+                            s.connection_generation = None;
+                            let mut effects = s.feedback.disconnected();
+                            if !was_running {
+                                effects.retain(|e| !matches!(e, Effect::Speak(_)));
+                            }
+                            s.emit(effects);
+                        }
+                        *link = RealLink::default();
+                        app.set_conn(if up { 2 } else { 0 });
+                    }
+                    "native:connect-failed" => {
+                        link.connect_error = payload.as_str().unwrap_or("連線失敗").to_string();
+                        app.set_conn(0);
+                    }
+                    "native:voice-status" => {
+                        app.set_voice_status(payload.as_str().unwrap_or("").into())
+                    }
+                    "native:feedback-wait" => {
+                        app.set_feedback_error(payload.as_str().unwrap_or("等待裝置回應").into())
+                    }
+                    "native:disconnected" => {
+                        s.disconnecting = false;
+                        app.set_disconnecting(false);
+                        app.set_session_locked(s.store.active());
+                        if let Some(error) = payload["error"].as_str() {
+                            app.set_feedback_error(format!("裝置收尾失敗：{error}").into());
+                        }
+                    }
+                    "native:feedback-error"
+                        if payload["generation"].as_u64() == s.connection_generation =>
+                    {
+                        app.set_feedback_error(
+                            payload["message"].as_str().unwrap_or("裝置回饋失敗").into(),
+                        );
+                        if s.store.active() {
+                            finish_session(&ui, &mut s, &sessions);
+                        }
+                    }
+                    "native:shutdown" => {
+                        if let Some(error) = payload["error"].as_str() {
+                            app.set_feedback_error(
+                                format!("裝置收尾失敗：{error}，可再次關閉重試").into(),
+                            );
+                            s.closing = false;
+                            app.set_closing(false);
+                            app.set_session_locked(s.store.active());
+                        } else {
+                            let _ = ui.hide();
+                            let _ = slint::quit_event_loop();
+                            return;
+                        }
+                    }
+                    "ble:error" => {
+                        sample_fault(&mut s, &mut link, payload.as_str().unwrap_or("BLE error"))
+                    }
+                    "ble:packet" if app.get_conn() == 2 => match payload["kind"].as_str() {
+                        Some("angles") => {
+                            match serde_json::from_value::<RawAngles>(payload["raw"].clone()) {
+                                Ok(raw) => accept_sample(
+                                    &ui, &mut s, &mut link, &cfg, raw, receipt, started,
+                                ),
+                                Err(_) => sample_fault(&mut s, &mut link, "無效的角度封包"),
+                            }
+                        }
+                        Some("error") => sample_fault(
+                            &mut s,
+                            &mut link,
+                            payload["code"].as_str().unwrap_or("BLE error"),
+                        ),
+                        Some("malformed") => sample_fault(&mut s, &mut link, "無效的角度封包"),
+                        _ => {}
+                    },
+                    _ => {}
                 }
-                EnginePhase::Idle => (guidance_text(&guidance, verb), String::new(), 0),
             }
-        };
-        let right = if s.running && phase == EnginePhase::Holding {
-            format!("再保持 {:.1} 秒 · 第 {} 次", hold_s * (1.0 - s.hold), s.reps + 1)
-        } else {
-            String::new()
-        };
+            let connected = app.get_conn() == 2;
+            let (metric_label, verb) = metric_words(cfg.trigger_type);
 
-        let zone_text = if zone.max.is_finite() {
-            format!("{:.0}–{:.0}°", zone.min, zone.max)
-        } else {
-            format!("≥ {:.0}°", zone.min)
-        };
-        let frac = |v: f64| (v.clamp(0.0, RULER_MAX) / RULER_MAX) as f32;
-        app.set_angle(angle as f32);
-        app.set_angle_text(format!("{angle:.0}°").into());
-        live.set_metric_label(metric_label.into());
-        // Rounding first and adding 0.0 turns a negative zero into zero, so a resting leg never reads "-0".
-        live.set_metric_text(if hw_error.is_some() { "—".into() } else { format!("{:.0}°", value.round() + 0.0).into() });
-        live.set_zone_text(zone_text.clone().into());
-        live.set_zone_lo(frac(zone.min));
-        live.set_zone_hi(frac(if zone.max.is_finite() { zone.max } else { RULER_MAX }));
-        live.set_ruler_is_knee(cfg.trigger_type == TriggerType::JointAngle);
-        live.set_subtitle(format!("{metric_label} · 目標 {zone_text} · 保持 {hold_s:.1} 秒").into());
-        live.set_coach_title(title.into());
-        live.set_coach_sub(sub.into());
-        live.set_coach_tone(tone);
-        live.set_coach_right(right.into());
-        live.set_ruler_pos(frac(value));
-        live.set_knee_label(format!("{:.0}°", 180.0 - angle).into());
-        live.set_hold(s.hold as f32);
-        live.set_reps_text(format!("{} 次", s.reps).into());
-        live.set_hold_text(format!("{:.1} / {hold_s:.1} 秒", s.hold * hold_s).into());
-        let t = s.session_s as u64;
-        live.set_time_text(format!("{:02}:{:02}", t / 60, t % 60).into());
-        // Only the live screen draws the pose and the trend; skip the path strings elsewhere.
-        if connected && app.get_view() == 0 {
-            let (path, (kx, ky)) = limb_path(angle, thigh);
-            live.set_limb_path(path.into());
-            live.set_knee_x(kx as f32);
-            live.set_knee_y(ky as f32);
-            live.set_limb3d_path(limb3d_path(angle, thigh).into());
-            live.set_chart_path(chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into());
-        }
-
-        if last_report.elapsed() >= Duration::from_secs(1) {
-            let f = FRAME_COUNT.load(Ordering::Relaxed);
-            let dt = last_report.elapsed().as_secs_f64();
-            let fps = (f - last_frames) as f64 / dt;
-            let tick_rate = ticks as f64 / dt;
-            ticks = 0;
-            last_frames = f;
-            last_report = Instant::now();
-            if log {
-                println!("tick {tick_rate:.1} Hz, frames {fps:.1} fps, angle {angle:.1}");
+            // With the wizard open and nothing being captured, the simulated wearer stands still.
+            if wizard_open && !s.wizard.capturing() && s.script == Script::Exercise {
+                s.script = Script::Still;
             }
-            live.set_stats(
-                format!("介面更新 {tick_rate:.0} Hz · 畫面 {fps:.0} fps · 已執行 {:.0} 秒", started.elapsed().as_secs_f64()).into(),
+            if let (Some(after), false) = (inject_slip, s.slip_injected) {
+                if s.running && s.session_s > after {
+                    s.rig.slip_shin(25.0);
+                    s.slip_injected = true;
+                }
+            }
+
+            if !real_mode && connected {
+                let (hip, knee) = pipeline::pose(s.script, s.t, &cfg);
+                let text = if inject_fault && (s.t % 12.0) > 10.0 {
+                    "ERR:1".into()
+                } else {
+                    pipeline::packet(&s.rig, hip, knee)
+                };
+                match parse_angle_packet(&text) {
+                    ParsedPacket::Angles { raw, .. } => {
+                        accept_sample(&ui, &mut s, &mut link, &cfg, raw, Receipt::now(), started)
+                    }
+                    ParsedPacket::Error { code } => sample_fault(&mut s, &mut link, &code),
+                    ParsedPacket::Malformed { .. } => {
+                        sample_fault(&mut s, &mut link, "無效的角度封包")
+                    }
+                }
+            }
+            let stale = real_mode
+                && link.last.is_none_or(|t| {
+                    t.elapsed().as_secs_f64() * 1000.0 > irms_core::judge::ENGINE_MAX_SAMPLE_GAP_MS
+                });
+            if connected && stale && link.fault.is_none() {
+                sample_fault(&mut s, &mut link, "等待新的量測");
+            }
+            let hw_error = link.fault.as_deref().or(stale.then_some("等待新的量測"));
+            app.set_valid_angle(connected && hw_error.is_none());
+            app.set_wizard_step(s.wizard.step);
+            app.set_wizard_progress(
+                s.wizard.progress(started.elapsed().as_secs_f64() * 1000.0) as f32
             );
-        }
-    });
+            app.set_wizard_busy(s.wizard.capturing());
+            app.set_wizard_step_done(s.wizard.step_done);
+            app.set_wizard_status(s.wizard.status.clone().into());
+            app.set_wizard_tone(s.wizard.tone);
+            app.set_wizard_result(s.wizard.result.clone().into());
+            app.set_wizard_seconds(s.wizard.capture_seconds() as f32);
+
+            let angle = s.last_knee;
+            let thigh = s.last_thigh;
+            let input = EngineInput::from_angles(angle, thigh, &cfg);
+            let zone = compute_metric_zone(&cfg);
+            let value = input.sample.value;
+            if s.running {
+                s.session_s += dt;
+            }
+            let phase = s.engine.phase();
+            let guidance = compute_guidance(
+                connected.then_some(&input.sample),
+                &zone,
+                phase,
+                s.hold * 100.0,
+                cfg.hold_time_ms,
+                &limits,
+            );
+            let hold_s = cfg.hold_time_ms / 1000.0;
+
+            // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
+            let (title, sub, tone): (String, String, i32) = if !connected {
+                if app.get_conn() == 1 {
+                    ("連線中…".into(), "正在尋找裝置(最長 15 秒)".into(), 0)
+                } else if !link.connect_error.is_empty() {
+                    ("連線失敗".into(), link.connect_error.clone(), 2)
+                } else {
+                    ("裝置未連線".into(), "請從右上角連線裝置".into(), 0)
+                }
+            } else if let Some(code) = &hw_error {
+                (
+                    "感測器異常".into(),
+                    format!("裝置回報 {code},請檢查感測器接線後重新連線"),
+                    2,
+                )
+            } else if matches!(
+                guidance,
+                Guidance::Hyperextension { .. } | Guidance::OverLimit { .. }
+            ) {
+                (
+                    guidance_text(&guidance, verb),
+                    "安全優先,先回到舒適範圍".into(),
+                    2,
+                )
+            } else if !app.get_calibrated() {
+                (
+                    "尚未校準".into(),
+                    "未校準時無法開始療程,請先完成校準精靈".into(),
+                    3,
+                )
+            } else if !s.running {
+                (
+                    "準備開始".into(),
+                    "確認動作與參數後按「開始療程」".into(),
+                    0,
+                )
+            } else {
+                match phase {
+                    EnginePhase::Holding => (
+                        "很好,保持這個位置".into(),
+                        format!("已進入目標區間,保持滿 {hold_s:.1} 秒"),
+                        1,
+                    ),
+                    EnginePhase::RestPending => (
+                        "已完成,請回到起始位".into(),
+                        guidance_text(&guidance, verb),
+                        1,
+                    ),
+                    EnginePhase::Idle if s.mount_shift => (
+                        guidance_text(&guidance, verb),
+                        "感測器可能移位,這場結束後請重新校準".into(),
+                        3,
+                    ),
+                    EnginePhase::Idle => (guidance_text(&guidance, verb), String::new(), 0),
+                }
+            };
+            let right = if s.running && phase == EnginePhase::Holding {
+                format!(
+                    "再保持 {:.1} 秒 · 第 {} 次",
+                    hold_s * (1.0 - s.hold),
+                    s.reps + 1
+                )
+            } else {
+                String::new()
+            };
+
+            let zone_text = if zone.max.is_finite() {
+                format!("{:.0}–{:.0}°", zone.min, zone.max)
+            } else {
+                format!("≥ {:.0}°", zone.min)
+            };
+            let frac = |v: f64| (v.clamp(0.0, RULER_MAX) / RULER_MAX) as f32;
+            app.set_angle(angle as f32);
+            app.set_angle_text(format!("{angle:.0}°").into());
+            live.set_metric_label(metric_label.into());
+            // Rounding first and adding 0.0 turns a negative zero into zero, so a resting leg never reads "-0".
+            live.set_metric_text(if hw_error.is_some() {
+                "—".into()
+            } else {
+                format!("{:.0}°", value.round() + 0.0).into()
+            });
+            live.set_zone_text(zone_text.clone().into());
+            live.set_zone_lo(frac(zone.min));
+            live.set_zone_hi(frac(if zone.max.is_finite() {
+                zone.max
+            } else {
+                RULER_MAX
+            }));
+            live.set_ruler_is_knee(cfg.trigger_type == TriggerType::JointAngle);
+            live.set_subtitle(
+                format!("{metric_label} · 目標 {zone_text} · 保持 {hold_s:.1} 秒").into(),
+            );
+            live.set_coach_title(title.into());
+            live.set_coach_sub(sub.into());
+            live.set_coach_tone(tone);
+            live.set_coach_right(right.into());
+            live.set_ruler_pos(frac(value));
+            live.set_knee_label(format!("{:.0}°", 180.0 - angle).into());
+            live.set_hold(s.hold as f32);
+            live.set_alarm_active(s.feedback.alarm_active);
+            live.set_alarm_silenced(
+                s.feedback
+                    .silenced(s.feedback_clock.elapsed().as_secs_f64() * 1000.0),
+            );
+            live.set_reps_text(format!("{} 次", s.reps).into());
+            live.set_hold_text(format!("{:.1} / {hold_s:.1} 秒", s.hold * hold_s).into());
+            let t = s.session_s as u64;
+            live.set_time_text(format!("{:02}:{:02}", t / 60, t % 60).into());
+            // Only the live screen draws the pose and the trend; skip the path strings elsewhere.
+            if connected && app.get_view() == 0 {
+                let (path, (kx, ky)) = limb_path(angle, thigh);
+                live.set_limb_path(path.into());
+                live.set_knee_x(kx as f32);
+                live.set_knee_y(ky as f32);
+                live.set_limb3d_path(limb3d_path(angle, thigh).into());
+                live.set_chart_path(
+                    chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into(),
+                );
+            }
+
+            if last_report.elapsed() >= Duration::from_secs(1) {
+                let f = FRAME_COUNT.load(Ordering::Relaxed);
+                let dt = last_report.elapsed().as_secs_f64();
+                let fps = (f - last_frames) as f64 / dt;
+                let tick_rate = ticks as f64 / dt;
+                ticks = 0;
+                last_frames = f;
+                last_report = Instant::now();
+                if log {
+                    println!("tick {tick_rate:.1} Hz, frames {fps:.1} fps, angle {angle:.1}");
+                }
+                live.set_stats(
+                    format!(
+                        "介面更新 {tick_rate:.0} Hz · 畫面 {fps:.0} fps · 已執行 {:.0} 秒",
+                        started.elapsed().as_secs_f64()
+                    )
+                    .into(),
+                );
+            }
+        },
+    );
 
     ui.run()
 }
@@ -836,11 +1126,18 @@ fn refresh_history(
 
 fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     let app = ui.global::<App>();
-    if app.get_conn() != 2 || app.get_wizard_open() || s.profile.is_none() || s.store.active() {
+    if s.closing
+        || s.disconnecting
+        || (!simulated && !app.get_valid_angle())
+        || app.get_conn() != 2
+        || app.get_wizard_open()
+        || s.profile.is_none()
+        || s.store.active()
+    {
         return;
     }
     let index = app.get_action_index() as usize;
-    let Some(action) = s.actions.get(index) else {
+    let Some(mut action) = s.actions.get(index).cloned() else {
         storage_error(ui, "請先選擇動作");
         return;
     };
@@ -851,10 +1148,14 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
             return;
         }
     };
+    let effective = action_config(&s.actions, index, limits);
+    action.target_angle = effective.target_angle;
+    action.tolerance = effective.tolerance;
+    action.hold_time_ms = effective.hold_time_ms as i64;
     let calibration = serde_json::to_value(&s.profile).expect("serializable calibration");
     if let Err(e) = s
         .store
-        .start_session(action, &limits, calibration, simulated)
+        .start_session(&action, &limits, calibration, simulated)
     {
         storage_error(ui, e);
         return;
@@ -866,6 +1167,8 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     s.reps = 0;
     s.session_s = 0.0;
     s.engine.reset();
+    let effects = s.feedback.start();
+    s.emit(effects);
     s.alarm = false;
     s.mount_shift = false;
     s.slip_injected = false;
@@ -879,11 +1182,23 @@ fn stop_collection(ui: &MainWindow, s: &mut Sim) {
     s.store.stop_recording();
     s.running = false;
     s.hold = 0.0;
+    s.engine.reset();
+    let effects = s.feedback.stop();
+    s.emit(effects);
     ui.global::<Live>().set_running(false);
     ui.global::<App>().set_save_pending(true);
 }
 
 fn finish_session(ui: &MainWindow, s: &mut Sim, sessions: &VecModel<SessionRow>) -> bool {
+    finish_session_with_notice(ui, s, sessions, true)
+}
+
+fn finish_session_with_notice(
+    ui: &MainWindow,
+    s: &mut Sim,
+    sessions: &VecModel<SessionRow>,
+    announce: bool,
+) -> bool {
     if !s.store.active() {
         return true;
     }
@@ -893,6 +1208,11 @@ fn finish_session(ui: &MainWindow, s: &mut Sim, sessions: &VecModel<SessionRow>)
         return false;
     }
     s.cfg = None;
+    if announce {
+        if let Some(outputs) = &s.outputs {
+            outputs.saved(s.reps, s.voice_enabled);
+        }
+    }
     let app = ui.global::<App>();
     app.set_save_pending(false);
     app.set_session_locked(false);
@@ -904,6 +1224,10 @@ fn finish_session(ui: &MainWindow, s: &mut Sim, sessions: &VecModel<SessionRow>)
 }
 
 fn sample_fault(s: &mut Sim, link: &mut RealLink, message: &str) {
+    if link.fault.as_deref() != Some(message) {
+        let effects = s.feedback.fault();
+        s.emit(effects);
+    }
     link.fault = Some(message.into());
     s.engine.reset();
     s.hold = 0.0;
@@ -960,22 +1284,45 @@ fn accept_sample(
         s.buf.remove(0);
     }
     s.buf.push(input.sample.value);
-    if !s.running || received < s.session_started {
+    if s.closing
+        || s.disconnecting
+        || (s.store.active() && !s.running)
+        || (s.running && received < s.session_started)
+    {
         return;
     }
-    if let Some((tv, sv)) = vectors {
+    if let (true, Some((tv, sv))) = (s.running, vectors) {
         if s.slip.push(now_ms, Some(tv), Some(sv)).is_some() {
+            if !s.mount_shift {
+                let feedback_ms = received
+                    .saturating_duration_since(s.feedback_clock)
+                    .as_secs_f64()
+                    * 1000.0;
+                let effects = s.feedback.mount_shift(feedback_ms);
+                s.emit(effects);
+            }
             s.mount_shift = true;
         }
     }
     let previous_reps = s.reps;
-    for event in s.engine.handle(&input, now_ms) {
+    let events = s.engine.handle(&input, now_ms);
+    for event in &events {
         match event {
-            EngineEvent::HoldProgress(p) => s.hold = p / 100.0,
-            EngineEvent::RepCompleted => s.reps += 1,
-            EngineEvent::OverExtension(on) => s.alarm = on,
+            EngineEvent::HoldProgress(p) => s.hold = *p / 100.0,
+            EngineEvent::RestCompleted => s.hold = 0.0,
             _ => {}
         }
+    }
+    let feedback_ms = received
+        .saturating_duration_since(s.feedback_clock)
+        .as_secs_f64()
+        * 1000.0;
+    let effects = s.feedback.handle(&events, feedback_ms);
+    s.emit(effects);
+    s.reps = s.feedback.reps();
+    if !s.running {
+        s.hold = 0.0;
+        return;
     }
     let result = s.store.push_reading(SensorReading {
         knee_angle: angle,
@@ -1027,6 +1374,7 @@ mod tests {
         s.profile = Some(pipeline::auto_calibrate(&s.rig, &cfg).unwrap());
         let app = ui.global::<App>();
         app.set_conn(2);
+        app.set_valid_angle(true);
         app.set_action_index(index as i32);
         start_session(&ui, &mut s, false);
         let start = s.session_started;
@@ -1044,7 +1392,10 @@ mod tests {
                 link,
                 &cfg,
                 packet,
-                Receipt { monotonic: start + Duration::from_millis(ms), utc: wall + chrono::Duration::milliseconds(ms as i64) },
+                Receipt {
+                    monotonic: start + Duration::from_millis(ms),
+                    utc: wall + chrono::Duration::milliseconds(ms as i64),
+                },
                 start,
             );
         };
@@ -1065,5 +1416,51 @@ mod tests {
         assert_eq!(session.source, "device");
         assert_eq!(session.reps_completed, 0);
         assert!(s.store.review(&session).contains("4 筆讀數"));
+        // 完整一回合後回位必須清掉進度；停止也不能留下 RestPending。
+        start_session(&ui, &mut s, false);
+        for i in 0..101 {
+            deliver(&mut s, &mut link, 8000 + i * 40, raw);
+        }
+        assert_eq!(s.reps, 1);
+        assert_eq!(s.engine.phase(), EnginePhase::RestPending);
+        let ParsedPacket::Angles { raw: resting, .. } =
+            parse_angle_packet(&pipeline::packet(&s.rig, 0.0, 0.0))
+        else {
+            panic!()
+        };
+        for i in 0..25 {
+            deliver(&mut s, &mut link, 12040 + i * 40, resting);
+        }
+        assert_eq!(s.engine.phase(), EnginePhase::Idle);
+        assert_eq!(s.hold, 0.0);
+        assert!(finish_session(&ui, &mut s, &sessions));
+        assert_eq!(s.engine.phase(), EnginePhase::Idle);
+        assert!(!s.alarm);
+        // 儲存與判定必須使用相同的鉗制值，而非留下不可能重現的處方快照。
+        s.actions[index].target_angle = f64::NAN;
+        s.actions[index].tolerance = -1.0;
+        s.actions[index].hold_time_ms = 0;
+        start_session(&ui, &mut s, false);
+        let effective = s.cfg.unwrap();
+        assert_eq!(
+            (
+                effective.target_angle,
+                effective.tolerance,
+                effective.hold_time_ms
+            ),
+            (45.0, 1.0, 500.0)
+        );
+        assert!(finish_session(&ui, &mut s, &sessions));
+        let saved = s
+            .store
+            .sessions()
+            .unwrap()
+            .into_iter()
+            .max_by_key(|row| row.id)
+            .unwrap();
+        assert_eq!(
+            (saved.target_angle, saved.tolerance, saved.hold_time_ms),
+            (Some(45.0), Some(1.0), Some(500))
+        );
     }
 }

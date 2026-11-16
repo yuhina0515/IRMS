@@ -140,6 +140,16 @@ fn calibration_matches_the_typescript_implementation_on_the_shared_fixture() {
 
 #[test]
 fn non_finite_input_is_rejected() {
+    for (time, value) in [(f64::NAN, 50.0), (0.0, f64::INFINITY)] {
+        let mut samples: Vec<TimedValue> = (0..50)
+            .map(|i| TimedValue {
+                t_ms: i as f64 * 40.0,
+                value: 50.0,
+            })
+            .collect();
+        samples[0] = TimedValue { t_ms: time, value };
+        assert!(held_peak_timed(&samples, 1).is_none());
+    }
     // JSON cannot carry NaN, so these cases live here instead of in the shared fixture.
     let nan = Vec3 {
         x: f64::NAN,
