@@ -1,4 +1,4 @@
-IRMS v1.3.0-beta.3 - Windows x64 native test release
+IRMS v1.3.0-beta.4 - Windows x64 native test release
 
 This is the first installer for the Rust/Slint native application.
 It is an early test release; feature parity and real-device acceptance are incomplete.

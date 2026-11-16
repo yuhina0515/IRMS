@@ -101,3 +101,23 @@ may still block them). The Tauri updater and `beta-latest` are untouched.
   Silent install, version 1.3.0-beta.3, installed hash equals the build, Settings / Modules snapshot
   inspected, silent uninstall removed files and registry, no default database created. 31 native tests
   and Clippy passed.
+
+## beta.4: telemetry and live share
+
+- `IRMS_Core::telemetry` and `::live_share` are ports of the Tauri copies without Tauri types (the Tauri
+  copy keeps shipping); `::share_session` ports the host and viewer state machines of the
+  `IRMS-Modules/live-share` module with the same paths, payloads and timings.
+- Native: Settings / Data and privacy has the telemetry switch and status; it is off at every launch
+  (not persisted, on purpose). With it on, raw BLE packets (real mode), connection events and session
+  start/end go to the collector; no name or computer name. Tools / Live share hosts a share (code,
+  viewer list, kick) or joins one and shows the host's numbers. The snapshot has no prescription name.
+- Remote setting changes from a viewer are answered "not supported": native parameters are database
+  prescriptions and a remote viewer must not rewrite them. This differs from the Tauri host.
+- Verification: core 168 tests (mock collector: create, push, refusal of remote changes, rejected push ends
+  the share, viewer join/removal/leave; endpoint and path rules). Against the **real collector code**
+  (`IRMS_Telemetry/server.mjs` run locally on 127.0.0.1): ignored live tests for telemetry upload and a
+  host-to-viewer round trip with update delivery and kick pass; two native windows (host with
+  `--telemetry-on --share-host`, viewer with `--share-join CODE`) showed the host's changing numbers on the
+  viewer. Native 34 tests, Clippy clean. The public collector was not used.
+- Not done: firmware update (needs a physical device and the signed image path), persisting the telemetry
+  choice, hardware validation of the real-device event stream.

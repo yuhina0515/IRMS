@@ -33,6 +33,7 @@ mod instance;
 mod outputs;
 mod pipeline;
 mod preferences;
+mod share_ui;
 mod store;
 mod wearing;
 mod wizard;
@@ -162,13 +163,17 @@ struct NativeHost {
     tx: mpsc::Sender<(Receipt, String, Value)>,
     state: Arc<BleState>,
     rt: tokio::runtime::Handle,
+    /// Opt-in telemetry; recording is a no-op while it is off.
+    telemetry: Arc<irms_core::telemetry::TelemetryState>,
 }
 
 impl BleHost for NativeHost {
     fn emit_json(&self, event: &str, payload: Value) {
         let _ = self.tx.send((Receipt::now(), event.to_string(), payload));
     }
-    fn record(&self, _kind: &str, _payload: Value) {}
+    fn record(&self, kind: &str, payload: Value) {
+        self.telemetry.record(kind, payload);
+    }
     fn ble(&self) -> &BleState {
         &self.state
     }
@@ -212,6 +217,7 @@ struct Sim {
     wizard: Wizard,
     /// Pre-session wearing check in progress (real device only).
     wearing: Option<WearingCheck>,
+    telemetry: Arc<irms_core::telemetry::TelemetryState>,
     /// Result of the calibration wizard; without it only the device's own Euler angles are shown.
     profile: Option<CalibrationProfile>,
     slip: SlipMonitor,
@@ -249,6 +255,7 @@ impl Sim {
             script: Script::Exercise,
             wizard: Wizard::new(None),
             wearing: None,
+            telemetry: Arc::new(irms_core::telemetry::TelemetryState::default()),
             profile: None,
             slip: SlipMonitor::new(None),
             mount_shift: false,
@@ -417,10 +424,24 @@ fn main() -> Result<(), slint::PlatformError> {
         .build()
         .expect("tokio runtime");
     let (ble_tx, ble_rx) = mpsc::channel();
+    // Telemetry is opt-in and off at every launch; the uploader idles until it is turned on.
+    let telemetry = Arc::new(irms_core::telemetry::TelemetryState::default());
+    irms_core::telemetry::spawn_uploader(
+        telemetry.clone(),
+        runtime.handle(),
+        env!("CARGO_PKG_VERSION").into(),
+    );
+    let sharing = Rc::new(RefCell::new(share_ui::Sharing::new(
+        telemetry.clone(),
+        runtime.handle(),
+        arg_value(&args, "--telemetry-endpoint")
+            .unwrap_or_else(|| share_ui::DEFAULT_ENDPOINT.into()),
+    )));
     let host = has("--real-ble").then(|| NativeHost {
         tx: ble_tx.clone(),
         state: Arc::new(BleState::default()),
         rt: runtime.handle().clone(),
+        telemetry: telemetry.clone(),
     });
     let real = Rc::new(RefCell::new(RealLink::default()));
     if has("--connected") || autorun {
@@ -487,6 +508,7 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_sessions(ModelRc::from(sessions.clone()));
 
     let sim = Rc::new(RefCell::new(Sim::new(store, stored_actions)));
+    sim.borrow_mut().telemetry = telemetry.clone();
     {
         // The calibration in force survives a restart; it is replaced only by applying a new one.
         let mut s = sim.borrow_mut();
@@ -656,6 +678,26 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     let started = Instant::now();
     wire_wizard(&ui, sim.clone(), started);
+    share_ui::wire(&ui, sharing.clone());
+    {
+        // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE.
+        let s = sharing.borrow();
+        if has("--telemetry-on") {
+            if let Err(e) = s
+                .telemetry
+                .configure(true, &s.endpoint, env!("CARGO_PKG_VERSION"))
+            {
+                println!("telemetry refused: {e}");
+            }
+        }
+        if let Some(code) = arg_value(&args, "--share-join") {
+            s.viewer
+                .join(s.endpoint.clone(), &code, "IRMS 原生版".into());
+        }
+    }
+    if let Some(i) = int("--tools-tab") {
+        app.set_tools_tab(i);
+    }
     wire_wearing(&ui, sim.clone(), started);
 
     // Frame counter (GL renderers only), shown in the dock and in --log output.
@@ -808,6 +850,8 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let mut last_frames = 0u32;
     let mut last_report = Instant::now();
+    // --share-host waits until telemetry has delivered something: the collector only shares a run that is ingesting.
+    let mut share_host_pending = has("--share-host");
     let mut last_tick = Instant::now();
     let mut ticks = 0u32;
 
@@ -1009,6 +1053,60 @@ fn main() -> Result<(), slint::PlatformError> {
                 &limits,
             );
             let hold_s = cfg.hold_time_ms / 1000.0;
+            {
+                let sharing = sharing.borrow();
+                if sharing.host.state().status == irms_core::share_session::HostStatus::Sharing {
+                    let now = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+                    let trigger = match cfg.trigger_type {
+                        TriggerType::JointAngle => "joint_angle",
+                        TriggerType::SegmentElevation => "segment_elevation",
+                        TriggerType::SegmentExtension => "segment_extension",
+                    };
+                    sharing.host.set_snapshot(share_ui::snapshot(
+                        &share_ui::SnapshotInput {
+                            connected,
+                            demo: !real_mode,
+                            hardware_error: hw_error,
+                            trigger_type: trigger,
+                            metric_label,
+                            metric_unit: "°",
+                            value: connected.then_some(value),
+                            knee: angle,
+                            thigh,
+                            target_angle: cfg.target_angle,
+                            tolerance: cfg.tolerance,
+                            hold_time_ms: cfg.hold_time_ms,
+                            zone_min: zone.min,
+                            zone_max: zone.max,
+                            zone_rest: zone.rest,
+                            comfort: limits.comfort,
+                            limit: limits.limit,
+                            running: s.running,
+                            reps: s.reps,
+                            hold_progress: s.hold * 100.0,
+                            in_zone: s.running && phase == EnginePhase::Holding,
+                            alarm_active: s.alarm,
+                            over_comfort: connected && limits.comfort.is_some_and(|c| angle > c),
+                            elapsed_s: s.session_s,
+                            phase: match phase {
+                                EnginePhase::Idle => "idle",
+                                EnginePhase::Holding => "holding",
+                                EnginePhase::RestPending => "restPending",
+                            },
+                        },
+                        &now,
+                    ));
+                }
+                if share_host_pending && sharing.telemetry.status().sent > 0 {
+                    share_host_pending = false;
+                    sharing.host.start(
+                        sharing.endpoint.clone(),
+                        sharing.telemetry.run_id().to_string(),
+                        true,
+                    );
+                }
+                share_ui::sync(&app, &sharing);
+            }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
             let (title, sub, tone): (String, String, i32) = if !connected {
@@ -1140,6 +1238,20 @@ fn main() -> Result<(), slint::PlatformError> {
                 last_report = Instant::now();
                 if log {
                     println!("tick {tick_rate:.1} Hz, frames {fps:.1} fps, angle {angle:.1}");
+                    let sh = sharing.borrow();
+                    let (h, v) = (sh.host.state(), sh.viewer.state());
+                    if h.code.is_some() || h.error.is_some() || v.live.is_some() || v.error.is_some() {
+                        println!(
+                            "share host {:?} code {:?} viewers {} | viewer {:?} metric {:?} err {:?} | telemetry {:?}",
+                            h.status,
+                            h.code,
+                            h.viewers.len(),
+                            v.status,
+                            v.live.as_ref().map(|l| l["metric"]["value"].clone()),
+                            v.error,
+                            sh.telemetry.status().sent
+                        );
+                    }
                 }
                 live.set_stats(
                     format!(
@@ -1611,10 +1723,18 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     app.set_storage_error("".into());
     app.set_session_locked(true);
     ui.global::<Live>().set_running(true);
+    s.telemetry.log(
+        "session_start",
+        serde_json::json!({ "simulated": simulated, "triggerType": s.cfg.map(|c| c.trigger_type as u8) }),
+    );
 }
 
 fn stop_collection(ui: &MainWindow, s: &mut Sim) {
     s.store.stop_recording();
+    s.telemetry.log(
+        "session_end",
+        serde_json::json!({ "reps": s.reps, "seconds": s.session_s.round() }),
+    );
     s.running = false;
     s.hold = 0.0;
     s.engine.reset();

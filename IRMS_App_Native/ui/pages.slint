@@ -159,8 +159,8 @@ export component HistoryView inherits VerticalLayout {
 
 export component ToolsView inherits VerticalLayout {
     spacing: 14px;
-    property <int> tab: 0;
-    PageHead { title: "工具"; sub: "已安裝模組提供的操作頁面;安裝、啟用與更新請至「設定 → 模組」。"; }
+    in-out property <int> tab <=> App.tools-tab;
+    PageHead { title: "工具"; sub: "內建模組的操作頁面;模組清單在「設定 → 模組」。"; }
     Card {
         vertical-stretch: 1;
         VerticalLayout {
@@ -195,7 +195,29 @@ export component ToolsView inherits VerticalLayout {
             if root.tab == 1: VerticalLayout {
                 spacing: 12px; alignment: start; padding-left: 8px;
                 Text { text: "即時分享"; font-size: 17px; font-weight: 700; color: Theme.ink; }
-                Text { text: "即時分享是內建模組(計畫 D2),需要先移植遙測才能提供;目前尚未可用。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                Text { text: "把這台裝置的即時狀態分享給其他 IRMS(只有數值與狀態,沒有動作名稱或姓名)。分享需要先在「設定 → 資料與隱私」開啟遙測。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    if App.share-host-status != 2: Btn { text: "開始分享"; primary: true; enabled: App.share-host-status != 1; clicked => { App.share-start(); } }
+                    if App.share-host-status == 2: Btn { text: "停止分享"; clicked => { App.share-stop(); } }
+                    if App.share-host-status == 2: Text { text: "分享碼 " + App.share-code; font-size: 26px; font-weight: 700; color: Theme.accent; vertical-alignment: center; }
+                }
+                if App.share-host-note != "": Text { text: App.share-host-note; font-size: 13px; color: Theme.warn; wrap: word-wrap; }
+                for v in App.share-viewers: HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    Text { text: "觀看者 · " + v.name; font-size: 14px; color: Theme.ink; vertical-alignment: center; }
+                    Btn { text: "移出"; min-height: 30px; quiet: true; ink: Theme.danger; clicked => { App.share-kick(v.id); } }
+                }
+                Rectangle { height: 1px; background: Theme.border; }
+                Text { text: "觀看別人的分享"; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    code := Field { width: 220px; placeholder: "分享碼(例如 AB12-CD34)"; }
+                    if App.share-viewer-status != 2: Btn { text: "加入"; primary: true; enabled: App.share-viewer-status != 1; clicked => { App.share-join(code.text); } }
+                    if App.share-viewer-status == 2: Btn { text: "離開"; clicked => { App.share-leave(); } }
+                }
+                if App.share-viewer-note != "": Text { text: App.share-viewer-note; font-size: 13px; color: Theme.warn; wrap: word-wrap; }
+                if App.share-viewer-status == 2: Text { text: App.share-viewer-text == "" ? "等待主機傳來第一筆資料…" : App.share-viewer-text; font-size: 14px; color: Theme.ink; wrap: word-wrap; }
             }
             Rectangle { vertical-stretch: 1; }
         }
@@ -324,13 +346,14 @@ export component SettingsView inherits VerticalLayout {
                     Setting { title: "角度範圍測量"; sub: "內建,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "即時分享"; sub: "需要先移植遙測;尚未提供。"; VerticalLayout { alignment: center; Chip { text: "尚未移植"; tone: Theme.warn; } } }
+                    Setting { title: "即時分享"; sub: "內建,位於「工具」分頁;需要先開啟遙測。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "韌體更新"; sub: "需要實體裝置驗證;尚未提供。"; VerticalLayout { alignment: center; Chip { text: "尚未移植"; tone: Theme.warn; } } }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;
                     Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
-                    Setting { title: "遙測"; sub: "預設關閉。"; VerticalLayout { alignment: center; Chip { text: "關閉"; } } }
+                    Setting { title: "遙測"; sub: App.telemetry-status; VerticalLayout { alignment: center; Btn { text: App.telemetry-on ? "關閉上傳" : "開啟上傳"; primary: !App.telemetry-on; clicked => { App.telemetry-set(!App.telemetry-on); } } } }
+                    Text { text: "開啟後會把原始藍牙封包、連線與療程開始/結束的事件傳給開發者的收集器(不含姓名或電腦名稱)。預設關閉,每次啟動都需要重新開啟;關閉會丟棄尚未傳出的資料。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
                 }
             }
         }

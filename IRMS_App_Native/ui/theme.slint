@@ -92,6 +92,7 @@ export component PageHead inherits HorizontalLayout {
 }
 
 export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
+export struct ViewerItem { id: string, name: string }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
@@ -149,6 +150,7 @@ export global App {
     in-out property <bool> wizard-open: false;
     in-out property <int> action-index: 1;
     in-out property <int> settings-tab: 0;
+    in-out property <int> tools-tab: 0;
     in-out property <int> pose-view: 0;       // 0 2D 1 3D 2 values
     in-out property <int> comfort: -1;        // personal comfort angle, -1 = not measured
     in-out property <int> limit: -1;
@@ -202,6 +204,22 @@ export global App {
     callback wizard-toggle-save();
     callback wizard-apply();
     callback wizard-cancel();
+    // telemetry opt-in and live share (IRMS_Core::telemetry, IRMS_Core::share_session)
+    in property <bool> telemetry-on: false;
+    in property <string> telemetry-status;
+    callback telemetry-set(bool);
+    in property <int> share-host-status: 0;     // 0 idle 1 starting 2 sharing 3 ended
+    in property <string> share-code;
+    in property <string> share-host-note;
+    in property <[ViewerItem]> share-viewers;
+    callback share-start();
+    callback share-stop();
+    callback share-kick(string);
+    in property <int> share-viewer-status: 0;   // 0 idle 1 joining 2 watching 3 ended
+    in property <string> share-viewer-note;
+    in property <string> share-viewer-text;
+    callback share-join(string);
+    callback share-leave();
     // pre-session wearing check (real device only), driven from Rust
     in-out property <bool> wearing-open: false;
     in property <int> wearing-page: 0;         // 0 take the pose 1 sampling 2 verdict

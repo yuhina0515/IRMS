@@ -1,10 +1,12 @@
-IRMS v1.3.0-beta.3 is the third Windows x64 installer for the Rust/Slint native application.
+IRMS v1.3.0-beta.4 is the fourth Windows x64 installer for the Rust/Slint native application.
 
-Download `IRMS_1.3.0-beta.3_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
+Download `IRMS_1.3.0-beta.4_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. It runs alongside the Tauri application with a separate database. No WebView2 installation is required.
 
 The main shortcut starts simulated data. An **IRMS Device (Experimental)** Start menu entry enables the real BLE code path. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
 
-**New since beta.2:** session CSV export from History (system save dialog, same metadata header and full readings as the Tauri export) and single-instance launch (a second start shows the running window). Modules are built into the program (design decision D2); live share and firmware update are not ported yet.
+**New since beta.3:** opt-in telemetry upload (Settings / Data and privacy; off at every launch, nothing leaves the computer until it is turned on, no name or computer name is sent) and live share (Tools): share this device's live numbers with a code, or watch another device. Remote setting changes from a viewer are refused. Firmware update is not ported yet.
+
+**New in beta.3 (since beta.2):** session CSV export from History (system save dialog, same metadata header and full readings as the Tauri export) and single-instance launch (a second start shows the running window). Modules are built into the program (design decision D2).
 
 **New in beta.2 (since beta.1):** ordered BLE session feedback, alarm mute and Windows speech; editable prescriptions with persistent preferences; a calibration wizard with leg choice, calibrate / mobility / quick re-zero presets, whose calibration is restored at startup; range-of-motion records with a comparable trend; and a wearing check before a session on a real device (an offset small enough to be the strap can be re-zeroed on the spot).
 
