@@ -117,6 +117,8 @@ Tauri app is frozen the way the Electron app was.
   holds types, protocol, defaults, downsample, migrations, ble_lifecycle, db; see
   `log_20261116_rust_native_phase3_core_slice1.md`. Slice 2 done: the BLE transport is in the core
   behind a `BleHost` trait (needs a real-device run before merging). Telemetry, firmware and modules still in `src-tauri`.
+- Phase 4: started. `judge.rs` in the core ports movementMetric, guidance and triggerEngine with 37 tests;
+  the native prototype judges with it. See `log_20261116_rust_native_phase4_judge.md`.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 

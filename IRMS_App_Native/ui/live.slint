@@ -11,9 +11,18 @@ export global Live {
     in property <string> limb3d-path;
     in property <string> grid3d-path;
     in property <string> knee-label;
+    in property <float> knee-x: 110;
+    in property <float> knee-y: 135;
     in property <string> stats;
     in property <float> hold;
     in property <float> ruler-pos;
+    in property <float> zone-lo: 0.375;   // target zone on the 0..160 ruler, as fractions
+    in property <float> zone-hi: 0.5625;
+    in property <bool> ruler-is-knee: true; // personal range marks only make sense on a knee ruler
+    in property <string> subtitle;
+    in property <string> metric-label: "膝關節夾角";
+    in property <string> metric-text: "—";
+    in property <string> zone-text;
     in property <bool> running;
     in property <string> reps-text: "0 次";
     in property <string> hold-text: "0.0 / 2.0 秒";
@@ -29,7 +38,7 @@ export component LiveView inherits VerticalLayout {
 
     PageHead {
         title: App.actions[App.action-index].name;
-        sub: "膝關節屈曲角 · " + App.actions[App.action-index].kind + " · 目標 60–90° · 保持 2.0 秒";
+        sub: Live.subtitle;
         VerticalLayout {
             alignment: center;
             if !App.calibrated: Btn { text: "尚未校準 · 開始校準"; ink: Theme.warn; enabled: root.live; clicked => { App.wizard-open = true; } }
@@ -80,23 +89,23 @@ export component LiveView inherits VerticalLayout {
             VerticalLayout {
                 padding: 22px;
                 spacing: 6px;
-                Text { text: "主指標 · 膝關節屈曲角"; font-size: 14px; color: Theme.dim; }
-                Text { text: root.live ? App.angle-text : "—"; font-size: 96px; font-weight: 700; color: Theme.ink; }
+                Text { text: "主指標 · " + Live.metric-label; font-size: 14px; color: Theme.dim; }
+                Text { text: root.live ? Live.metric-text : "—"; font-size: 96px; font-weight: 700; color: Theme.ink; }
                 Text {
-                    text: "60–90° 目標區間 · " + (App.comfort < 0 ? "尚未量測個人角度範圍" : "舒適 " + App.comfort + "°" + (App.limit < 0 ? "" : " · 極限 " + App.limit + "°"));
+                    text: Live.zone-text + " 目標區間 · " + (App.comfort < 0 ? "尚未量測個人角度範圍" : "舒適 " + App.comfort + "°" + (App.limit < 0 ? "" : " · 極限 " + App.limit + "°"));
                     font-size: 14px; color: Theme.dim;
                 }
                 Rectangle {
                     height: 34px;
                     Rectangle { y: 12px; height: 10px; border-radius: 5px; background: Theme.raised; }
                     Rectangle {
-                        x: parent.width * 60 / 160; y: 8px;
-                        width: parent.width * 30 / 160; height: 18px;
+                        x: parent.width * Live.zone-lo; y: 8px;
+                        width: parent.width * (Live.zone-hi - Live.zone-lo); height: 18px;
                         border-radius: 5px; border-width: 2px;
                         border-color: Theme.good; background: Theme.good.with-alpha(0.2);
                     }
-                    if App.comfort >= 0: Rectangle { x: parent.width * App.comfort / 160; y: 6px; width: 2px; height: 22px; background: Theme.warn; }
-                    if App.limit >= 0: Rectangle { x: parent.width * App.limit / 160; y: 6px; width: 2px; height: 22px; background: Theme.danger; }
+                    if App.comfort >= 0 && Live.ruler-is-knee: Rectangle { x: parent.width * App.comfort / 160; y: 6px; width: 2px; height: 22px; background: Theme.warn; }
+                    if App.limit >= 0 && Live.ruler-is-knee: Rectangle { x: parent.width * App.limit / 160; y: 6px; width: 2px; height: 22px; background: Theme.danger; }
                     if root.live: Rectangle {
                         x: parent.width * Live.ruler-pos - 2px; y: 2px;
                         width: 4px; height: 30px; border-radius: 2px; background: Theme.ink;
@@ -115,8 +124,8 @@ export component LiveView inherits VerticalLayout {
                     changed width => { Live.chart-w = self.width; }
                     changed height => { Live.chart-h = self.height; }
                     Rectangle {
-                        x: 0; y: parent.height * (1 - 90 / 160);
-                        width: parent.width; height: parent.height * 30 / 160;
+                        x: 0; y: parent.height * (1 - Live.zone-hi);
+                        width: parent.width; height: parent.height * (Live.zone-hi - Live.zone-lo);
                         background: Theme.good.with-alpha(0.16);
                     }
                     if root.live: Path {
@@ -154,9 +163,9 @@ export component LiveView inherits VerticalLayout {
                     stroke-line-cap: round; stroke-line-join: round;
                     fill: transparent;
                 }
-                Rectangle { x: 139px; y: 29px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
-                Rectangle { x: 139px; y: 139px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
-                Text { x: 172px; y: 128px; text: Live.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                Rectangle { x: 99px; y: 29px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                Rectangle { x: Live.knee-x * 1px - 11px; y: Live.knee-y * 1px - 11px; width: 22px; height: 22px; border-radius: 11px; background: Theme.raised; border-width: 4px; border-color: Theme.accent; }
+                Text { x: Live.knee-x * 1px + 20px; y: Live.knee-y * 1px - 26px; text: Live.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
                 Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
             }
             // G2 candidate: a projected drawing (three-quarter view on a ground grid), no 3D engine.

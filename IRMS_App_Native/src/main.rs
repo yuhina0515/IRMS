@@ -2,12 +2,16 @@
 // IRMS native prototype (doc/plans/2026-11-16-rust-native-ui-plan.md, phases 1 and 2): every screen
 // on simulated sensor data. Not connected to the shipping app, the device or the database.
 use irms_core::ble::{self, BleHost, BleState};
+use irms_core::judge::{
+    compute_guidance, compute_metric_zone, AngleLimits, EngineEvent, EngineInput, EnginePhase, Guidance,
+    TriggerConfig, TriggerEngine, TriggerType,
+};
 use irms_core::protocol::{parse_angle_packet, ParsedPacket};
 use serde_json::{json, Value};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{mpsc, Arc};
-use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::rc::Rc;
@@ -18,8 +22,44 @@ slint::include_modules!();
 
 const HZ: f64 = 50.0;
 const SAMPLES: usize = 250; // 5 s window
-const ZONE: (f64, f64) = (60.0, 90.0);
-const HOLD_S: f64 = 2.0;
+const RULER_MAX: f64 = 160.0;
+
+/// Built-in prescriptions (the shipping app's defaults): name, kind label, trigger type, target,
+/// tolerance, hold time in ms, note.
+const ACTIONS: [(&str, &str, TriggerType, f64, f64, f64, &str); 3] = [
+    ("Backward Extension (直膝後擺)", "肢段後伸", TriggerType::SegmentExtension, 20.0, 8.0, 2000.0, "站姿,膝蓋伸直向後擺腿。"),
+    ("Squat (深蹲屈膝)", "關節角度", TriggerType::JointAngle, 90.0, 10.0, 3000.0, "雙腳與肩同寬,緩慢下蹲到目標角度後保持。"),
+    ("Straight Leg Raise (直膝抬腿)", "肢段抬高", TriggerType::SegmentElevation, 45.0, 10.0, 3000.0, "仰臥,膝蓋伸直抬腿到目標高度後保持。"),
+];
+
+fn action_config(index: usize, limits: AngleLimits) -> TriggerConfig {
+    let (_, _, trigger_type, target_angle, tolerance, hold_time_ms, _) = ACTIONS[index.min(ACTIONS.len() - 1)];
+    TriggerConfig { target_angle, tolerance, hold_time_ms, trigger_type, limits }
+}
+
+/// Main-metric name and movement verb, as in the app's zh-Hant strings.
+fn metric_words(t: TriggerType) -> (&'static str, &'static str) {
+    match t {
+        TriggerType::JointAngle => ("膝關節夾角", "彎曲"),
+        TriggerType::SegmentElevation => ("大腿仰角", "抬高"),
+        TriggerType::SegmentExtension => ("大腿後伸", "後伸"),
+    }
+}
+
+/// Coaching text for a guidance value, worded like the app's zh-Hant strings.
+fn guidance_text(g: &Guidance, verb: &str) -> String {
+    match *g {
+        Guidance::NoData => "等待感測資料…".into(),
+        Guidance::Hyperextension { deg } => format!("膝蓋往後伸多了 {deg:.1}°,稍微彎回來就好"),
+        Guidance::OverLimit { excess_deg } => format!("超出極限範圍 {excess_deg:.1}°,請立即回落"),
+        Guidance::StraightenKnee { excess_deg } => format!("膝蓋再打直 {excess_deg:.1}°"),
+        Guidance::Raise { delta_deg } => format!("再{verb} {delta_deg:.1}°"),
+        Guidance::Lower { delta_deg } => format!("回降 {delta_deg:.1}° 進入目標區"),
+        Guidance::Hold { held_sec, total_sec } => format!("保持!{held_sec:.1}s / {total_sec:.1}s"),
+        Guidance::ReturnToRest { delta_deg } if delta_deg > 0.0 => format!("完成!回到起始位(再回 {delta_deg:.1}°)"),
+        Guidance::ReturnToRest { .. } => "完成!已回起始位".into(),
+    }
+}
 static FRAME_COUNT: AtomicU32 = AtomicU32::new(0);
 
 /// Host for `irms_core::ble` (used with `--real-ble`): events go over a channel that the UI
@@ -61,7 +101,10 @@ struct Sim {
     running: bool,
     hold: f64,
     reps: u32,
-    armed: bool,
+    engine: TriggerEngine,
+    alarm: bool,
+    last_knee: f64,
+    last_thigh: f64,
     session_s: f64,
     session_no: u32,
 }
@@ -76,34 +119,56 @@ fn chart_path(buf: &[f64], w: f64, h: f64) -> String {
     s
 }
 
-fn limb_path(knee_deg: f64) -> String {
-    // Side view facing right: thigh hangs from the hip, shin swings back with flexion, short foot.
-    let (hx, hy, l) = (150.0, 40.0, 110.0);
-    let (kx, ky) = (hx, hy + l);
-    let r = knee_deg.to_radians();
-    let (ax, ay) = (kx - l * r.sin(), ky + l * r.cos());
-    let (fx, fy) = (ax + 34.0 * r.cos(), ay + 34.0 * r.sin());
-    format!("M {hx} {hy} L {kx} {ky} L {ax:.1} {ay:.1} L {fx:.1} {fy:.1}")
+/// Side view facing right, in the 300 x 300 stage: the thigh swings from the hip by the thigh
+/// pitch (positive = forward), the shin folds back from it by the knee flexion, plus a short foot.
+/// Returns the path and the knee position (for the joint marker and the angle label).
+fn limb_path(knee_deg: f64, thigh_deg: f64) -> (String, (f64, f64)) {
+    let (hx, hy, l) = (110.0, 40.0, 95.0);
+    let t = thigh_deg.to_radians();
+    let (kx, ky) = (hx + l * t.sin(), hy + l * t.cos());
+    let f = (thigh_deg - knee_deg).to_radians();
+    let (ax, ay) = (kx + l * f.sin(), ky + l * f.cos());
+    let (fx, fy) = (ax + 30.0 * f.cos(), ay - 30.0 * f.sin());
+    (format!("M {hx} {hy} L {kx:.1} {ky:.1} L {ax:.1} {ay:.1} L {fx:.1} {fy:.1}"), (kx, ky))
 }
 
-/// Simulated knee angle: an 8.5 s rep cycle (bend 2 s, hold 3 s at about 76 deg, return 2 s, rest
-/// 1.5 s) with small tremor, so a hold can actually complete. Every fifth rep overshoots to 105 deg.
-fn sim_angle(t: f64) -> f64 {
-    const CYCLE: f64 = 8.5;
-    let n = (t / CYCLE).floor() as u64;
-    let p = t % CYCLE;
-    let (rest, peak) = (8.0, if n % 5 == 4 { 105.0 } else { 76.0 });
+/// Simulated movement, 0..1: a rep cycle of bend 2 s, hold `hold_s` + 1.5 s, return 2 s, rest 1.5 s.
+/// Every fifth rep overshoots (returns 1.4).
+fn sim_effort(t: f64, hold_s: f64) -> f64 {
+    let top = hold_s + 1.5;
+    let cycle = 2.0 + top + 2.0 + 1.5;
+    let n = (t / cycle).floor() as u64;
+    let p = t % cycle;
+    let peak = if n % 5 == 4 { 1.4 } else { 1.0 };
     let ease = |x: f64| 0.5 - 0.5 * (std::f64::consts::PI * x.clamp(0.0, 1.0)).cos();
-    let base = if p < 2.0 {
-        rest + (peak - rest) * ease(p / 2.0)
-    } else if p < 5.0 {
+    if p < 2.0 {
+        peak * ease(p / 2.0)
+    } else if p < 2.0 + top {
         peak
-    } else if p < 7.0 {
-        peak - (peak - rest) * ease((p - 5.0) / 2.0)
+    } else if p < 4.0 + top {
+        peak * (1.0 - ease((p - 2.0 - top) / 2.0))
     } else {
-        rest
+        0.0
+    }
+}
+
+/// The simulated device speaks the real wire format (same text the ESP32 notifies), so the
+/// prototype exercises `irms_core::protocol` exactly as the shipping app does. The movement
+/// follows the selected prescription: knee flexion, thigh raise, or thigh extension.
+fn sim_packet(t: f64, fault: bool, cfg: &TriggerConfig) -> String {
+    if fault {
+        return "ERR:1".to_string();
+    }
+    let effort = sim_effort(t, cfg.hold_time_ms / 1000.0);
+    let tremor = 0.8 * (t * 37.0).sin() + 1.0 * (t * 2.3).sin();
+    let (thigh, knee) = match cfg.trigger_type {
+        TriggerType::JointAngle => (6.0 + 3.0 * (t * 0.7).sin(), 8.0 + (cfg.target_angle - 10.0) * effort + tremor),
+        TriggerType::SegmentElevation => (3.0 + (cfg.target_angle + 4.0) * effort + tremor, 5.0 + 2.0 * (t * 0.9).sin()),
+        TriggerType::SegmentExtension => (-(2.0 + (cfg.target_angle + 4.0) * effort) + tremor, 3.0 + 1.5 * (t * 0.9).sin()),
     };
-    base + 0.8 * (t * 37.0).sin() + 1.2 * (t * 2.3).sin()
+    let shin = thigh + knee;
+    let (tr, sr) = (1.5 + 0.5 * (t * 0.9).sin(), -1.2 + 0.6 * (t * 1.1).sin());
+    format!("T:{thigh:.1},S:{shin:.1},K:{knee:.1},TR:{tr:.1},SR:{sr:.1},KR:{:.1}", sr - tr)
 }
 
 /// Three-quarter projection of a point (x forward, y up, z sideways, in leg-length units) to the stage.
@@ -116,12 +181,13 @@ fn project(x: f64, y: f64, z: f64) -> (f64, f64) {
     (150.0 + xr * 95.0 * depth, 250.0 - yr * 95.0 * depth)
 }
 
-fn limb3d_path(knee_deg: f64) -> String {
-    let r = knee_deg.to_radians();
+fn limb3d_path(knee_deg: f64, thigh_deg: f64) -> String {
+    let t = thigh_deg.to_radians();
+    let f = (thigh_deg - knee_deg).to_radians();
     let hip = (0.0, 2.1);
-    let knee = (0.0, 1.05);
-    let ankle = (knee.0 - 1.05 * r.sin(), knee.1 - 1.05 * r.cos());
-    let toe = (ankle.0 + 0.32 * r.cos(), ankle.1 - 0.32 * r.sin());
+    let knee = (hip.0 + 1.05 * t.sin(), hip.1 - 1.05 * t.cos());
+    let ankle = (knee.0 + 1.05 * f.sin(), knee.1 - 1.05 * f.cos());
+    let toe = (ankle.0 + 0.32 * f.cos(), ankle.1 + 0.32 * f.sin());
     let mut s = String::new();
     // pelvis bar across z, then the leg in the sagittal plane at z = 0.25
     let (ax, ay) = project(hip.0, hip.1, -0.25);
@@ -144,19 +210,6 @@ fn grid3d_path() -> String {
     s
 }
 
-/// The simulated device speaks the real wire format (same text the ESP32 notifies), so the
-/// prototype exercises `irms_core::protocol` exactly as the shipping app does.
-fn sim_packet(t: f64, fault: bool) -> String {
-    if fault {
-        return "ERR:1".to_string();
-    }
-    let knee = sim_angle(t);
-    let thigh = 6.0 + 3.0 * (t * 0.7).sin();
-    let shin = thigh + knee;
-    let (tr, sr) = (1.5 + 0.5 * (t * 0.9).sin(), -1.2 + 0.6 * (t * 1.1).sin());
-    format!("T:{thigh:.1},S:{shin:.1},K:{knee:.1},TR:{tr:.1},SR:{sr:.1},KR:{:.1}", sr - tr)
-}
-
 fn arg_value(args: &[String], name: &str) -> Option<String> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
 }
@@ -168,7 +221,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --inject-fault, --log, --snapshot-after S,
+    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --action N, --inject-fault, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -202,24 +255,25 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_calibrated(has("--calibrated") || autorun);
     app.set_wizard_open(has("--wizard"));
     app.set_pose_view(int("--pose").unwrap_or(0).clamp(0, 2));
+    app.set_action_index(int("--action").unwrap_or(1).clamp(0, ACTIONS.len() as i32 - 1));
     live.set_grid3d_path(grid3d_path().into());
 
     // Prescriptions (built-in defaults of the shipping app); `shown` follows the search box.
     let actions = Rc::new(VecModel::from(
-        [
-            ("Backward Extension (直膝後擺)", "肢段後伸", "≥ 20°", "2.0 秒", "站姿,膝蓋伸直向後擺腿。"),
-            ("Squat (深蹲屈膝)", "關節角度", "90° ±10°", "3.0 秒", "雙腳與肩同寬,緩慢下蹲到目標角度後保持。"),
-            ("Straight Leg Raise (直膝抬腿)", "肢段抬高", "≥ 45°", "3.0 秒", "仰臥,膝蓋伸直抬腿到目標高度後保持。"),
-        ]
-        .map(|(name, kind, target, hold, note)| ActionItem {
-            name: name.into(),
-            kind: kind.into(),
-            target: target.into(),
-            hold: hold.into(),
-            note: note.into(),
-            shown: true,
-        })
-        .to_vec(),
+        ACTIONS
+            .map(|(name, kind, trigger_type, target, tolerance, hold_ms, note)| ActionItem {
+                name: name.into(),
+                kind: kind.into(),
+                target: if trigger_type == TriggerType::JointAngle {
+                    format!("{target:.0}° ±{tolerance:.0}°").into()
+                } else {
+                    format!("≥ {target:.0}°").into()
+                },
+                hold: format!("{:.1} 秒", hold_ms / 1000.0).into(),
+                note: note.into(),
+                shown: true,
+            })
+            .to_vec(),
     ));
     app.set_actions(ModelRc::from(actions.clone()));
     {
@@ -281,7 +335,10 @@ fn main() -> Result<(), slint::PlatformError> {
         running: autorun,
         hold: 0.0,
         reps: 0,
-        armed: true,
+        engine: TriggerEngine::new(),
+        alarm: false,
+        last_knee: 0.0,
+        last_thigh: 0.0,
         session_s: 0.0,
         session_no: 0,
     }));
@@ -356,6 +413,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 s.hold = 0.0;
                 s.reps = 0;
                 s.session_s = 0.0;
+                s.engine.reset();
+                s.alarm = false;
                 ui.global::<Live>().set_running(true);
             }
         });
@@ -381,6 +440,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let started = Instant::now();
     let mut last_frames = 0u32;
     let mut last_report = Instant::now();
+    let mut last_tick = Instant::now();
     let mut ticks = 0u32;
 
     let real_mode = host.is_some();
@@ -391,7 +451,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let app = ui.global::<App>();
         let live = ui.global::<Live>();
         let mut s = sim.borrow_mut();
-        s.t += 1.0 / HZ;
+        // Real elapsed time, not a nominal 1/HZ: the UI timer does not fire at exactly 50 Hz.
+        let dt = last_tick.elapsed().as_secs_f64().min(0.25);
+        last_tick = Instant::now();
+        s.t += dt;
         ticks += 1;
         let connected = app.get_conn() == 2;
         // Events from a real device (only with --real-ble).
@@ -425,98 +488,137 @@ fn main() -> Result<(), slint::PlatformError> {
                 _ => {}
             }
         }
-        let (angle, hw_error) = if real_mode {
+        // The selected prescription and the user's own measured range drive the judging.
+        let opt = |v: i32| (v >= 0).then_some(v as f64);
+        let limits = AngleLimits { comfort: opt(app.get_comfort()), limit: opt(app.get_limit()) };
+        let cfg = action_config(app.get_action_index().max(0) as usize, limits);
+        let (metric_label, verb) = metric_words(cfg.trigger_type);
+
+        let (angle, thigh, hw_error) = if real_mode {
             let r = real.borrow();
             app.set_thigh_text(format!("{:.0}°", r.thigh).into());
             app.set_shin_text(format!("{:.0}°", r.shin).into());
             app.set_roll_text(format!("{:.0}°", r.roll).into());
-            (r.angle, r.fault.clone())
+            (r.angle, r.thigh, r.fault.clone())
         } else {
             // Simulated notification -> real parser. Malformed packets are dropped, as in the app.
             let fault = inject_fault && (s.t % 12.0) > 10.0;
-            match parse_angle_packet(&sim_packet(s.t, fault)) {
+            match parse_angle_packet(&sim_packet(s.t, fault, &cfg)) {
                 ParsedPacket::Angles { raw, .. } => {
                     app.set_thigh_text(format!("{:.0}°", raw.thigh).into());
                     app.set_shin_text(format!("{:.0}°", raw.shin).into());
                     app.set_roll_text(format!("{:.0}°", raw.shin_roll - raw.thigh_roll).into());
-                    (raw.shin - raw.thigh, None)
+                    (raw.shin - raw.thigh, raw.thigh, None)
                 }
-                ParsedPacket::Error { code } => (s.buf.last().copied().unwrap_or(0.0), Some(code)),
+                ParsedPacket::Error { code } => (s.last_knee, s.last_thigh, Some(code)),
                 ParsedPacket::Malformed { .. } => return,
             }
         };
+        s.last_knee = angle;
+        s.last_thigh = thigh;
+
+        // Judging by the core crate: metric sample + zone -> rep state machine -> guidance.
+        let input = EngineInput::from_angles(angle, thigh, &cfg);
+        let zone = compute_metric_zone(&cfg);
+        let value = input.sample.value;
         if s.buf.len() >= SAMPLES {
             s.buf.remove(0);
         }
-        s.buf.push(angle);
+        s.buf.push(value);
 
-        let in_zone = hw_error.is_none() && angle >= ZONE.0 && angle <= ZONE.1;
+        let judging = connected && s.running && hw_error.is_none();
         if s.running {
-            s.session_s += 1.0 / HZ;
-            if in_zone {
-                s.hold = (s.hold + 1.0 / HZ / HOLD_S).min(1.0);
-                if s.hold >= 1.0 && s.armed {
-                    s.reps += 1;
-                    s.armed = false;
-                }
-            } else {
-                s.hold = 0.0;
-                if angle < 40.0 {
-                    s.armed = true;
+            s.session_s += dt;
+        }
+        if judging {
+            // Receive time on a monotonic clock, in ms, as the engine expects.
+            for event in s.engine.handle(&input, started.elapsed().as_secs_f64() * 1000.0) {
+                match event {
+                    EngineEvent::HoldProgress(p) => s.hold = p / 100.0,
+                    EngineEvent::RepCompleted => s.reps += 1,
+                    EngineEvent::OverExtension(on) => s.alarm = on,
+                    _ => {}
                 }
             }
+        } else if s.running && hw_error.is_some() {
+            // Hardware error: the app resets the engine so a hold cannot continue across it.
+            s.engine.reset();
+            s.hold = 0.0;
         }
+        let phase = s.engine.phase();
+        let guidance = compute_guidance(
+            connected.then_some(&input.sample),
+            &zone,
+            phase,
+            s.hold * 100.0,
+            cfg.hold_time_ms,
+            &limits,
+        );
+        let hold_s = cfg.hold_time_ms / 1000.0;
 
-        // State contract kept from v3: blocking conditions first, then coaching.
-        let limit = app.get_limit();
-        let (title, sub, tone): (&str, String, i32) = if !connected {
+        // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
+        let (title, sub, tone): (String, String, i32) = if !connected {
             if app.get_conn() == 1 {
-                ("連線中…", "正在尋找裝置(最長 15 秒)".into(), 0)
+                ("連線中…".into(), "正在尋找裝置(最長 15 秒)".into(), 0)
             } else if !real.borrow().connect_error.is_empty() {
-                ("連線失敗", real.borrow().connect_error.clone(), 2)
+                ("連線失敗".into(), real.borrow().connect_error.clone(), 2)
             } else {
-                ("裝置未連線", "請從右上角連線裝置".into(), 0)
+                ("裝置未連線".into(), "請從右上角連線裝置".into(), 0)
             }
         } else if let Some(code) = &hw_error {
-            ("感測器異常", format!("裝置回報 {code},請檢查感測器接線後重新連線"), 2)
-        } else if limit >= 0 && angle > limit as f64 {
-            ("超過個人極限範圍", format!("膝角 {angle:.0}° · 極限 {limit}° · 請放鬆"), 2)
+            ("感測器異常".into(), format!("裝置回報 {code},請檢查感測器接線後重新連線"), 2)
+        } else if matches!(guidance, Guidance::Hyperextension { .. } | Guidance::OverLimit { .. }) {
+            (guidance_text(&guidance, verb), "安全優先,先回到舒適範圍".into(), 2)
         } else if !app.get_calibrated() {
-            ("尚未校準", "未校準時無法開始療程,請先完成校準精靈".into(), 3)
+            ("尚未校準".into(), "未校準時無法開始療程,請先完成校準精靈".into(), 3)
         } else if !s.running {
-            ("準備開始", "確認動作與參數後按「開始療程」".into(), 0)
-        } else if in_zone && s.hold >= 1.0 {
-            ("已完成,請回到起始位", format!("已完成 {} 次", s.reps), 1)
-        } else if in_zone {
-            ("很好,保持這個位置", format!("已進入目標區間,保持滿 {HOLD_S:.1} 秒"), 1)
-        } else if angle < ZONE.0 {
-            ("再彎一點", format!("距離目標區 {:.0}°", ZONE.0 - angle), 0)
+            ("準備開始".into(), "確認動作與參數後按「開始療程」".into(), 0)
         } else {
-            ("稍微放鬆", format!("高於目標區 {:.0}°", angle - ZONE.1), 0)
+            match phase {
+                EnginePhase::Holding => ("很好,保持這個位置".into(), format!("已進入目標區間,保持滿 {hold_s:.1} 秒"), 1),
+                EnginePhase::RestPending => ("已完成,請回到起始位".into(), guidance_text(&guidance, verb), 1),
+                EnginePhase::Idle => (guidance_text(&guidance, verb), String::new(), 0),
+            }
         };
-        let right = if s.running && in_zone && s.hold < 1.0 {
-            format!("再保持 {:.1} 秒 · 第 {} 次", HOLD_S * (1.0 - s.hold), s.reps + 1)
+        let right = if s.running && phase == EnginePhase::Holding {
+            format!("再保持 {:.1} 秒 · 第 {} 次", hold_s * (1.0 - s.hold), s.reps + 1)
         } else {
             String::new()
         };
 
+        let zone_text = if zone.max.is_finite() {
+            format!("{:.0}–{:.0}°", zone.min, zone.max)
+        } else {
+            format!("≥ {:.0}°", zone.min)
+        };
+        let frac = |v: f64| (v.clamp(0.0, RULER_MAX) / RULER_MAX) as f32;
         app.set_angle(angle as f32);
         app.set_angle_text(format!("{angle:.0}°").into());
-        live.set_coach_title(SharedString::from(title));
+        live.set_metric_label(metric_label.into());
+        live.set_metric_text(if hw_error.is_some() { "—".into() } else { format!("{value:.0}°").into() });
+        live.set_zone_text(zone_text.clone().into());
+        live.set_zone_lo(frac(zone.min));
+        live.set_zone_hi(frac(if zone.max.is_finite() { zone.max } else { RULER_MAX }));
+        live.set_ruler_is_knee(cfg.trigger_type == TriggerType::JointAngle);
+        live.set_subtitle(format!("{metric_label} · 目標 {zone_text} · 保持 {hold_s:.1} 秒").into());
+        live.set_coach_title(title.into());
         live.set_coach_sub(sub.into());
         live.set_coach_tone(tone);
         live.set_coach_right(right.into());
-        live.set_ruler_pos((angle.clamp(0.0, 160.0) / 160.0) as f32);
+        live.set_ruler_pos(frac(value));
         live.set_knee_label(format!("{:.0}°", 180.0 - angle).into());
         live.set_hold(s.hold as f32);
         live.set_reps_text(format!("{} 次", s.reps).into());
-        live.set_hold_text(format!("{:.1} / {HOLD_S:.1} 秒", s.hold * HOLD_S).into());
+        live.set_hold_text(format!("{:.1} / {hold_s:.1} 秒", s.hold * hold_s).into());
         let t = s.session_s as u64;
         live.set_time_text(format!("{:02}:{:02}", t / 60, t % 60).into());
         // Only the live screen draws the pose and the trend; skip the path strings elsewhere.
         if connected && app.get_view() == 0 {
-            live.set_limb_path(limb_path(angle).into());
-            live.set_limb3d_path(limb3d_path(angle).into());
+            let (path, (kx, ky)) = limb_path(angle, thigh);
+            live.set_limb_path(path.into());
+            live.set_knee_x(kx as f32);
+            live.set_knee_y(ky as f32);
+            live.set_limb3d_path(limb3d_path(angle, thigh).into());
             live.set_chart_path(chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into());
         }
 

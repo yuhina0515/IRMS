@@ -6,6 +6,7 @@ pub mod ble_lifecycle;
 pub mod db;
 pub mod defaults;
 pub mod downsample;
+pub mod judge;
 pub mod migrations;
 pub mod protocol;
 pub mod types;
