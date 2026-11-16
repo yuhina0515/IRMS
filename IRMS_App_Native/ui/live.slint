@@ -8,6 +8,8 @@ export global Live {
     in property <int> coach-tone;      // 0 neutral 1 good 2 danger 3 warn
     in property <string> chart-path;
     in property <string> limb-path;
+    in property <string> limb3d-path;
+    in property <string> grid3d-path;
     in property <string> knee-label;
     in property <string> stats;
     in property <float> hold;
@@ -157,9 +159,22 @@ export component LiveView inherits VerticalLayout {
                 Text { x: 172px; y: 128px; text: Live.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
                 Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
             }
-            if root.live && App.pose-view == 1: Text {
-                text: "3D 視圖尚未決定 (閘門 G2)\n待與 2D 方案一併比較";
-                font-size: 15px; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center;
+            // G2 candidate: a projected drawing (three-quarter view on a ground grid), no 3D engine.
+            if root.live && App.pose-view == 1: Rectangle {
+                x: (parent.width - 300px) / 2; y: 56px;
+                width: 300px; height: 300px;
+                Path {
+                    width: 300px; height: 300px; viewbox-width: 300; viewbox-height: 300;
+                    commands: Live.grid3d-path;
+                    stroke: Theme.border; stroke-width: 1.5px; fill: transparent;
+                }
+                Path {
+                    width: 300px; height: 300px; viewbox-width: 300; viewbox-height: 300;
+                    commands: Live.limb3d-path;
+                    stroke: Theme.accent; stroke-width: 14px;
+                    stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+                }
+                Text { x: 0; y: 284px; width: 300px; text: "投影示意 (G2 候選方案) · " + Live.knee-label; font-size: 12px; color: Theme.dim; horizontal-alignment: center; }
             }
             if root.live && App.pose-view == 2: VerticalLayout {
                 x: 24px; y: 70px; width: parent.width - 48px; spacing: 10px; alignment: start;

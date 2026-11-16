@@ -1,5 +1,5 @@
 // Prescription, history, tools and settings screens (phase 2, simulated data).
-import { Theme, Btn, Card, Chip, PageHead, App } from "theme.slint";
+import { Theme, Btn, Card, Chip, Field, PageHead, App } from "theme.slint";
 
 component Row inherits Rectangle {
     in property <bool> selected;
@@ -25,9 +25,11 @@ export component ActionsView inherits VerticalLayout {
         Card {
             horizontal-stretch: 1;
             VerticalLayout {
-                padding: 12px; spacing: 6px;
+                padding: 12px; spacing: 0px; // hidden rows must not leave gaps
+                Field { placeholder: "搜尋名稱或說明…"; text <=> App.search; edited(t) => { App.search-edited(t); } }
                 for a[i] in App.actions: Row {
-                    height: 78px;
+                    height: a.shown ? 84px : 0px;
+                    visible: a.shown;
                     selected: root.picked == i;
                     clicked => { root.picked = i; }
                     VerticalLayout {
@@ -81,9 +83,9 @@ export component HistoryView inherits VerticalLayout {
     Card {
         vertical-stretch: 1;
         VerticalLayout {
-            padding: 12px; spacing: 4px;
+            padding: 12px; spacing: 0px; // hidden rows (other pages) must not leave gaps
             HorizontalLayout {
-                height: 34px; padding-left: 16px; padding-right: 16px; spacing: 12px;
+                height: 38px; padding-left: 16px; padding-right: 16px; spacing: 12px;
                 Text { width: 190px; text: "開始時間"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
                 Text { horizontal-stretch: 1; text: "動作"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
                 Text { width: 90px; text: "完成"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
@@ -97,8 +99,9 @@ export component HistoryView inherits VerticalLayout {
             }
             // v3 rule: no page scrolling; the list is paged, eight rows per page.
             for s[i] in App.sessions: Row {
-                height: i < 8 ? 52px : 0px;
-                visible: i < 8;
+                property <bool> on-page: floor(i / 8) == App.history-page;
+                height: self.on-page ? 56px : 0px;
+                visible: self.on-page;
                 selected: root.review == i;
                 HorizontalLayout {
                     padding-left: 16px; padding-right: 16px; spacing: 12px;
@@ -129,7 +132,13 @@ export component HistoryView inherits VerticalLayout {
                     VerticalLayout { alignment: center; Btn { text: "關閉"; min-height: 36px; clicked => { root.review = -1; } } }
                 }
             }
-            Text { text: "共 " + App.sessions.length + " 場 · 第 1 / " + max(1, ceil(App.sessions.length / 8)) + " 頁"; font-size: 12px; color: Theme.dim; }
+            HorizontalLayout {
+                spacing: 8px;
+                property <int> pages: max(1, ceil(App.sessions.length / 8));
+                Text { text: "共 " + App.sessions.length + " 場 · 第 " + (App.history-page + 1) + " / " + parent.pages + " 頁"; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+                Btn { text: "上一頁"; min-height: 34px; enabled: App.history-page > 0; clicked => { root.review = -1; App.history-page -= 1; } }
+                Btn { text: "下一頁"; min-height: 34px; enabled: App.history-page < parent.pages - 1; clicked => { root.review = -1; App.history-page += 1; } }
+            }
         }
     }
 }

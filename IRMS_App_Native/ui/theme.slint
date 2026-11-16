@@ -44,6 +44,24 @@ export component Btn inherits Rectangle {
     ta := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
 }
 
+export component Field inherits Rectangle {
+    in property <string> placeholder;
+    in-out property <string> text <=> input.text;
+    callback edited(string);
+    height: 40px;
+    border-radius: min(Theme.radius, 20px);
+    background: Theme.canvas;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.border;
+    if input.text == "": Text { x: 14px; text: root.placeholder; font-size: 15px; color: Theme.dim; vertical-alignment: center; }
+    input := TextInput {
+        x: 14px; width: parent.width - 28px;
+        font-size: 15px; color: Theme.ink;
+        vertical-alignment: center; single-line: true;
+        edited => { root.edited(self.text); }
+    }
+}
+
 export component Chip inherits Rectangle {
     in property <string> text;
     in property <color> tone: Theme.dim;
@@ -73,7 +91,7 @@ export component PageHead inherits HorizontalLayout {
     @children
 }
 
-export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string }
+export struct ActionItem { name: string, kind: string, target: string, hold: string, note: string, shown: bool }
 export struct SessionRow { started: string, action: string, reps: int, duration: string, demo: bool }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
@@ -87,11 +105,10 @@ export global App {
     in-out property <int> pose-view: 0;       // 0 2D 1 3D 2 values
     in-out property <int> comfort: -1;        // personal comfort angle, -1 = not measured
     in-out property <int> limit: -1;
-    in property <[ActionItem]> actions: [
-        { name: "Backward Extension (直膝後擺)", kind: "肢段後伸", target: "≥ 20°", hold: "2.0 秒", note: "站姿,膝蓋伸直向後擺腿。" },
-        { name: "Squat (深蹲屈膝)", kind: "關節角度", target: "90° ±10°", hold: "3.0 秒", note: "雙腳與肩同寬,緩慢下蹲到目標角度後保持。" },
-        { name: "Straight Leg Raise (直膝抬腿)", kind: "肢段抬高", target: "≥ 45°", hold: "3.0 秒", note: "仰臥,膝蓋伸直抬腿到目標高度後保持。" },
-    ];
+    in property <[ActionItem]> actions;      // filled from Rust; `shown` follows the search box
+    in-out property <string> search;
+    in-out property <int> history-page: 0;
+    callback search-edited(string);
     in property <[SessionRow]> sessions;
     // live values pushed from Rust
     in property <float> angle: 0;

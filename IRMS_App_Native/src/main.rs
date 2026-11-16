@@ -67,6 +67,44 @@ fn sim_angle(t: f64) -> f64 {
     base + 0.8 * (t * 37.0).sin() + 1.2 * (t * 2.3).sin()
 }
 
+/// Three-quarter projection of a point (x forward, y up, z sideways, in leg-length units) to the stage.
+fn project(x: f64, y: f64, z: f64) -> (f64, f64) {
+    let (yaw, pitch) = (35f64.to_radians(), 18f64.to_radians());
+    let xr = x * yaw.cos() + z * yaw.sin();
+    let zr = -x * yaw.sin() + z * yaw.cos();
+    let yr = y * pitch.cos() - zr * pitch.sin();
+    let depth = 1.0 / (1.0 + 0.12 * (zr * pitch.cos() + y * pitch.sin()));
+    (150.0 + xr * 95.0 * depth, 250.0 - yr * 95.0 * depth)
+}
+
+fn limb3d_path(knee_deg: f64) -> String {
+    let r = knee_deg.to_radians();
+    let hip = (0.0, 2.1);
+    let knee = (0.0, 1.05);
+    let ankle = (knee.0 - 1.05 * r.sin(), knee.1 - 1.05 * r.cos());
+    let toe = (ankle.0 + 0.32 * r.cos(), ankle.1 - 0.32 * r.sin());
+    let mut s = String::new();
+    // pelvis bar across z, then the leg in the sagittal plane at z = 0.25
+    let (ax, ay) = project(hip.0, hip.1, -0.25);
+    let _ = write!(s, "M {ax:.1} {ay:.1} ");
+    for (x, y) in [hip, knee, ankle, toe] {
+        let (px, py) = project(x, y, 0.25);
+        let _ = write!(s, "L {px:.1} {py:.1} ");
+    }
+    s
+}
+
+fn grid3d_path() -> String {
+    let mut s = String::new();
+    for i in -3..=3 {
+        let v = i as f64 * 0.5;
+        let (a, b) = (project(v, 0.0, -1.5), project(v, 0.0, 1.5));
+        let (c, d) = (project(-1.5, 0.0, v), project(1.5, 0.0, v));
+        let _ = write!(s, "M {:.1} {:.1} L {:.1} {:.1} M {:.1} {:.1} L {:.1} {:.1} ", a.0, a.1, b.0, b.1, c.0, c.1, d.0, d.1);
+    }
+    s
+}
+
 fn arg_value(args: &[String], name: &str) -> Option<String> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
 }
@@ -78,7 +116,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --seed-history, --log, --snapshot <png>.
+    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --seed-history, --log,
+    // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
     let int = |n: &str| arg_value(&args, n).and_then(|v| v.parse::<i32>().ok());
@@ -95,6 +134,46 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     app.set_calibrated(has("--calibrated") || autorun);
     app.set_wizard_open(has("--wizard"));
+    app.set_pose_view(int("--pose").unwrap_or(0).clamp(0, 2));
+    live.set_grid3d_path(grid3d_path().into());
+
+    // Prescriptions (built-in defaults of the shipping app); `shown` follows the search box.
+    let actions = Rc::new(VecModel::from(
+        [
+            ("Backward Extension (直膝後擺)", "肢段後伸", "≥ 20°", "2.0 秒", "站姿,膝蓋伸直向後擺腿。"),
+            ("Squat (深蹲屈膝)", "關節角度", "90° ±10°", "3.0 秒", "雙腳與肩同寬,緩慢下蹲到目標角度後保持。"),
+            ("Straight Leg Raise (直膝抬腿)", "肢段抬高", "≥ 45°", "3.0 秒", "仰臥,膝蓋伸直抬腿到目標高度後保持。"),
+        ]
+        .map(|(name, kind, target, hold, note)| ActionItem {
+            name: name.into(),
+            kind: kind.into(),
+            target: target.into(),
+            hold: hold.into(),
+            note: note.into(),
+            shown: true,
+        })
+        .to_vec(),
+    ));
+    app.set_actions(ModelRc::from(actions.clone()));
+    {
+        let actions = actions.clone();
+        app.on_search_edited(move |q| {
+            let q = q.trim().to_lowercase();
+            for i in 0..actions.row_count() {
+                if let Some(mut a) = actions.row_data(i) {
+                    a.shown = q.is_empty()
+                        || a.name.to_lowercase().contains(&q)
+                        || a.kind.contains(q.as_str())
+                        || a.note.contains(q.as_str());
+                    actions.set_row_data(i, a);
+                }
+            }
+        });
+    }
+    if let Some(q) = arg_value(&args, "--search") {
+        app.set_search(q.clone().into());
+        app.invoke_search_edited(q.into());
+    }
 
     let sessions = Rc::new(VecModel::<SessionRow>::default());
     if has("--seed-history") {
@@ -102,6 +181,13 @@ fn main() -> Result<(), slint::PlatformError> {
             ("2026/11/16 上午 11:07", "Squat (深蹲屈膝)", 82, "10:54"),
             ("2026/11/15 下午 08:30", "Straight Leg Raise (直膝抬腿)", 24, "06:12"),
             ("2026/11/14 下午 07:45", "Squat (深蹲屈膝)", 30, "05:40"),
+            ("2026/11/13 下午 08:10", "Backward Extension (直膝後擺)", 18, "04:05"),
+            ("2026/11/12 下午 07:50", "Squat (深蹲屈膝)", 28, "05:31"),
+            ("2026/11/11 下午 08:20", "Straight Leg Raise (直膝抬腿)", 22, "05:58"),
+            ("2026/11/10 下午 07:40", "Squat (深蹲屈膝)", 26, "05:12"),
+            ("2026/11/09 下午 08:05", "Squat (深蹲屈膝)", 25, "05:03"),
+            ("2026/11/08 上午 10:15", "Backward Extension (直膝後擺)", 16, "03:48"),
+            ("2026/11/07 下午 07:55", "Squat (深蹲屈膝)", 24, "04:57"),
         ] {
             sessions.push(SessionRow {
                 started: started.into(),
@@ -286,6 +372,7 @@ fn main() -> Result<(), slint::PlatformError> {
         // Only the live screen draws the pose and the trend; skip the path strings elsewhere.
         if connected && app.get_view() == 0 {
             live.set_limb_path(limb_path(angle).into());
+            live.set_limb3d_path(limb3d_path(angle).into());
             live.set_chart_path(chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into());
         }
 

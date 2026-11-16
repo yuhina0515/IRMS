@@ -33,15 +33,32 @@ connected and calibrated, 2D pose by default, personal range has no default valu
 - Resource use with all screens compiled in (session running, 15 s): software renderer 25.8 MB working set,
   8.6 MB private, 5.2 % of one core; GL renderer 76.4 MB, 107.8 MB, 7.2 %.
 
+## Second pass (same day)
+
+Added: search field on the prescription list (filtering in Rust), history paging (previous / next, eight
+rows per page), and a 3D candidate for gate G2: the leg projected in a three-quarter view on a ground grid,
+drawn with the same `Path` element, no 3D engine. It is a drawing, not a rotatable model.
+
+Checked with real mouse and injected keyboard input on the software renderer:
+- Typing Chinese text into the search field filters the list (characters sent as Unicode key events).
+- Picking a prescription shows its detail; recording the comfort angle in tools stores the live value;
+  history next page shows rows 9 and 10 of ten.
+
+Phase 0 number that was owed: the Tauri installer `IRMS.Dashboard_1.2.0-beta.25_x64-setup.exe` is 3.97 MB
+(it relies on the WebView2 runtime already on the machine). The native executable is 9.7 MB and compresses to 4.1 MB with LZMA, so an
+installer would be about the same size as today's, without needing WebView2.
+
 ## Not done or not checked
 
-- Not click-tested: prescription detail, history review and delete, tools recording buttons, settings
-  switches, disconnect during a session. They compile and render; behaviour is unverified.
+- Not click-tested: history review and delete, "use for live monitoring", settings switches, the limit
+  button and clear in tools, disconnect during a session. They compile and render; behaviour is unverified.
 - Placeholders with no behaviour: add / edit / restore prescription, firmware and software update, live
-  share, 3D pose (gate G2), history analysis (review shows a one-line summary only).
-- Text input (search, numeric fields) and the Chinese input method (rest of gate G3) are not in the prototype.
-- History paging shows page one only; previous / next are not built.
+  share, history analysis (review shows a one-line summary only).
+- Chinese input method composition (candidate window, commit) is still untested: injected Unicode key
+  events bypass the input method. Needs a person typing with 注音 or 倉頡. Numeric fields are not built.
+- Gate G2 is the owner's call between the 2D view and the projected drawing; a true 3D model is not built.
 - Only Traditional Chinese strings, hard-coded; no translation layer yet.
+- Cold start to first painted frame is still unmeasured on both apps.
 - The owner has not clicked through the prototype; phase 2 is "done" only when they have.
 
 ## Run it
@@ -53,4 +70,4 @@ set SLINT_BACKEND=winit-software       # software renderer (lower memory)
 ```
 
 Flags: `--style N`, `--night`, `--view N`, `--settings-tab N`, `--connected`, `--calibrated`, `--run`,
-`--wizard`, `--seed-history`, `--log`, `--snapshot <png>`.
+`--wizard`, `--pose N`, `--search <text>`, `--seed-history`, `--log`, `--snapshot <png>`.
