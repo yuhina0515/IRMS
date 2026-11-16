@@ -12,12 +12,11 @@ component Row inherits Rectangle {
 
 export component ActionsView inherits VerticalLayout {
     spacing: 14px;
-    property <int> picked: -1;
     PageHead {
         title: "動作處方";
         sub: "每個動作都寫清楚目標與保持時間;舒適角度與極限範圍屬於個人量測,不隨動作設定。";
-        VerticalLayout { alignment: center; Btn { text: "還原預設"; } }
-        VerticalLayout { alignment: center; Btn { text: "+ 新增動作"; primary: true; } }
+        VerticalLayout { alignment: center; Btn { text: "還原預設"; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.request-restore-actions(); } } }
+        VerticalLayout { alignment: center; Btn { text: "+ 新增動作"; primary: true; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.new-action(); } } }
     }
     HorizontalLayout {
         spacing: 14px;
@@ -28,17 +27,18 @@ export component ActionsView inherits VerticalLayout {
                 padding: 12px; spacing: 0px; // hidden rows must not leave gaps
                 Field { placeholder: "搜尋名稱或說明…"; text <=> App.search; edited(t) => { App.search-edited(t); } }
                 for a[i] in App.actions: Row {
-                    height: a.shown ? 84px : 0px;
-                    visible: a.shown;
-                    selected: root.picked == i;
-                    clicked => { root.picked = i; }
+                    property <bool> on-page: a.shown && floor(a.position / 5) == App.action-page;
+                    height: self.on-page ? 72px : 0px;
+                    visible: self.on-page;
+                    selected: App.picked-action-id == a.id;
+                    clicked => { App.pick-action(a.id); }
                     VerticalLayout {
                         padding-left: 16px; padding-right: 16px; alignment: center; spacing: 6px;
                         HorizontalLayout {
                             spacing: 10px; alignment: start;
                             Text { text: a.name; font-size: 17px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
                             Chip { text: a.kind; }
-                            if App.action-index == i: Chip { text: "使用中"; tone: Theme.good; }
+                            if App.active-action-id == a.id: Chip { text: "使用中"; tone: Theme.good; }
                         }
                         HorizontalLayout {
                             Text { text: "目標 " + a.target; font-size: 14px; color: Theme.dim; }
@@ -47,29 +47,37 @@ export component ActionsView inherits VerticalLayout {
                     }
                 }
                 Rectangle { vertical-stretch: 1; }
-                Text { text: "共 " + App.actions.length + " 個動作 · 第 1 / 1 頁"; font-size: 12px; color: Theme.dim; }
+                HorizontalLayout { spacing: 6px;
+                    property <int> pages: max(1,ceil(App.action-matches / 5));
+                    Text { text: "共 " + App.action-matches + " 個 · " + (App.action-page + 1) + " / " + parent.pages + " 頁"; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+                    Btn { text: "上一頁"; min-height: 34px; enabled: App.action-page > 0; clicked => { App.action-page -= 1; } }
+                    Btn { text: "下一頁"; min-height: 34px; enabled: App.action-page < parent.pages - 1; clicked => { App.action-page += 1; } }
+                }
             }
         }
         Card {
             width: 42%;
-            if root.picked < 0: Text {
+            if !App.has-picked-action: Text {
                 text: "選擇左側的動作查看內容,或新增一個動作。";
                 font-size: 14px; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center;
             }
-            if root.picked >= 0: VerticalLayout {
+            if App.has-picked-action: VerticalLayout {
                 padding: 22px; spacing: 12px; alignment: start;
-                Text { text: App.actions[root.picked].name; font-size: 21px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
-                Chip { text: App.actions[root.picked].kind; }
-                Text { text: App.actions[root.picked].note; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                Text { text: App.picked-action.name; font-size: 21px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                Chip { text: App.picked-action.kind; }
+                Text { text: App.picked-action.note; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
                 HorizontalLayout {
                     spacing: 24px; alignment: start;
-                    VerticalLayout { Text { text: "目標"; font-size: 12px; color: Theme.dim; } Text { text: App.actions[root.picked].target; font-size: 24px; font-weight: 700; color: Theme.ink; } }
-                    VerticalLayout { Text { text: "保持"; font-size: 12px; color: Theme.dim; } Text { text: App.actions[root.picked].hold; font-size: 24px; font-weight: 700; color: Theme.ink; } }
+                    VerticalLayout { Text { text: "目標"; font-size: 12px; color: Theme.dim; } Text { text: App.picked-action.target; font-size: 24px; font-weight: 700; color: Theme.ink; } }
+                    VerticalLayout { Text { text: "保持"; font-size: 12px; color: Theme.dim; } Text { text: App.picked-action.hold; font-size: 24px; font-weight: 700; color: Theme.ink; } }
                 }
                 HorizontalLayout {
                     spacing: 10px; alignment: start;
-                    Btn { text: App.action-index == root.picked ? "目前使用中" : "用於即時監測"; primary: true; enabled: !App.session-locked && App.action-index != root.picked; clicked => { App.action-index = root.picked; App.view = 0; } }
-                    Btn { text: "編輯"; }
+                    Btn { text: App.active-action-id == App.picked-action-id ? "目前使用中" : "用於即時監測"; primary: true; enabled: !App.session-locked && !App.closing && !App.disconnecting && App.active-action-id != App.picked-action-id; clicked => { App.select-action(App.picked-action-id); } }
+                    Btn { text: "編輯"; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.edit-action(App.picked-action-id); } }
+                }
+                HorizontalLayout {
+                    Btn { text: "刪除動作"; ink: Theme.danger; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.request-delete-action(App.picked-action-id); } }
                 }
             }
         }
@@ -99,8 +107,8 @@ export component HistoryView inherits VerticalLayout {
             }
             // v3 rule: no page scrolling; the list is paged, eight rows per page.
             for s[i] in App.sessions: Row {
-                property <bool> on-page: floor(i / 8) == App.history-page;
-                height: self.on-page ? 56px : 0px;
+                property <bool> on-page: floor(i / App.history-page-size) == App.history-page;
+                height: self.on-page ? 48px : 0px;
                 visible: self.on-page;
                 selected: App.review == i;
                 HorizontalLayout {
@@ -116,7 +124,7 @@ export component HistoryView inherits VerticalLayout {
                     HorizontalLayout {
                         width: 170px; spacing: 6px; alignment: start;
                         VerticalLayout { alignment: center; Btn { text: "回顧"; min-height: 36px; primary: true; clicked => { App.review = i; App.request-review(i); } } }
-                        VerticalLayout { alignment: center; Btn { text: "刪除"; min-height: 36px; quiet: true; ink: Theme.danger; clicked => { App.review = -1; App.delete-session(i); } } }
+                        VerticalLayout { alignment: center; Btn { text: "刪除"; min-height: 36px; quiet: true; ink: Theme.danger; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.request-delete-session(s.id); } } }
                     }
                 }
             }
@@ -139,7 +147,7 @@ export component HistoryView inherits VerticalLayout {
             }
             HorizontalLayout {
                 spacing: 8px;
-                property <int> pages: max(1, ceil(App.sessions.length / 8));
+                property <int> pages: max(1, ceil(App.sessions.length / App.history-page-size));
                 Text { text: "共 " + App.sessions.length + " 場 · 第 " + (App.history-page + 1) + " / " + parent.pages + " 頁"; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
                 Btn { text: "上一頁"; min-height: 34px; enabled: App.history-page > 0; clicked => { App.review = -1; App.history-page -= 1; } }
                 Btn { text: "下一頁"; min-height: 34px; enabled: App.history-page < parent.pages - 1; clicked => { App.review = -1; App.history-page += 1; } }
@@ -258,6 +266,12 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 2: VerticalLayout {
                     spacing: 16px;
+                    Setting { title: "偏好儲存"; sub: App.preferences-status == "" ? "外觀、語音、姿態與選用處方會保留至下次啟動。" : App.preferences-status;
+                        HorizontalLayout { spacing: 6px;
+                            if App.preferences-can-retry: VerticalLayout { alignment: center; Btn { text: "重試"; clicked => { App.retry-preferences(); } } }
+                            VerticalLayout { alignment: center; Btn { text: "重設偏好"; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.request-reset-preferences(); } } }
+                        }
+                    }
                     Setting {
                         title: "語音提示"; sub: App.voice-status;
                         VerticalLayout { alignment: center; Btn { text: App.voice-enabled ? "已開啟" : "已關閉"; active: App.voice-enabled; clicked => { App.voice-enabled = !App.voice-enabled; } } }

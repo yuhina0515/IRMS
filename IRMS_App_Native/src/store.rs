@@ -19,12 +19,19 @@ use std::path::PathBuf;
 const BATCH: usize = 50;
 
 pub struct Store {
+    #[cfg(test)]
+    fail_mutation_snapshot: std::cell::Cell<bool>,
     conn: Connection,
     _lock: Option<std::fs::File>,
     pub location: String,
     session_id: Option<i64>,
     pending: Vec<SensorReading>,
     stopped_at: Option<String>,
+}
+
+pub struct ActionChange {
+    pub saved: Option<CustomAction>,
+    pub actions: Vec<CustomAction>,
 }
 
 fn default_path() -> Option<PathBuf> {
@@ -37,6 +44,103 @@ fn default_path() -> Option<PathBuf> {
 }
 
 impl Store {
+    /// 停止後尚未存妥的療程也會阻擋處方與歷史異動。
+    fn allow_mutation(&self) -> Result<(), String> {
+        if self.active() {
+            Err("請先結束療程並完成儲存".into())
+        } else {
+            Ok(())
+        }
+    }
+    fn mutation_actions(&self, connection: &Connection) -> rusqlite::Result<Vec<CustomAction>> {
+        #[cfg(test)]
+        if self.fail_mutation_snapshot.replace(false) {
+            return Err(rusqlite::Error::InvalidQuery);
+        }
+        Ok(actions_repo::list(connection)?
+            .into_iter()
+            .filter(|a| a.protocol == "knee")
+            .collect())
+    }
+    #[cfg(test)]
+    pub fn fail_next_mutation_snapshot(&self) {
+        self.fail_mutation_snapshot.set(true);
+    }
+    pub fn save_action(
+        &self,
+        id: Option<i64>,
+        draft: &crate::action_edit::Draft,
+    ) -> Result<ActionChange, String> {
+        self.allow_mutation()?;
+        let existing = match id {
+            Some(id) => Some(
+                self.actions()
+                    .map_err(|e| e.to_string())?
+                    .into_iter()
+                    .find(|a| a.id == id)
+                    .ok_or("找不到此動作")?,
+            ),
+            None => None,
+        };
+        let input = draft.validated(existing.as_ref())?;
+        let transaction = self
+            .conn
+            .unchecked_transaction()
+            .map_err(|e| e.to_string())?;
+        let saved = match id {
+            Some(id) => actions_repo::update(&transaction, id, &input),
+            None => actions_repo::create(&transaction, &input),
+        }
+        .map_err(|e| e.to_string())?;
+        let actions = self
+            .mutation_actions(&transaction)
+            .map_err(|e| e.to_string())?;
+        transaction.commit().map_err(|e| e.to_string())?;
+        Ok(ActionChange {
+            saved: Some(saved),
+            actions,
+        })
+    }
+    pub fn delete_action(&self, id: i64) -> Result<ActionChange, String> {
+        self.allow_mutation()?;
+        if !self
+            .actions()
+            .map_err(|e| e.to_string())?
+            .iter()
+            .any(|a| a.id == id)
+        {
+            return Err("找不到此動作".into());
+        }
+        let transaction = self
+            .conn
+            .unchecked_transaction()
+            .map_err(|e| e.to_string())?;
+        actions_repo::delete(&transaction, id).map_err(|e| e.to_string())?;
+        let actions = self
+            .mutation_actions(&transaction)
+            .map_err(|e| e.to_string())?;
+        transaction.commit().map_err(|e| e.to_string())?;
+        Ok(ActionChange {
+            saved: None,
+            actions,
+        })
+    }
+    pub fn restore_actions(&self) -> Result<ActionChange, String> {
+        self.allow_mutation()?;
+        let transaction = self
+            .conn
+            .unchecked_transaction()
+            .map_err(|e| e.to_string())?;
+        actions_repo::replace_defaults_in(&transaction).map_err(|e| e.to_string())?;
+        let actions = self
+            .mutation_actions(&transaction)
+            .map_err(|e| e.to_string())?;
+        transaction.commit().map_err(|e| e.to_string())?;
+        Ok(ActionChange {
+            saved: None,
+            actions,
+        })
+    }
     pub fn open(path: Option<String>) -> Result<Self, String> {
         let path = match path {
             Some(p) => PathBuf::from(p),
@@ -90,6 +194,8 @@ impl Store {
         };
         let conn = init_database(&path).map_err(|e| format!("{}: {e}", path.display()))?;
         Ok(Self {
+            #[cfg(test)]
+            fail_mutation_snapshot: std::cell::Cell::new(false),
             conn,
             _lock: lock,
             location: path.display().to_string(),
@@ -225,11 +331,25 @@ impl Store {
         sessions_repo::list(&self.conn)
     }
 
-    pub fn delete_session(&self, id: i64) -> rusqlite::Result<()> {
-        if self.session_id == Some(id) {
+    pub fn delete_session(&self, id: i64) -> rusqlite::Result<Vec<Session>> {
+        if self.active() {
             return Err(rusqlite::Error::InvalidQuery);
         }
-        sessions_repo::delete(&self.conn, id)
+        let transaction = self.conn.unchecked_transaction()?;
+        if !sessions_repo::list(&transaction)?
+            .iter()
+            .any(|row| row.id == id)
+        {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+        sessions_repo::delete(&transaction, id)?;
+        #[cfg(test)]
+        if self.fail_mutation_snapshot.replace(false) {
+            return Err(rusqlite::Error::InvalidQuery);
+        }
+        let rows = sessions_repo::list(&transaction)?;
+        transaction.commit()?;
+        Ok(rows)
     }
 
     /// Review statistics of a stored session, computed from its stored readings (full readings, not
@@ -380,6 +500,11 @@ mod tests {
         assert!(store.end_session(2).is_err());
         let stopped_at = store.stopped_at.clone();
         assert!(store.delete_session(id).is_err());
+        assert!(store
+            .save_action(None, &crate::action_edit::Draft::new_action())
+            .is_err());
+        assert!(store.delete_action(store.actions().unwrap()[0].id).is_err());
+        assert!(store.restore_actions().is_err());
         assert!(start(&mut store).is_err());
         assert!(sessions_repo::get_data(&store.conn, id, None)
             .unwrap()
@@ -417,5 +542,100 @@ mod tests {
         assert!(reopened.review(session).contains("1 筆讀數"));
         drop(reopened);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn prescription_changes_keep_session_snapshots_after_reopen_and_preserve_seeding_contract() {
+        use crate::action_edit::Draft;
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "irms-action-history-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let path_text = path.display().to_string();
+        let mut store = Store::open(Some(path_text.clone())).unwrap();
+        let draft = Draft {
+            name: "Original prescription".into(),
+            target: "82.5".into(),
+            tolerance: "5.5".into(),
+            hold_seconds: "1.234".into(),
+            ..Draft::new_action()
+        };
+        let id = store.save_action(None, &draft).unwrap().saved.unwrap().id;
+        store
+            .conn
+            .execute(
+                "UPDATE custom_actions SET safetyLimit=135 WHERE id=?1",
+                [id],
+            )
+            .unwrap();
+        let action = store
+            .actions()
+            .unwrap()
+            .into_iter()
+            .find(|a| a.id == id)
+            .unwrap();
+        let limits = AngleLimits {
+            comfort: Some(60.0),
+            limit: Some(100.0),
+        };
+        store
+            .start_session(
+                &action,
+                &limits,
+                serde_json::json!({"profile":"original"}),
+                false,
+            )
+            .unwrap();
+        store.push_reading(reading(1)).unwrap();
+        store.end_session(2).unwrap();
+        let snapshot = store.sessions().unwrap().remove(0);
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_eq!(snapshot.safety_limit, None);
+        assert_eq!(
+            (snapshot.comfort_angle, snapshot.limit_angle),
+            (Some(60.0), Some(100.0))
+        );
+        let edited = store
+            .save_action(
+                Some(id),
+                &Draft {
+                    name: "Changed later".into(),
+                    target: "99".into(),
+                    ..Draft::from_action(&action)
+                },
+            )
+            .unwrap()
+            .saved
+            .unwrap();
+        assert_eq!(edited.safety_limit, Some(135.0));
+        store.delete_action(id).unwrap();
+        store.restore_actions().unwrap();
+        drop(store);
+        let store = Store::open(Some(path_text.clone())).unwrap();
+        let reopened = store.sessions().unwrap().remove(0);
+        assert_eq!(serde_json::to_value(&reopened).unwrap(), snapshot_value);
+        assert!(store.review(&reopened).contains("1 筆讀數"));
+        for action in store.actions().unwrap() {
+            store.delete_action(action.id).unwrap();
+        }
+        assert!(store.actions().unwrap().is_empty());
+        assert!(!actions_repo::list(&store.conn).unwrap().is_empty());
+        drop(store);
+        let store = Store::open(Some(path_text.clone())).unwrap();
+        assert!(store.actions().unwrap().is_empty());
+        for action in actions_repo::list(&store.conn).unwrap() {
+            actions_repo::delete(&store.conn, action.id).unwrap();
+        }
+        drop(store);
+        let store = Store::open(Some(path_text)).unwrap();
+        assert!(!store.actions().unwrap().is_empty());
+        drop(store);
+        for suffix in ["", ".lock", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
+        }
     }
 }

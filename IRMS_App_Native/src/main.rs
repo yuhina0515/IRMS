@@ -25,8 +25,11 @@ use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use store::Store;
 
+mod action_edit;
+mod action_ui;
 mod outputs;
 mod pipeline;
+mod preferences;
 mod store;
 
 slint::include_modules!();
@@ -68,6 +71,8 @@ fn kind_label(t: TriggerType) -> &'static str {
 fn action_item(a: &CustomAction) -> ActionItem {
     let trigger = TriggerType::parse(&a.trigger_type).unwrap_or(TriggerType::JointAngle);
     ActionItem {
+        id: a.id.to_string().into(),
+        position: 0,
         name: a.name.clone().into(),
         kind: kind_label(trigger).into(),
         target: if trigger == TriggerType::JointAngle {
@@ -83,9 +88,10 @@ fn action_item(a: &CustomAction) -> ActionItem {
 
 /// History rows from the database, newest first.
 fn session_rows(store: &Store) -> rusqlite::Result<Vec<SessionRow>> {
-    Ok(store
-        .sessions()?
-        .iter()
+    Ok(session_rows_from(&store.sessions()?))
+}
+fn session_rows_from(rows: &[irms_core::types::Session]) -> Vec<SessionRow> {
+    rows.iter()
         .filter(|x| x.end_time.is_some())
         .map(|x| SessionRow {
             id: x.id.to_string().into(),
@@ -96,7 +102,7 @@ fn session_rows(store: &Store) -> rusqlite::Result<Vec<SessionRow>> {
             demo: x.source == "demo",
             summary: Default::default(),
         })
-        .collect())
+        .collect()
 }
 
 /// Main-metric name and movement verb, as in the app's zh-Hant strings.
@@ -175,6 +181,7 @@ struct RealLink {
 }
 
 struct Sim {
+    preferences: Option<preferences::PreferenceStore>,
     feedback_clock: Instant,
     feedback: SessionFeedback,
     outputs: Option<outputs::Outputs>,
@@ -212,6 +219,7 @@ struct Sim {
 impl Sim {
     fn new(store: Store, actions: Vec<CustomAction>) -> Self {
         Self {
+            preferences: None,
             feedback_clock: Instant::now(),
             feedback: SessionFeedback::default(),
             outputs: None,
@@ -349,11 +357,17 @@ fn main() -> Result<(), slint::PlatformError> {
     let has = |n: &str| args.iter().any(|a| a == n);
     let int = |n: &str| arg_value(&args, n).and_then(|v| v.parse::<i32>().ok());
     let log = has("--log");
-    app.set_voice_enabled(!has("--no-voice"));
-    if let Some(n) = int("--style") {
-        theme.set_style(n.clamp(0, 2));
+    if let Some(size) = arg_value(&args, "--window-size") {
+        if let Some((width, height)) = size
+            .split_once('x')
+            .and_then(|(w, h)| Some((w.parse::<u32>().ok()?, h.parse::<u32>().ok()?)))
+        {
+            ui.window().set_size(slint::PhysicalSize::new(
+                width.clamp(1024, 3840),
+                height.clamp(680, 2160),
+            ));
+        }
     }
-    theme.set_night(has("--night"));
     app.set_view(int("--view").unwrap_or(0).clamp(0, 4));
     app.set_settings_tab(int("--settings-tab").unwrap_or(0).clamp(0, 5));
     let autorun = has("--run");
@@ -396,7 +410,6 @@ fn main() -> Result<(), slint::PlatformError> {
     // Seconds into a session after which the simulated shin sensor turns on the leg.
     let inject_slip = int("--inject-slip").map(f64::from);
     app.set_wizard_open(has("--wizard"));
-    app.set_pose_view(int("--pose").unwrap_or(0).clamp(0, 2));
     // Prescriptions, sessions and the personal range live in the prototype's own database (--db <path>,
     // or :memory: to keep nothing). It is never the Tauri app's database.
     let db_error = |e: rusqlite::Error| slint::PlatformError::Other(e.to_string());
@@ -411,15 +424,35 @@ fn main() -> Result<(), slint::PlatformError> {
         println!("database: {}", store.location);
     }
     let stored_actions = store.actions().map_err(db_error)?;
-    let default_action = stored_actions
-        .iter()
-        .position(|a| a.trigger_type == "joint_angle")
-        .unwrap_or(0) as i32;
-    app.set_action_index(
-        int("--action")
-            .unwrap_or(default_action)
-            .clamp(0, (stored_actions.len() as i32 - 1).max(0)),
-    );
+    let mut preferences = preferences::PreferenceStore::open(&store.location);
+    let saved = preferences.loaded.clone();
+    theme.set_style(int("--style").unwrap_or(saved.style).clamp(0, 2));
+    theme.set_night(if has("--day") {
+        false
+    } else {
+        has("--night") || saved.night
+    });
+    app.set_pose_view(int("--pose").unwrap_or(saved.pose).clamp(0, 2));
+    app.set_voice_enabled(if has("--no-voice") {
+        false
+    } else {
+        has("--voice") || saved.voice_enabled
+    });
+    app.set_preferences_status(preferences.status.clone().into());
+    let restored = action_edit::selected_index(&stored_actions, saved.action_id.as_deref())
+        .map_or(-1, |i| i as i32);
+    let picked = int("--action")
+        .map(|i| i.clamp(0, (stored_actions.len() as i32 - 1).max(0)))
+        .unwrap_or(restored);
+    app.set_action_index(if stored_actions.is_empty() {
+        -1
+    } else {
+        picked
+    });
+    if let Some(action) = stored_actions.get(picked.max(0) as usize) {
+        app.set_active_action_id(action.id.to_string().into());
+    }
+    preferences.start_run(preference_snapshot(&ui), int("--action").is_none());
     let range = store.latest_range().map_err(db_error)?;
     app.set_comfort(range.comfort.map_or(-1, |v| v.round() as i32));
     app.set_limit(range.limit.map_or(-1, |v| v.round() as i32));
@@ -430,30 +463,23 @@ fn main() -> Result<(), slint::PlatformError> {
         stored_actions.iter().map(action_item).collect::<Vec<_>>(),
     ));
     app.set_actions(ModelRc::from(actions.clone()));
-    {
-        let actions = actions.clone();
-        app.on_search_edited(move |q| {
-            let q = q.trim().to_lowercase();
-            for i in 0..actions.row_count() {
-                if let Some(mut a) = actions.row_data(i) {
-                    a.shown = q.is_empty()
-                        || a.name.to_lowercase().contains(&q)
-                        || a.kind.contains(q.as_str())
-                        || a.note.contains(q.as_str());
-                    actions.set_row_data(i, a);
-                }
-            }
-        });
-    }
-    if let Some(q) = arg_value(&args, "--search") {
-        app.set_search(q.clone().into());
-        app.invoke_search_edited(q.into());
-    }
-
     let sessions = Rc::new(VecModel::from(session_rows(&store).map_err(db_error)?));
     app.set_sessions(ModelRc::from(sessions.clone()));
 
     let sim = Rc::new(RefCell::new(Sim::new(store, stored_actions)));
+    action_ui::wire(&ui, sim.clone(), actions.clone(), sessions.clone());
+    if let Some(q) = arg_value(&args, "--search") {
+        app.set_search(q.clone().into());
+        app.invoke_search_edited(q.into());
+    }
+    sim.borrow_mut().preferences = Some(preferences);
+    wire_preferences(&ui, sim.clone());
+    if has("--new-action") {
+        app.invoke_new_action();
+    }
+    if let Some(id) = arg_value(&args, "--edit-action") {
+        app.invoke_edit_action(id.into());
+    }
     {
         let mut s = sim.borrow_mut();
         s.voice_enabled = app.get_voice_enabled();
@@ -473,27 +499,6 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    {
-        let sim = sim.clone();
-        let sessions = sessions.clone();
-        let ui_w = ui.as_weak();
-        app.on_delete_session(move |row| {
-            let Some(ui) = ui_w.upgrade() else { return };
-            let Some(target) = sessions.row_data(row as usize) else {
-                return;
-            };
-            let s = sim.borrow();
-            if let Ok(id) = target.id.parse() {
-                let result = s
-                    .store
-                    .delete_session(id)
-                    .and_then(|_| refresh_history(&ui, &s.store, &sessions));
-                if let Err(e) = result {
-                    storage_error(&ui, e);
-                }
-            }
-        });
-    }
     {
         let sim = sim.clone();
         let sessions = sessions.clone();
@@ -706,6 +711,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 if s.closing {
                     return slint::CloseRequestResponse::KeepWindowShown;
                 }
+                persist_preferences(&ui, &mut s, true);
+                ui.global::<App>().set_editor_open(false);
+                ui.global::<App>().set_confirmation_open(false);
                 if s.store.active() && !finish_session(&ui, &mut s, &sessions) {
                     return slint::CloseRequestResponse::KeepWindowShown;
                 }
@@ -772,6 +780,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let dt = last_tick.elapsed().as_secs_f64().min(0.25);
             last_tick = Instant::now();
             s.t += dt;
+            persist_preferences(&ui, &mut s, false);
             if s.voice_enabled != app.get_voice_enabled() {
                 s.voice_enabled = app.get_voice_enabled();
                 if !s.voice_enabled {
@@ -860,6 +869,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             app.set_closing(false);
                             app.set_session_locked(s.store.active());
                         } else {
+                            persist_preferences(&ui, &mut s, true);
                             let _ = ui.hide();
                             let _ = slint::quit_event_loop();
                             return;
@@ -1108,25 +1118,97 @@ fn storage_error(ui: &MainWindow, error: impl std::fmt::Display) {
         .set_storage_error(format!("儲存或讀取失敗：{error}").into());
 }
 
+/// UI 快照僅包含使用者偏好，不儲存連線、校準或療程暫態。
+fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
+    let app = ui.global::<App>();
+    let theme = ui.global::<Theme>();
+    let id = app.get_active_action_id();
+    preferences::Preferences {
+        style: theme.get_style(),
+        night: theme.get_night(),
+        pose: app.get_pose_view(),
+        voice_enabled: app.get_voice_enabled(),
+        action_id: (!id.is_empty()).then(|| id.to_string()),
+        ..preferences::Preferences::default()
+    }
+}
+fn persist_preferences(ui: &MainWindow, s: &mut Sim, force: bool) {
+    let current = preference_snapshot(ui);
+    if let Some(preferences) = s.preferences.as_mut() {
+        preferences.observe(current);
+        if let Err(error) = preferences.flush(force) {
+            if force {
+                eprintln!("{error}");
+            }
+        }
+        ui.global::<App>()
+            .set_preferences_status(preferences.status.clone().into());
+        ui.global::<App>()
+            .set_preferences_can_retry(preferences.can_retry());
+    }
+}
+fn wire_preferences(ui: &MainWindow, sim: Rc<RefCell<Sim>>) {
+    let app = ui.global::<App>();
+    {
+        let sim = sim.clone();
+        let weak = ui.as_weak();
+        app.on_retry_preferences(move || {
+            if let Some(ui) = weak.upgrade() {
+                persist_preferences(&ui, &mut sim.borrow_mut(), true);
+            }
+        });
+    }
+}
+/// 由 ID 綁定的確認流程呼叫，成功寫檔後才變更畫面。
+fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
+    let app = ui.global::<App>();
+    if s.store.active() || s.closing || s.disconnecting || app.get_wizard_open() {
+        return Err("請先完成療程與收尾".into());
+    }
+    let selected = action_edit::selected_index(&s.actions, None);
+    let value = preferences::Preferences {
+        action_id: selected.map(|i| s.actions[i].id.to_string()),
+        ..preferences::Preferences::default()
+    };
+    if let Some(preferences) = s.preferences.as_mut() {
+        preferences.reset(value.clone())?;
+    }
+    let theme = ui.global::<Theme>();
+    theme.set_style(value.style);
+    theme.set_night(value.night);
+    app.set_pose_view(value.pose);
+    app.set_voice_enabled(value.voice_enabled);
+    app.set_action_index(selected.map_or(-1, |i| i as i32));
+    app.set_active_action_id(value.action_id.unwrap_or_default().into());
+    app.set_preferences_status("".into());
+    app.set_preferences_can_retry(false);
+    Ok(())
+}
+
 fn refresh_history(
     ui: &MainWindow,
     store: &Store,
     sessions: &VecModel<SessionRow>,
 ) -> rusqlite::Result<()> {
-    let rows = session_rows(store)?;
+    set_history_rows(ui, sessions, session_rows(store)?);
+    Ok(())
+}
+fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<SessionRow>) {
     let app = ui.global::<App>();
     app.set_review(-1);
     app.set_history_page(
-        app.get_history_page()
-            .min((rows.len().saturating_sub(1) / 8) as i32),
+        app.get_history_page().min(
+            (rows.len().saturating_sub(1) / app.get_history_page_size().max(1) as usize) as i32,
+        ),
     );
     sessions.set_vec(rows);
-    Ok(())
 }
 
 fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     let app = ui.global::<App>();
     if s.closing
+        || app.get_editor_open()
+        || app.get_confirmation_open()
         || s.disconnecting
         || (!simulated && !app.get_valid_angle())
         || app.get_conn() != 2
@@ -1462,5 +1544,6 @@ mod tests {
             (saved.target_angle, saved.tolerance, saved.hold_time_ms),
             (Some(45.0), Some(1.0), Some(500))
         );
+        action_ui::exercise_crud_and_confirmation_flow(&ui);
     }
 }
