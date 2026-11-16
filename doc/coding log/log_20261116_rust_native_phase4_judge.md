@@ -122,3 +122,24 @@ This run also used the real database on this desktop by mistake; see the correct
 [[log_20261116_rust_native_phase1_prototype]]. Its one demo session was removed with the other.
 
 Not done: `npx tauri build` (installer, signing), a run against the ESP32, Android.
+
+## Third port: angle maths
+
+`IRMS_Core/src/angle_math.rs` ports all 13 exported functions of `angleMath.ts`: wrap-safe normalise,
+shortest arc, circular mean and standard deviation, joint angle, tilt-vector reconstruction, the two
+mounting-twist rotations, vector angle, hinge-axis derivation, projection onto the hinge frame, and the
+experimental frame reconciliation (ported, still not wired to a live path, as in the app). This is the
+base the calibration maths stands on.
+
+Checked against the TypeScript the same way as the engine:
+`IRMS_App_Tauri/src/services/angleMath.contract.test.ts` records 957 calls into
+`fixtures/angle-math.json` (40 or more per function: fixed edge inputs such as the +/-180 cut, pitch at
+90 deg, zero vectors and non-finite angles, then seeded random inputs) and fails if the list of recorded
+functions ever differs from the module's exports. The Rust test replays every call and requires the same
+results within 1e-9. Identical on all 957. Sensitivity shown once: dropping the `cos(pitch)` sign recovery
+in `reconstruct_tilt_vector` failed the test at the pitch 90.01 case; reverted.
+
+State after this port: core 123 tests, frontend 73 files / 716 tests, typecheck clean, fmt and clippy clean.
+
+Remaining in phase 4: `calibrationCore.ts` / `calibration.ts` / `calibrationB.ts` / `calibrationFlow.ts`
+(the prototype's wizard is still a stand-in), `sessionController.ts`, `slipMonitor.ts`, `mobilityC.ts`.
