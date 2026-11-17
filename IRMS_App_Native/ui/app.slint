@@ -51,7 +51,15 @@ component Wizard inherits Rectangle {
                 if App.wizard-preset != 2: HorizontalLayout {
                     spacing: 8px;
                     Text { text: "起始姿勢"; font-size: 14px; color: Theme.dim; vertical-alignment: center; width: 90px; }
-                    Btn { text: App.wizard-posture-name + " ▸"; clicked => { App.wizard-set-posture(mod(App.wizard-posture + 1, 5)); } }
+                    Btn { text: "站立"; active: App.wizard-posture == 0; clicked => { App.wizard-set-posture(0); } }
+                    Btn { text: "長坐(腿伸直)"; active: App.wizard-posture == 1; clicked => { App.wizard-set-posture(1); } }
+                    Btn { text: "仰躺"; active: App.wizard-posture == 2; clicked => { App.wizard-set-posture(2); } }
+                }
+                if App.wizard-preset != 2: HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle { width: 90px; }
+                    Btn { text: "坐姿(膝彎90°)"; active: App.wizard-posture == 3; clicked => { App.wizard-set-posture(3); } }
+                    Btn { text: "其他姿勢"; active: App.wizard-posture == 4; clicked => { App.wizard-set-posture(4); } }
                     Btn { text: "無法完全伸直"; active: App.wizard-neutral; clicked => { App.wizard-set-neutral(!App.wizard-neutral); } }
                 }
                 if App.wizard-preset == 1: Text { text: "髖部動作只用大腿感測器,量到的是大腿相對自然站姿的傾斜;請保持軀幹不動。外展的可信度低於前後方向。"; font-size: 12px; color: Theme.dim; wrap: word-wrap; }
