@@ -407,6 +407,10 @@ pub fn describe_connect_error(message: &str) -> String {
         format!(
             "{message}。裝置沒有回應:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
         )
+    } else if message.contains("not found within scan window") {
+        format!(
+            "{message}。找不到裝置:請確認裝置已通電、靠近電腦;若 Windows 的藍牙清單或快速設定顯示 IRMS_Device 已連線,代表 Windows 佔用了它(被連線的裝置不會廣播),請到 Windows 設定 > 藍牙與裝置移除它,再拔插裝置電源後重試"
+        )
     } else if message.contains("NotConnected") {
         format!(
             "{message}。找到了裝置但連不上:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
@@ -925,6 +929,13 @@ pub async fn ble_abort_ota(state: &BleState) -> Result<(), String> {
 #[cfg(test)]
 mod ota_tests {
     use super::*;
+
+    #[test]
+    fn a_device_not_found_error_mentions_windows_holding_the_link() {
+        let shown = describe_connect_error("Device not found within scan window");
+        assert!(shown.starts_with("Device not found within scan window"));
+        assert!(shown.contains("Windows") && shown.contains("移除"));
+    }
 
     #[test]
     fn a_not_connected_error_tells_the_wearer_what_to_check() {
