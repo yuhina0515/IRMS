@@ -988,7 +988,7 @@ fn main() -> Result<(), slint::PlatformError> {
             updater.tick(
                 &update_rt,
                 app.get_auto_update(),
-                update_idle(&ui, &s) && !firmware.active(),
+                update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
             );
             app.set_firmware_can_install(
                 firmware.offer_available() && app.get_conn() == 2 && update_idle(&ui, &s),
@@ -1791,6 +1791,15 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
 }
 
 /// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+/// A live share the wearer is hosting would be cut off by a restart for an update.
+fn share_hosting(sharing: &Rc<RefCell<share_ui::Sharing>>) -> bool {
+    use irms_core::share_session::HostStatus;
+    matches!(
+        sharing.borrow().host.state().status,
+        HostStatus::Starting | HostStatus::Sharing
+    )
+}
+
 /// Nothing the wearer is doing would be cut off by an automatic update.
 fn update_idle(ui: &MainWindow, s: &Sim) -> bool {
     let app = ui.global::<App>();
