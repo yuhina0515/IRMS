@@ -734,6 +734,21 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     app.set_auto_update(saved.auto_update);
+    {
+        let firmware = firmware.clone();
+        let sim = sim.clone();
+        let host = host.clone();
+        let rt = runtime.handle().clone();
+        let ui_w = ui.as_weak();
+        app.on_firmware_install(move || {
+            let (Some(ui), Some(host)) = (ui_w.upgrade(), host.clone()) else {
+                return;
+            };
+            if ui.global::<App>().get_conn() == 2 && update_idle(&ui, &sim.borrow()) {
+                firmware.start_install(host, &rt);
+            }
+        });
+    }
     let update_rt = runtime.handle().clone();
     {
         // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE, --firmware-check.
@@ -959,7 +974,14 @@ fn main() -> Result<(), slint::PlatformError> {
                 action_config(&s.actions, app.get_action_index().max(0) as usize, limits)
             });
             let limits = cfg.limits;
-            updater.tick(&update_rt, app.get_auto_update(), update_idle(&ui, &s));
+            updater.tick(
+                &update_rt,
+                app.get_auto_update(),
+                update_idle(&ui, &s) && !firmware.active(),
+            );
+            app.set_firmware_can_install(
+                firmware.offer_available() && app.get_conn() == 2 && update_idle(&ui, &s),
+            );
             let wizard_open = app.get_wizard_open();
             let mut link = real.borrow_mut();
             while let Ok((receipt, event, payload)) = ble_rx.try_recv() {
@@ -1038,6 +1060,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             return;
                         }
                     }
+                    "ble:ota-progress" => firmware.on_progress(&payload),
                     "ble:error" => {
                         sample_fault(&mut s, &mut link, payload.as_str().unwrap_or("BLE error"))
                     }
@@ -1777,6 +1800,7 @@ fn session_can_start(ui: &MainWindow, s: &Sim, simulated: bool) -> bool {
         || app.get_confirmation_open()
         || s.disconnecting
         || (!simulated && !app.get_valid_angle())
+        || (1..=4).contains(&app.get_ota_phase())
         || app.get_conn() != 2
         || app.get_wizard_open()
         || s.profile.is_none()

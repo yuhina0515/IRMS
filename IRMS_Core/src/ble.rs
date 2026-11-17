@@ -29,6 +29,11 @@ use uuid::Uuid;
 /// How long ble_connect scans before giving up — matches the Electron main process's
 /// setupBluetoothAutoPairing 15s scan timeout (main/index.ts, SCAN_TIMEOUT_MS).
 const SCAN_TIMEOUT: Duration = Duration::from_secs(15);
+/// Windows can hand back a cached advertisement for a device that is not connectable yet (it still holds
+/// its previous link, or the app just restarted): connect then fails with `NotConnected`. Retry a few times
+/// with a fresh scan before reporting the error.
+const CONNECT_ATTEMPTS: u32 = 3;
+const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(1500);
 
 /// What the BLE layer needs from the program hosting it. The Tauri app implements this over its
 /// `AppHandle` (events to the WebView, telemetry, the managed `BleState`, Tauri's async runtime);
@@ -389,7 +394,7 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
     // old connection first so exactly one listener and one peripheral exist.
     // Everything after the OS-level connect must release it on failure; otherwise the device
     // stays connected at the OS level while we report failure, and the next scan cannot see it.
-    ble_lifecycle::establish(
+    ble_lifecycle::establish_with_retry(
         &state.coordinator,
         &state.peripheral,
         &NativeConnector,
@@ -414,6 +419,8 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
                 generation,
             );
         },
+        CONNECT_ATTEMPTS,
+        CONNECT_RETRY_DELAY,
     )
     .await
 }

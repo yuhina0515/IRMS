@@ -351,7 +351,22 @@ export component SettingsView inherits VerticalLayout {
                         sub: "啟動後與每 6 小時檢查一次;有新版時,在沒有療程或對話框進行時自動下載、驗證簽章並安裝,程式會關閉後自動重新開啟。";
                         VerticalLayout { alignment: center; Btn { text: App.auto-update ? "已開啟" : "已關閉"; active: App.auto-update; clicked => { App.auto-update = !App.auto-update; } } }
                     }
-                    Setting { title: "韌體"; sub: App.firmware-status != "" ? App.firmware-status : "檢查最新韌體(只讀取已簽章的發布清單)。"; VerticalLayout { alignment: center; Btn { text: "檢查韌體"; clicked => { App.firmware-check(); } } } }
+                    Setting {
+                        title: "韌體";
+                        sub: App.firmware-status != "" ? App.firmware-status : "檢查最新韌體(只讀取已簽章的發布清單);裝置連線且有新版時可以更新。";
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "檢查韌體"; enabled: App.ota-phase == 0 || App.ota-phase >= 5; clicked => { App.firmware-confirm = false; App.firmware-check(); } } }
+                            if App.firmware-can-install && !App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "更新韌體"; primary: true; clicked => { App.firmware-confirm = true; } } }
+                            if App.firmware-can-install && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "確認更新"; primary: true; clicked => { App.firmware-confirm = false; App.firmware-install(); } } }
+                            if App.firmware-can-install && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "取消"; clicked => { App.firmware-confirm = false; } } }
+                            if App.ota-phase >= 1 && App.ota-phase <= 4: VerticalLayout { alignment: center; Btn { text: "中止更新"; clicked => { App.firmware-abort(); } } }
+                        }
+                    }
+                    if App.ota-phase >= 1 && App.ota-phase <= 4: Rectangle {
+                        height: 10px; border-radius: 5px; background: Theme.raised;
+                        Rectangle { x: 0; width: parent.width * App.ota-progress; height: parent.height; border-radius: 5px; background: Theme.good; }
+                    }
                 }
                 if root.tab == 4: VerticalLayout {
                     spacing: 16px;

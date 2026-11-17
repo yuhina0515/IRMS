@@ -207,6 +207,13 @@ export global App {
     in property <string> import-notice;
     in property <string> firmware-status;
     callback firmware-check();
+    // firmware update over BLE (firmware_ui.rs): 0 idle 1 downloading 2 starting 3 transferring 4 finalizing 5 done 6 error
+    in property <int> ota-phase: 0;
+    in property <float> ota-progress: 0;
+    in property <bool> firmware-can-install: false;
+    in-out property <bool> firmware-confirm: false;
+    callback firmware-install();
+    callback firmware-abort();
     // program updates (update_ui.rs)
     in property <string> update-status;
     in property <bool> update-ready: false;
