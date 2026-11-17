@@ -65,6 +65,32 @@ Function .onInit
     StrCpy $Relaunch 1
   ${EndIf}
   ClearErrors
+  Call CloseRunningApp
+FunctionEnd
+
+; Closes a running native app so its .exe can be replaced: first a normal close request (the app saves
+; the current session), waits up to 10 s, then ends it only if it is still running.
+Function CloseRunningApp
+  nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq irms_app_native.exe" /NH | find /I "irms_app_native.exe"'
+  Pop $R5
+  Pop $R6
+  StrCmp $R5 "0" 0 close_done
+  nsExec::Exec 'taskkill /IM irms_app_native.exe'
+  Pop $R5
+  StrCpy $R7 0
+  close_wait:
+    Sleep 500
+    nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq irms_app_native.exe" /NH | find /I "irms_app_native.exe"'
+    Pop $R5
+    Pop $R6
+    StrCmp $R5 "0" 0 close_done
+    IntOp $R7 $R7 + 1
+    IntCmp $R7 20 close_force close_wait close_wait
+  close_force:
+  nsExec::Exec 'taskkill /F /IM irms_app_native.exe'
+  Pop $R5
+  Sleep 1000
+  close_done:
 FunctionEnd
 
 ; Removes the Tauri app (not its data: the native app imports that on first launch).
@@ -90,6 +116,7 @@ FunctionEnd
 
 Section "IRMS Native Beta" SEC_MAIN
   SetShellVarContext current
+  Call CloseRunningApp
   SetOutPath "$INSTDIR"
   ClearErrors
   File /oname=irms_app_native.exe "${APP_EXE}"

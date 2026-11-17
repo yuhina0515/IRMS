@@ -19,3 +19,10 @@ Owner tested at school on 2026-11-17 around 13:36 to 13:39 (Taipei) and had tele
 ## beta.8 release (owner: "go", 2026-11-17)
 
 Version bump and the wizard posture fix, same release procedure as beta.7 (build-installer, `tauri signer sign`, hand-built latest.json, pre-release, `beta-latest` replaced).
+
+## Installer: close the running app automatically (owner request, 2026-11-17)
+
+- Owner installing beta.8 over a running beta got NSIS's "Error opening file for writing: irms_app_native.exe" (file locked by the old, still running app).
+- `installer.nsi` now has `CloseRunningApp`, called at install start and again right before the files are written: if `irms_app_native.exe` runs, it sends a normal close request (`taskkill /IM`, the app then saves preferences, finishes and stores the current session, disconnects BLE and exits), waits up to 10 s, and only then force-ends it.
+- Verified with a standalone harness of the same function (not a full install, to avoid touching the real uninstall registration): real app closed in about 1 s; nothing running returns at once. The 10 s force branch was not exercised (the test dummy exited on the first close request).
+- Effective from the NEXT installer (beta.8 as published still has the old behaviour: close the app first, or press Retry). Not released yet; the rebuilt local `target/installer` beta.8 file now differs from the published one and must not be uploaded.
