@@ -464,7 +464,11 @@ impl Wizard {
                 let Some(id) = self.flow.current_movement() else {
                     return;
                 };
-                let reference = self.flow.reference.expect("reference comes first");
+                // The flow captures the reference before any movement; a missing one is reported, not a crash.
+                let Some(reference) = self.flow.reference else {
+                    self.fail("缺少零位,請重新開始校準");
+                    return;
+                };
                 let thigh: Vec<Vec3> = self.frames.iter().map(|f| f.thigh).collect();
                 let shin: Vec<Vec3> = self.frames.iter().map(|f| f.shin).collect();
                 // Early feedback only: the final judgement needs the solved profile (review page).
