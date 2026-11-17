@@ -2,11 +2,12 @@
 
 ## Supported versions
 
-IRMS is in pre-release (`v1.2.0-beta.x`). Only the latest published release receives security fixes.
+IRMS is in pre-release (Tauri line `v1.2.0-beta.x`, native Windows line `v1.3.0-beta.x`). Only the latest published release of each line receives security fixes.
 
 | Version | Supported |
 | ------- | --------- |
 | Latest `v1.2.0-beta.x` release | Yes |
+| Latest `v1.3.0-beta.x` release | Yes |
 | Older releases | No |
 
 ## Reporting a vulnerability

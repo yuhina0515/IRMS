@@ -20,6 +20,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-18 文件校準** · [[log_20261118_doc_validity_audit]] · [[PROJECT_STATUS]] 頂部「文件校準:現況總表」: 逐檔核對版本與狀態。出貨線 Tauri `v1.2.0-beta.25`、原生線 `v1.3.0-beta.11` 已發布;PR #3/#4/#6 已合併進 `main`,#7、#9 到 #12 為草稿;實測 722 前端 / 195 core / 47 native 測試、DB `user_version = 10`;11-10 起「全無實機驗證」的說法已更正(原生線 11-17 有實機證據)。
 - **2026-11-17 原生版 vs Tauri 功能對照(Phase 7)** · [[2026-11-17-native-vs-tauri-parity-checklist]]: 已對等項目、由決策造成的差異(i18n、模組、3D 腿)與真缺口(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式);同日補上連線中斷後的自動重連([[log_20261117_native_connect_retry_and_ota]])與 `cargo audit` 修正([[log_20261117_dependency_audit]])。
 - **2026-11-17 Native 連線穩定性 + OTA (beta.10/11)** · [[log_20261117_native_connect_retry_and_ota]]: 連線失敗自動重試 3 次、每個 Windows 藍牙步驟有逾時(連線/探索 20 s、訂閱 10 s)、連線中可「取消連線」、錯誤訊息會指引處置;原生版可用「更新韌體」(確認+進度+中止,韌體簽章清單驗證)。實機發現:Windows 佔用已配對的 IRMS_Device 時 App 找不到裝置或一直連線中,移除 Windows 配對後恢復。OTA 在 Windows 上仍從未在實機看過完成(9 月 Tauri 那次 6.8 分鐘沒有結果)。
 - **2026-11-17 Native 自動更新 (beta.9)** · [[log_20261117_native_auto_update]]: 簽章驗證的自我更新(beta-latest 清單、官方網址限制、minisign 公鑰)、安裝程式 `/SELFUPDATE` 靜默更新並重開、安裝前自動關閉舊版;穿戴檢查可「不歸零直接開始」;最小化還原後整窗重畫。筆電上 beta.9 到 beta.10 到 beta.11 已自動更新成功。
@@ -32,13 +33,13 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-11-16 Native SQLite sessions** · [[log_20261116_native_sqlite_recovery|Windows reopen and failure-recovery checks]]
 - **2026-11-16 Rust 原生介面原型** ([[2026-11-16-rust-native-ui-plan|計畫]]): Slint 原型 `IRMS_App_Native`,模擬資料;風格定為柔和陪伴;Phase 1 量測(Tauri 療程中約 250 MB private,原型 8–100 MB 視渲染器)→ [[log_20261116_rust_native_phase1_prototype]];Phase 2 全部畫面已建、待 owner 實際點過 → [[log_20261116_rust_native_phase2_screens]];Phase 3 第一段:七個模組抽成 `IRMS_Core` → [[log_20261116_rust_native_phase3_core_slice1]];Phase 4:判定、療程分析、角度數學、滑移監測、校準核心已移植並與 TS 逐筆比對 → [[log_20261116_rust_native_phase4_judge]];原型已走完整管線(封包→校準→判定→滑移→分析)→ [[log_20261116_rust_native_prototype_real_pipeline]]
 
-- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6 → 用計畫第 3 節的驗收測試量現有束帶基準。
+- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6(**2026-11-18 更正:三者皆已合併,見最上方一筆**)→ 用計畫第 3 節的驗收測試量現有束帶基準。
 
 - **2026-11-10 beta.26 候選:軟體整理** ([[log_20261110_beta26_software_round|Log]]): 由 PR #5 挑入 7 個修正(保持連續性、BLE 生命週期、儲存上限、關窗保護、更新交接);過度伸直警示加入 300 ms 停留與 2° 遲滯;穿戴檢查發現屈伸方向偏移(20° 內)時可直接用剛才的姿勢重設零位再開始。705 前端 / 119 Rust 測試通過;實機未驗證,BLE 原生改動需真機確認。
 
 - **2026-11-10 訓練中穿戴位移偵測** ([[log_20261110_mounting_shift_check|Log]]): 統一校準的療程中,由膝屈伸動作本身反推小腿感測器的鉸鏈軸,與校準值相差超過 12° 且持續 18 秒即提醒一次並標記該場(`session.mountShift`);不自動修正。只看小腿、大腿需靜止;繞鉸鏈軸的偏移看不到。658 前端測試通過;門檻為模擬器推得,實機未驗證。
 
-- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。未推送、未發版、實機全未驗證(裝置在測試者處)。
+- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。(當時)未推送、未發版、實機全未驗證;**後續已推送並以 PR #6 合併進 `main`(2026-11-10)**,仍未發版。
 
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
 
