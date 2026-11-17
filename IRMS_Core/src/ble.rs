@@ -381,12 +381,26 @@ fn spawn_notification_listener<H: BleHost>(
     }));
 }
 
+/// What the wearer sees for a connect error. Windows hands back a cached advertisement for a device that is
+/// no longer reachable, so "NotConnected" usually means the device is off, out of range, or still holding
+/// another link, not that the app is broken.
+pub fn describe_connect_error(message: &str) -> String {
+    if message.contains("NotConnected") {
+        format!(
+            "{message}。找到了裝置但連不上:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;             仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
+        )
+    } else {
+        message.to_string()
+    }
+}
+
 pub async fn ble_connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String> {
     let result = connect(app, state).await;
     if let Err(message) = &result {
+        // Telemetry keeps the raw message; the window gets the readable one.
         app.record("ble_error", json!({ "op": "connect", "message": message }));
     }
-    result
+    result.map_err(|message| describe_connect_error(&message))
 }
 
 async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String> {
@@ -877,6 +891,17 @@ pub async fn ble_abort_ota(state: &BleState) -> Result<(), String> {
 #[cfg(test)]
 mod ota_tests {
     use super::*;
+
+    #[test]
+    fn a_not_connected_error_tells_the_wearer_what_to_check() {
+        let shown = describe_connect_error("Not connected [NotConnected]");
+        assert!(shown.starts_with("Not connected [NotConnected]"));
+        assert!(shown.contains("通電") && shown.contains("移除舊的"));
+        assert_eq!(
+            describe_connect_error("Device not found within scan window"),
+            "Device not found within scan window"
+        );
+    }
 
     #[test]
     fn firmware_version_drops_trailing_nul_and_whitespace() {
