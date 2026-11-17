@@ -153,7 +153,7 @@ and acceptance gates below are still open; beta.1 artifacts were not replaced.
 | D2 | Module system without a WebView | Decided 2026-11-17: built into the program (no downloaded scripts); built-ins listed in Settings. Live share shipped in beta.4; firmware check in beta.5, firmware install stays out until a physical-device OTA run |
 | D3 | The 3D leg: real 3D or a 2D drawing | Decided 2026-11-17: keep the projected drawing, no 3D engine |
 | D4 | Interface style direction | Decided 2026-11-16: calm companion (柔和陪伴), chosen from three prototyped directions; snapshots in `assets/2026-11-16-native-prototype/` |
-| D5 | Slint license: royalty-free with a Slint attribution, or GPLv3 | Royalty-free with attribution; read the license text against the IRMS license before cutover |
+| D5 | Slint license: royalty-free with a Slint attribution, or GPLv3 | Decided 2026-11-17: royalty-free with attribution. License text read against the IRMS license on 2026-11-17, no conflict found (see `doc/coding log/log_20261117_slint_license_review.md`) |
 
 ## Risks
 
