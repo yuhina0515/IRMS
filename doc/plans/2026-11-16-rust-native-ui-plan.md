@@ -140,6 +140,18 @@ Tauri app is frozen the way the Electron app was.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 
+- 2026-11-17 (later, beta.3 to beta.11): **Phase 5 is largely done**: single instance and the CSV file dialog
+  (beta.3), the Tauri updater cutover and first-launch import of the Tauri database (beta.6), a signed
+  self-updater with silent `/SELFUPDATE` installs (beta.9; the laptop updated beta.9 to beta.11 by itself),
+  installer/uninstaller that close a running app, firmware check and OTA UI (beta.5, beta.10). Phase 6 follows
+  D2: modules are built into the program. D3: the 3D leg stays a projected drawing. D5: Slint license read against
+  the IRMS license, no conflict ([[log_20261117_slint_license_review]]). Real-device evidence (from telemetry):
+  connection, streaming, calibration, one session; beta.1 to beta.6 had run the simulator by default, fixed in
+  beta.7 ([[log_20261117_native_real_ble_default]]). Windows holding a paired device makes the app unable to find it
+  ([[log_20261117_native_connect_retry_and_ota]]). Still open: OTA on hardware (never seen to finish on Windows),
+  CSV in Excel, renderer choice and IME, signing (owner: not now), Phase 7 parity checklist and cutover, merge of the
+  PR stack #9 to #12. Dependency audit: [[log_20261117_dependency_audit]].
+
 ## Open decisions for the owner
 
 Development after the feedback slice adds prescription CRUD, ID-bound confirmations
