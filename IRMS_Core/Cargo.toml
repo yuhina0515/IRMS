@@ -8,9 +8,24 @@ publish = false
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 chrono = "0.4"
 btleplug = "0.11"
 futures = "0.3"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+# Telemetry upload and the live-share bridge (same features the Tauri app uses).
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+url = "2"
+# Firmware delivery (firmware_update.rs): Ed25519 manifest signatures, SHA-256 / MD5 of the image, semver.
+ring = "0.17"
+sha2 = "0.10"
+md5 = "0.7"
+semver = "1"
+base64 = "0.22"
+# Installer signature check for the self-updater (app_update.rs), minisign as written by `tauri signer`.
+minisign-verify = "0.2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }

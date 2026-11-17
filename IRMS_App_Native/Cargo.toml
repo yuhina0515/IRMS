@@ -1,6 +1,6 @@
 [package]
 name = "irms_app_native"
-version = "1.3.0-beta.1"
+version = "1.3.0-beta.12"
 edition = "2021"
 description = "IRMS Rust-native Windows beta: Slint interface with isolated session storage"
 publish = false
@@ -11,7 +11,7 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 same-file = "1"
 chrono = "0.4"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "renderer-femtovg", "renderer-software", "compat-1-2"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -21,7 +21,8 @@ slint-build = "1"
 tauri-winres = "0.3.6"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61.3", features = ["Win32_System_Com", "Win32_Media_Speech"] }
+rfd = { version = "0.16", default-features = false }
+windows = { version = "0.61.3", features = ["Win32_System_Com", "Win32_Media_Speech", "Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 opt-level = 3

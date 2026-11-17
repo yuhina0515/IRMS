@@ -6,12 +6,19 @@
 //! or the path given with `--db` (`:memory:` keeps nothing).
 
 use chrono::{DateTime, Local, Utc};
-use irms_core::db::{actions_repo, angle_ranges_repo, data_repo, init_database, sessions_repo};
+use irms_core::calibration::CalibrationProfile;
+use irms_core::db::{
+    actions_repo, angle_ranges_repo, calibration_repo, data_repo, init_database, mobility_repo,
+    sessions_repo,
+};
 use irms_core::judge::{
     compute_metric_sample, compute_metric_zone, AngleLimits, TriggerConfig, TriggerType,
 };
 use irms_core::session_analysis::{analyze_session, MetricPoint};
-use irms_core::types::{AngleRangeInput, CustomAction, SensorReading, Session, SessionStartInput};
+use irms_core::types::{
+    AngleRangeInput, CalibrationProfileInput, CustomAction, MobilityRecordInput, MobilityRecordRow,
+    SensorReading, Session, SessionStartInput,
+};
 use rusqlite::Connection;
 use std::path::PathBuf;
 
@@ -32,6 +39,16 @@ pub struct Store {
 pub struct ActionChange {
     pub saved: Option<CustomAction>,
     pub actions: Vec<CustomAction>,
+}
+
+/// Where the Tauri app keeps its database.
+pub fn tauri_db_path() -> Option<PathBuf> {
+    let base = std::env::var_os("APPDATA")?;
+    Some(
+        PathBuf::from(base)
+            .join("com.irms.app.tauri")
+            .join("irms.sqlite"),
+    )
 }
 
 fn default_path() -> Option<PathBuf> {
@@ -248,6 +265,79 @@ impl Store {
             .map_err(|e| e.to_string())
     }
 
+    /// One-time import of the Tauri app's records, on the first launch after the update. Only into a
+    /// fresh database; the outcome is remembered in a marker file beside the database so a later launch
+    /// never imports again (and never overwrites records made since). `Ok(None)` = nothing to do.
+    pub fn import_tauri(
+        &mut self,
+        source: &std::path::Path,
+    ) -> Result<Option<irms_core::import_tauri::Report>, String> {
+        if self.location == ":memory:" || !source.exists() {
+            return Ok(None);
+        }
+        let marker = PathBuf::from(format!("{}.tauri-import", self.location));
+        if marker.exists() {
+            return Ok(None);
+        }
+        if !irms_core::import_tauri::is_fresh(&self.conn).map_err(|e| e.to_string())? {
+            let _ = std::fs::write(
+                &marker,
+                "skipped: database already had data
+",
+            );
+            return Ok(None);
+        }
+        let report = irms_core::import_tauri::import_from(&mut self.conn, source)?;
+        let _ = std::fs::write(
+            &marker,
+            format!(
+                "imported: {report:?}
+"
+            ),
+        );
+        Ok(Some(report))
+    }
+
+    /// The calibration in force, restored at startup. A stored profile that no longer parses is
+    /// ignored (the wearer calibrates again) instead of blocking the app.
+    pub fn active_profile(&self) -> Option<CalibrationProfile> {
+        calibration_repo::list(&self.conn)
+            .ok()?
+            .into_iter()
+            .find(|row| row.active)
+            .and_then(|row| serde_json::from_str(&row.profile).ok())
+    }
+
+    /// Stores `profile` as the only active calibration. A mobility record, when given, is saved
+    /// separately afterwards: its failure leaves the calibration applied and is reported back.
+    pub fn apply_calibration(
+        &mut self,
+        profile: &CalibrationProfile,
+        mobility: Option<&MobilityRecordInput>,
+    ) -> Result<bool, String> {
+        self.allow_mutation()?;
+        let json = serde_json::to_string(profile).map_err(|e| e.to_string())?;
+        calibration_repo::add(
+            &mut self.conn,
+            &CalibrationProfileInput {
+                id: profile.id.clone(),
+                side: irms_core::calibration_flow::side_name(profile.side).to_string(),
+                profile: json,
+                active: true,
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(match mobility {
+            Some(input) => mobility_repo::add(&self.conn, input).is_ok(),
+            None => true,
+        })
+    }
+
+    /// Range-of-motion totals, newest first.
+    pub fn mobility_rows(&self) -> rusqlite::Result<Vec<MobilityRecordRow>> {
+        mobility_repo::list(&self.conn)
+    }
+
     pub fn active(&self) -> bool {
         self.session_id.is_some()
     }
@@ -350,6 +440,72 @@ impl Store {
         let rows = sessions_repo::list(&transaction)?;
         transaction.commit()?;
         Ok(rows)
+    }
+
+    /// CSV of one stored session with the same metadata header as the Tauri export, from the full
+    /// readings (not the downsampled chart data). Returns the suggested file name and the text.
+    pub fn export_csv(&self, session: &Session) -> Result<(String, String), String> {
+        let readings =
+            sessions_repo::get_data(&self.conn, session.id, None).map_err(|e| e.to_string())?;
+        let opt = |v: Option<String>| v.unwrap_or_default();
+        let num = |v: Option<f64>| opt(v.map(|x| x.to_string()));
+        let calibration = session
+            .calibration
+            .clone()
+            .unwrap_or_default()
+            .replace('"', "\"\"");
+        let meta = [
+            format!("# source,{}", session.source),
+            format!("# session,{}", session.id),
+            format!("# action,{}", opt(session.action_name.clone())),
+            format!("# protocol,{}", opt(session.protocol.clone())),
+            format!("# triggerType,{}", opt(session.trigger_type.clone())),
+            format!("# targetAngle,{}", num(session.target_angle)),
+            format!("# tolerance,{}", num(session.tolerance)),
+            format!("# holdTimeMs,{}", opt(session.hold_time_ms.map(|v| v.to_string()))),
+            format!("# comfortAngle,{}", num(session.comfort_angle)),
+            format!("# limitAngle,{}", num(session.limit_angle)),
+            format!("# startTime,{}", session.start_time),
+            format!("# endTime,{}", opt(session.end_time.clone())),
+            format!("# repsCompleted,{}", session.reps_completed),
+            format!("# abandoned,{}", session.abandoned != 0),
+            format!("# calibration,\"{calibration}\""),
+            "# note,thighRoll/shinRoll/kneeRoll are sensor-mounting diagnostics, not validated varus/valgus".to_string(),
+        ]
+        .join("
+");
+        let body = readings
+            .iter()
+            .map(|r| {
+                format!(
+                    "{},{},{},{},{},{},{}",
+                    r.timestamp,
+                    r.knee_angle,
+                    r.thigh_angle,
+                    r.shin_angle,
+                    r.knee_roll,
+                    r.thigh_roll,
+                    r.shin_roll
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(
+                "
+",
+            );
+        let name = if session.source == "demo" {
+            format!("irms_DEMO_session_{}.csv", session.id)
+        } else {
+            format!("irms_session_{}.csv", session.id)
+        };
+        Ok((
+            name,
+            format!(
+                "{meta}
+timestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll
+{body}"
+            ),
+        ))
     }
 
     /// Review statistics of a stored session, computed from its stored readings (full readings, not
@@ -476,6 +632,91 @@ mod tests {
             shin_roll: 4.0,
             timestamp: format!("2026-11-16T09:00:00.{i:03}Z"),
         }
+    }
+
+    #[test]
+    fn the_tauri_import_runs_once_into_a_fresh_store_and_leaves_a_marker() {
+        let dir = std::env::temp_dir().join(format!("irms-store-import-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("tauri.sqlite");
+        {
+            let conn = irms_core::db::init_database(&source).unwrap();
+            actions_repo::create(
+                &conn,
+                &irms_core::types::CustomActionInput {
+                    name: "從 Tauri 來的".into(),
+                    description: None,
+                    protocol: "knee".into(),
+                    target_angle: 50.0,
+                    tolerance: 5.0,
+                    hold_time_ms: 2000,
+                    trigger_type: "joint_angle".into(),
+                    safety_limit: None,
+                },
+            )
+            .unwrap();
+        }
+        let db = dir.join("native.sqlite");
+        let mut store = Store::open(Some(db.display().to_string())).unwrap();
+        let report = store.import_tauri(&source).unwrap().expect("imported");
+        assert!(report.actions >= 1);
+        assert!(store
+            .actions()
+            .unwrap()
+            .iter()
+            .any(|a| a.name == "從 Tauri 來的"));
+        assert!(db.with_extension("sqlite.tauri-import").exists());
+        assert!(
+            store.import_tauri(&source).unwrap().is_none(),
+            "the marker stops a second import"
+        );
+        // A missing source is not an error and writes nothing.
+        let mut other = Store::open(Some(dir.join("other.sqlite").display().to_string())).unwrap();
+        assert!(other
+            .import_tauri(&dir.join("absent.sqlite"))
+            .unwrap()
+            .is_none());
+        assert!(!dir.join("other.sqlite.tauri-import").exists());
+        drop((store, other));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn csv_export_has_the_metadata_header_and_every_stored_reading() {
+        let mut store = memory();
+        start(&mut store).unwrap();
+        for i in 0..7 {
+            store.push_reading(reading(i)).unwrap();
+        }
+        store.end_session(1).unwrap();
+        let session = store.sessions().unwrap().remove(0);
+        let (name, text) = store.export_csv(&session).unwrap();
+        assert_eq!(
+            name,
+            format!("irms_session_{}.csv", session.id).replace(
+                "irms_session",
+                if session.source == "demo" {
+                    "irms_DEMO_session"
+                } else {
+                    "irms_session"
+                }
+            )
+        );
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines[0].starts_with("# source,"));
+        assert!(lines.iter().any(|l| l.starts_with("# calibration,\"")));
+        assert!(lines.iter().any(|l| l.starts_with("# note,")));
+        let header = lines
+            .iter()
+            .position(|l| l.starts_with("timestamp,"))
+            .unwrap();
+        assert_eq!(
+            lines.len() - header - 1,
+            7,
+            "all readings, not a downsample"
+        );
+        assert!(lines[header + 1].split(',').count() == 7);
     }
 
     #[test]

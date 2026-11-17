@@ -29,6 +29,33 @@ use uuid::Uuid;
 /// How long ble_connect scans before giving up — matches the Electron main process's
 /// setupBluetoothAutoPairing 15s scan timeout (main/index.ts, SCAN_TIMEOUT_MS).
 const SCAN_TIMEOUT: Duration = Duration::from_secs(15);
+/// Windows can hand back a cached advertisement for a device that is not connectable yet (it still holds
+/// its previous link, or the app just restarted): connect then fails with `NotConnected`. Retry a few times
+/// with a fresh scan before reporting the error.
+const CONNECT_ATTEMPTS: u32 = 3;
+/// Each OS step after the device is found gets a limit: Windows can leave `connect`, service discovery
+/// or subscribe waiting forever (the OS shows the device as connected while the app shows "connecting"),
+/// which would otherwise block the wearer with no error and no retry.
+const CONNECT_STEP_TIMEOUT: Duration = Duration::from_secs(20);
+const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(10);
+const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+/// Scan calls, the command write and the firmware-version read hold or feed the shared peripheral lock;
+/// one that never returns would freeze every other BLE operation, including the disconnect button.
+const BLE_IO_TIMEOUT: Duration = Duration::from_secs(5);
+const PROPERTIES_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Runs one BLE step with a time limit; a timeout becomes an error that names the step.
+async fn within<T>(
+    step: &str,
+    limit: Duration,
+    work: impl Future<Output = Result<T, String>>,
+) -> Result<T, String> {
+    match tokio::time::timeout(limit, work).await {
+        Ok(result) => result,
+        Err(_) => Err(format!("{step} timed out after {} s", limit.as_secs())),
+    }
+}
+const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(1500);
 
 /// What the BLE layer needs from the program hosting it. The Tauri app implements this over its
 /// `AppHandle` (events to the WebView, telemetry, the managed `BleState`, Tauri's async runtime);
@@ -206,21 +233,30 @@ async fn scan_for_device(
     current: impl Fn() -> bool + Send + Sync,
 ) -> Result<Peripheral, String> {
     ensure_current(&current)?;
-    let started = adapter
-        .start_scan(ScanFilter::default())
-        .await
-        .map_err(|e| error_chain(&e));
+    let started = within("Start scan", BLE_IO_TIMEOUT, async {
+        adapter
+            .start_scan(ScanFilter::default())
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await;
 
     let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
     let found = async {
         started?;
         loop {
             ensure_current(&current)?;
-            let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
+            let peripherals = within("List peripherals", BLE_IO_TIMEOUT, async {
+                adapter.peripherals().await.map_err(|e| error_chain(&e))
+            })
+            .await?;
             ensure_current(&current)?;
             let mut hit = None;
             for p in peripherals {
-                let props = p.properties().await;
+                // A peripheral that does not answer is skipped, not waited for.
+                let props = tokio::time::timeout(PROPERTIES_TIMEOUT, p.properties())
+                    .await
+                    .unwrap_or(Ok(None));
                 ensure_current(&current)?;
                 if let Ok(Some(props)) = props {
                     if let Some(name) = &props.local_name {
@@ -242,7 +278,11 @@ async fn scan_for_device(
     }
     .await;
     // 所有出口（命中、逾時、查詢失敗與取消）共用收尾，且如實保留 stop_scan 失敗。
-    match (found, adapter.stop_scan().await) {
+    let stopped = within("Stop scan", BLE_IO_TIMEOUT, async {
+        adapter.stop_scan().await.map_err(|e| error_chain(&e))
+    })
+    .await;
+    match (found, stopped) {
         (Ok(peripheral), Ok(())) => Ok(peripheral),
         (Ok(_), Err(error)) => Err(format!("stop_scan failed: {error}")),
         (Err(error), Ok(())) => Err(error),
@@ -376,12 +416,34 @@ fn spawn_notification_listener<H: BleHost>(
     }));
 }
 
+/// What the wearer sees for a connect error. Windows hands back a cached advertisement for a device that is
+/// no longer reachable, so "NotConnected" usually means the device is off, out of range, or still holding
+/// another link, not that the app is broken.
+pub fn describe_connect_error(message: &str) -> String {
+    if message.contains("timed out") {
+        format!(
+            "{message}。裝置沒有回應:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
+        )
+    } else if message.contains("not found within scan window") {
+        format!(
+            "{message}。找不到裝置:請確認裝置已通電、靠近電腦;若 Windows 的藍牙清單或快速設定顯示 IRMS_Device 已連線,代表 Windows 佔用了它(被連線的裝置不會廣播),請到 Windows 設定 > 藍牙與裝置移除它,再拔插裝置電源後重試"
+        )
+    } else if message.contains("NotConnected") {
+        format!(
+            "{message}。找到了裝置但連不上:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
+        )
+    } else {
+        message.to_string()
+    }
+}
+
 pub async fn ble_connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String> {
     let result = connect(app, state).await;
     if let Err(message) = &result {
+        // Telemetry keeps the raw message; the window gets the readable one.
         app.record("ble_error", json!({ "op": "connect", "message": message }));
     }
-    result
+    result.map_err(|message| describe_connect_error(&message))
 }
 
 async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String> {
@@ -389,7 +451,7 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
     // old connection first so exactly one listener and one peripheral exist.
     // Everything after the OS-level connect must release it on failure; otherwise the device
     // stays connected at the OS level while we report failure, and the next scan cannot see it.
-    ble_lifecycle::establish(
+    ble_lifecycle::establish_with_retry(
         &state.coordinator,
         &state.peripheral,
         &NativeConnector,
@@ -414,6 +476,8 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
                 generation,
             );
         },
+        CONNECT_ATTEMPTS,
+        CONNECT_RETRY_DELAY,
     )
     .await
 }
@@ -434,7 +498,10 @@ impl Connector for NativeConnector {
         scan_for_device(adapter, current).await
     }
     async fn connect(&self, peripheral: &Peripheral) -> Result<(), String> {
-        peripheral.connect().await.map_err(|e| error_chain(&e))
+        within("Connect", CONNECT_STEP_TIMEOUT, async {
+            peripheral.connect().await.map_err(|e| error_chain(&e))
+        })
+        .await
     }
     async fn setup(
         &self,
@@ -444,7 +511,10 @@ impl Connector for NativeConnector {
         setup_connection(peripheral, current).await
     }
     async fn disconnect(&self, peripheral: &Peripheral) -> Result<(), String> {
-        peripheral.disconnect().await.map_err(|e| error_chain(&e))
+        within("Disconnect", DISCONNECT_TIMEOUT, async {
+            peripheral.disconnect().await.map_err(|e| error_chain(&e))
+        })
+        .await
     }
 }
 
@@ -453,10 +523,13 @@ async fn setup_connection(
     current: impl Fn() -> bool + Send + Sync,
 ) -> Result<String, String> {
     ensure_current(&current)?;
-    peripheral
-        .discover_services()
-        .await
-        .map_err(|e| error_chain(&e))?;
+    within("Service discovery", CONNECT_STEP_TIMEOUT, async {
+        peripheral
+            .discover_services()
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await?;
     ensure_current(&current)?;
 
     let angle_char = peripheral
@@ -464,10 +537,13 @@ async fn setup_connection(
         .into_iter()
         .find(|c| c.uuid == uuid(CHAR_ANGLE_TX) && c.service_uuid == uuid(SERVICE_UUID))
         .ok_or("Angle characteristic not found")?;
-    peripheral
-        .subscribe(&angle_char)
-        .await
-        .map_err(|e| error_chain(&e))?;
+    within("Subscribe", SUBSCRIBE_TIMEOUT, async {
+        peripheral
+            .subscribe(&angle_char)
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await?;
     ensure_current(&current)?;
 
     let name = peripheral
@@ -568,10 +644,13 @@ async fn send_command<H: BleHost>(
         .into_iter()
         .find(|c| c.uuid == uuid(CHAR_PROFILE_RX))
         .ok_or("Profile RX characteristic not found")?;
-    peripheral
-        .write(&profile_char, command.as_bytes(), WriteType::WithResponse)
-        .await
-        .map_err(|e| e.to_string())
+    within("Write command", BLE_IO_TIMEOUT, async {
+        peripheral
+            .write(&profile_char, command.as_bytes(), WriteType::WithResponse)
+            .await
+            .map_err(|e| e.to_string())
+    })
+    .await
 }
 
 pub async fn ble_get_firmware_version(state: &BleState) -> Result<Option<String>, String> {
@@ -587,7 +666,11 @@ pub async fn ble_get_firmware_version(state: &BleState) -> Result<Option<String>
         // Most commonly means the device firmware predates OTA support — expected, not an error.
         return Ok(None);
     };
-    match peripheral.read(&fw_char).await {
+    let read = within("Read firmware version", BLE_IO_TIMEOUT, async {
+        peripheral.read(&fw_char).await.map_err(|e| e.to_string())
+    })
+    .await;
+    match read {
         Ok(bytes) => Ok(clean_firmware_version(&bytes)),
         Err(_) => Ok(None),
     }
@@ -860,9 +943,11 @@ pub async fn ble_abort_ota(state: &BleState) -> Result<(), String> {
     {
         // Best-effort — if this fails, the device is probably already disconnected, which
         // achieves the same abort effect on its own.
-        let _ = peripheral
-            .write(&control_char, b"OTA:ABORT", WriteType::WithResponse)
-            .await;
+        let _ = tokio::time::timeout(
+            BLE_IO_TIMEOUT,
+            peripheral.write(&control_char, b"OTA:ABORT", WriteType::WithResponse),
+        )
+        .await;
     }
     Ok(())
 }
@@ -870,6 +955,42 @@ pub async fn ble_abort_ota(state: &BleState) -> Result<(), String> {
 #[cfg(test)]
 mod ota_tests {
     use super::*;
+
+    #[test]
+    fn a_device_not_found_error_mentions_windows_holding_the_link() {
+        let shown = describe_connect_error("Device not found within scan window");
+        assert!(shown.starts_with("Device not found within scan window"));
+        assert!(shown.contains("Windows") && shown.contains("移除"));
+    }
+
+    #[test]
+    fn a_not_connected_error_tells_the_wearer_what_to_check() {
+        let shown = describe_connect_error("Not connected [NotConnected]");
+        assert!(shown.starts_with("Not connected [NotConnected]"));
+        assert!(shown.contains("通電") && shown.contains("移除舊的"));
+        assert_eq!(
+            describe_connect_error("No Bluetooth adapter found"),
+            "No Bluetooth adapter found"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_step_that_never_finishes_ends_with_an_error_naming_the_step() {
+        let never = within::<()>(
+            "Service discovery",
+            Duration::from_millis(30),
+            std::future::pending(),
+        );
+        let error = never.await.unwrap_err();
+        assert_eq!(error, "Service discovery timed out after 0 s");
+        let shown = describe_connect_error(&error);
+        assert!(shown.contains("timed out") && shown.contains("通電"));
+        let fine = within("Connect", Duration::from_secs(5), async {
+            Ok::<_, String>(3)
+        })
+        .await;
+        assert_eq!(fine, Ok(3));
+    }
 
     #[test]
     fn firmware_version_drops_trailing_nul_and_whitespace() {

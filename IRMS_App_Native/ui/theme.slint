@@ -92,6 +92,7 @@ export component PageHead inherits HorizontalLayout {
 }
 
 export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
+export struct ViewerItem { id: string, name: string }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
@@ -149,6 +150,7 @@ export global App {
     in-out property <bool> wizard-open: false;
     in-out property <int> action-index: 1;
     in-out property <int> settings-tab: 0;
+    in-out property <int> tools-tab: 0;
     in-out property <int> pose-view: 0;       // 0 2D 1 3D 2 values
     in-out property <int> comfort: -1;        // personal comfort angle, -1 = not measured
     in-out property <int> limit: -1;
@@ -165,8 +167,11 @@ export global App {
     in property <string> shin-text: "—";
     in property <string> roll-text: "—";
     callback request-connect();
-    // calibration wizard, driven from Rust (irms_core::calibration on the captured vectors)
-    in property <int> wizard-step: 0;          // 0 reference 1 thigh sweep 2 shin sweep 3 result
+    // calibration wizard, driven from Rust (irms_core::calibration_flow over the captured vectors)
+    in property <int> wizard-page: 0;          // 0 prepare 1 reference 2 movement 3 review
+    in property <string> wizard-title;
+    in property <string> wizard-body;
+    in property <string> wizard-label;
     in property <float> wizard-progress: 0;
     in property <bool> wizard-busy: false;
     in property <bool> wizard-step-done: false;
@@ -174,12 +179,84 @@ export global App {
     in property <int> wizard-tone: 0;          // 0 plain 1 good 2 problem
     in property <string> wizard-result;
     in property <float> wizard-seconds: 2;
+    in property <int> wizard-side: -1;         // -1 unchosen 0 left 1 right
+    in property <int> wizard-preset: 0;        // 0 calibrate 1 mobility 2 quick re-zero
+    in property <bool> wizard-neutral: false;
+    in property <int> wizard-posture: 0;
+    in property <string> wizard-posture-name;
+    in property <bool> wizard-has-stored: false;
+    in property <bool> wizard-can-begin: false;
+    in property <bool> wizard-can-skip: false;
+    in property <bool> wizard-can-apply: false;
+    in property <bool> wizard-can-redo: false;
+    in property <bool> wizard-can-save-mobility: false;
+    in property <bool> wizard-save-mobility: true;
+    callback wizard-set-side(int);
+    callback wizard-set-preset(int);
+    callback wizard-set-neutral(bool);
+    callback wizard-set-posture(int);
+    callback wizard-begin();
     callback wizard-start();
     callback wizard-next();
+    callback wizard-skip();
+    callback wizard-recapture();
+    callback wizard-redo();
+    callback wizard-toggle-save();
+    callback wizard-apply();
     callback wizard-cancel();
+    in property <string> import-notice;
+    in property <string> firmware-status;
+    callback firmware-check();
+    // firmware update over BLE (firmware_ui.rs): 0 idle 1 downloading 2 starting 3 transferring 4 finalizing 5 done 6 error
+    in property <int> ota-phase: 0;
+    in property <float> ota-progress: 0;
+    in property <bool> firmware-can-install: false;
+    in-out property <bool> firmware-confirm: false;
+    callback firmware-install();
+    callback firmware-abort();
+    // program updates (update_ui.rs)
+    in property <string> update-status;
+    in property <bool> update-ready: false;
+    in-out property <bool> auto-update: true;
+    callback update-check();
+    callback update-install();
+    // telemetry opt-in and live share (IRMS_Core::telemetry, IRMS_Core::share_session)
+    in property <bool> telemetry-on: false;
+    in property <string> telemetry-status;
+    callback telemetry-set(bool);
+    in property <int> share-host-status: 0;     // 0 idle 1 starting 2 sharing 3 ended
+    in property <string> share-code;
+    in property <string> share-host-note;
+    in property <[ViewerItem]> share-viewers;
+    callback share-start();
+    callback share-stop();
+    callback share-kick(string);
+    in property <int> share-viewer-status: 0;   // 0 idle 1 joining 2 watching 3 ended
+    in property <string> share-viewer-note;
+    in property <string> share-viewer-text;
+    callback share-join(string);
+    callback share-leave();
+    // pre-session wearing check (real device only), driven from Rust
+    in-out property <bool> wearing-open: false;
+    in property <int> wearing-page: 0;         // 0 take the pose 1 sampling 2 verdict
+    in property <string> wearing-body;
+    in-out property <string> wearing-note;      // why the last action failed (re-zero), shown in the dialog
+    in property <float> wearing-progress: 0;
+    in property <int> wearing-verdict: 0;      // 0 none 1 ok 2 inconclusive 3 re-zero 4 recalibrate 5 too far
+    callback wearing-begin();
+    callback wearing-retry();
+    callback wearing-start-anyway();
+    callback wearing-rezero();
+    callback wearing-recalibrate();
+    callback wearing-cancel();
+    // range-of-motion totals (Settings): the newest record and the comparable history, newest first
+    in property <string> mobility-latest;
+    in property <[string]> mobility-history;
     // review statistics of the session picked in History, computed from its stored readings
     in property <string> review-summary;
     callback request-review(int);
+    callback export-session(int);
+    in-out property <string> export-notice;
     // the personal comfort / limit angles changed in Tools: store them
     callback range-changed(int, int);
 }

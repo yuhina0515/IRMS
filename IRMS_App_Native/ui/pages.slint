@@ -141,8 +141,9 @@ export component HistoryView inherits VerticalLayout {
                         }
                         // Statistics from irms_core::session_analysis (full readings, time-weighted).
                         Text { text: App.review-summary; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                        if App.export-notice != "": Text { text: App.export-notice; font-size: 12px; color: Theme.dim; wrap: word-wrap; }
                     }
-                    VerticalLayout { alignment: center; Btn { text: "關閉"; min-height: 36px; clicked => { App.review = -1; } } }
+                    VerticalLayout { alignment: center; spacing: 6px; Btn { text: "匯出 CSV"; min-height: 36px; clicked => { App.export-session(App.review); } } Btn { text: "關閉"; min-height: 36px; clicked => { App.review = -1; App.export-notice = ""; } } }
                 }
             }
             HorizontalLayout {
@@ -158,8 +159,8 @@ export component HistoryView inherits VerticalLayout {
 
 export component ToolsView inherits VerticalLayout {
     spacing: 14px;
-    property <int> tab: 0;
-    PageHead { title: "工具"; sub: "已安裝模組提供的操作頁面;安裝、啟用與更新請至「設定 → 模組」。"; }
+    in-out property <int> tab <=> App.tools-tab;
+    PageHead { title: "工具"; sub: "內建模組的操作頁面;模組清單在「設定 → 模組」。"; }
     Card {
         vertical-stretch: 1;
         VerticalLayout {
@@ -194,7 +195,29 @@ export component ToolsView inherits VerticalLayout {
             if root.tab == 1: VerticalLayout {
                 spacing: 12px; alignment: start; padding-left: 8px;
                 Text { text: "即時分享"; font-size: 17px; font-weight: 700; color: Theme.ink; }
-                Text { text: "模組系統在沒有 WebView 的情況下如何運作尚未決定(計畫 D2),此頁僅保留位置。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                Text { text: "把這台裝置的即時狀態分享給其他 IRMS(只有數值與狀態,沒有動作名稱或姓名)。分享需要先在「設定 → 資料與隱私」開啟遙測。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    if App.share-host-status != 2: Btn { text: "開始分享"; primary: true; enabled: App.share-host-status != 1; clicked => { App.share-start(); } }
+                    if App.share-host-status == 2: Btn { text: "停止分享"; clicked => { App.share-stop(); } }
+                    if App.share-host-status == 2: Text { text: "分享碼 " + App.share-code; font-size: 26px; font-weight: 700; color: Theme.accent; vertical-alignment: center; }
+                }
+                if App.share-host-note != "": Text { text: App.share-host-note; font-size: 13px; color: Theme.warn; wrap: word-wrap; }
+                for v in App.share-viewers: HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    Text { text: "觀看者 · " + v.name; font-size: 14px; color: Theme.ink; vertical-alignment: center; }
+                    Btn { text: "移出"; min-height: 30px; quiet: true; ink: Theme.danger; clicked => { App.share-kick(v.id); } }
+                }
+                Rectangle { height: 1px; background: Theme.border; }
+                Text { text: "觀看別人的分享"; font-size: 15px; font-weight: 700; color: Theme.ink; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    code := Field { width: 220px; placeholder: "分享碼(例如 AB12-CD34)"; }
+                    if App.share-viewer-status != 2: Btn { text: "加入"; primary: true; enabled: App.share-viewer-status != 1; clicked => { App.share-join(code.text); } }
+                    if App.share-viewer-status == 2: Btn { text: "離開"; clicked => { App.share-leave(); } }
+                }
+                if App.share-viewer-note != "": Text { text: App.share-viewer-note; font-size: 13px; color: Theme.warn; wrap: word-wrap; }
+                if App.share-viewer-status == 2: Text { text: App.share-viewer-text == "" ? "等待主機傳來第一筆資料…" : App.share-viewer-text; font-size: 14px; color: Theme.ink; wrap: word-wrap; }
             }
             Rectangle { vertical-stretch: 1; }
         }
@@ -245,7 +268,7 @@ export component SettingsView inherits VerticalLayout {
                     Setting {
                         title: "裝置";
                         sub: App.conn == 2 ? App.device-name + " · 已連線" : App.conn == 1 ? "連線中…" : "未連線";
-                        VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1; clicked => { App.request-connect(); } } }
+                        VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : App.conn == 1 ? "取消連線" : "連線裝置"; primary: App.conn == 0; enabled: !App.closing && !App.disconnecting; clicked => { App.request-connect(); } } }
                     }
                     Text { text: "連線只代表收得到資料;角度是否可信取決於校準。"; font-size: 13px; color: Theme.dim; }
                     Setting { title: "判定協定"; sub: "判定目前只支援膝關節;其他協定會擋下開始療程。"; VerticalLayout { alignment: center; Chip { text: "Knee Flexion (膝彎曲)"; tone: Theme.accent; } } }
@@ -262,6 +285,13 @@ export component SettingsView inherits VerticalLayout {
                         for c in ["零位已捕捉", "大腿軸已建立", "小腿軸已建立", "側向方向已驗證"]: Chip { text: c; tone: App.calibrated ? Theme.good : Theme.dim; }
                     }
                     Text { text: "感測器不需要貼得很正:精靈會從「抬大腿」與「勾小腿」兩個動作算出各自的屈曲軸。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    Rectangle { height: 1px; background: Theme.border; }
+                    Setting {
+                        title: "活動度";
+                        sub: App.mobility-latest;
+                        VerticalLayout { alignment: center; Btn { text: "量測活動度"; enabled: !App.session-locked && App.conn == 2; clicked => { App.wizard-open = true; App.wizard-set-preset(1); } } }
+                    }
+                    for line[i] in App.mobility-history: Text { visible: i < 5; height: i < 5 ? 18px : 0px; text: line; font-size: 12px; color: Theme.dim; }
                     if App.conn != 2: Text { text: "校準需要即時感測器數值,請先連線裝置。"; font-size: 13px; color: Theme.warn; }
                 }
                 if root.tab == 2: VerticalLayout {
@@ -301,24 +331,58 @@ export component SettingsView inherits VerticalLayout {
                         HorizontalLayout {
                             spacing: 6px;
                             VerticalLayout { alignment: center; Btn { text: "2D 側面"; active: App.pose-view == 0; clicked => { App.pose-view = 0; } } }
-                            VerticalLayout { alignment: center; Btn { text: "3D"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
+                            VerticalLayout { alignment: center; Btn { text: "立體投影"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
                         }
                     }
                 }
                 if root.tab == 3: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
-                    Setting { title: "韌體"; sub: App.conn == 2 ? (App.device-mode ? "真機韌體更新尚未移植" : "模擬裝置沒有韌體") : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
+                    Setting {
+                        title: "軟體更新";
+                        sub: "IRMS v" + App.release-version + " · 原生測試版\n" + (App.update-status != "" ? App.update-status : "只讀取已簽章的發布清單,安裝前會驗證簽章。");
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "檢查更新"; clicked => { App.update-check(); } } }
+                            if App.update-ready: VerticalLayout { alignment: center; Btn { text: "立即安裝"; primary: true; clicked => { App.update-install(); } } }
+                        }
+                    }
+                    Setting {
+                        title: "自動更新";
+                        sub: "啟動後與每 6 小時檢查一次;有新版時,在沒有療程或對話框進行時自動下載、驗證簽章並安裝,程式會關閉後自動重新開啟。";
+                        VerticalLayout { alignment: center; Btn { text: App.auto-update ? "已開啟" : "已關閉"; active: App.auto-update; clicked => { App.auto-update = !App.auto-update; } } }
+                    }
+                    Setting {
+                        title: "韌體";
+                        sub: App.firmware-status != "" ? App.firmware-status : "檢查最新韌體(只讀取已簽章的發布清單);裝置連線且有新版時可以更新。";
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "檢查韌體"; enabled: App.ota-phase == 0 || App.ota-phase >= 5; clicked => { App.firmware-confirm = false; App.firmware-check(); } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && !App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "更新韌體"; primary: true; clicked => { App.firmware-confirm = true; } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "確認更新"; primary: true; clicked => { App.firmware-confirm = false; App.firmware-install(); } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "取消"; clicked => { App.firmware-confirm = false; } } }
+                            if App.ota-phase >= 1 && App.ota-phase <= 4: VerticalLayout { alignment: center; Btn { text: "中止更新"; clicked => { App.firmware-abort(); } } }
+                        }
+                    }
+                    if App.ota-phase >= 1 && App.ota-phase <= 4: Rectangle {
+                        height: 10px; border-radius: 5px; background: Theme.raised;
+                        Rectangle { x: 0; width: parent.width * App.ota-progress; height: parent.height; border-radius: 5px; background: Theme.good; }
+                    }
                 }
                 if root.tab == 4: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "角度範圍測量"; sub: "內建於原型,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "已啟用"; tone: Theme.good; } } }
-                    Setting { title: "即時分享"; sub: "等待模組系統設計(計畫 D2)。"; VerticalLayout { alignment: center; Chip { text: "未決定"; tone: Theme.warn; } } }
+                    Text { text: "模組內建於程式中(計畫 D2,2026-11-17 決定):不下載腳本,功能隨版本更新。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    Setting { title: "角度範圍測量"; sub: "內建,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "即時分享"; sub: "內建,位於「工具」分頁;需要先開啟遙測。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    Setting { title: "韌體更新"; sub: "檢查已內建;實機 OTA 尚未驗證,不提供更新按鈕。"; VerticalLayout { alignment: center; Chip { text: "僅檢查"; tone: Theme.warn; } } }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;
+                    if App.import-notice != "": Text { text: App.import-notice; font-size: 13px; color: Theme.good; wrap: word-wrap; }
                     Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
-                    Setting { title: "遙測"; sub: "預設關閉。"; VerticalLayout { alignment: center; Chip { text: "關閉"; } } }
+                    Setting { title: "遙測"; sub: App.telemetry-status; VerticalLayout { alignment: center; Btn { text: App.telemetry-on ? "關閉上傳" : "開啟上傳"; primary: !App.telemetry-on; clicked => { App.telemetry-set(!App.telemetry-on); } } } }
+                    Text { text: "開啟後會把原始藍牙封包、連線與療程開始/結束的事件傳給開發者的收集器(不含姓名或電腦名稱)。預設關閉,每次啟動都需要重新開啟;關閉會丟棄尚未傳出的資料。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
                 }
             }
         }

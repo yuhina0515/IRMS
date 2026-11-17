@@ -1,18 +1,17 @@
 # IRMS Native Beta
 
-Windows x64 Rust/Slint application, version `1.3.0-beta.1`. Early test release:
+Windows x64 Rust/Slint application, version `1.3.0-beta.12`. Early test release:
 feature parity and physical device acceptance are incomplete. The existing Tauri
 release remains the shipping application.
 
-The default shortcut uses simulated sensor data. The experimental device shortcut
-passes `--real-ble`. Session data stays in
-`%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`; Tauri data is not migrated.
-Software rendering is the default; developers can override `SLINT_BACKEND`.
+- Real device (Bluetooth) mode is the default; `--simulate` starts the simulator (the "IRMS Simulator Demo" shortcut). `--real-ble` is kept as an alias.
+- Live monitoring with ordered feedback (alarm mute, Windows speech), prescriptions and persistent preferences, a calibration wizard (leg choice; calibrate / mobility / quick re-zero), a pre-session wearing check, range-of-motion records with a trend, session history and CSV export.
+- Settings: firmware check and firmware update over BLE (OTA, not yet validated on a physical device), automatic program updates from the beta channel (the installer signature is verified), opt-in telemetry and live share.
+- Session data stays in `%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`. On the first launch the Tauri database is read through a copy and its records are imported once; the Tauri file is never changed.
+- Software rendering is the default; developers can override `SLINT_BACKEND`.
+- Developer runs (custom `--db`, the simulator, `--snapshot`, `--no-update`, or the environment variable `IRMS_NO_AUTOUPDATE`) never update themselves.
 
-Development source after beta.1 includes ordered BLE session feedback, temporary
-alarm mute and Windows system speech (toggle in Settings / Display, or launch with
-`--no-voice`). Physical device output and acoustic speech acceptance remain pending.
-Published beta.1 assets do not include these later development changes.
+Physical-device acceptance is partial: connection, calibration and a session have been seen on a real device; OTA, CSV export, the renderer choice and IME are unconfirmed.
 
 ## Build and package
 
@@ -31,9 +30,8 @@ release binary only after verifying its embedded version.
 The current-user installer creates Start menu and desktop shortcuts and registers
 an uninstaller, and bundles the required signed Microsoft Visual C++ runtime DLL
 from the installed Visual Studio redistributable directory (`-VcRuntime` can
-specify its path). Close the native beta before installation or uninstallation.
-Uninstall retains session data. It does not install WebView2, replace the Tauri
-application, or change its automatic update channel.
+specify its path). The installer and uninstaller close a running IRMS by themselves.
+Uninstall retains session data. It does not install WebView2. A manual install leaves an installed Tauri app alone; the Tauri updater path (`/UPDATE`) replaces it, and native self-updates (`/SELFUPDATE`) never touch it.
 
 ## Windows signing
 
