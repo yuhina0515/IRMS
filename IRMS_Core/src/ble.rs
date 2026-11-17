@@ -39,6 +39,10 @@ const CONNECT_ATTEMPTS: u32 = 3;
 const CONNECT_STEP_TIMEOUT: Duration = Duration::from_secs(20);
 const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(10);
 const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+/// Scan calls, the command write and the firmware-version read hold or feed the shared peripheral lock;
+/// one that never returns would freeze every other BLE operation, including the disconnect button.
+const BLE_IO_TIMEOUT: Duration = Duration::from_secs(5);
+const PROPERTIES_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// Runs one BLE step with a time limit; a timeout becomes an error that names the step.
 async fn within<T>(
@@ -229,21 +233,30 @@ async fn scan_for_device(
     current: impl Fn() -> bool + Send + Sync,
 ) -> Result<Peripheral, String> {
     ensure_current(&current)?;
-    let started = adapter
-        .start_scan(ScanFilter::default())
-        .await
-        .map_err(|e| error_chain(&e));
+    let started = within("Start scan", BLE_IO_TIMEOUT, async {
+        adapter
+            .start_scan(ScanFilter::default())
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await;
 
     let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
     let found = async {
         started?;
         loop {
             ensure_current(&current)?;
-            let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
+            let peripherals = within("List peripherals", BLE_IO_TIMEOUT, async {
+                adapter.peripherals().await.map_err(|e| error_chain(&e))
+            })
+            .await?;
             ensure_current(&current)?;
             let mut hit = None;
             for p in peripherals {
-                let props = p.properties().await;
+                // A peripheral that does not answer is skipped, not waited for.
+                let props = tokio::time::timeout(PROPERTIES_TIMEOUT, p.properties())
+                    .await
+                    .unwrap_or(Ok(None));
                 ensure_current(&current)?;
                 if let Ok(Some(props)) = props {
                     if let Some(name) = &props.local_name {
@@ -265,7 +278,11 @@ async fn scan_for_device(
     }
     .await;
     // 所有出口（命中、逾時、查詢失敗與取消）共用收尾，且如實保留 stop_scan 失敗。
-    match (found, adapter.stop_scan().await) {
+    let stopped = within("Stop scan", BLE_IO_TIMEOUT, async {
+        adapter.stop_scan().await.map_err(|e| error_chain(&e))
+    })
+    .await;
+    match (found, stopped) {
         (Ok(peripheral), Ok(())) => Ok(peripheral),
         (Ok(_), Err(error)) => Err(format!("stop_scan failed: {error}")),
         (Err(error), Ok(())) => Err(error),
@@ -627,10 +644,13 @@ async fn send_command<H: BleHost>(
         .into_iter()
         .find(|c| c.uuid == uuid(CHAR_PROFILE_RX))
         .ok_or("Profile RX characteristic not found")?;
-    peripheral
-        .write(&profile_char, command.as_bytes(), WriteType::WithResponse)
-        .await
-        .map_err(|e| e.to_string())
+    within("Write command", BLE_IO_TIMEOUT, async {
+        peripheral
+            .write(&profile_char, command.as_bytes(), WriteType::WithResponse)
+            .await
+            .map_err(|e| e.to_string())
+    })
+    .await
 }
 
 pub async fn ble_get_firmware_version(state: &BleState) -> Result<Option<String>, String> {
@@ -646,7 +666,11 @@ pub async fn ble_get_firmware_version(state: &BleState) -> Result<Option<String>
         // Most commonly means the device firmware predates OTA support — expected, not an error.
         return Ok(None);
     };
-    match peripheral.read(&fw_char).await {
+    let read = within("Read firmware version", BLE_IO_TIMEOUT, async {
+        peripheral.read(&fw_char).await.map_err(|e| e.to_string())
+    })
+    .await;
+    match read {
         Ok(bytes) => Ok(clean_firmware_version(&bytes)),
         Err(_) => Ok(None),
     }
@@ -919,9 +943,11 @@ pub async fn ble_abort_ota(state: &BleState) -> Result<(), String> {
     {
         // Best-effort — if this fails, the device is probably already disconnected, which
         // achieves the same abort effect on its own.
-        let _ = peripheral
-            .write(&control_char, b"OTA:ABORT", WriteType::WithResponse)
-            .await;
+        let _ = tokio::time::timeout(
+            BLE_IO_TIMEOUT,
+            peripheral.write(&control_char, b"OTA:ABORT", WriteType::WithResponse),
+        )
+        .await;
     }
     Ok(())
 }
