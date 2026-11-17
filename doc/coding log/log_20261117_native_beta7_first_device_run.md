@@ -15,3 +15,7 @@ Owner tested at school on 2026-11-17 around 13:36 to 13:39 (Taipei) and had tele
 - Owner-reported UI bug (calibration wizard): the "initial posture" row was one cycling button showing 1 of 5 postures, so options looked hidden and "disappeared" on click. Fixed: all five postures are visible, directly selectable buttons (two rows); verified by screenshots for all three presets.
 - Not seen in telemetry: calibration wizard outcome, session on the real device, CSV export (native does not emit `session_start`; `session_end` was seen only for the simulator part). Renderer and IME unknown.
 - Conclusion: the beta.7 fix works; real BLE connection and live data are now confirmed on hardware for the first time in the native line.
+
+## beta.8 release (owner: "go", 2026-11-17)
+
+Version bump and the wizard posture fix, same release procedure as beta.7 (build-installer, `tauri signer sign`, hand-built latest.json, pre-release, `beta-latest` replaced).
