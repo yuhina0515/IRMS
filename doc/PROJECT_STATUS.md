@@ -21,6 +21,17 @@ Rust/Slint 原生版 `v1.3.0-beta.1` 已完成 x64 安裝包與本機安裝、�
 Smart App Control 仍可能阻擋安裝包或程式。詳見 [[log_20261116_native_beta1_installer]] 與
 [預發布頁面](https://github.com/yuhina0515/IRMS/releases/tag/v1.3.0-beta.1)。
 
+## 2026-11-17 原生 Windows 測試版現況(以本節為準,取代上一節的 beta.1 描述)
+
+Rust/Slint 原生版已發佈到 `v1.3.0-beta.11`(皆為未簽章 pre-release;2026-11-17 單日 beta.2 到 beta.11)。
+
+- **已用實機看到**(遙測紀錄,非口頭回報):連線、封包串流、校準、一次真實療程;ERR:1(I2C 斷線)偵測會觸發並在約 7 秒後恢復。
+- **自動更新**:原生版驗證簽章後自我更新(`beta-latest` 清單),筆電上已 beta.9 到 beta.10 到 beta.11 自動更新成功。
+- **連線**:Windows 若佔用已配對的 IRMS_Device,App 會找不到裝置或一直連線中;移除 Windows 配對後恢復。已加入重試、各步驟逾時與取消按鈕。
+- **韌體 OTA**:設定頁已有「更新韌體」,但 **Windows 上從未在實機看過 OTA 完成**(2026-09-26 Tauri 那次 6.8 分鐘沒有結果),原生版尚未驗證。
+- **仍未確認**:CSV 匯出在實機/Excel 的外觀、渲染器選擇(目前軟體渲染)、輸入法、Tauri 自動更新端到端(只用假的 Tauri 安裝測過)。簽章尚未處理(2026-11-17 擁有者決定先不簽章)。
+- 架構與歷程:[[2026-11-16-rust-native-ui-plan]]、[[log_20261117_native_auto_update]]、[[log_20261117_native_connect_retry_and_ota]]、[[log_20261117_native_beta7_first_device_run]]。
+
 ## 🧭 2026-11-10 現況補充(以本節為準,下方舊敘述與本節衝突時以本節為準)
 
 | 項目 | 現況(2026-11-10) |
