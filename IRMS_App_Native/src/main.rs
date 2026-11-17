@@ -818,8 +818,19 @@ fn main() -> Result<(), slint::PlatformError> {
                     real.borrow_mut().connect_error.clear();
                     host.rt.spawn(async move {
                         if let Err(message) = ble::ble_connect(&h, &h.state).await {
-                            h.emit_json("native:connect-failed", json!(message));
+                            // A cancelled attempt (the wearer pressed "取消連線") is not an error.
+                            if !message.contains(irms_core::ble_lifecycle::CANCELLED) {
+                                h.emit_json("native:connect-failed", json!(message));
+                            }
                         }
+                    });
+                } else if app.get_conn() == 1 {
+                    // Cancel an attempt that is still waiting: a Windows BLE step can hang for good, and
+                    // without this the window stays on "連線中" with a dead button.
+                    app.set_conn(0);
+                    real.borrow_mut().connect_error.clear();
+                    host.rt.spawn(async move {
+                        let _ = ble::ble_disconnect(&h, &h.state).await;
                     });
                 }
                 return;

@@ -171,7 +171,7 @@ export component MainWindow inherits Window {
                 Rectangle { width: 6px; }
                 VerticalLayout {
                     alignment: center;
-                    Btn { text: App.closing || App.disconnecting ? "正在收尾…" : App.conn == 2 ? "中斷連線" : App.conn == 1 ? "連線中…" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1 && !App.closing && !App.disconnecting; clicked => { App.request-connect(); } }
+                    Btn { text: App.closing || App.disconnecting ? "正在收尾…" : App.conn == 2 ? "中斷連線" : App.conn == 1 ? "取消連線" : "連線裝置"; primary: App.conn == 0; enabled: !App.closing && !App.disconnecting; clicked => { App.request-connect(); } }
                 }
             }
             Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border; }

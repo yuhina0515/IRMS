@@ -33,6 +33,24 @@ const SCAN_TIMEOUT: Duration = Duration::from_secs(15);
 /// its previous link, or the app just restarted): connect then fails with `NotConnected`. Retry a few times
 /// with a fresh scan before reporting the error.
 const CONNECT_ATTEMPTS: u32 = 3;
+/// Each OS step after the device is found gets a limit: Windows can leave `connect`, service discovery
+/// or subscribe waiting forever (the OS shows the device as connected while the app shows "connecting"),
+/// which would otherwise block the wearer with no error and no retry.
+const CONNECT_STEP_TIMEOUT: Duration = Duration::from_secs(20);
+const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(10);
+const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+
+/// Runs one BLE step with a time limit; a timeout becomes an error that names the step.
+async fn within<T>(
+    step: &str,
+    limit: Duration,
+    work: impl Future<Output = Result<T, String>>,
+) -> Result<T, String> {
+    match tokio::time::timeout(limit, work).await {
+        Ok(result) => result,
+        Err(_) => Err(format!("{step} timed out after {} s", limit.as_secs())),
+    }
+}
 const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(1500);
 
 /// What the BLE layer needs from the program hosting it. The Tauri app implements this over its
@@ -385,9 +403,13 @@ fn spawn_notification_listener<H: BleHost>(
 /// no longer reachable, so "NotConnected" usually means the device is off, out of range, or still holding
 /// another link, not that the app is broken.
 pub fn describe_connect_error(message: &str) -> String {
-    if message.contains("NotConnected") {
+    if message.contains("timed out") {
         format!(
-            "{message}。找到了裝置但連不上:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;             仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
+            "{message}。裝置沒有回應:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
+        )
+    } else if message.contains("NotConnected") {
+        format!(
+            "{message}。找到了裝置但連不上:請確認裝置已通電、靠近電腦,可以拔掉電源再插回後重試;仍不行時,到 Windows 設定 > 藍牙與裝置,移除舊的 IRMS_Device 再重試"
         )
     } else {
         message.to_string()
@@ -455,7 +477,10 @@ impl Connector for NativeConnector {
         scan_for_device(adapter, current).await
     }
     async fn connect(&self, peripheral: &Peripheral) -> Result<(), String> {
-        peripheral.connect().await.map_err(|e| error_chain(&e))
+        within("Connect", CONNECT_STEP_TIMEOUT, async {
+            peripheral.connect().await.map_err(|e| error_chain(&e))
+        })
+        .await
     }
     async fn setup(
         &self,
@@ -465,7 +490,10 @@ impl Connector for NativeConnector {
         setup_connection(peripheral, current).await
     }
     async fn disconnect(&self, peripheral: &Peripheral) -> Result<(), String> {
-        peripheral.disconnect().await.map_err(|e| error_chain(&e))
+        within("Disconnect", DISCONNECT_TIMEOUT, async {
+            peripheral.disconnect().await.map_err(|e| error_chain(&e))
+        })
+        .await
     }
 }
 
@@ -474,10 +502,13 @@ async fn setup_connection(
     current: impl Fn() -> bool + Send + Sync,
 ) -> Result<String, String> {
     ensure_current(&current)?;
-    peripheral
-        .discover_services()
-        .await
-        .map_err(|e| error_chain(&e))?;
+    within("Service discovery", CONNECT_STEP_TIMEOUT, async {
+        peripheral
+            .discover_services()
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await?;
     ensure_current(&current)?;
 
     let angle_char = peripheral
@@ -485,10 +516,13 @@ async fn setup_connection(
         .into_iter()
         .find(|c| c.uuid == uuid(CHAR_ANGLE_TX) && c.service_uuid == uuid(SERVICE_UUID))
         .ok_or("Angle characteristic not found")?;
-    peripheral
-        .subscribe(&angle_char)
-        .await
-        .map_err(|e| error_chain(&e))?;
+    within("Subscribe", SUBSCRIBE_TIMEOUT, async {
+        peripheral
+            .subscribe(&angle_char)
+            .await
+            .map_err(|e| error_chain(&e))
+    })
+    .await?;
     ensure_current(&current)?;
 
     let name = peripheral
@@ -901,6 +935,24 @@ mod ota_tests {
             describe_connect_error("Device not found within scan window"),
             "Device not found within scan window"
         );
+    }
+
+    #[tokio::test]
+    async fn a_step_that_never_finishes_ends_with_an_error_naming_the_step() {
+        let never = within::<()>(
+            "Service discovery",
+            Duration::from_millis(30),
+            std::future::pending(),
+        );
+        let error = never.await.unwrap_err();
+        assert_eq!(error, "Service discovery timed out after 0 s");
+        let shown = describe_connect_error(&error);
+        assert!(shown.contains("timed out") && shown.contains("通電"));
+        let fine = within("Connect", Duration::from_secs(5), async {
+            Ok::<_, String>(3)
+        })
+        .await;
+        assert_eq!(fine, Ok(3));
     }
 
     #[test]

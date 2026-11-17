@@ -268,7 +268,7 @@ export component SettingsView inherits VerticalLayout {
                     Setting {
                         title: "裝置";
                         sub: App.conn == 2 ? App.device-name + " · 已連線" : App.conn == 1 ? "連線中…" : "未連線";
-                        VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1; clicked => { App.request-connect(); } } }
+                        VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : App.conn == 1 ? "取消連線" : "連線裝置"; primary: App.conn == 0; enabled: !App.closing && !App.disconnecting; clicked => { App.request-connect(); } } }
                     }
                     Text { text: "連線只代表收得到資料;角度是否可信取決於校準。"; font-size: 13px; color: Theme.dim; }
                     Setting { title: "判定協定"; sub: "判定目前只支援膝關節;其他協定會擋下開始療程。"; VerticalLayout { alignment: center; Chip { text: "Knee Flexion (膝彎曲)"; tone: Theme.accent; } } }
