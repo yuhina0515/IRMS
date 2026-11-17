@@ -112,12 +112,13 @@ component WearingCheck inherits Rectangle {
     background: #000000.with-alpha(0.45);
     TouchArea { }
     Card {
-        width: 560px; height: 330px;
+        width: 560px; height: 360px;
         VerticalLayout {
             padding: 26px; spacing: 12px;
             Text { text: "療程前"; font-size: 13px; color: Theme.dim; }
             Text { text: "穿戴檢查"; font-size: 22px; font-weight: 700; color: Theme.ink; }
             Text { text: App.wearing-body; font-size: 15px; color: App.wearing-verdict >= 4 ? Theme.danger : App.wearing-verdict == 1 ? Theme.good : Theme.dim; wrap: word-wrap; }
+            if App.wearing-note != "": Text { text: App.wearing-note; font-size: 13px; color: Theme.danger; wrap: word-wrap; }
             if App.wearing-page == 1: Rectangle {
                 height: 10px; border-radius: 5px; background: Theme.raised;
                 Rectangle { x: 0; width: parent.width * App.wearing-progress; height: parent.height; border-radius: 5px; background: Theme.good; }
@@ -131,7 +132,7 @@ component WearingCheck inherits Rectangle {
                 Rectangle { horizontal-stretch: 1; }
                 if App.wearing-page == 0: Btn { text: "開始檢查"; primary: true; clicked => { App.wearing-begin(); } }
                 if App.wearing-page == 2 && App.wearing-verdict == 3: Btn { text: "歸零並開始"; primary: true; clicked => { App.wearing-rezero(); } }
-                if App.wearing-page == 2 && App.wearing-verdict >= 2 && App.wearing-verdict != 3: Btn { text: "仍要開始"; clicked => { App.wearing-start-anyway(); } }
+                if App.wearing-page == 2 && App.wearing-verdict >= 2: Btn { text: App.wearing-verdict == 3 ? "不歸零直接開始" : "仍要開始"; clicked => { App.wearing-start-anyway(); } }
             }
         }
     }

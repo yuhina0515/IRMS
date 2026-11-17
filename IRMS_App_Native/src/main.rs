@@ -1526,10 +1526,15 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
     let close = |ui: &MainWindow, s: &mut Sim| {
         s.wearing = None;
         ui.global::<App>().set_wearing_open(false);
+        ui.global::<App>().set_wearing_note("".into());
     };
     {
         let sim = sim.clone();
+        let ui_w = ui.as_weak();
         app.on_wearing_begin(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wearing_note("".into());
+            }
             if let Some(c) = sim.borrow_mut().wearing.as_mut() {
                 c.begin(now_ms());
             }
@@ -1537,7 +1542,11 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
     }
     {
         let sim = sim.clone();
+        let ui_w = ui.as_weak();
         app.on_wearing_retry(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wearing_note("".into());
+            }
             if let Some(c) = sim.borrow_mut().wearing.as_mut() {
                 c.retry();
             }
@@ -1584,18 +1593,21 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
             let Some(check) = s.wearing.as_ref() else {
                 return;
             };
+            // A failed re-zero keeps the dialog open with the reason, so the wearer can check again or
+            // start without re-zeroing (closing it silently looked like "cannot start").
             let fixed = match check.rezeroed(&id, &at) {
                 Ok(p) => p,
                 Err(why) => {
-                    storage_error(&ui, why);
-                    close(&ui, &mut s);
+                    ui.global::<App>().set_wearing_note(
+                        format!("無法歸零:{why}。可以再檢查一次,或不歸零直接開始。").into(),
+                    );
                     return;
                 }
             };
             // Stored first, like the wizard: a calibration that could not be recorded is not applied.
             if let Err(e) = s.store.apply_calibration(&fixed, None) {
-                storage_error(&ui, e);
-                close(&ui, &mut s);
+                ui.global::<App>()
+                    .set_wearing_note(format!("無法儲存歸零結果:{e}。可以不歸零直接開始。").into());
                 return;
             }
             s.slip = SlipMonitor::new(Some(fixed.limbs.shin.hinge));

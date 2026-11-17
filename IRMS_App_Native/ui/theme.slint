@@ -227,6 +227,7 @@ export global App {
     in-out property <bool> wearing-open: false;
     in property <int> wearing-page: 0;         // 0 take the pose 1 sampling 2 verdict
     in property <string> wearing-body;
+    in-out property <string> wearing-note;      // why the last action failed (re-zero), shown in the dialog
     in property <float> wearing-progress: 0;
     in property <int> wearing-verdict: 0;      // 0 none 1 ok 2 inconclusive 3 re-zero 4 recalibrate 5 too far
     callback wearing-begin();
