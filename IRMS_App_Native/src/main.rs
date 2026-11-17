@@ -890,12 +890,25 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let real_mode = host.is_some();
     let ui_w = ui.as_weak();
+    // Restored-from-minimized windows come back partly black with the software renderer; see
+    // `repaint-nudge` in app.slint.
+    let mut was_minimized = false;
+    let mut restore_nudges = 0u8;
     let timer = Timer::default();
     timer.start(
         TimerMode::Repeated,
         Duration::from_millis((1000.0 / HZ) as u64),
         move || {
             let Some(ui) = ui_w.upgrade() else { return };
+            let minimized = ui.window().is_minimized();
+            if was_minimized && !minimized {
+                restore_nudges = 6;
+            }
+            was_minimized = minimized;
+            if restore_nudges > 0 && !minimized {
+                restore_nudges -= 1;
+                ui.set_repaint_nudge(!ui.get_repaint_nudge());
+            }
             let app = ui.global::<App>();
             let live = ui.global::<Live>();
             let mut s = sim.borrow_mut();

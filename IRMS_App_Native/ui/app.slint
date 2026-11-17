@@ -141,13 +141,16 @@ component WearingCheck inherits Rectangle {
 export component MainWindow inherits Window {
     in property <string> release-version;
     private property <bool> about-open: false;
+    // Toggled by Rust right after the window is restored from minimized: the software renderer only
+    // repaints changed regions and the restored surface is empty, so the whole window must be dirtied.
+    in-out property <bool> repaint-nudge: false;
     title: "IRMS v" + root.release-version + " · Native Beta";
     preferred-width: 1280px;
     preferred-height: 800px;
     min-width: 1024px;
     min-height: 680px;
     default-font-family: "Microsoft JhengHei";
-    background: Theme.canvas;
+    background: Theme.canvas.brighter(root.repaint-nudge ? 0.01 : 0.0);
 
     VerticalLayout {
         // top navigation
