@@ -105,7 +105,7 @@ Section "IRMS Native Beta" SEC_MAIN
     Abort
   CreateDirectory "$SMPROGRAMS\IRMS Native Beta"
   CreateShortcut "$SMPROGRAMS\IRMS Native Beta\IRMS Native Beta.lnk" "$INSTDIR\irms_app_native.exe"
-  CreateShortcut "$SMPROGRAMS\IRMS Native Beta\IRMS Device (Experimental).lnk" "$INSTDIR\irms_app_native.exe" "--real-ble"
+  CreateShortcut "$SMPROGRAMS\IRMS Native Beta\IRMS Simulator Demo.lnk" "$INSTDIR\irms_app_native.exe" "--simulate"
   CreateShortcut "$SMPROGRAMS\IRMS Native Beta\Read Me.lnk" "$INSTDIR\README.txt"
   CreateShortcut "$DESKTOP\IRMS Native Beta.lnk" "$INSTDIR\irms_app_native.exe"
   WriteUninstaller "$INSTDIR\Uninstall.exe"

@@ -4,8 +4,8 @@ Windows x64 Rust/Slint application, version `1.3.0-beta.6`. Early test release:
 feature parity and physical device acceptance are incomplete. The existing Tauri
 release remains the shipping application.
 
-The default shortcut uses simulated sensor data. The experimental device shortcut
-passes `--real-ble`. Session data stays in
+Real device (Bluetooth) mode is the default. `--simulate` starts the simulator (the "IRMS Simulator Demo" shortcut);
+`--real-ble` is kept as an alias. Session data stays in
 `%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`; Tauri data is not migrated.
 Software rendering is the default; developers can override `SLINT_BACKEND`.
 

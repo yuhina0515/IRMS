@@ -379,7 +379,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --mobility-demo, --wizard, --wizard-preset N, --run, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
+    // --simulate (simulator instead of the real device), --connected, --calibrated, --mobility-demo, --wizard, --wizard-preset N, --run, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -400,22 +400,24 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_settings_tab(int("--settings-tab").unwrap_or(0).clamp(0, 5));
     let autorun = has("--run");
     let inject_fault = has("--inject-fault"); // 2 s of ERR:1 every 12 s
-    let real_mode_flag = has("--real-ble");
-    if real_mode_flag
-        && [
-            "--connected",
-            "--calibrated",
-            "--run",
-            "--inject-fault",
-            "--inject-slip",
-        ]
-        .iter()
-        .any(|flag| has(flag))
-    {
+                                              // Real device BLE is the default. The simulator runs only when asked for: --simulate or any
+                                              // simulator startup option. --real-ble stays as an explicit alias for the default.
+    let simulator_flags = [
+        "--simulate",
+        "--connected",
+        "--calibrated",
+        "--run",
+        "--inject-fault",
+        "--inject-slip",
+        "--mobility-demo",
+    ];
+    let wants_simulator = simulator_flags.iter().any(|flag| has(flag));
+    if has("--real-ble") && wants_simulator {
         return Err(slint::PlatformError::Other(
             "Real BLE cannot use simulator startup options".into(),
         ));
     }
+    let real_mode_flag = !wants_simulator;
     app.set_device_mode(real_mode_flag);
     // --real-ble: the connect button scans for a real IRMS device through irms_core::ble
     // instead of starting the simulator.
@@ -438,7 +440,7 @@ fn main() -> Result<(), slint::PlatformError> {
         arg_value(&args, "--telemetry-endpoint")
             .unwrap_or_else(|| share_ui::DEFAULT_ENDPOINT.into()),
     )));
-    let host = has("--real-ble").then(|| NativeHost {
+    let host = real_mode_flag.then(|| NativeHost {
         tx: ble_tx.clone(),
         state: Arc::new(BleState::default()),
         rt: runtime.handle().clone(),

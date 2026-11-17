@@ -2,7 +2,7 @@ IRMS v1.3.0-beta.6 is the sixth Windows x64 installer for the Rust/Slint native 
 
 Download `IRMS_1.3.0-beta.6_x64-setup.exe`. This current-user installer adds desktop and Start menu shortcuts and an uninstaller. Installed by hand it runs alongside the Tauri application; installed by the updater it replaces it. No WebView2 installation is required.
 
-The main shortcut starts simulated data. An **IRMS Device (Experimental)** Start menu entry enables the real BLE code path. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
+The app starts in real device (Bluetooth) mode; an **IRMS Simulator Demo** Start menu entry (`--simulate`) starts the simulator. Physical BLE, calibration, feedback and OTA acceptance remain incomplete; this release does not yet have feature parity with Tauri. Simulated readings are not real measurements.
 
 **New since beta.5:** the Tauri beta updater now offers this build. Updating removes the Tauri app (its data folder is left alone) and installs this one, which opens itself afterwards. On the first launch it copies the Tauri records (sessions, readings, prescriptions, personal ranges, mobility records, calibrations) into its own database; the Tauri database is read through a copy and never modified. Import runs once, only into an empty native database. Not carried over: settings the Tauri app kept in its WebView (alarm limits, display choices); re-enter them. This is a beta channel build; physical-device acceptance is still pending.
 

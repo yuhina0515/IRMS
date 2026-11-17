@@ -3,8 +3,8 @@ IRMS v1.3.0-beta.6 - Windows x64 native test release
 This is the first installer for the Rust/Slint native application.
 It is an early test release; feature parity and real-device acceptance are incomplete.
 
-The desktop shortcut starts simulated data. Simulated readings are not real measurements.
-The Start menu also includes "IRMS Device (Experimental)" for the --real-ble entry point.
+The shortcuts start the real device (Bluetooth) mode. Simulated readings are not real measurements.
+The Start menu also includes "IRMS Simulator Demo" (--simulate).
 BLE, calibration, GPIO feedback and OTA have not passed real-device acceptance.
 The native application does not yet replace the shipping Tauri application.
 
