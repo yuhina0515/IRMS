@@ -337,7 +337,20 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 3: VerticalLayout {
                     spacing: 16px;
-                    Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
+                    Setting {
+                        title: "軟體更新";
+                        sub: "IRMS v" + App.release-version + " · 原生測試版\n" + (App.update-status != "" ? App.update-status : "只讀取已簽章的發布清單,安裝前會驗證簽章。");
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "檢查更新"; clicked => { App.update-check(); } } }
+                            if App.update-ready: VerticalLayout { alignment: center; Btn { text: "立即安裝"; primary: true; clicked => { App.update-install(); } } }
+                        }
+                    }
+                    Setting {
+                        title: "自動更新";
+                        sub: "啟動後與每 6 小時檢查一次;有新版時,在沒有療程或對話框進行時自動下載、驗證簽章並安裝,程式會關閉後自動重新開啟。";
+                        VerticalLayout { alignment: center; Btn { text: App.auto-update ? "已開啟" : "已關閉"; active: App.auto-update; clicked => { App.auto-update = !App.auto-update; } } }
+                    }
                     Setting { title: "韌體"; sub: App.firmware-status != "" ? App.firmware-status : "檢查最新韌體(只讀取已簽章的發布清單)。"; VerticalLayout { alignment: center; Btn { text: "檢查韌體"; clicked => { App.firmware-check(); } } } }
                 }
                 if root.tab == 4: VerticalLayout {

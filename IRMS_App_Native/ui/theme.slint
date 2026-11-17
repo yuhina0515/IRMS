@@ -207,6 +207,12 @@ export global App {
     in property <string> import-notice;
     in property <string> firmware-status;
     callback firmware-check();
+    // program updates (update_ui.rs)
+    in property <string> update-status;
+    in property <bool> update-ready: false;
+    in-out property <bool> auto-update: true;
+    callback update-check();
+    callback update-install();
     // telemetry opt-in and live share (IRMS_Core::telemetry, IRMS_Core::share_session)
     in property <bool> telemetry-on: false;
     in property <string> telemetry-status;

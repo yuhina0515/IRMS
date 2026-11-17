@@ -16,6 +16,8 @@ pub struct Preferences {
     pub action_id: Option<String>,
     /// Opt-in telemetry choice, remembered like the Tauri setting. Default off.
     pub telemetry_on: bool,
+    /// Check for program updates and install them automatically (owner asked for it on, 2026-11-17).
+    pub auto_update: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -27,6 +29,7 @@ impl Default for Preferences {
             voice_enabled: true,
             action_id: None,
             telemetry_on: false,
+            auto_update: true,
         }
     }
 }
@@ -147,6 +150,7 @@ impl PreferenceStore {
         merge!(pose);
         merge!(voice_enabled);
         merge!(telemetry_on);
+        merge!(auto_update);
         if current.action_id != self.observed.action_id {
             self.candidate.action_id = current.action_id.clone();
         }

@@ -24,7 +24,7 @@ InstallDir "$LOCALAPPDATA\Programs\IRMS Native Beta"
 InstallDirRegKey HKCU "Software\IRMS\NativeBeta" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "1.3.0.8"
+VIProductVersion "1.3.0.9"
 VIAddVersionKey /LANG=1033 "ProductName" "IRMS Native Beta"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
@@ -57,6 +57,14 @@ Function .onInit
   ${GetOptions} $R0 "/UPDATE" $R1
   ${IfNot} ${Errors}
     StrCpy $Updating 1
+    SetSilent silent
+  ${EndIf}
+  ; The native app updating itself (update_ui.rs): silent, restart afterwards, and leave any installed
+  ; Tauri app alone (unlike /UPDATE, which replaces it).
+  ClearErrors
+  ${GetOptions} $R0 "/SELFUPDATE" $R1
+  ${IfNot} ${Errors}
+    StrCpy $Relaunch 1
     SetSilent silent
   ${EndIf}
   ClearErrors
@@ -131,6 +139,7 @@ Section "IRMS Native Beta" SEC_MAIN
     MessageBox MB_ICONSTOP "Could not install all application files. Close IRMS and retry."
     Abort
   CreateDirectory "$SMPROGRAMS\IRMS Native Beta"
+  Delete "$SMPROGRAMS\IRMS Native Beta\IRMS Device (Experimental).lnk"
   CreateShortcut "$SMPROGRAMS\IRMS Native Beta\IRMS Native Beta.lnk" "$INSTDIR\irms_app_native.exe"
   CreateShortcut "$SMPROGRAMS\IRMS Native Beta\IRMS Simulator Demo.lnk" "$INSTDIR\irms_app_native.exe" "--simulate"
   CreateShortcut "$SMPROGRAMS\IRMS Native Beta\Read Me.lnk" "$INSTDIR\README.txt"
@@ -165,6 +174,7 @@ Section "Uninstall"
   Delete "$DESKTOP\IRMS Native Beta.lnk"
   Delete "$SMPROGRAMS\IRMS Native Beta\IRMS Native Beta.lnk"
   Delete "$SMPROGRAMS\IRMS Native Beta\IRMS Device (Experimental).lnk"
+  Delete "$SMPROGRAMS\IRMS Native Beta\IRMS Simulator Demo.lnk"
   Delete "$SMPROGRAMS\IRMS Native Beta\Read Me.lnk"
   RMDir "$SMPROGRAMS\IRMS Native Beta"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\IRMSNativeBeta"

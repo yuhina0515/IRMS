@@ -24,6 +24,8 @@ sha2 = "0.10"
 md5 = "0.7"
 semver = "1"
 base64 = "0.22"
+# Installer signature check for the self-updater (app_update.rs), minisign as written by `tauri signer`.
+minisign-verify = "0.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }

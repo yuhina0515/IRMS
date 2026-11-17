@@ -36,6 +36,7 @@ mod pipeline;
 mod preferences;
 mod share_ui;
 mod store;
+mod update_ui;
 mod wearing;
 mod wizard;
 
@@ -709,6 +710,31 @@ fn main() -> Result<(), slint::PlatformError> {
         runtime.handle().clone(),
         host.as_ref().map(|h| h.state.clone()),
     );
+    // Program updates: only for a normal run (default database, real device mode). A developer run
+    // (custom database, simulator, snapshots) must never replace the installed app.
+    let updates_allowed = real_mode_flag
+        && arg_value(&args, "--db").is_none()
+        && !has("--snapshot")
+        && !has("--no-update")
+        && std::env::var_os("IRMS_NO_AUTOUPDATE").is_none();
+    let updater = update_ui::Updater::new(updates_allowed);
+    update_ui::wire(&ui, updater.clone(), runtime.handle().clone());
+    {
+        let updater = updater.clone();
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_update_install(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            if update_idle(&ui, &sim.borrow()) {
+                updater.install();
+            } else {
+                ui.global::<App>()
+                    .set_update_status("請先結束進行中的療程或對話框,再安裝".into());
+            }
+        });
+    }
+    app.set_auto_update(saved.auto_update);
+    let update_rt = runtime.handle().clone();
     {
         // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE, --firmware-check.
         let s = sharing.borrow();
@@ -933,6 +959,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 action_config(&s.actions, app.get_action_index().max(0) as usize, limits)
             });
             let limits = cfg.limits;
+            updater.tick(&update_rt, app.get_auto_update(), update_idle(&ui, &s));
             let wizard_open = app.get_wizard_open();
             let mut link = real.borrow_mut();
             while let Ok((receipt, event, payload)) = ble_rx.try_recv() {
@@ -1153,6 +1180,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 share_ui::sync(&app, &sharing);
                 firmware_ui::sync(&app, &firmware);
+                update_ui::sync(&app, &updater);
             }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
@@ -1649,6 +1677,7 @@ fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
         voice_enabled: app.get_voice_enabled(),
         action_id: (!id.is_empty()).then(|| id.to_string()),
         telemetry_on: app.get_telemetry_on(),
+        auto_update: app.get_auto_update(),
         ..preferences::Preferences::default()
     }
 }
@@ -1690,6 +1719,7 @@ fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
         action_id: selected.map(|i| s.actions[i].id.to_string()),
         // Resetting display preferences must not silently change the data-sharing choice.
         telemetry_on: app.get_telemetry_on(),
+        auto_update: app.get_auto_update(),
         ..preferences::Preferences::default()
     };
     if let Some(preferences) = s.preferences.as_mut() {
@@ -1727,6 +1757,19 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
 }
 
 /// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+/// Nothing the wearer is doing would be cut off by an automatic update.
+fn update_idle(ui: &MainWindow, s: &Sim) -> bool {
+    let app = ui.global::<App>();
+    !(s.store.active()
+        || s.closing
+        || s.disconnecting
+        || app.get_wizard_open()
+        || app.get_wearing_open()
+        || app.get_editor_open()
+        || app.get_confirmation_open()
+        || app.get_conn() == 1)
+}
+
 fn session_can_start(ui: &MainWindow, s: &Sim, simulated: bool) -> bool {
     let app = ui.global::<App>();
     !(s.closing
