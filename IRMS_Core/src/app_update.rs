@@ -52,6 +52,16 @@ pub struct UpdateInfo {
 pub struct VerifiedInstaller {
     pub version: String,
     pub path: PathBuf,
+    /// Kept so the file can be checked again right before it is started (see `reverify`).
+    pub signature: String,
+}
+
+/// Re-checks the file on disk against its signature. The installer sits in a user-writable temp folder
+/// between the download and the start of the installation; checking again at the last moment means a file
+/// swapped in the meantime is refused.
+pub fn reverify(installer: &VerifiedInstaller) -> Result<(), String> {
+    let data = std::fs::read(&installer.path).map_err(|e| format!("無法讀取安裝程式: {e}"))?;
+    verify_installer(&data, &installer.signature)
 }
 
 /// True when `latest` is a strictly newer semantic version than `current` (both must parse).
@@ -194,6 +204,7 @@ pub async fn download(info: &UpdateInfo) -> Result<VerifiedInstaller, String> {
     Ok(VerifiedInstaller {
         version: info.version.clone(),
         path,
+        signature: info.signature.clone(),
     })
 }
 
@@ -255,6 +266,25 @@ mod tests {
                 "{url}"
             );
         }
+    }
+
+    #[test]
+    fn a_swapped_installer_file_is_refused_at_the_last_moment() {
+        let dir = std::env::temp_dir().join(format!("irms-reverify-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("IRMS_9.9.9_x64-setup.exe");
+        std::fs::write(&path, PAYLOAD).unwrap();
+        let installer = VerifiedInstaller {
+            version: "9.9.9".into(),
+            path: path.clone(),
+            signature: SIGNATURE.into(),
+        };
+        reverify(&installer).expect("the genuine file passes");
+        std::fs::write(&path, b"something else entirely").unwrap();
+        assert!(reverify(&installer).is_err(), "a replaced file is refused");
+        std::fs::remove_file(&path).unwrap();
+        assert!(reverify(&installer).is_err(), "a missing file is refused");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

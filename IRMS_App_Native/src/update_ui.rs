@@ -120,7 +120,14 @@ impl Updater {
                 _ => return,
             }
         };
-        let result = Command::new(&installer.path).args(["/SELFUPDATE"]).spawn();
+        // The installer waited in a user-writable temp folder: check its signature again right now.
+        let result = app_update::reverify(&installer).and_then(|()| {
+            Command::new(&installer.path)
+                .args(["/SELFUPDATE"])
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        });
         let mut inner = self.lock();
         match result {
             Ok(_) => {
@@ -131,7 +138,7 @@ impl Updater {
                 // Back to idle with a pause: staying "ready" made the timer retry every tick.
                 inner.phase = Phase::Idle;
                 inner.next_check = Instant::now() + RETRY_AFTER_FAILURE;
-                inner.status = format!("無法啟動安裝程式:{e}");
+                inner.status = format!("無法安裝更新:{e}");
             }
         }
     }
@@ -211,11 +218,12 @@ mod tests {
         u.lock().phase = Phase::Ready(VerifiedInstaller {
             version: "9.9.9".into(),
             path: std::env::temp_dir().join("irms-no-such-installer-for-test.exe"),
+            signature: String::new(),
         });
         assert!(u.ready());
         u.tick(rt.handle(), true, true);
         assert!(!u.ready(), "the unusable installer is dropped");
-        assert!(u.status().contains("無法啟動安裝程式"));
+        assert!(u.status().contains("無法安裝更新"));
         assert_eq!(u.lock().phase, Phase::Idle);
         assert!(!u.check_due(), "the next check waits instead of looping");
     }
