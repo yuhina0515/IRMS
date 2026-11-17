@@ -1577,7 +1577,7 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
             let Some(ui) = ui_w.upgrade() else { return };
             let mut s = sim.borrow_mut();
             let now = chrono::Utc::now();
-            let id = format!("cal-{}", now.timestamp_millis());
+            let id = wizard::new_calibration_id();
             let at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
             let Some(check) = s.wearing.as_ref() else {
                 return;

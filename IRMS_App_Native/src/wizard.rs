@@ -31,6 +31,18 @@ pub const POSTURES: [ReferencePosture; 5] = [
     ReferencePosture::Other,
 ];
 
+/// Calibration id from the clock in milliseconds, forced strictly increasing so two
+/// calibrations created within the same millisecond never share an id.
+pub fn new_calibration_id() -> String {
+    use std::sync::atomic::{AtomicI64, Ordering};
+    static LAST: AtomicI64 = AtomicI64::new(0);
+    let now = chrono::Utc::now().timestamp_millis();
+    let prev = LAST
+        .try_update(Ordering::SeqCst, Ordering::SeqCst, |l| Some(now.max(l + 1)))
+        .unwrap_or(0);
+    format!("cal-{}", now.max(prev + 1))
+}
+
 pub fn posture_label(p: ReferencePosture) -> &'static str {
     match p {
         ReferencePosture::Standing => "站立",
@@ -561,7 +573,7 @@ impl Wizard {
         self.tone = 0;
         self.status.clear();
         let created_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        let id = format!("cal-{}", chrono::Utc::now().timestamp_millis());
+        let id = new_calibration_id();
         if self.quick() {
             let (Some(stored), Some(reference)) = (&self.stored, self.flow.reference) else {
                 self.result = "沒有可沿用的校準,請先完成一次完整校準".into();
