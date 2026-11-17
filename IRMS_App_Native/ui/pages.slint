@@ -357,9 +357,9 @@ export component SettingsView inherits VerticalLayout {
                         HorizontalLayout {
                             spacing: 6px;
                             VerticalLayout { alignment: center; Btn { text: "檢查韌體"; enabled: App.ota-phase == 0 || App.ota-phase >= 5; clicked => { App.firmware-confirm = false; App.firmware-check(); } } }
-                            if App.firmware-can-install && !App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "更新韌體"; primary: true; clicked => { App.firmware-confirm = true; } } }
-                            if App.firmware-can-install && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "確認更新"; primary: true; clicked => { App.firmware-confirm = false; App.firmware-install(); } } }
-                            if App.firmware-can-install && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "取消"; clicked => { App.firmware-confirm = false; } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && !App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "更新韌體"; primary: true; clicked => { App.firmware-confirm = true; } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "確認更新"; primary: true; clicked => { App.firmware-confirm = false; App.firmware-install(); } } }
+                            if App.firmware-can-install && App.ota-phase == 0 && App.firmware-confirm: VerticalLayout { alignment: center; Btn { text: "取消"; clicked => { App.firmware-confirm = false; } } }
                             if App.ota-phase >= 1 && App.ota-phase <= 4: VerticalLayout { alignment: center; Btn { text: "中止更新"; clicked => { App.firmware-abort(); } } }
                         }
                     }
