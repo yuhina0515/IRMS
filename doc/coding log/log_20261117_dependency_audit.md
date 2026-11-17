@@ -13,3 +13,9 @@ Installed `cargo-audit 0.23.0` (dev tool in `~/.cargo/bin`) and ran it on `IRMS_
 - **RUSTSEC-2026-0486** (`rustix` 1.1.4, unsound xattr): updated to 1.1.6.
 - Left as they are: 6 "unmaintained" warnings (`bincode`, `pin-utils`, `ttf-parser`, `zbus_names`, `zvariant`, `zvariant_derive`), all transitive through Slint/winit and with no fixed version available.
 - Result: `cargo audit` reports no vulnerabilities for either crate. Not released yet: the next beta will carry the new SQLite.
+
+## Follow-up: the Tauri app shares IRMS_Core
+
+- Upgrading `IRMS_Core` to rusqlite 0.43 broke the Tauri crate's build (it depends on `IRMS_Core` by path and needs the same SQLite binding): `cargo` reported "failed to select a version for libsqlite3-sys". Found only because the Tauri crate was audited next; fixed by bumping its `rusqlite` to 0.43 as well (commit `9739c5f`, the previous commit `69c2d66` left the branch with a Tauri build that did not compile). Tauri Rust: 43 tests pass, Clippy clean.
+- `cargo audit` on `IRMS_App_Tauri/src-tauri`: 12 vulnerabilities before, 4 after. Fixed by the SQLite bump and a lock refresh of rustls 0.23.46, rustls-webpki 0.103.17, webpki-root-certs 1.0.12, tokio 1.54.1, rustix 1.1.6 (all semver-compatible). `npm audit --omit=dev`: 0 vulnerabilities.
+- **Left open:** `zip` 4.6.1 (RUSTSEC-2026-0367, -0368, -0369, -0429, up to 7.5 high), pulled in by `tauri-plugin-updater` 2.11.0; the fix needs zip 9, and the only updater release that has it is `3.0.0-alpha.3`. These advisories concern extracting untrusted zip archives; the Tauri updater on Windows installs an `.exe` downloaded from the owner's own release, so exposure looks low (inference, not tested). Revisit when a stable updater plugin ships. Also `glib` 0.18 (Linux/GTK only, not in the Windows build) and unmaintained-crate warnings.
