@@ -710,7 +710,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE, --firmware-check.
         let s = sharing.borrow();
-        if has("--telemetry-on") {
+        if has("--telemetry-on") || saved.telemetry_on {
             if let Err(e) = s
                 .telemetry
                 .configure(true, &s.endpoint, env!("CARGO_PKG_VERSION"))
@@ -1621,6 +1621,7 @@ fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
         pose: app.get_pose_view(),
         voice_enabled: app.get_voice_enabled(),
         action_id: (!id.is_empty()).then(|| id.to_string()),
+        telemetry_on: app.get_telemetry_on(),
         ..preferences::Preferences::default()
     }
 }
@@ -1660,6 +1661,8 @@ fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
     let selected = action_edit::selected_index(&s.actions, None);
     let value = preferences::Preferences {
         action_id: selected.map(|i| s.actions[i].id.to_string()),
+        // Resetting display preferences must not silently change the data-sharing choice.
+        telemetry_on: app.get_telemetry_on(),
         ..preferences::Preferences::default()
     };
     if let Some(preferences) = s.preferences.as_mut() {
