@@ -943,8 +943,8 @@ mod ota_tests {
         assert!(shown.starts_with("Not connected [NotConnected]"));
         assert!(shown.contains("通電") && shown.contains("移除舊的"));
         assert_eq!(
-            describe_connect_error("Device not found within scan window"),
-            "Device not found within scan window"
+            describe_connect_error("No Bluetooth adapter found"),
+            "No Bluetooth adapter found"
         );
     }
 
