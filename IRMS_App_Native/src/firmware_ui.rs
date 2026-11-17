@@ -164,7 +164,7 @@ impl FirmwareCheck {
             match ble_perform_ota_update(&host, host.ble(), image.data, image.md5).await {
                 Ok(message) => this.finish(
                     OtaPhase::Done,
-                    format!("{message}。請重新連線並再按「檢查韌體」確認新版本"),
+                    format!("{message}。裝置重開機後程式會自動重新連線,連上後再按「檢查韌體」確認新版本"),
                 ),
                 Err(e) => this.finish(
                     OtaPhase::Error,

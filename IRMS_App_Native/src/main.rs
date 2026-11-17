@@ -20,7 +20,7 @@ use std::fmt::Write;
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use store::Store;
@@ -167,6 +167,9 @@ struct NativeHost {
     rt: tokio::runtime::Handle,
     /// Opt-in telemetry; recording is a no-op while it is off.
     telemetry: Arc<irms_core::telemetry::TelemetryState>,
+    /// Bumped by every manual connect/disconnect/cancel and when the window closes: an auto-reconnect loop
+    /// that started under an older value stops.
+    epoch: Arc<AtomicU64>,
 }
 
 impl BleHost for NativeHost {
@@ -190,6 +193,8 @@ struct RealLink {
     last: Option<Instant>,
     fault: Option<String>,
     connect_error: String,
+    /// "連線中斷,自動重新連線中(n/m)" while the auto-reconnect loop runs.
+    reconnect_note: String,
 }
 
 struct Sim {
@@ -446,6 +451,7 @@ fn main() -> Result<(), slint::PlatformError> {
         state: Arc::new(BleState::default()),
         rt: runtime.handle().clone(),
         telemetry: telemetry.clone(),
+        epoch: Arc::new(AtomicU64::new(0)),
     });
     let real = Rc::new(RefCell::new(RealLink::default()));
     if has("--connected") || autorun {
@@ -800,6 +806,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             if let Some(host) = &host {
+                // Any manual action ends an auto-reconnect that is still running.
+                host.epoch.fetch_add(1, Ordering::SeqCst);
                 // Real device: the result and every later state change arrive as events.
                 let h = host.clone();
                 if app.get_conn() == 2 {
@@ -878,7 +886,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_w = ui.as_weak();
         let sim = sim.clone();
         let sessions = sessions.clone();
+        let close_epoch = host.as_ref().map(|h| h.epoch.clone());
         ui.window().on_close_requested(move || {
+            if let Some(epoch) = &close_epoch {
+                epoch.fetch_add(1, Ordering::SeqCst);
+            }
             if let Some(ui) = ui_w.upgrade() {
                 let mut s = sim.borrow_mut();
                 if s.closing {
@@ -941,6 +953,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let mut ticks = 0u32;
 
     let real_mode = host.is_some();
+    let reconnect_host = host.clone();
     let ui_w = ui.as_weak();
     // Restored-from-minimized windows come back partly black with the software renderer; see
     // `repaint-nudge` in app.slint.
@@ -1027,9 +1040,29 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                         *link = RealLink::default();
                         app.set_conn(if up { 2 } else { 0 });
+                        if !up
+                            && should_auto_reconnect(
+                                payload["reason"].as_str(),
+                                s.disconnecting,
+                                s.closing,
+                            )
+                        {
+                            if let Some(h) = &reconnect_host {
+                                start_auto_reconnect(h);
+                                app.set_conn(1);
+                            }
+                        }
+                    }
+                    "native:reconnecting" => {
+                        link.reconnect_note = format!(
+                            "連線中斷,自動重新連線中({}/{})",
+                            payload["attempt"].as_u64().unwrap_or(0),
+                            payload["max"].as_u64().unwrap_or(0)
+                        );
                     }
                     "native:connect-failed" => {
                         link.connect_error = payload.as_str().unwrap_or("連線失敗").to_string();
+                        link.reconnect_note.clear();
                         app.set_conn(0);
                     }
                     "native:voice-status" => {
@@ -1219,7 +1252,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
             let (title, sub, tone): (String, String, i32) = if !connected {
-                if app.get_conn() == 1 {
+                if app.get_conn() == 1 && !link.reconnect_note.is_empty() {
+                    ("連線中斷".into(), link.reconnect_note.clone(), 0)
+                } else if app.get_conn() == 1 {
                     ("連線中…".into(), "正在尋找裝置(最長 15 秒)".into(), 0)
                 } else if !link.connect_error.is_empty() {
                     ("連線失敗".into(), link.connect_error.clone(), 2)
@@ -1791,6 +1826,56 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
 }
 
 /// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+/// Link-loss recovery, like the Tauri app's attemptReconnect: after an unexpected disconnect the app tries
+/// again by itself. Each attempt is a full connect (scan, connect, subscribe) that already retries inside.
+const RECONNECT_ATTEMPTS: u32 = 3;
+const RECONNECT_GAP: Duration = Duration::from_secs(3);
+
+/// An unexpected link loss (not the wearer's disconnect, not the window closing) starts an auto-reconnect.
+fn should_auto_reconnect(reason: Option<&str>, disconnecting: bool, closing: bool) -> bool {
+    reason == Some("notification_stream_ended") && !disconnecting && !closing
+}
+
+fn start_auto_reconnect(host: &NativeHost) {
+    start_auto_reconnect_with(host, RECONNECT_ATTEMPTS, RECONNECT_GAP);
+}
+
+fn start_auto_reconnect_with(host: &NativeHost, attempts: u32, gap: Duration) {
+    let h = host.clone();
+    // This loop owns the epoch until a manual action bumps it.
+    let epoch = h.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+    host.rt.spawn(async move {
+        let current = || h.epoch.load(Ordering::SeqCst) == epoch;
+        for attempt in 1..=attempts {
+            if !current() {
+                return;
+            }
+            h.emit_json(
+                "native:reconnecting",
+                json!({ "attempt": attempt, "max": attempts }),
+            );
+            match ble::ble_connect(&h, &h.state).await {
+                // The connection event updates the window.
+                Ok(_) => return,
+                Err(message) => {
+                    if message.contains(irms_core::ble_lifecycle::CANCELLED) || !current() {
+                        return;
+                    }
+                    if attempt < attempts {
+                        tokio::time::sleep(gap).await;
+                    }
+                }
+            }
+        }
+        if current() {
+            h.emit_json(
+                "native:connect-failed",
+                json!("自動重新連線失敗:請確認裝置已通電並靠近電腦,再按「連線裝置」"),
+            );
+        }
+    });
+}
+
 /// A live share the wearer is hosting would be cut off by a restart for an update.
 fn share_hosting(sharing: &Rc<RefCell<share_ui::Sharing>>) -> bool {
     use irms_core::share_session::HostStatus;
@@ -2245,5 +2330,78 @@ mod tests {
             Some(&Verdict::TooFar)
         );
         assert!(!s.store.active());
+    }
+
+    #[test]
+    fn only_an_unexpected_link_loss_starts_an_auto_reconnect() {
+        assert!(should_auto_reconnect(
+            Some("notification_stream_ended"),
+            false,
+            false
+        ));
+        assert!(
+            !should_auto_reconnect(Some("manual"), false, false),
+            "the wearer disconnected"
+        );
+        assert!(
+            !should_auto_reconnect(Some("notification_stream_ended"), true, false),
+            "disconnect in progress"
+        );
+        assert!(
+            !should_auto_reconnect(Some("notification_stream_ended"), false, true),
+            "window closing"
+        );
+        assert!(!should_auto_reconnect(None, false, false));
+    }
+
+    /// Needs a machine where Bluetooth cannot connect (radio off, no adapter, or no IRMS device nearby): every
+    /// attempt then fails, so the loop must report each attempt and then give up. Run by hand:
+    /// `cargo test auto_reconnect -- --ignored`. A manual action must stop a running loop.
+    #[test]
+    #[ignore]
+    fn auto_reconnect_reports_each_attempt_then_gives_up_and_a_manual_action_stops_it() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let (tx, rx) = mpsc::channel();
+        let host = NativeHost {
+            tx,
+            state: Arc::new(BleState::default()),
+            rt: rt.handle().clone(),
+            telemetry: Arc::new(irms_core::telemetry::TelemetryState::default()),
+            epoch: Arc::new(AtomicU64::new(0)),
+        };
+        start_auto_reconnect_with(&host, 3, Duration::from_millis(20));
+        let mut seen = Vec::new();
+        while let Ok((_, event, payload)) = rx.recv_timeout(Duration::from_secs(90)) {
+            seen.push((event.clone(), payload.clone()));
+            if event == "native:connect-failed" {
+                break;
+            }
+        }
+        let attempts: Vec<u64> = seen
+            .iter()
+            .filter(|(e, _)| e == "native:reconnecting")
+            .map(|(_, p)| p["attempt"].as_u64().unwrap())
+            .collect();
+        assert_eq!(attempts, vec![1, 2, 3], "{seen:?}");
+        let last = seen.last().unwrap();
+        assert_eq!(last.0, "native:connect-failed");
+        assert!(last.1.as_str().unwrap().contains("自動重新連線失敗"));
+        // A manual action bumps the epoch: a loop started before it must not report another attempt.
+        start_auto_reconnect_with(&host, 3, Duration::from_millis(300));
+        let first = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert_eq!(first.2["attempt"].as_u64(), Some(1));
+        host.epoch.fetch_add(1, Ordering::SeqCst);
+        std::thread::sleep(Duration::from_secs(5));
+        let later: Vec<String> = rx.try_iter().map(|(_, e, _)| e).collect();
+        assert!(
+            !later
+                .iter()
+                .any(|e| e == "native:reconnecting" || e == "native:connect-failed"),
+            "a stopped loop stays quiet: {later:?}"
+        );
     }
 }
