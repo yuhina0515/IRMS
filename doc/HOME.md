@@ -20,6 +20,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-17 Native 連線穩定性 + OTA (beta.10/11)** · [[log_20261117_native_connect_retry_and_ota]]: 連線失敗自動重試 3 次、每個 Windows 藍牙步驟有逾時(連線/探索 20 s、訂閱 10 s)、連線中可「取消連線」、錯誤訊息會指引處置;原生版可用「更新韌體」(確認+進度+中止,韌體簽章清單驗證)。實機發現:Windows 佔用已配對的 IRMS_Device 時 App 找不到裝置或一直連線中,移除 Windows 配對後恢復。OTA 在 Windows 上仍從未在實機看過完成(9 月 Tauri 那次 6.8 分鐘沒有結果)。
+- **2026-11-17 Native 自動更新 (beta.9)** · [[log_20261117_native_auto_update]]: 簽章驗證的自我更新(beta-latest 清單、官方網址限制、minisign 公鑰)、安裝程式 `/SELFUPDATE` 靜默更新並重開、安裝前自動關閉舊版;穿戴檢查可「不歸零直接開始」;最小化還原後整窗重畫。筆電上 beta.9 到 beta.10 到 beta.11 已自動更新成功。
+- **2026-11-17 Native 首次實機 (beta.7/8)** · [[log_20261117_native_beta7_first_device_run]] · [[log_20261117_native_real_ble_default]]: beta.1 到 beta.6 的預設是模擬器(要 `--real-ble` 才連真機),beta.7 起預設真機、`--simulate` 才是模擬;遙測證實真實連線、串流、療程;校正精靈「起始姿勢」改為 5 個按鈕。
+- **2026-11-17 Native 小修與授權** · [[log_20261117_native_telemetry_choice_and_id_fix]]: 遙測選擇會被記住(預設關)、校正 id 同毫秒碰撞修正;[[log_20261117_slint_license_review]]: Slint Royalty-free 2.0 對照 IRMS 授權,無衝突。
 - **2026-11-17 Native mobility + wearing check** · [[log_20261117_native_mobility_wearing]]: calibration flow ported to `IRMS_Core::calibration_flow`, native wizard with presets/quick re-zero, calibration restored at startup, range-of-motion records with trend, pre-session wearing check; released as `v1.3.0-beta.2` (simulated rig only, no physical-device acceptance, unsigned).
 - **2026-11-16 Native prescriptions/preferences** · [[log_20261116_native_actions_preferences]]: CRUD, transactional refresh, confirmations and preference persistence; 15 native / 136 core tests passed. Expansion stopped after the owner cleared the goal.
 - **2026-11-16 Native session feedback** · [[log_20261116_native_session_feedback|Squad migration and verification]]: ordered generation-scoped BLE feedback, alarm mute, Windows speech and continuous unified holds. 722 frontend / 135 core / 6 native / 43 Tauri Rust tests passed; physical outputs remain unverified. Published beta.1 unchanged.

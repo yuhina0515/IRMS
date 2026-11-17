@@ -17,6 +17,7 @@ use crate::{App, MainWindow};
 
 const FIRST_CHECK_AFTER: Duration = Duration::from_secs(30);
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
+const RETRY_AFTER_FAILURE: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Debug, Clone, PartialEq)]
 enum Phase {
@@ -127,6 +128,9 @@ impl Updater {
                 inner.status = format!("正在安裝 v{}:程式會自動關閉並重新開啟", installer.version);
             }
             Err(e) => {
+                // Back to idle with a pause: staying "ready" made the timer retry every tick.
+                inner.phase = Phase::Idle;
+                inner.next_check = Instant::now() + RETRY_AFTER_FAILURE;
                 inner.status = format!("無法啟動安裝程式:{e}");
             }
         }
@@ -195,5 +199,24 @@ mod tests {
         let u = Updater::new(true);
         assert!(!u.check_due());
         assert_eq!(u.status(), "");
+    }
+
+    #[test]
+    fn a_failed_installer_start_goes_back_to_idle_and_is_not_retried_every_tick() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let u = Updater::new(true);
+        u.lock().phase = Phase::Ready(VerifiedInstaller {
+            version: "9.9.9".into(),
+            path: std::env::temp_dir().join("irms-no-such-installer-for-test.exe"),
+        });
+        assert!(u.ready());
+        u.tick(rt.handle(), true, true);
+        assert!(!u.ready(), "the unusable installer is dropped");
+        assert!(u.status().contains("無法啟動安裝程式"));
+        assert_eq!(u.lock().phase, Phase::Idle);
+        assert!(!u.check_due(), "the next check waits instead of looping");
     }
 }

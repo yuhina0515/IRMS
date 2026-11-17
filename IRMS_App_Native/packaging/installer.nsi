@@ -159,8 +159,33 @@ Section "IRMS Native Beta" SEC_MAIN
   ${EndIf}
 SectionEnd
 
+; Same as CloseRunningApp, for the uninstaller (an uninstaller can only call un.* functions).
+Function un.CloseRunningApp
+  nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq irms_app_native.exe" /NH | find /I "irms_app_native.exe"'
+  Pop $R5
+  Pop $R6
+  StrCmp $R5 "0" 0 uclose_done
+  nsExec::Exec 'taskkill /IM irms_app_native.exe'
+  Pop $R5
+  StrCpy $R7 0
+  uclose_wait:
+    Sleep 500
+    nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq irms_app_native.exe" /NH | find /I "irms_app_native.exe"'
+    Pop $R5
+    Pop $R6
+    StrCmp $R5 "0" 0 uclose_done
+    IntOp $R7 $R7 + 1
+    IntCmp $R7 20 uclose_force uclose_wait uclose_wait
+  uclose_force:
+  nsExec::Exec 'taskkill /F /IM irms_app_native.exe'
+  Pop $R5
+  Sleep 1000
+  uclose_done:
+FunctionEnd
+
 Section "Uninstall"
   SetShellVarContext current
+  Call un.CloseRunningApp
   Delete "$INSTDIR\irms_app_native.exe"
   IfFileExists "$INSTDIR\irms_app_native.exe" 0 +3
     MessageBox MB_ICONSTOP "Close IRMS Native Beta before uninstalling."
