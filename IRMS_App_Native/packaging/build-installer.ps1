@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $nativeRoot = Split-Path $PSScriptRoot -Parent
 $cargoManifest = Get-Content (Join-Path $nativeRoot 'Cargo.toml') -Raw
 $appVersion = [regex]::Match($cargoManifest, '(?m)^version = "([^"]+)"').Groups[1].Value
-if ($appVersion -ne '1.3.0-beta.6') { throw 'Update the NSIS numeric version before changing the release version.' }
+if ($appVersion -ne '1.3.0-beta.7') { throw 'Update the NSIS numeric version before changing the release version.' }
 if (!(Test-Path -LiteralPath $MakeNsis)) { throw "NSIS not found: $MakeNsis" }
 if (!$SkipBuild) {
     & cargo build --release --locked --manifest-path (Join-Path $nativeRoot 'Cargo.toml') -j 1
