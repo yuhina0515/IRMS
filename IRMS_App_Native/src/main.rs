@@ -31,6 +31,7 @@ mod action_edit;
 mod action_ui;
 mod firmware_ui;
 mod instance;
+mod module_ui;
 mod outputs;
 mod pipeline;
 mod preferences;
@@ -548,6 +549,7 @@ fn main() -> Result<(), slint::PlatformError> {
     if log {
         println!("database: {}", store.location);
     }
+    let db_location = store.location.clone();
     let stored_actions = store.actions().map_err(db_error)?;
     let mut preferences = preferences::PreferenceStore::open(&store.location);
     let saved = preferences.loaded.clone();
@@ -750,6 +752,19 @@ fn main() -> Result<(), slint::PlatformError> {
         && !has("--snapshot")
         && !has("--no-update")
         && std::env::var_os("IRMS_NO_AUTOUPDATE").is_none();
+    // Content packs (session tips): installed ones live next to the database, so a custom --db keeps
+    // its own set. An in-memory run keeps nothing and always shows the built-in content.
+    let modules = {
+        let root = module_ui::modules_root(&db_location);
+        let builtin_tips: Vec<String> = app.get_tips().iter().map(|t| t.to_string()).collect();
+        module_ui::Modules::new(
+            irms_core::modules::Registry::new(root, env!("CARGO_PKG_VERSION")),
+            builtin_tips,
+            updates_allowed,
+        )
+    };
+    module_ui::wire(&ui, modules.clone(), runtime.handle().clone());
+    modules.sync(&app);
     let updater = update_ui::Updater::new(updates_allowed);
     update_ui::wire(&ui, updater.clone(), runtime.handle().clone());
     {
@@ -767,6 +782,7 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     app.set_auto_update(saved.auto_update);
+    app.set_auto_modules(saved.auto_modules);
     {
         let firmware = firmware.clone();
         let sim = sim.clone();
@@ -1030,6 +1046,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 app.get_auto_update(),
                 update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
             );
+            modules.tick(
+                &update_rt,
+                app.get_auto_modules(),
+                update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
+            );
             app.set_firmware_can_install(
                 firmware.offer_available() && app.get_conn() == 2 && update_idle(&ui, &s),
             );
@@ -1275,6 +1296,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 share_ui::sync(&app, &sharing);
                 firmware_ui::sync(&app, &firmware);
                 update_ui::sync(&app, &updater);
+                modules.sync(&app);
             }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
@@ -1847,6 +1869,7 @@ fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
         action_id: (!id.is_empty()).then(|| id.to_string()),
         telemetry_on: app.get_telemetry_on(),
         auto_update: app.get_auto_update(),
+        auto_modules: app.get_auto_modules(),
         ..preferences::Preferences::default()
     }
 }
@@ -1889,6 +1912,7 @@ fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
         // Resetting display preferences must not silently change the data-sharing choice.
         telemetry_on: app.get_telemetry_on(),
         auto_update: app.get_auto_update(),
+        auto_modules: app.get_auto_modules(),
         ..preferences::Preferences::default()
     };
     if let Some(preferences) = s.preferences.as_mut() {

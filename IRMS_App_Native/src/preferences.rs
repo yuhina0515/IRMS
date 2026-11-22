@@ -18,6 +18,8 @@ pub struct Preferences {
     pub telemetry_on: bool,
     /// Check for program updates and install them automatically (owner asked for it on, 2026-11-17).
     pub auto_update: bool,
+    /// Check for content-pack updates at launch and then periodically, installing them when idle.
+    pub auto_modules: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -30,6 +32,7 @@ impl Default for Preferences {
             action_id: None,
             telemetry_on: false,
             auto_update: true,
+            auto_modules: true,
         }
     }
 }
@@ -151,6 +154,7 @@ impl PreferenceStore {
         merge!(voice_enabled);
         merge!(telemetry_on);
         merge!(auto_update);
+        merge!(auto_modules);
         if current.action_id != self.observed.action_id {
             self.candidate.action_id = current.action_id.clone();
         }
@@ -283,6 +287,24 @@ mod tests {
         store.observe(chosen.clone());
         store.flush(true).unwrap();
         assert_eq!(db.open().loaded, chosen);
+    }
+    #[test]
+    fn the_module_auto_update_choice_defaults_on_and_is_remembered() {
+        let db = TempDb::new();
+        let mut store = db.open();
+        assert!(store.loaded.auto_modules, "default on");
+        let off = Preferences {
+            auto_modules: false,
+            ..Preferences::default()
+        };
+        store.observe(off);
+        store.flush(true).unwrap();
+        assert!(!db.open().loaded.auto_modules);
+        let old: Preferences = serde_json::from_str(r#"{"version":1,"style":1}"#).unwrap();
+        assert!(
+            old.auto_modules,
+            "files from before the setting default to on"
+        );
     }
     #[test]
     fn telemetry_choice_is_remembered_and_old_files_default_to_off() {

@@ -17,6 +17,7 @@ pub mod import_tauri;
 pub mod judge;
 pub mod live_share;
 pub mod migrations;
+pub mod modules;
 pub mod protocol;
 pub mod session_analysis;
 pub mod session_controller;

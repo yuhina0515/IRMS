@@ -30,3 +30,8 @@ lto = true
 codegen-units = 1
 strip = true
 panic = "abort"
+
+[dev-dependencies]
+# Test-only Ed25519 signing for the content-pack tests (already in the tree through irms_core).
+ring = "0.17"
+base64 = "0.22"
