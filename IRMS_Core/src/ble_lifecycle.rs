@@ -1,6 +1,7 @@
 // 原生 BLE 連線所有權：同一份流程供真實傳輸與可控制時序的假傳輸使用。
 use std::future::Future;
 use std::sync::Mutex as EpochMutex;
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 pub const CANCELLED: &str = "Connection attempt superseded or cancelled";
@@ -121,6 +122,22 @@ pub async fn establish<C: Connector>(
     backend: &C,
     publish: impl FnOnce(u64, &C::Peripheral, &str) + Send,
 ) -> Result<String, String> {
+    establish_with_retry(coordinator, peripheral, backend, publish, 1, Duration::ZERO).await
+}
+
+/// Like `establish`, but when the OS connect or the service setup fails after a device was found (a
+/// stale cached advertisement, or the device still holding its previous link), it waits `delay`,
+/// scans again and retries, up to `attempts` tries in total. A scan failure (device not found,
+/// no adapter), a failed cleanup, and any cancellation end the attempt at once; a disconnect pressed
+/// during the wait retires the generation, so no further try starts.
+pub async fn establish_with_retry<C: Connector>(
+    coordinator: &Coordinator,
+    peripheral: &Mutex<Option<C::Peripheral>>,
+    backend: &C,
+    publish: impl FnOnce(u64, &C::Peripheral, &str) + Send,
+    attempts: u32,
+    delay: Duration,
+) -> Result<String, String> {
     let generation = coordinator.begin();
     // 序列化 OS 操作及舊嘗試清理；disconnect 不拿 attempts，以便立即失效所有權。
     let _attempt = coordinator.attempts.lock().await;
@@ -138,20 +155,32 @@ pub async fn establish<C: Connector>(
         .adapter(|| coordinator.check(generation).is_ok())
         .await;
     let adapter = owned_result(coordinator, generation, adapter)?;
-    let found = backend
-        .scan(&adapter, || coordinator.check(generation).is_ok())
-        .await;
-    let found = owned_result(coordinator, generation, found)?;
-    let connected = backend.connect(&found).await;
-    if let Err(error) = owned_result(coordinator, generation, connected) {
-        return Err(cleanup(backend, &found, error).await);
-    }
-    let name = backend
-        .setup(&found, || coordinator.check(generation).is_ok())
-        .await;
-    let name = match owned_result(coordinator, generation, name) {
-        Ok(name) => name,
-        Err(error) => return Err(cleanup(backend, &found, error).await),
+    let mut tries = 0;
+    let (found, name) = loop {
+        tries += 1;
+        let found = backend
+            .scan(&adapter, || coordinator.check(generation).is_ok())
+            .await;
+        let found = owned_result(coordinator, generation, found)?;
+        let connected = backend.connect(&found).await;
+        let failure = match owned_result(coordinator, generation, connected) {
+            Err(error) => error,
+            Ok(()) => {
+                let name = backend
+                    .setup(&found, || coordinator.check(generation).is_ok())
+                    .await;
+                match owned_result(coordinator, generation, name) {
+                    Ok(name) => break (found, name),
+                    Err(error) => error,
+                }
+            }
+        };
+        let error = cleanup(backend, &found, failure).await;
+        if tries >= attempts || error.contains(CANCELLED) || error.contains("cleanup failed") {
+            return Err(error);
+        }
+        tokio::time::sleep(delay).await;
+        coordinator.check(generation)?;
     };
     let installed = coordinator
         .with_peripheral(peripheral, generation, |slot| {
@@ -656,5 +685,160 @@ mod tests {
         backend.release.add_permits(1);
         pending.await.unwrap().unwrap();
         assert!(slot.lock().await.is_none());
+    }
+
+    /// A connector whose first `connect_failures` connects fail like Windows does for a cached device.
+    struct Flaky {
+        connect_failures: std::sync::atomic::AtomicUsize,
+        scan_error: bool,
+        cleanup_error: bool,
+        scans: std::sync::atomic::AtomicUsize,
+        connects: std::sync::atomic::AtomicUsize,
+        disconnects: std::sync::atomic::AtomicUsize,
+    }
+    impl Flaky {
+        fn new(connect_failures: usize, scan_error: bool, cleanup_error: bool) -> Self {
+            Self {
+                connect_failures: std::sync::atomic::AtomicUsize::new(connect_failures),
+                scan_error,
+                cleanup_error,
+                scans: Default::default(),
+                connects: Default::default(),
+                disconnects: Default::default(),
+            }
+        }
+        fn count(counter: &std::sync::atomic::AtomicUsize) -> usize {
+            counter.load(Ordering::SeqCst)
+        }
+    }
+    impl Connector for Flaky {
+        type Adapter = ();
+        type Peripheral = usize;
+        async fn adapter(&self, _: impl Fn() -> bool + Send + Sync) -> Result<(), String> {
+            Ok(())
+        }
+        async fn scan(&self, _: &(), _: impl Fn() -> bool + Send + Sync) -> Result<usize, String> {
+            self.scans.fetch_add(1, Ordering::SeqCst);
+            if self.scan_error {
+                Err("Device not found within scan window".into())
+            } else {
+                Ok(7)
+            }
+        }
+        async fn connect(&self, _: &usize) -> Result<(), String> {
+            self.connects.fetch_add(1, Ordering::SeqCst);
+            let left = self.connect_failures.load(Ordering::SeqCst);
+            if left > 0 {
+                self.connect_failures.store(left - 1, Ordering::SeqCst);
+                Err("Not connected [NotConnected]".into())
+            } else {
+                Ok(())
+            }
+        }
+        async fn setup(
+            &self,
+            _: &usize,
+            _: impl Fn() -> bool + Send + Sync,
+        ) -> Result<String, String> {
+            Ok("IRMS_Device".into())
+        }
+        async fn disconnect(&self, _: &usize) -> Result<(), String> {
+            self.disconnects.fetch_add(1, Ordering::SeqCst);
+            if self.cleanup_error {
+                Err("os refused".into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+    const SHORT: Duration = Duration::from_millis(20);
+
+    #[tokio::test]
+    async fn a_failed_connect_is_retried_with_a_fresh_scan_and_can_succeed() {
+        let coordinator = Coordinator::default();
+        let slot = Mutex::new(None);
+        let backend = Flaky::new(2, false, false);
+        let name = establish_with_retry(&coordinator, &slot, &backend, |_, _, _| {}, 3, SHORT)
+            .await
+            .unwrap();
+        assert_eq!(name, "IRMS_Device");
+        assert_eq!(Flaky::count(&backend.scans), 3, "one scan per try");
+        assert_eq!(Flaky::count(&backend.connects), 3);
+        assert_eq!(
+            Flaky::count(&backend.disconnects),
+            2,
+            "each failed try is cleaned up"
+        );
+        assert_eq!(*slot.lock().await, Some(7));
+    }
+
+    #[tokio::test]
+    async fn retries_stop_after_the_attempt_limit_with_the_last_error() {
+        let coordinator = Coordinator::default();
+        let slot = Mutex::new(None);
+        let backend = Flaky::new(99, false, false);
+        let error = establish_with_retry(&coordinator, &slot, &backend, |_, _, _| {}, 3, SHORT)
+            .await
+            .unwrap_err();
+        assert!(error.contains("NotConnected"));
+        assert_eq!(Flaky::count(&backend.connects), 3);
+        assert!(slot.lock().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn plain_establish_still_tries_only_once() {
+        let coordinator = Coordinator::default();
+        let slot = Mutex::new(None);
+        let backend = Flaky::new(1, false, false);
+        assert!(establish(&coordinator, &slot, &backend, |_, _, _| {})
+            .await
+            .is_err());
+        assert_eq!(Flaky::count(&backend.connects), 1);
+    }
+
+    #[tokio::test]
+    async fn scan_failures_and_failed_cleanup_are_not_retried() {
+        let coordinator = Coordinator::default();
+        let slot = Mutex::new(None);
+        let backend = Flaky::new(0, true, false);
+        assert!(
+            establish_with_retry(&coordinator, &slot, &backend, |_, _, _| {}, 3, SHORT)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            Flaky::count(&backend.scans),
+            1,
+            "a device that is not there is not rescanned"
+        );
+        let backend = Flaky::new(99, false, true);
+        let error = establish_with_retry(&coordinator, &slot, &backend, |_, _, _| {}, 3, SHORT)
+            .await
+            .unwrap_err();
+        assert!(error.contains("cleanup failed"));
+        assert_eq!(Flaky::count(&backend.connects), 1, "unknown OS state: stop");
+    }
+
+    #[tokio::test]
+    async fn a_disconnect_during_the_wait_stops_further_tries() {
+        let coordinator = Arc::new(Coordinator::default());
+        let slot = Arc::new(Mutex::new(None));
+        let backend = Arc::new(Flaky::new(99, false, false));
+        let task = {
+            let (c, s, b) = (coordinator.clone(), slot.clone(), backend.clone());
+            tokio::spawn(async move {
+                establish_with_retry(&c, &s, &*b, |_, _, _| {}, 5, Duration::from_millis(200)).await
+            })
+        };
+        // First try fails quickly, then the task waits 200 ms: the wearer presses disconnect.
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        let _ = coordinator.begin();
+        let error = task.await.unwrap().unwrap_err();
+        assert_eq!(
+            Flaky::count(&backend.connects),
+            1,
+            "no second try after the intent changed"
+        );
+        assert!(error.contains(CANCELLED));
     }
 }

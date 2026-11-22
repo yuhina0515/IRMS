@@ -38,7 +38,7 @@ futures = "0.3"
 # DB layer — replaces better-sqlite3 (a Node native addon; Tauri's core has no Node runtime).
 # "bundled" compiles SQLite from source instead of relying on a system lib, same self-contained
 # approach better-sqlite3 already takes.
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 chrono = "0.4"
 tauri-plugin-dialog = "2"
 # Telemetry upload (telemetry.rs). Same reqwest/rustls features tauri-plugin-updater already

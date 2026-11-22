@@ -33,6 +33,8 @@ pub enum Cue {
     Hyperextension,
     ConnectionLost,
     MountShift,
+    /// The shin sensor turned on the leg and the calibration was carried over (slip correction).
+    MountShiftCorrected,
 }
 impl Cue {
     /// 原生繁中提示；語系抽離仍依完整移植計畫進行。
@@ -46,6 +48,7 @@ impl Cue {
             Self::Hyperextension => "膝蓋過度伸直，請稍微彎曲".into(),
             Self::ConnectionLost => "裝置已斷線，療程停止".into(),
             Self::MountShift => "感測器可能移位，療程結束後請重新校準".into(),
+            Self::MountShiftCorrected => "感測器移位，已自動修正，療程後請重設零位".into(),
         }
     }
 }
@@ -219,6 +222,13 @@ impl SessionFeedback {
     pub fn mount_shift(&mut self, now: f64) -> Vec<Effect> {
         let mut out = Vec::new();
         self.speak(Cue::MountShift, now, false, &mut out);
+        out
+    }
+
+    /// Same channel as [`Self::mount_shift`], for a shift that was corrected automatically.
+    pub fn mount_shift_corrected(&mut self, now: f64) -> Vec<Effect> {
+        let mut out = Vec::new();
+        self.speak(Cue::MountShiftCorrected, now, false, &mut out);
         out
     }
 }

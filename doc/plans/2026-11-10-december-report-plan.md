@@ -53,6 +53,23 @@ Software that goes with it (all on `integrate/beta26`, simulator-verified only):
 a session, one-step re-zero for the donning difference, in-session check for a shifted shin sensor.
 Software reports and re-zeroes; it does not replace a mounting that holds.
 
+**Strategy update 2026-11-22 (owner's list items 2, 4, 5; native app, simulator-verified only,
+[[log_20261122_native_pose_slip_strategy]]):**
+
+- In simulation, sensor orientation is free: six very different strap-on angles (upside down, sideways) all calibrate
+  and read the knee within 1 deg. So Mount v2 needs to fix where each sensor *stays*, not how it is
+  turned; "keep the board parallel to the leg" is advice, not a requirement.
+- A shin strap that turns about the leg is now corrected in the session: the slip monitor's fitted
+  hinge replaces the calibrated one (smallest rotation), measured on the rig 25 deg turn: knee error
+  about 2.6 to 0.07 deg, shin roll 25 to 0 deg, reported about half a minute after a mid-session turn (only when the knee sweep spans at least 60 deg). Such a turn costs little
+  knee accuracy (about 2.5 deg) but a lot of roll, which corrupts the 3D pose.
+- What software still cannot fix, so the mounting must prevent it: a tilt of the board about the knee
+  hinge (a constant knee offset, removed only by a quick re-zero), any thigh sensor movement (the hip is
+  not a hinge), and a shin turn above 60 deg.
+- The priority for Mount v2 therefore shifts to: shin board must not rock forward/back on the tibia
+  (curved cradle, bone seat), thigh unit must not creep (grip bands); rotation about the shin is the
+  failure software now tolerates best.
+
 ## 3. Acceptance test for a mounting
 
 1. Reference posture, calibrate, note the zero.
@@ -60,7 +77,9 @@ Software reports and re-zeroes; it does not replace a mounting that holds.
 3. Back to the reference posture: read the wearing-check residual (in-plane and out-of-plane, both sensors).
 4. Take everything off, put it on again, repeat step 3 without recalibrating.
 5. During step 2, note whether the in-session mounting check reported, and whether a deliberate turn of
-   the shin sensor (about 20 deg) is reported within about half a minute of exercise.
+   the shin sensor (about 20 deg) is reported within about half a minute of exercise. With the native
+   app (2026-11-22) and knee bends spanning at least 60 deg, the banner should read 「已自動修正轉軸」
+   and, after the set, the knee at the reference posture should still be within 3 deg.
 
 Targets (provisional): residual within 3 deg after the exercise block, within 5 deg after re-donning,
 no false report in a normal set. Run it first with the current straps: those numbers are the baseline

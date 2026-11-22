@@ -132,8 +132,25 @@ Tauri app is frozen the way the Electron app was.
   speech, stop/fault/close ownership and normalized snapshots) is implemented;
   see [[log_20261116_native_session_feedback]]. Complete controller/reconnection
   parity, mobility flow, translations and the other listed gates remain open.
+- 2026-11-17: mobility measurement, the calibration flow (presets, leg, quick re-zero, restore at startup)
+  and the pre-session wearing check are ported and shown in the native app, see
+  [[log_20261117_native_mobility_wearing]]; released as `v1.3.0-beta.2`. Simulated rig only. Still open:
+  legacy/Euler branch (deliberately not ported), phase 5 (updater cutover, single instance, file dialogs,
+  Electron migration), phase 6 modules (D2), 3D leg (D3), signing and physical-device acceptance.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
+
+- 2026-11-17 (later, beta.3 to beta.11): **Phase 5 is largely done**: single instance and the CSV file dialog
+  (beta.3), the Tauri updater cutover and first-launch import of the Tauri database (beta.6), a signed
+  self-updater with silent `/SELFUPDATE` installs (beta.9; the laptop updated beta.9 to beta.11 by itself),
+  installer/uninstaller that close a running app, firmware check and OTA UI (beta.5, beta.10). Phase 6 follows
+  D2: modules are built into the program. D3: the 3D leg stays a projected drawing. D5: Slint license read against
+  the IRMS license, no conflict ([[log_20261117_slint_license_review]]). Real-device evidence (from telemetry):
+  connection, streaming, calibration, one session; beta.1 to beta.6 had run the simulator by default, fixed in
+  beta.7 ([[log_20261117_native_real_ble_default]]). Windows holding a paired device makes the app unable to find it
+  ([[log_20261117_native_connect_retry_and_ota]]). Still open: OTA on hardware (never seen to finish on Windows),
+  CSV in Excel, renderer choice and IME, signing (owner: not now), Phase 7 parity checklist and cutover, merge of the
+  PR stack #9 to #12. Dependency audit: [[log_20261117_dependency_audit]].
 
 ## Open decisions for the owner
 
@@ -145,10 +162,10 @@ and acceptance gates below are still open; beta.1 artifacts were not replaced.
 | # | Decision | Default used until answered |
 |---|---|---|
 | D1 | When phases 3 onward may start | Started 2026-11-16 on the plan branch at the owner's request; merging to main still waits for the December report |
-| D2 | Module system without a WebView | Decide after phase 2; none is built before then |
-| D3 | The 3D leg: real 3D or a 2D drawing | Decide at gate G2 with both shown |
+| D2 | Module system without a WebView | ~~Decided 2026-11-17: built into the program~~. **Reversed by the owner 2026-11-22** (modules must update without an app update, with a management page). New direction from [[log_20261122_meeting_updatable_modules]]: phase 1 signed module packages + host-rendered declarative screens + registry/rollback + management page; phase 2 wasmi logic modules behind a capability API. Built-ins stay as fallbacks |
+| D3 | The 3D leg: real 3D or a 2D drawing | Decided 2026-11-17: keep the projected drawing, no 3D engine |
 | D4 | Interface style direction | Decided 2026-11-16: calm companion (柔和陪伴), chosen from three prototyped directions; snapshots in `assets/2026-11-16-native-prototype/` |
-| D5 | Slint license: royalty-free with a Slint attribution, or GPLv3 | Royalty-free with attribution; read the license text against the IRMS license before cutover |
+| D5 | Slint license: royalty-free with a Slint attribution, or GPLv3 | Decided 2026-11-17: royalty-free with attribution. License text read against the IRMS license on 2026-11-17, no conflict found (see `doc/coding log/log_20261117_slint_license_review.md`) |
 
 ## Risks
 

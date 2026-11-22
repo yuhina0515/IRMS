@@ -960,6 +960,66 @@ pub fn rezero_limb(frame: &LimbFrame, reference: Vec3) -> Result<LimbFrame, Reze
     })
 }
 
+/// Largest hinge change [`realign_limb`] accepts. Beyond it the sensor has moved too far for a
+/// correction to be trusted (or the sweep was not a knee movement): recalibrate instead.
+pub const REALIGN_MAX_DEG: f64 = 60.0;
+
+/// Smallest sweep (angular span of the shin vectors in the window) whose fitted axis is trusted for an
+/// automatic correction. The slip monitor reports from 30 deg, but near that span the axis fit is
+/// ill-conditioned: with 1 deg of noise a no-slip 35 deg sweep often fits more than 12 deg off (squad
+/// audit 2026-11-22). Below this span a detected slip only gets the recalibrate warning.
+pub const REALIGN_MIN_SPAN_DEG: f64 = 60.0;
+
+/// Slip correction: the sensor turned on the limb, so the hinge it sees moved from `frame.hinge` to
+/// `observed` (fitted from a recent clean sweep, e.g. `SlipMonitor::observed_axis`). The calibrated
+/// definition (hinge, zero) is carried over to the current state by the smallest rotation that takes
+/// the old hinge onto the observed one, applied to both.
+///
+/// Exact for a strap that turns about the segment's long axis (that axis is perpendicular to the
+/// hinge, so the smallest rotation is the slip itself). What no sweep can show is a turn about the
+/// hinge itself, including that component of a mixed turn: it stays as a constant angle offset, which
+/// a quick re-zero removes. A turn above 90 deg folds onto its mirror (an axis is a line), which is
+/// beyond any plausible strap slip. `None` for invalid input or a change above [`REALIGN_MAX_DEG`].
+pub fn realign_limb(frame: &LimbFrame, observed: Vec3) -> Option<LimbFrame> {
+    if !finite(frame.hinge) || !finite(frame.zero) || norm(frame.hinge) < 1e-9 {
+        return None;
+    }
+    let h = unit(frame.hinge);
+    let mut a = unit(observed);
+    if !finite(a) || norm(observed) < 1e-9 {
+        return None;
+    }
+    // A fitted axis is a line: take the direction that agrees with the calibrated hinge.
+    if dot(a, h) < 0.0 {
+        a = neg(a);
+    }
+    let cos = dot(h, a).clamp(-1.0, 1.0);
+    if cos.acos().to_degrees() > REALIGN_MAX_DEG {
+        return None;
+    }
+    let k = cross(h, a);
+    let sin = norm(k);
+    let zero = if sin < 1e-12 {
+        frame.zero
+    } else {
+        // Rodrigues: rotate `zero` about k/|k| by the angle between h and a.
+        let k = unit(k);
+        let z = frame.zero;
+        let kz = cross(k, z);
+        let kd = dot(k, z) * (1.0 - cos);
+        Vec3 {
+            x: z.x * cos + kz.x * sin + k.x * kd,
+            y: z.y * cos + kz.y * sin + k.y * kd,
+            z: z.z * cos + kz.z * sin + k.z * kd,
+        }
+    };
+    Some(LimbFrame {
+        hinge: a,
+        zero: reject(zero, a),
+        ..frame.clone()
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReferenceVerdict {
@@ -1011,5 +1071,165 @@ pub fn check_reference(profile: &CalibrationProfile, thigh: Vec3, shin: Vec3) ->
         verdict,
         thigh: offsets[0],
         shin: offsets[1],
+    }
+}
+
+#[cfg(test)]
+mod realign_tests {
+    use super::*;
+
+    type Mat3 = [[f64; 3]; 3];
+    fn rot(axis: Vec3, deg: f64) -> Mat3 {
+        let k = unit(axis);
+        let (s, c) = deg.to_radians().sin_cos();
+        let t = 1.0 - c;
+        [
+            [
+                c + k.x * k.x * t,
+                k.x * k.y * t - k.z * s,
+                k.x * k.z * t + k.y * s,
+            ],
+            [
+                k.y * k.x * t + k.z * s,
+                c + k.y * k.y * t,
+                k.y * k.z * t - k.x * s,
+            ],
+            [
+                k.z * k.x * t - k.y * s,
+                k.z * k.y * t + k.x * s,
+                c + k.z * k.z * t,
+            ],
+        ]
+    }
+    fn apply(m: Mat3, v: Vec3) -> Vec3 {
+        Vec3 {
+            x: m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
+            y: m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
+            z: m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z,
+        }
+    }
+    fn v(x: f64, y: f64, z: f64) -> Vec3 {
+        Vec3 { x, y, z }
+    }
+    /// Shin segment frame: x lateral (the knee hinge), y up along the shin, z forward. `mount` maps
+    /// segment vectors into the sensor frame. Gravity "up" for a shin tilted forward by `deg`.
+    fn up(mount: Mat3, deg: f64) -> Vec3 {
+        let (s, c) = deg.to_radians().sin_cos();
+        apply(mount, v(0.0, c, s))
+    }
+    fn frame(mount: Mat3) -> LimbFrame {
+        LimbFrame {
+            hinge: apply(mount, v(1.0, 0.0, 0.0)),
+            zero: up(mount, 0.0),
+            source: HingeSource::Sweep,
+            span_deg: 90.0,
+            planarity_deg: Some(1.0),
+            gyro_agree_deg: None,
+            off_plane_deg: 0.0,
+            warnings: Vec::new(),
+        }
+    }
+    fn pitch(f: &LimbFrame, vec: Vec3) -> f64 {
+        limb_angles(f, vec).pitch
+    }
+
+    #[test]
+    fn frame_convention_reads_forward_tilt_positive() {
+        let mount = rot(v(0.3, 1.0, 0.2), 70.0);
+        let f = frame(mount);
+        assert!((pitch(&f, up(mount, 30.0)) - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_strap_turn_about_the_shin_is_fully_corrected() {
+        let mount = rot(v(0.3, 1.0, 0.2), 70.0);
+        let calibrated = frame(mount);
+        // The strap turns 25 deg about the shin's long axis (segment y).
+        let slipped = mul(mount, rot(v(0.0, 1.0, 0.0), 25.0));
+        let stale_error = (pitch(&calibrated, up(slipped, 60.0)) - 60.0).abs();
+        assert!(stale_error > 1.0, "the slip must matter: {stale_error}");
+        let observed = apply(slipped, v(1.0, 0.0, 0.0));
+        // The fitted axis is a line: the opposite sign must give the same result.
+        for axis in [observed, neg(observed)] {
+            let fixed = realign_limb(&calibrated, axis).unwrap();
+            for deg in [-10.0, 0.0, 45.0, 110.0] {
+                let got = pitch(&fixed, up(slipped, deg));
+                assert!((got - deg).abs() < 1e-6, "{deg}: {got}");
+            }
+        }
+    }
+
+    /// The rotation of `zero` matters only when zero is not on the slip axis: a reference captured in a
+    /// tilted posture (seated, long sitting). Without the Rodrigues step, or with its sign flipped, this
+    /// reads degrees wrong (squad audit 2026-11-22 found the first test could not tell).
+    #[test]
+    fn a_tilted_reference_is_rotated_with_the_hinge() {
+        let mount = rot(v(0.3, 1.0, 0.2), 70.0);
+        for reference_tilt in [40.0, -60.0] {
+            let calibrated = LimbFrame {
+                zero: up(mount, reference_tilt),
+                ..frame(mount)
+            };
+            for slip_axis in [v(0.0, 1.0, 0.0), v(0.0, 0.0, 1.0)] {
+                let slipped = mul(mount, rot(slip_axis, 25.0));
+                let fixed = realign_limb(&calibrated, apply(slipped, v(1.0, 0.0, 0.0))).unwrap();
+                for deg in [0.0, 45.0, 100.0] {
+                    let got = pitch(&fixed, up(slipped, deg)) + reference_tilt;
+                    assert!(
+                        (got - deg).abs() < 1e-6,
+                        "tilt {reference_tilt} axis {slip_axis:?} {deg}: {got}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_turn_about_the_hinge_stays_as_a_constant_offset() {
+        let mount = rot(v(0.3, 1.0, 0.2), 70.0);
+        let calibrated = frame(mount);
+        let slipped = mul(mount, rot(v(1.0, 0.0, 0.0), 8.0));
+        let fixed = realign_limb(&calibrated, apply(slipped, v(1.0, 0.0, 0.0))).unwrap();
+        let offsets: Vec<f64> = [0.0, 40.0, 90.0]
+            .iter()
+            .map(|d| pitch(&fixed, up(slipped, *d)) - d)
+            .collect();
+        assert!((offsets[0].abs() - 8.0).abs() < 1e-6, "{offsets:?}");
+        assert!(offsets.iter().all(|o| (o - offsets[0]).abs() < 1e-6));
+        // A quick re-zero at the resting pose then removes it.
+        let rezeroed = rezero_limb(&fixed, up(slipped, 0.0)).unwrap();
+        assert!((pitch(&rezeroed, up(slipped, 40.0)) - 40.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn refuses_bad_input_and_changes_too_large_to_trust() {
+        let f = frame(rot(v(0.0, 1.0, 0.0), 0.0));
+        assert!(realign_limb(&f, v(0.0, 0.0, 0.0)).is_none());
+        assert!(realign_limb(&f, v(f64::NAN, 0.0, 0.0)).is_none());
+        // 70 deg away from the hinge (in either sign) is beyond REALIGN_MAX_DEG.
+        let far = apply(rot(v(0.0, 1.0, 0.0), 70.0), f.hinge);
+        assert!(realign_limb(&f, far).is_none());
+        assert!(realign_limb(&f, neg(far)).is_none());
+        let near = apply(rot(v(0.0, 1.0, 0.0), 50.0), f.hinge);
+        assert!(realign_limb(&f, near).is_some() && realign_limb(&f, neg(near)).is_some());
+        let same = realign_limb(&f, f.hinge).unwrap();
+        assert_eq!(same.zero, f.zero);
+        assert_eq!(realign_limb(&f, neg(f.hinge)).unwrap().hinge, f.hinge);
+        // A broken stored frame is refused rather than producing NaN angles.
+        let broken = LimbFrame {
+            zero: v(f64::NAN, 0.0, 0.0),
+            ..f.clone()
+        };
+        assert!(realign_limb(&broken, f.hinge).is_none());
+    }
+
+    fn mul(a: Mat3, b: Mat3) -> Mat3 {
+        let mut out = [[0.0; 3]; 3];
+        for (i, row) in out.iter_mut().enumerate() {
+            for (j, cell) in row.iter_mut().enumerate() {
+                *cell = (0..3).map(|k| a[i][k] * b[k][j]).sum();
+            }
+        }
+        out
     }
 }

@@ -20,19 +20,29 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-22 模組可獨立更新(D2 翻案)** · [[log_20261122_meeting_updatable_modules]]: 擁有者筆記要求「App 不用更新,只更新部分模組」並有管理頁。會議結論:第一階段簽章模組套件 + App 端宣告式畫面引擎 + 註冊/回復 + 管理頁(先做 session-tips 內容包);第二階段 wasmi 邏輯模組(角度範圍先試),不在警示路徑上。不採 runtime .slint、Rhai、DLL。
+- **2026-11-22 原生版滑動自動修正、配戴方向不限、3D 姿態** · [[log_20261122_native_pose_slip_strategy]]: 偵測到小腿感測器繞腿轉動時,用最近動作擬合的轉軸自動修正校準定義(模擬 25° 滑動:膝角誤差 2.57°→0.07°、側向 25°→0°);模擬中六種貼法(含倒貼、橫貼)校準後膝角誤差 <1°;動作幅度 ≥60° 才自動修正,療程結束存成新校準;「3D 姿態」改用兩段肢體的前後+側向角。穿戴計畫 §2 依此調整(重點改為防止小腿板前後晃、大腿單元滑移)。僅模擬器,未發版。
+- **2026-11-22 原生版模組全數內建** · [[log_20261122_native_builtin_modules_complete]]: IRMS-Modules 三個模組都已內建(D2)。角度範圍測量補齊模組流程(舒適 → 極限或略過 → 確認與備註 → 一次量測一筆)、最近 6 筆歷史含趨勢與逐筆刪除(修正舊版一次量測存兩筆、「清除」刪光全部);使用提示列在設定 → 模組。54 native 測試通過(含同日審查修正),未發版、未實機。
+- **2026-11-18 文件校準** · [[log_20261118_doc_validity_audit]] · [[PROJECT_STATUS]] 頂部「文件校準:現況總表」: 逐檔核對版本與狀態。出貨線 Tauri `v1.2.0-beta.25`、原生線 `v1.3.0-beta.11` 已發布;PR #3/#4/#6 已合併進 `main`,#7、#9 到 #12 為草稿;實測 722 前端 / 195 core / 47 native 測試、DB `user_version = 10`;11-10 起「全無實機驗證」的說法已更正(原生線 11-17 有實機證據)。
+- **2026-11-17 原生版 vs Tauri 功能對照(Phase 7)** · [[2026-11-17-native-vs-tauri-parity-checklist]]: 已對等項目、由決策造成的差異(i18n、模組、3D 腿)與真缺口(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式);同日補上連線中斷後的自動重連([[log_20261117_native_connect_retry_and_ota]])與 `cargo audit` 修正([[log_20261117_dependency_audit]])。
+- **2026-11-17 Native 連線穩定性 + OTA (beta.10/11)** · [[log_20261117_native_connect_retry_and_ota]]: 連線失敗自動重試 3 次、每個 Windows 藍牙步驟有逾時(連線/探索 20 s、訂閱 10 s)、連線中可「取消連線」、錯誤訊息會指引處置;原生版可用「更新韌體」(確認+進度+中止,韌體簽章清單驗證)。實機發現:Windows 佔用已配對的 IRMS_Device 時 App 找不到裝置或一直連線中,移除 Windows 配對後恢復。OTA 在 Windows 上仍從未在實機看過完成(9 月 Tauri 那次 6.8 分鐘沒有結果)。
+- **2026-11-17 Native 自動更新 (beta.9)** · [[log_20261117_native_auto_update]]: 簽章驗證的自我更新(beta-latest 清單、官方網址限制、minisign 公鑰)、安裝程式 `/SELFUPDATE` 靜默更新並重開、安裝前自動關閉舊版;穿戴檢查可「不歸零直接開始」;最小化還原後整窗重畫。筆電上 beta.9 到 beta.10 到 beta.11 已自動更新成功。
+- **2026-11-17 Native 首次實機 (beta.7/8)** · [[log_20261117_native_beta7_first_device_run]] · [[log_20261117_native_real_ble_default]]: beta.1 到 beta.6 的預設是模擬器(要 `--real-ble` 才連真機),beta.7 起預設真機、`--simulate` 才是模擬;遙測證實真實連線、串流、療程;校正精靈「起始姿勢」改為 5 個按鈕。
+- **2026-11-17 Native 小修與授權** · [[log_20261117_native_telemetry_choice_and_id_fix]]: 遙測選擇會被記住(預設關)、校正 id 同毫秒碰撞修正;[[log_20261117_slint_license_review]]: Slint Royalty-free 2.0 對照 IRMS 授權,無衝突。
+- **2026-11-17 Native mobility + wearing check** · [[log_20261117_native_mobility_wearing]]: calibration flow ported to `IRMS_Core::calibration_flow`, native wizard with presets/quick re-zero, calibration restored at startup, range-of-motion records with trend, pre-session wearing check; released as `v1.3.0-beta.2` (simulated rig only, no physical-device acceptance, unsigned).
 - **2026-11-16 Native prescriptions/preferences** · [[log_20261116_native_actions_preferences]]: CRUD, transactional refresh, confirmations and preference persistence; 15 native / 136 core tests passed. Expansion stopped after the owner cleared the goal.
 - **2026-11-16 Native session feedback** · [[log_20261116_native_session_feedback|Squad migration and verification]]: ordered generation-scoped BLE feedback, alarm mute, Windows speech and continuous unified holds. 722 frontend / 135 core / 6 native / 43 Tauri Rust tests passed; physical outputs remain unverified. Published beta.1 unchanged.
 - **2026-11-16 Native beta installer** · `v1.3.0-beta.1`, separate unsigned Windows test installer; install/reinstall/uninstall checks and signing boundary: [[log_20261116_native_beta1_installer]]. Tauri updater cutover and physical-device acceptance remain open.
 - **2026-11-16 Native SQLite sessions** · [[log_20261116_native_sqlite_recovery|Windows reopen and failure-recovery checks]]
 - **2026-11-16 Rust 原生介面原型** ([[2026-11-16-rust-native-ui-plan|計畫]]): Slint 原型 `IRMS_App_Native`,模擬資料;風格定為柔和陪伴;Phase 1 量測(Tauri 療程中約 250 MB private,原型 8–100 MB 視渲染器)→ [[log_20261116_rust_native_phase1_prototype]];Phase 2 全部畫面已建、待 owner 實際點過 → [[log_20261116_rust_native_phase2_screens]];Phase 3 第一段:七個模組抽成 `IRMS_Core` → [[log_20261116_rust_native_phase3_core_slice1]];Phase 4:判定、療程分析、角度數學、滑移監測、校準核心已移植並與 TS 逐筆比對 → [[log_20261116_rust_native_phase4_judge]];原型已走完整管線(封包→校準→判定→滑移→分析)→ [[log_20261116_rust_native_prototype_real_pipeline]]
 
-- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6 → 用計畫第 3 節的驗收測試量現有束帶基準。
+- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6(**2026-11-18 更正:三者皆已合併,見最上方一筆**)→ 用計畫第 3 節的驗收測試量現有束帶基準。
 
 - **2026-11-10 beta.26 候選:軟體整理** ([[log_20261110_beta26_software_round|Log]]): 由 PR #5 挑入 7 個修正(保持連續性、BLE 生命週期、儲存上限、關窗保護、更新交接);過度伸直警示加入 300 ms 停留與 2° 遲滯;穿戴檢查發現屈伸方向偏移(20° 內)時可直接用剛才的姿勢重設零位再開始。705 前端 / 119 Rust 測試通過;實機未驗證,BLE 原生改動需真機確認。
 
 - **2026-11-10 訓練中穿戴位移偵測** ([[log_20261110_mounting_shift_check|Log]]): 統一校準的療程中,由膝屈伸動作本身反推小腿感測器的鉸鏈軸,與校準值相差超過 12° 且持續 18 秒即提醒一次並標記該場(`session.mountShift`);不自動修正。只看小腿、大腿需靜止;繞鉸鏈軸的偏移看不到。658 前端測試通過;門檻為模擬器推得,實機未驗證。
 
-- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。未推送、未發版、實機全未驗證(裝置在測試者處)。
+- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。(當時)未推送、未發版、實機全未驗證;**後續已推送並以 PR #6 合併進 `main`(2026-11-10)**,仍未發版。
 
 - **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
 

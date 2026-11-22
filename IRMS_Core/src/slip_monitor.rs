@@ -183,6 +183,12 @@ pub fn fit_sweep_axis(units: &[Vec3]) -> (Vec3, f64) {
 /// Axis of a window of unit shin vectors compared with the calibrated hinge; `None` when it is not a
 /// clean sweep.
 pub fn axis_drift(hinge: Vec3, samples: &[Vec3]) -> Option<SlipReading> {
+    sweep_axis(hinge, samples).map(|(reading, _)| reading)
+}
+
+/// Like [`axis_drift`], plus the fitted axis itself, signed to agree with `hinge` (the fit gives a
+/// line, not a direction). This is where the hinge now lies in the shin sensor frame.
+pub fn sweep_axis(hinge: Vec3, samples: &[Vec3]) -> Option<(SlipReading, Vec3)> {
     let h = unit(hinge)?;
     if samples.len() < SLIP_MIN_SAMPLES {
         return None;
@@ -197,12 +203,24 @@ pub fn axis_drift(hinge: Vec3, samples: &[Vec3]) -> Option<SlipReading> {
     if !(planarity_deg <= SLIP_PLANARITY_MAX_DEG) {
         return None;
     }
-    let c = (axis.x * h.x + axis.y * h.y + axis.z * h.z).abs().min(1.0);
-    Some(SlipReading {
-        axis_drift_deg: c.acos().to_degrees(),
-        span_deg,
-        planarity_deg,
-    })
+    let d = axis.x * h.x + axis.y * h.y + axis.z * h.z;
+    let signed = if d < 0.0 {
+        Vec3 {
+            x: -axis.x,
+            y: -axis.y,
+            z: -axis.z,
+        }
+    } else {
+        axis
+    };
+    Some((
+        SlipReading {
+            axis_drift_deg: d.abs().min(1.0).acos().to_degrees(),
+            span_deg,
+            planarity_deg,
+        },
+        signed,
+    ))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -221,6 +239,9 @@ pub struct SlipMonitor {
     over_since: Option<f64>,
     reported: bool,
     last: Option<SlipReading>,
+    /// Hinge direction fitted from the most recent clean sweep (shin sensor frame, signed like the
+    /// calibrated hinge).
+    axis: Option<Vec3>,
     worst: f64,
 }
 
@@ -234,12 +255,19 @@ impl SlipMonitor {
             over_since: None,
             reported: false,
             last: None,
+            axis: None,
             worst: 0.0,
         }
     }
 
     pub fn active(&self) -> bool {
         self.hinge.is_some()
+    }
+
+    /// The hinge as the most recent clean sweep shows it: what the calibrated hinge becomes if the sensor
+    /// turned on the leg. `None` until a clean knee-only sweep was seen.
+    pub fn observed_axis(&self) -> Option<Vec3> {
+        self.axis
     }
 
     /// Most recent clean reading and the largest drift seen (for logs and session notes).
@@ -293,9 +321,10 @@ impl SlipMonitor {
             return None;
         }
         let shins: Vec<Vec3> = self.samples.iter().map(|s| s.shin).collect();
-        let reading = axis_drift(hinge, &shins)?;
+        let (reading, axis) = sweep_axis(hinge, &shins)?;
 
         self.last = Some(reading);
+        self.axis = Some(axis);
         self.worst = self.worst.max(reading.axis_drift_deg);
         if reading.axis_drift_deg <= SLIP_AXIS_WARN_DEG {
             self.over_since = None;

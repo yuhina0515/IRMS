@@ -408,13 +408,9 @@ cancellation/disposal, compatibility and release integration requirements.
 
 ---
 
-## 2026-11-10 beta.26 候選(分支 `integrate/beta26`,draft PR #6)
+## 2026-11-10 beta.26 候選(已於 2026-11-10 以 PR #6 合併進 `main`;未發版)
 
-Native migration update (2026-11-16): session feedback, temporary alarm mute,
-Windows speech and continuous unified holds are implemented in development source
-([[log_20261116_native_session_feedback]]). Remaining native parity: prescription
-CRUD/confirmation, preferences, mobility flow/history, export, translations,
-platform services and modules; physical acceptance is still open.
+> **2026-11-18 更正**:原生線(Rust/Slint,`v1.3.0-beta.11` 已發布)已取得下列對等項目:療程回饋與警報靜音、語音、連續保持、處方 CRUD、偏好、活動度流程與趨勢、穿戴檢查、歷史與 CSV 匯出、遙測、即時分享、韌體檢查與 OTA、簽章自我更新、自動重連。仍未對等的項目(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式、toast)與由決策造成的差異(僅繁中、模組內建、投影式腿圖)見 `doc/plans/2026-11-17-native-vs-tauri-parity-checklist.md`。實機驗收仍部分未完成(OTA、CSV 外觀、渲染器、輸入法)。
 
 - [x] 合併統一校準與療程存檔復原(PR #4);活動度趨勢依腿別分開;未存檔時鎖定統一校準流程。
 - [x] 由 PR #5 挑入:保持連續性、BLE 通知退場與連線圍欄、儲存交易上限、關窗保護、啟動/關閉/安裝互鎖、更新交接狀態。
@@ -426,4 +422,4 @@ platform services and modules; physical acceptance is still open.
 - [ ] 位移標記尚未隨療程存入資料庫(僅日誌與遙測);History 看不到。
 - [ ] 統一校準規格缺口:換邊/換協定/換韌體後的過期提示、獨立的感測器 `ERR` 狀態、動作步驟免手動擷取。
 - [ ] PR #5 其餘部分:無障礙系列(需對統一校準流程重做)、歷史分頁與存檔收據(migration 編號需改為 11 起)、即時分享所有權(需與收集端同步上線)。
-- [ ] 文件:`PROJECT_STATUS` 主體仍是 2026-09 的敘述,只有頂部補充是現況;`plans/` 與 `doc/plans/` 兩個計畫資料夾並存,未合併(移動會弄壞既有連結)。
+- [x] 文件:2026-11-18 已在 `PROJECT_STATUS` 頂部加入現況總表與文件有效性對照,並就地更正過時列;其主體仍是 2026-09 的敘述。兩個計畫資料夾仍並存:`plans/` 與 `doc/plans/` 兩個計畫資料夾並存,未合併(移動會弄壞既有連結)。

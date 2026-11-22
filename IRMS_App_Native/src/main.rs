@@ -12,7 +12,7 @@ use irms_core::protocol::{parse_angle_packet, ParsedPacket, RawAngles};
 use irms_core::session_controller::{Effect, SessionFeedback};
 use irms_core::slip_monitor::SlipMonitor;
 use irms_core::types::{CustomAction, SensorReading};
-use pipeline::{Rig, Script, Wizard};
+use pipeline::{Rig, Script};
 use serde_json::{json, Value};
 use slint::{ComponentHandle, Model, ModelRc, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
@@ -20,17 +20,26 @@ use std::fmt::Write;
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use store::Store;
+use wearing::{Verdict, WearingCheck};
+use wizard::Wizard;
 
 mod action_edit;
 mod action_ui;
+mod firmware_ui;
+mod instance;
 mod outputs;
 mod pipeline;
 mod preferences;
+mod range_ui;
+mod share_ui;
 mod store;
+mod update_ui;
+mod wearing;
+mod wizard;
 
 slint::include_modules!();
 
@@ -157,13 +166,20 @@ struct NativeHost {
     tx: mpsc::Sender<(Receipt, String, Value)>,
     state: Arc<BleState>,
     rt: tokio::runtime::Handle,
+    /// Opt-in telemetry; recording is a no-op while it is off.
+    telemetry: Arc<irms_core::telemetry::TelemetryState>,
+    /// Bumped by every manual connect/disconnect/cancel and when the window closes: an auto-reconnect loop
+    /// that started under an older value stops.
+    epoch: Arc<AtomicU64>,
 }
 
 impl BleHost for NativeHost {
     fn emit_json(&self, event: &str, payload: Value) {
         let _ = self.tx.send((Receipt::now(), event.to_string(), payload));
     }
-    fn record(&self, _kind: &str, _payload: Value) {}
+    fn record(&self, kind: &str, payload: Value) {
+        self.telemetry.record(kind, payload);
+    }
     fn ble(&self) -> &BleState {
         &self.state
     }
@@ -178,6 +194,8 @@ struct RealLink {
     last: Option<Instant>,
     fault: Option<String>,
     connect_error: String,
+    /// "連線中斷,自動重新連線中(n/m)" while the auto-reconnect loop runs.
+    reconnect_note: String,
 }
 
 struct Sim {
@@ -198,6 +216,10 @@ struct Sim {
     alarm: bool,
     last_knee: f64,
     last_thigh: f64,
+    /// Out-of-plane tilt of each calibrated segment (thigh: hip abduction/adduction; shin: sideways
+    /// lean of the shin). 0 without a calibration.
+    last_thigh_roll: f64,
+    last_shin_roll: f64,
     // Frozen when the session row is created.
     cfg: Option<TriggerConfig>,
     session_started: Instant,
@@ -205,11 +227,16 @@ struct Sim {
     rig: Rig,
     script: Script,
     wizard: Wizard,
+    /// Pre-session wearing check in progress (real device only).
+    wearing: Option<WearingCheck>,
+    telemetry: Arc<irms_core::telemetry::TelemetryState>,
     /// Result of the calibration wizard; without it only the device's own Euler angles are shown.
     profile: Option<CalibrationProfile>,
     slip: SlipMonitor,
     /// The slip monitor reported that the shin sensor moved during this session.
     mount_shift: bool,
+    /// The shift was corrected automatically (axis drift in degrees, the last correction).
+    slip_corrected: Option<f64>,
     slip_injected: bool,
     session_s: f64,
     store: Store,
@@ -236,14 +263,19 @@ impl Sim {
             alarm: false,
             last_knee: 0.0,
             last_thigh: 0.0,
+            last_thigh_roll: 0.0,
+            last_shin_roll: 0.0,
             session_started: Instant::now(),
             cfg: None,
             rig: Rig::new(),
             script: Script::Exercise,
-            wizard: Wizard::new(),
+            wizard: Wizard::new(None),
+            wearing: None,
+            telemetry: Arc::new(irms_core::telemetry::TelemetryState::default()),
             profile: None,
             slip: SlipMonitor::new(None),
             mount_shift: false,
+            slip_corrected: None,
             slip_injected: false,
             session_s: 0.0,
             store,
@@ -296,19 +328,63 @@ fn project(x: f64, y: f64, z: f64) -> (f64, f64) {
     (150.0 + xr * 95.0 * depth, 250.0 - yr * 95.0 * depth)
 }
 
-fn limb3d_path(knee_deg: f64, thigh_deg: f64) -> String {
-    let t = thigh_deg.to_radians();
-    let f = (thigh_deg - knee_deg).to_radians();
-    let hip = (0.0, 2.1);
-    let knee = (hip.0 + 1.05 * t.sin(), hip.1 - 1.05 * t.cos());
-    let ankle = (knee.0 + 1.05 * f.sin(), knee.1 - 1.05 * f.cos());
-    let toe = (ankle.0 + 0.32 * f.cos(), ankle.1 + 0.32 * f.sin());
+/// Out-of-plane tilt of each calibrated segment, signed so that outward (away from the body) is
+/// positive on either leg: the raw roll reads positive outward on the left leg and negative on the
+/// right (`profile.roll_sign`, from `solve_profile`). 0 for a missing thigh frame.
+fn outward_rolls(p: &irms_core::calibration::CalibrationProfile, tv: Vec3, sv: Vec3) -> (f64, f64) {
+    let sign = |s: Option<i8>| f64::from(s.unwrap_or(1));
+    (
+        p.limbs
+            .thigh
+            .as_ref()
+            .map_or(0.0, |f| limb_angles(f, tv).roll * sign(p.roll_sign.thigh)),
+        limb_angles(&p.limbs.shin, sv).roll * sign(p.roll_sign.shin),
+    )
+}
+
+/// Direction of a segment pointing down the leg, in stage space (x forward, y up, z sideways), from its
+/// forward tilt (pitch about the hinge) and its out-of-plane tilt (roll). Gravity sensing gives these two
+/// angles per segment; the heading about the vertical is not observable and is drawn facing forward.
+fn segment_dir(pitch_deg: f64, roll_deg: f64) -> (f64, f64, f64) {
+    let (p, r) = (pitch_deg.to_radians(), roll_deg.to_radians());
+    let d = (p.sin() * r.cos(), -p.cos() * r.cos(), r.sin());
+    let n = (d.0 * d.0 + d.1 * d.1 + d.2 * d.2).sqrt().max(1e-9);
+    (d.0 / n, d.1 / n, d.2 / n)
+}
+
+/// 3D leg points (hip, knee, ankle, toe) from both segments' pitch and roll.
+fn leg3d_points(
+    knee_deg: f64,
+    thigh_deg: f64,
+    thigh_roll: f64,
+    shin_roll: f64,
+) -> [(f64, f64, f64); 4] {
+    let hip = (0.0, 2.1, 0.25);
+    let t = segment_dir(thigh_deg, thigh_roll);
+    let f = segment_dir(thigh_deg - knee_deg, shin_roll);
+    let knee = (hip.0 + 1.05 * t.0, hip.1 + 1.05 * t.1, hip.2 + 1.05 * t.2);
+    let ankle = (
+        knee.0 + 1.05 * f.0,
+        knee.1 + 1.05 * f.1,
+        knee.2 + 1.05 * f.2,
+    );
+    // The foot points forward, perpendicular to the shin within its sagittal tilt.
+    let fp = (thigh_deg - knee_deg).to_radians();
+    let toe = (
+        ankle.0 + 0.32 * fp.cos(),
+        ankle.1 + 0.32 * fp.sin(),
+        ankle.2,
+    );
+    [hip, knee, ankle, toe]
+}
+
+fn limb3d_path(knee_deg: f64, thigh_deg: f64, thigh_roll: f64, shin_roll: f64) -> String {
     let mut s = String::new();
-    // pelvis bar across z, then the leg in the sagittal plane at z = 0.25
-    let (ax, ay) = project(hip.0, hip.1, -0.25);
+    // pelvis bar across z, then the leg
+    let (ax, ay) = project(0.0, 2.1, -0.25);
     let _ = write!(s, "M {ax:.1} {ay:.1} ");
-    for (x, y) in [hip, knee, ankle, toe] {
-        let (px, py) = project(x, y, 0.25);
+    for (x, y, z) in leg3d_points(knee_deg, thigh_deg, thigh_roll, shin_roll) {
+        let (px, py) = project(x, y, z);
         let _ = write!(s, "L {px:.1} {py:.1} ");
     }
     s
@@ -336,6 +412,18 @@ fn arg_value(args: &[String], name: &str) -> Option<String> {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // 預設資料庫只允許一個執行個體；第二次啟動會把已開啟的視窗帶到前景。指定 --db 的是獨立資料庫。
+    let _single = if std::env::args().any(|a| a == "--db") {
+        None
+    } else {
+        match instance::acquire(&format!(
+            "IRMS v{} · Native Beta",
+            env!("CARGO_PKG_VERSION")
+        )) {
+            instance::Outcome::Second => return Ok(()),
+            instance::Outcome::First(guard) => guard,
+        }
+    };
     // 安裝後預設採用已驗證的軟體渲染；保留環境變數供開發者切換後端。
     if std::env::var_os("SLINT_BACKEND").is_none() {
         slint::BackendSelector::new()
@@ -351,7 +439,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let theme = ui.global::<Theme>();
 
     // Prototype switches, mainly for snapshots: --style N, --night, --view N, --settings-tab N,
-    // --connected, --calibrated, --run, --wizard, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
+    // --simulate (simulator instead of the real device), --connected, --calibrated, --mobility-demo, --wizard, --wizard-preset N, --run, --pose N, --search <text>, --db <path>, --action N, --inject-fault, --inject-slip S, --log, --snapshot-after S,
     // --snapshot <png>.
     let args: Vec<String> = std::env::args().collect();
     let has = |n: &str| args.iter().any(|a| a == n);
@@ -372,22 +460,24 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_settings_tab(int("--settings-tab").unwrap_or(0).clamp(0, 5));
     let autorun = has("--run");
     let inject_fault = has("--inject-fault"); // 2 s of ERR:1 every 12 s
-    let real_mode_flag = has("--real-ble");
-    if real_mode_flag
-        && [
-            "--connected",
-            "--calibrated",
-            "--run",
-            "--inject-fault",
-            "--inject-slip",
-        ]
-        .iter()
-        .any(|flag| has(flag))
-    {
+                                              // Real device BLE is the default. The simulator runs only when asked for: --simulate or any
+                                              // simulator startup option. --real-ble stays as an explicit alias for the default.
+    let simulator_flags = [
+        "--simulate",
+        "--connected",
+        "--calibrated",
+        "--run",
+        "--inject-fault",
+        "--inject-slip",
+        "--mobility-demo",
+    ];
+    let wants_simulator = simulator_flags.iter().any(|flag| has(flag));
+    if has("--real-ble") && wants_simulator {
         return Err(slint::PlatformError::Other(
             "Real BLE cannot use simulator startup options".into(),
         ));
     }
+    let real_mode_flag = !wants_simulator;
     app.set_device_mode(real_mode_flag);
     // --real-ble: the connect button scans for a real IRMS device through irms_core::ble
     // instead of starting the simulator.
@@ -397,10 +487,25 @@ fn main() -> Result<(), slint::PlatformError> {
         .build()
         .expect("tokio runtime");
     let (ble_tx, ble_rx) = mpsc::channel();
-    let host = has("--real-ble").then(|| NativeHost {
+    // Telemetry is opt-in and off at every launch; the uploader idles until it is turned on.
+    let telemetry = Arc::new(irms_core::telemetry::TelemetryState::default());
+    irms_core::telemetry::spawn_uploader(
+        telemetry.clone(),
+        runtime.handle(),
+        env!("CARGO_PKG_VERSION").into(),
+    );
+    let sharing = Rc::new(RefCell::new(share_ui::Sharing::new(
+        telemetry.clone(),
+        runtime.handle(),
+        arg_value(&args, "--telemetry-endpoint")
+            .unwrap_or_else(|| share_ui::DEFAULT_ENDPOINT.into()),
+    )));
+    let host = real_mode_flag.then(|| NativeHost {
         tx: ble_tx.clone(),
         state: Arc::new(BleState::default()),
         rt: runtime.handle().clone(),
+        telemetry: telemetry.clone(),
+        epoch: Arc::new(AtomicU64::new(0)),
     });
     let real = Rc::new(RefCell::new(RealLink::default()));
     if has("--connected") || autorun {
@@ -413,13 +518,33 @@ fn main() -> Result<(), slint::PlatformError> {
     // Prescriptions, sessions and the personal range live in the prototype's own database (--db <path>,
     // or :memory: to keep nothing). It is never the Tauri app's database.
     let db_error = |e: rusqlite::Error| slint::PlatformError::Other(e.to_string());
-    let store = match Store::open(arg_value(&args, "--db")) {
+    let mut store = match Store::open(arg_value(&args, "--db")) {
         Ok(store) => store,
         Err(error) => {
             storage_error(&ui, error);
             return ui.run();
         }
     };
+    // First launch after the update from the Tauri app: bring its records over (default store only).
+    let mut import_notice = String::new();
+    if arg_value(&args, "--db").is_none() {
+        if let Some(source) = store::tauri_db_path() {
+            match store.import_tauri(&source) {
+                Ok(Some(r)) => {
+                    import_notice = format!(
+                        "已從 Tauri 版匯入:{} 場療程、{} 筆讀數、{} 個動作處方、{} 筆活動度。Tauri 版的資料沒有被更動。",
+                        r.sessions, r.readings, r.actions, r.mobility
+                    );
+                }
+                Ok(None) => {}
+                Err(e) => storage_error(
+                    &ui,
+                    format!("匯入 Tauri 版資料失敗(原生資料庫未被更動):{e}"),
+                ),
+            }
+        }
+    }
+    app.set_import_notice(import_notice.into());
     if log {
         println!("database: {}", store.location);
     }
@@ -453,9 +578,7 @@ fn main() -> Result<(), slint::PlatformError> {
         app.set_active_action_id(action.id.to_string().into());
     }
     preferences.start_run(preference_snapshot(&ui), int("--action").is_none());
-    let range = store.latest_range().map_err(db_error)?;
-    app.set_comfort(range.comfort.map_or(-1, |v| v.round() as i32));
-    app.set_limit(range.limit.map_or(-1, |v| v.round() as i32));
+    range_ui::refresh(&app, &store).map_err(slint::PlatformError::Other)?;
     live.set_grid3d_path(grid3d_path().into());
 
     // `shown` follows the search box.
@@ -467,6 +590,42 @@ fn main() -> Result<(), slint::PlatformError> {
     app.set_sessions(ModelRc::from(sessions.clone()));
 
     let sim = Rc::new(RefCell::new(Sim::new(store, stored_actions)));
+    sim.borrow_mut().telemetry = telemetry.clone();
+    {
+        // The calibration in force survives a restart; it is replaced only by applying a new one.
+        let mut s = sim.borrow_mut();
+        if let Some(profile) = s.store.active_profile() {
+            s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
+            s.profile = Some(profile);
+            s.wizard = Wizard::new(s.profile.clone());
+            app.set_calibrated(true);
+        }
+    }
+    if has("--mobility-demo") {
+        // Same wizard logic as the window on scripted movements, applied through the real store.
+        let mut s = sim.borrow_mut();
+        let cfg = action_config(&s.actions, 0, AngleLimits::default());
+        match pipeline::run_preset(&s.rig, &cfg, irms_core::calibration_flow::Preset::Mobility) {
+            Ok(w) => {
+                let at = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+                if let Some(a) = w.apply(&at) {
+                    match s.store.apply_calibration(&a.profile, a.mobility.as_ref()) {
+                        Ok(_) => {
+                            s.slip = SlipMonitor::new(Some(a.profile.limbs.shin.hinge));
+                            s.profile = Some(a.profile);
+                            app.set_calibrated(true);
+                        }
+                        Err(e) => println!("mobility demo could not store: {e}"),
+                    }
+                }
+            }
+            Err(e) => println!("mobility demo failed: {e}"),
+        }
+    }
+    if let Some(i) = int("--wizard-preset") {
+        sim.borrow_mut().wizard.set_preset(i);
+    }
+    refresh_mobility(&ui, &sim.borrow().store);
     action_ui::wire(&ui, sim.clone(), actions.clone(), sessions.clone());
     if let Some(q) = arg_value(&args, "--search") {
         app.set_search(q.clone().into());
@@ -516,34 +675,44 @@ fn main() -> Result<(), slint::PlatformError> {
                 Err(e) => format!("讀取失敗：{e}"),
             };
             ui.global::<App>().set_review_summary(text.into());
+            ui.global::<App>().set_export_notice("".into());
         });
     }
     {
+        // 匯出完整讀數為 CSV：檔案位置由使用者在系統對話框選擇，取消不寫任何東西。
         let sim = sim.clone();
+        let sessions = sessions.clone();
         let ui_w = ui.as_weak();
-        app.on_range_changed(move |comfort, limit| {
-            let Some(ui) = ui_w.upgrade() else { return };
-            let app = ui.global::<App>();
-            let s = sim.borrow();
-            if s.store.active() {
+        app.on_export_session(move |row| {
+            let (Some(ui), Some(target)) = (ui_w.upgrade(), sessions.row_data(row.max(0) as usize))
+            else {
                 return;
-            }
-            let result = if comfort < 0 {
-                s.store.clear_range()
-            } else {
-                let measured_limit = (limit >= 0).then(|| f64::from(limit));
-                s.store.save_range(f64::from(comfort), measured_limit)
             };
-            match result {
-                Ok(()) => {
-                    app.set_comfort(comfort);
-                    app.set_limit(limit);
-                    app.set_storage_error("".into());
-                }
-                Err(e) => storage_error(&ui, e),
-            }
+            let s = sim.borrow();
+            let notice = match s.store.sessions() {
+                Ok(rows) => match rows.iter().find(|x| Some(x.id) == target.id.parse().ok()) {
+                    None => "找不到這場療程".to_string(),
+                    Some(session) => match s.store.export_csv(session) {
+                        Err(e) => format!("匯出失敗:{e}"),
+                        Ok((name, text)) => match rfd::FileDialog::new()
+                            .set_file_name(&name)
+                            .add_filter("CSV", &["csv"])
+                            .save_file()
+                        {
+                            None => String::new(),
+                            Some(path) => match std::fs::write(&path, text) {
+                                Ok(()) => format!("已匯出:{}", path.display()),
+                                Err(e) => format!("匯出失敗:{e}"),
+                            },
+                        },
+                    },
+                },
+                Err(e) => format!("讀取失敗:{e}"),
+            };
+            ui.global::<App>().set_export_notice(notice.into());
         });
     }
+    range_ui::wire(&ui, sim.clone());
     if precalibrate {
         // Same wizard logic as the window, on scripted movements: no faked profile.
         let mut s = sim.borrow_mut();
@@ -565,58 +734,78 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     }
     let started = Instant::now();
+    wire_wizard(&ui, sim.clone(), started);
+    share_ui::wire(&ui, sharing.clone());
+    let firmware = firmware_ui::FirmwareCheck::default();
+    firmware_ui::wire(
+        &ui,
+        firmware.clone(),
+        runtime.handle().clone(),
+        host.as_ref().map(|h| h.state.clone()),
+    );
+    // Program updates: only for a normal run (default database, real device mode). A developer run
+    // (custom database, simulator, snapshots) must never replace the installed app.
+    let updates_allowed = real_mode_flag
+        && arg_value(&args, "--db").is_none()
+        && !has("--snapshot")
+        && !has("--no-update")
+        && std::env::var_os("IRMS_NO_AUTOUPDATE").is_none();
+    let updater = update_ui::Updater::new(updates_allowed);
+    update_ui::wire(&ui, updater.clone(), runtime.handle().clone());
     {
-        let sim = sim.clone();
-        app.on_wizard_start(move || {
-            let mut s = sim.borrow_mut();
-            let now_ms = started.elapsed().as_secs_f64() * 1000.0;
-            // The simulated wearer performs the movement this step asks for.
-            let t = s.t;
-            s.script = match s.wizard.step {
-                0 => Script::Still,
-                1 => Script::ThighRaise(t),
-                _ => Script::KneeCurl(t),
-            };
-            s.wizard.start(now_ms);
-        });
-    }
-    {
+        let updater = updater.clone();
         let sim = sim.clone();
         let ui_w = ui.as_weak();
-        app.on_wizard_next(move || {
+        app.on_update_install(move || {
             let Some(ui) = ui_w.upgrade() else { return };
-            let mut s = sim.borrow_mut();
-            if s.wizard.step < 2 || (s.wizard.step == 2 && s.wizard.profile.is_none()) {
-                s.wizard.next();
-                return;
+            if update_idle(&ui, &sim.borrow()) {
+                updater.install();
+            } else {
+                ui.global::<App>()
+                    .set_update_status("請先結束進行中的療程或對話框,再安裝".into());
             }
-            if s.wizard.step == 2 {
-                s.wizard.next(); // to the result page
-                return;
-            }
-            // Result page accepted: the profile becomes the active calibration.
-            if let Some(profile) = s.wizard.profile.take() {
-                s.slip = SlipMonitor::new(Some(profile.limbs.shin.hinge));
-                s.profile = Some(profile);
-                ui.global::<App>().set_calibrated(true);
-            }
-            s.wizard = Wizard::new();
-            s.script = Script::Exercise;
-            ui.global::<App>().set_wizard_open(false);
         });
     }
+    app.set_auto_update(saved.auto_update);
     {
+        let firmware = firmware.clone();
         let sim = sim.clone();
+        let host = host.clone();
+        let rt = runtime.handle().clone();
         let ui_w = ui.as_weak();
-        app.on_wizard_cancel(move || {
-            let mut s = sim.borrow_mut();
-            s.wizard = Wizard::new();
-            s.script = Script::Exercise;
-            if let Some(ui) = ui_w.upgrade() {
-                ui.global::<App>().set_wizard_open(false);
+        app.on_firmware_install(move || {
+            let (Some(ui), Some(host)) = (ui_w.upgrade(), host.clone()) else {
+                return;
+            };
+            if ui.global::<App>().get_conn() == 2 && update_idle(&ui, &sim.borrow()) {
+                firmware.start_install(host, &rt);
             }
         });
     }
+    let update_rt = runtime.handle().clone();
+    {
+        // Test switches for the share path without clicking: --telemetry-on, --share-host, --share-join CODE, --firmware-check.
+        let s = sharing.borrow();
+        if has("--telemetry-on") || saved.telemetry_on {
+            if let Err(e) = s
+                .telemetry
+                .configure(true, &s.endpoint, env!("CARGO_PKG_VERSION"))
+            {
+                println!("telemetry refused: {e}");
+            }
+        }
+        if let Some(code) = arg_value(&args, "--share-join") {
+            s.viewer
+                .join(s.endpoint.clone(), &code, "IRMS 原生版".into());
+        }
+    }
+    if has("--firmware-check") {
+        app.invoke_firmware_check();
+    }
+    if let Some(i) = int("--tools-tab") {
+        app.set_tools_tab(i);
+    }
+    wire_wearing(&ui, sim.clone(), started);
 
     // Frame counter (GL renderers only), shown in the dock and in --log output.
     let notifier = ui.window().set_rendering_notifier(move |state, _| {
@@ -644,6 +833,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             if let Some(host) = &host {
+                // Any manual action ends an auto-reconnect that is still running.
+                host.epoch.fetch_add(1, Ordering::SeqCst);
                 // Real device: the result and every later state change arrive as events.
                 let h = host.clone();
                 if app.get_conn() == 2 {
@@ -662,8 +853,19 @@ fn main() -> Result<(), slint::PlatformError> {
                     real.borrow_mut().connect_error.clear();
                     host.rt.spawn(async move {
                         if let Err(message) = ble::ble_connect(&h, &h.state).await {
-                            h.emit_json("native:connect-failed", json!(message));
+                            // A cancelled attempt (the wearer pressed "取消連線") is not an error.
+                            if !message.contains(irms_core::ble_lifecycle::CANCELLED) {
+                                h.emit_json("native:connect-failed", json!(message));
+                            }
                         }
+                    });
+                } else if app.get_conn() == 1 {
+                    // Cancel an attempt that is still waiting: a Windows BLE step can hang for good, and
+                    // without this the window stays on "連線中" with a dead button.
+                    app.set_conn(0);
+                    real.borrow_mut().connect_error.clear();
+                    host.rt.spawn(async move {
+                        let _ = ble::ble_disconnect(&h, &h.state).await;
                     });
                 }
                 return;
@@ -695,7 +897,13 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut s = sim.borrow_mut();
             if s.store.active() {
                 finish_session(&ui, &mut s, &sessions);
-            } else {
+            } else if real_mode_flag && s.wearing.is_none() && session_can_start(&ui, &s, false) {
+                // A real device is checked against the stored reference first; the simulator is not.
+                if let Some(profile) = s.profile.clone() {
+                    s.wearing = Some(WearingCheck::new(profile));
+                    ui.global::<App>().set_wearing_open(true);
+                }
+            } else if s.wearing.is_none() {
                 start_session(&ui, &mut s, !real_mode_flag);
             }
         });
@@ -705,7 +913,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_w = ui.as_weak();
         let sim = sim.clone();
         let sessions = sessions.clone();
+        let close_epoch = host.as_ref().map(|h| h.epoch.clone());
         ui.window().on_close_requested(move || {
+            if let Some(epoch) = &close_epoch {
+                epoch.fetch_add(1, Ordering::SeqCst);
+            }
             if let Some(ui) = ui_w.upgrade() {
                 let mut s = sim.borrow_mut();
                 if s.closing {
@@ -762,17 +974,33 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let mut last_frames = 0u32;
     let mut last_report = Instant::now();
+    // --share-host waits until telemetry has delivered something: the collector only shares a run that is ingesting.
+    let mut share_host_pending = has("--share-host");
     let mut last_tick = Instant::now();
     let mut ticks = 0u32;
 
     let real_mode = host.is_some();
+    let reconnect_host = host.clone();
     let ui_w = ui.as_weak();
+    // Restored-from-minimized windows come back partly black with the software renderer; see
+    // `repaint-nudge` in app.slint.
+    let mut was_minimized = false;
+    let mut restore_nudges = 0u8;
     let timer = Timer::default();
     timer.start(
         TimerMode::Repeated,
         Duration::from_millis((1000.0 / HZ) as u64),
         move || {
             let Some(ui) = ui_w.upgrade() else { return };
+            let minimized = ui.window().is_minimized();
+            if was_minimized && !minimized {
+                restore_nudges = 6;
+            }
+            was_minimized = minimized;
+            if restore_nudges > 0 && !minimized {
+                restore_nudges -= 1;
+                ui.set_repaint_nudge(!ui.get_repaint_nudge());
+            }
             let app = ui.global::<App>();
             let live = ui.global::<Live>();
             let mut s = sim.borrow_mut();
@@ -797,6 +1025,14 @@ fn main() -> Result<(), slint::PlatformError> {
                 action_config(&s.actions, app.get_action_index().max(0) as usize, limits)
             });
             let limits = cfg.limits;
+            updater.tick(
+                &update_rt,
+                app.get_auto_update(),
+                update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
+            );
+            app.set_firmware_can_install(
+                firmware.offer_available() && app.get_conn() == 2 && update_idle(&ui, &s),
+            );
             let wizard_open = app.get_wizard_open();
             let mut link = real.borrow_mut();
             while let Ok((receipt, event, payload)) = ble_rx.try_recv() {
@@ -808,9 +1044,9 @@ fn main() -> Result<(), slint::PlatformError> {
                             if s.running {
                                 finish_session_with_notice(&ui, &mut s, &sessions, false);
                             }
-                            s.wizard = Wizard::new();
-                            s.profile = None;
-                            app.set_calibrated(false);
+                            s.wizard = Wizard::new(s.profile.clone());
+                            s.wearing = None;
+                            app.set_wearing_open(false);
                             app.set_wizard_open(false);
                         }
                         if up {
@@ -831,9 +1067,29 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                         *link = RealLink::default();
                         app.set_conn(if up { 2 } else { 0 });
+                        if !up
+                            && should_auto_reconnect(
+                                payload["reason"].as_str(),
+                                s.disconnecting,
+                                s.closing,
+                            )
+                        {
+                            if let Some(h) = &reconnect_host {
+                                start_auto_reconnect(h);
+                                app.set_conn(1);
+                            }
+                        }
+                    }
+                    "native:reconnecting" => {
+                        link.reconnect_note = format!(
+                            "連線中斷,自動重新連線中({}/{})",
+                            payload["attempt"].as_u64().unwrap_or(0),
+                            payload["max"].as_u64().unwrap_or(0)
+                        );
                     }
                     "native:connect-failed" => {
                         link.connect_error = payload.as_str().unwrap_or("連線失敗").to_string();
+                        link.reconnect_note.clear();
                         app.set_conn(0);
                     }
                     "native:voice-status" => {
@@ -875,6 +1131,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             return;
                         }
                     }
+                    "ble:ota-progress" => firmware.on_progress(&payload),
                     "ble:error" => {
                         sample_fault(&mut s, &mut link, payload.as_str().unwrap_or("BLE error"))
                     }
@@ -917,7 +1174,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 let text = if inject_fault && (s.t % 12.0) > 10.0 {
                     "ERR:1".into()
                 } else {
-                    pipeline::packet(&s.rig, hip, knee)
+                    pipeline::packet_abd(&s.rig, hip, knee, pipeline::abduction(s.script, s.t))
                 };
                 match parse_angle_packet(&text) {
                     ParsedPacket::Angles { raw, .. } => {
@@ -938,16 +1195,12 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let hw_error = link.fault.as_deref().or(stale.then_some("等待新的量測"));
             app.set_valid_angle(connected && hw_error.is_none());
-            app.set_wizard_step(s.wizard.step);
-            app.set_wizard_progress(
-                s.wizard.progress(started.elapsed().as_secs_f64() * 1000.0) as f32
+            sync_wizard(&app, &s.wizard, started.elapsed().as_secs_f64() * 1000.0);
+            sync_wearing(
+                &app,
+                s.wearing.as_ref(),
+                started.elapsed().as_secs_f64() * 1000.0,
             );
-            app.set_wizard_busy(s.wizard.capturing());
-            app.set_wizard_step_done(s.wizard.step_done);
-            app.set_wizard_status(s.wizard.status.clone().into());
-            app.set_wizard_tone(s.wizard.tone);
-            app.set_wizard_result(s.wizard.result.clone().into());
-            app.set_wizard_seconds(s.wizard.capture_seconds() as f32);
 
             let angle = s.last_knee;
             let thigh = s.last_thigh;
@@ -967,10 +1220,68 @@ fn main() -> Result<(), slint::PlatformError> {
                 &limits,
             );
             let hold_s = cfg.hold_time_ms / 1000.0;
+            {
+                let sharing = sharing.borrow();
+                if sharing.host.state().status == irms_core::share_session::HostStatus::Sharing {
+                    let now = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+                    let trigger = match cfg.trigger_type {
+                        TriggerType::JointAngle => "joint_angle",
+                        TriggerType::SegmentElevation => "segment_elevation",
+                        TriggerType::SegmentExtension => "segment_extension",
+                    };
+                    sharing.host.set_snapshot(share_ui::snapshot(
+                        &share_ui::SnapshotInput {
+                            connected,
+                            demo: !real_mode,
+                            hardware_error: hw_error,
+                            trigger_type: trigger,
+                            metric_label,
+                            metric_unit: "°",
+                            value: connected.then_some(value),
+                            knee: angle,
+                            thigh,
+                            target_angle: cfg.target_angle,
+                            tolerance: cfg.tolerance,
+                            hold_time_ms: cfg.hold_time_ms,
+                            zone_min: zone.min,
+                            zone_max: zone.max,
+                            zone_rest: zone.rest,
+                            comfort: limits.comfort,
+                            limit: limits.limit,
+                            running: s.running,
+                            reps: s.reps,
+                            hold_progress: s.hold * 100.0,
+                            in_zone: s.running && phase == EnginePhase::Holding,
+                            alarm_active: s.alarm,
+                            over_comfort: connected && limits.comfort.is_some_and(|c| angle > c),
+                            elapsed_s: s.session_s,
+                            phase: match phase {
+                                EnginePhase::Idle => "idle",
+                                EnginePhase::Holding => "holding",
+                                EnginePhase::RestPending => "restPending",
+                            },
+                        },
+                        &now,
+                    ));
+                }
+                if share_host_pending && sharing.telemetry.status().sent > 0 {
+                    share_host_pending = false;
+                    sharing.host.start(
+                        sharing.endpoint.clone(),
+                        sharing.telemetry.run_id().to_string(),
+                        true,
+                    );
+                }
+                share_ui::sync(&app, &sharing);
+                firmware_ui::sync(&app, &firmware);
+                update_ui::sync(&app, &updater);
+            }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
             let (title, sub, tone): (String, String, i32) = if !connected {
-                if app.get_conn() == 1 {
+                if app.get_conn() == 1 && !link.reconnect_note.is_empty() {
+                    ("連線中斷".into(), link.reconnect_note.clone(), 0)
+                } else if app.get_conn() == 1 {
                     ("連線中…".into(), "正在尋找裝置(最長 15 秒)".into(), 0)
                 } else if !link.connect_error.is_empty() {
                     ("連線失敗".into(), link.connect_error.clone(), 2)
@@ -1016,6 +1327,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         guidance_text(&guidance, verb),
                         1,
                     ),
+                    EnginePhase::Idle if !s.mount_shift && s.slip_corrected.is_some() => (
+                        guidance_text(&guidance, verb),
+                        format!(
+                            "小腿感測器移位約 {:.0}°,已自動修正轉軸;起點若不準,結束後請快速重設零位",
+                            s.slip_corrected.unwrap_or(0.0)
+                        ),
+                        3,
+                    ),
                     EnginePhase::Idle if s.mount_shift => (
                         guidance_text(&guidance, verb),
                         "感測器可能移位,這場結束後請重新校準".into(),
@@ -1041,6 +1360,7 @@ fn main() -> Result<(), slint::PlatformError> {
             };
             let frac = |v: f64| (v.clamp(0.0, RULER_MAX) / RULER_MAX) as f32;
             app.set_angle(angle as f32);
+            range_ui::observe(&app);
             app.set_angle_text(format!("{angle:.0}°").into());
             live.set_metric_label(metric_label.into());
             // Rounding first and adding 0.0 turns a negative zero into zero, so a resting leg never reads "-0".
@@ -1082,7 +1402,23 @@ fn main() -> Result<(), slint::PlatformError> {
                 live.set_limb_path(path.into());
                 live.set_knee_x(kx as f32);
                 live.set_knee_y(ky as f32);
-                live.set_limb3d_path(limb3d_path(angle, thigh).into());
+                live.set_limb3d_path(
+                limb3d_path(angle, thigh, s.last_thigh_roll, s.last_shin_roll).into(),
+            );
+            live.set_limb3d_note(
+                if let Some(p) = &s.profile {
+                    // Rounding then adding 0.0 turns a negative zero into zero ("-0°" on a still leg).
+                    let deg = |v: f64| format!("{}°", v.round() + 0.0);
+                    format!(
+                        "3D 姿態 · 膝 {angle:.0}° · 大腿外展 {} · 小腿側向 {}",
+                        if p.limbs.thigh.is_some() { deg(s.last_thigh_roll) } else { "—".into() },
+                        deg(s.last_shin_roll)
+                    )
+                } else {
+                    "3D 姿態需要先完成校準(目前只有前後角度)".into()
+                }
+                .into(),
+            );
                 live.set_chart_path(
                     chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into(),
                 );
@@ -1098,6 +1434,20 @@ fn main() -> Result<(), slint::PlatformError> {
                 last_report = Instant::now();
                 if log {
                     println!("tick {tick_rate:.1} Hz, frames {fps:.1} fps, angle {angle:.1}");
+                    let sh = sharing.borrow();
+                    let (h, v) = (sh.host.state(), sh.viewer.state());
+                    if h.code.is_some() || h.error.is_some() || v.live.is_some() || v.error.is_some() {
+                        println!(
+                            "share host {:?} code {:?} viewers {} | viewer {:?} metric {:?} err {:?} | telemetry {:?}",
+                            h.status,
+                            h.code,
+                            h.viewers.len(),
+                            v.status,
+                            v.live.as_ref().map(|l| l["metric"]["value"].clone()),
+                            v.error,
+                            sh.telemetry.status().sent
+                        );
+                    }
                 }
                 live.set_stats(
                     format!(
@@ -1111,6 +1461,372 @@ fn main() -> Result<(), slint::PlatformError> {
     );
 
     ui.run()
+}
+
+fn refresh_mobility(ui: &MainWindow, store: &Store) {
+    use irms_core::calibration_flow::{
+        movement_from_name, record_from_row, trend_with_breaks, TrendEntry,
+    };
+    let app = ui.global::<App>();
+    let Ok(rows) = store.mobility_rows() else {
+        app.set_mobility_latest("讀取活動度紀錄失敗".into());
+        app.set_mobility_history(ModelRc::default());
+        return;
+    };
+    let records: Vec<_> = rows.iter().map(record_from_row).collect();
+    let Some(latest) = records.first() else {
+        app.set_mobility_latest("尚無活動度紀錄".into());
+        app.set_mobility_history(ModelRc::default());
+        return;
+    };
+    let names = latest
+        .movement_set
+        .iter()
+        .filter_map(|n| movement_from_name(n))
+        .map(wizard::movement_label)
+        .collect::<Vec<_>>()
+        .join("、");
+    let entries = trend_with_breaks(&records, latest);
+    let best = entries
+        .iter()
+        .filter_map(|e| {
+            if let TrendEntry::Record(i) = e {
+                Some(records[*i].total_deg)
+            } else {
+                None
+            }
+        })
+        .fold(f64::MIN, f64::max);
+    let side = match latest.identity.side.as_deref() {
+        Some("left") => " · 左腿",
+        Some("right") => " · 右腿",
+        _ => "",
+    };
+    app.set_mobility_latest(
+        format!(
+            "最新合計 {:.0}° · 最佳 {:.0}° · {}{side}
+動作:{names}",
+            latest.total_deg,
+            best.max(latest.total_deg),
+            local_minute(&latest.measured_at)
+        )
+        .into(),
+    );
+    let lines: Vec<slint::SharedString> = entries
+        .iter()
+        .rev()
+        .take(10)
+        .map(|e| match e {
+            TrendEntry::MethodBreak => "—— 量測方式不同,以上不可直接比較 ——".into(),
+            TrendEntry::Record(i) => format!(
+                "{} · {:.0}°",
+                local_minute(&records[*i].measured_at),
+                records[*i].total_deg
+            )
+            .into(),
+        })
+        .collect();
+    app.set_mobility_history(ModelRc::from(Rc::new(VecModel::from(lines))));
+}
+
+fn local_minute(iso: &str) -> String {
+    DateTime::parse_from_rfc3339(iso)
+        .or_else(|_| DateTime::parse_from_rfc3339(&format!("{}Z", iso.trim_end_matches('Z'))))
+        .map(|d| {
+            d.with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M")
+                .to_string()
+        })
+        .unwrap_or_else(|_| iso.to_string())
+}
+
+fn sync_wizard(app: &App, w: &Wizard, now_ms: f64) {
+    app.set_wizard_page(w.page());
+    app.set_wizard_title(w.title().into());
+    app.set_wizard_body(w.body().into());
+    app.set_wizard_label(w.step_label().into());
+    app.set_wizard_progress(w.progress(now_ms) as f32);
+    app.set_wizard_busy(w.capturing());
+    app.set_wizard_step_done(w.step_done);
+    app.set_wizard_status(w.status.clone().into());
+    app.set_wizard_tone(w.tone);
+    app.set_wizard_result(w.result.clone().into());
+    app.set_wizard_seconds(w.capture_seconds() as f32);
+    app.set_wizard_side(w.side_index());
+    app.set_wizard_preset(w.preset_index());
+    app.set_wizard_neutral(w.flow.neutral);
+    app.set_wizard_posture(w.posture_index());
+    app.set_wizard_posture_name(wizard::posture_label(w.posture).into());
+    app.set_wizard_has_stored(w.has_stored());
+    app.set_wizard_can_begin(w.can_begin());
+    app.set_wizard_can_skip(w.can_skip());
+    app.set_wizard_can_apply(w.can_apply());
+    app.set_wizard_can_redo(w.can_redo());
+    app.set_wizard_can_save_mobility(w.can_save_mobility());
+    app.set_wizard_save_mobility(w.save_mobility);
+}
+
+fn wire_wizard(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
+    let app = ui.global::<App>();
+    let now_ms = move || started.elapsed().as_secs_f64() * 1000.0;
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_side(move |i| sim.borrow_mut().wizard.set_side(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_preset(move |i| sim.borrow_mut().wizard.set_preset(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_neutral(move |n| sim.borrow_mut().wizard.set_neutral(n));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_set_posture(move |i| sim.borrow_mut().wizard.set_posture(i));
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_begin(move || sim.borrow_mut().wizard.begin());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_start(move || {
+            let mut s = sim.borrow_mut();
+            // The simulated wearer performs the movement this step asks for.
+            s.script = pipeline::script_for(&s.wizard, s.t);
+            s.wizard.start(now_ms());
+        });
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_next(move || sim.borrow_mut().wizard.next());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_skip(move || sim.borrow_mut().wizard.skip());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_recapture(move || sim.borrow_mut().wizard.recapture());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_redo(move || sim.borrow_mut().wizard.redo());
+    }
+    {
+        let sim = sim.clone();
+        app.on_wizard_toggle_save(move || sim.borrow_mut().wizard.toggle_save_mobility());
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_apply(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            let measured_at = chrono::Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+            let Some(applied) = s.wizard.apply(&measured_at) else {
+                return;
+            };
+            // The stored row comes first: a calibration that could not be recorded is not applied.
+            let mobility_saved = match s
+                .store
+                .apply_calibration(&applied.profile, applied.mobility.as_ref())
+            {
+                Ok(saved) => saved,
+                Err(e) => {
+                    s.wizard.status = format!("校準未能儲存:{e}");
+                    s.wizard.tone = 2;
+                    return;
+                }
+            };
+            s.slip = SlipMonitor::new(Some(applied.profile.limbs.shin.hinge));
+            s.profile = Some(applied.profile);
+            s.wizard = Wizard::new(s.profile.clone());
+            s.script = Script::Exercise;
+            let app = ui.global::<App>();
+            app.set_calibrated(true);
+            app.set_wizard_open(false);
+            refresh_mobility(&ui, &s.store);
+            if !mobility_saved {
+                storage_error(&ui, "校準已套用,但活動度紀錄未能儲存");
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wizard_cancel(move || {
+            let mut s = sim.borrow_mut();
+            s.wizard = Wizard::new(s.profile.clone());
+            s.script = Script::Exercise;
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wizard_open(false);
+            }
+        });
+    }
+}
+
+fn sync_wearing(app: &App, check: Option<&WearingCheck>, now_ms: f64) {
+    let Some(c) = check else { return };
+    app.set_wearing_page(c.page());
+    app.set_wearing_body(c.body().into());
+    app.set_wearing_progress(c.progress(now_ms) as f32);
+    app.set_wearing_verdict(match c.verdict() {
+        None => 0,
+        Some(Verdict::Ok) => 1,
+        Some(Verdict::Inconclusive) => 2,
+        Some(Verdict::Rezero) => 3,
+        Some(Verdict::Recalibrate) => 4,
+        Some(Verdict::TooFar) => 5,
+    });
+}
+
+fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
+    let app = ui.global::<App>();
+    let now_ms = move || started.elapsed().as_secs_f64() * 1000.0;
+    let close = |ui: &MainWindow, s: &mut Sim| {
+        s.wearing = None;
+        ui.global::<App>().set_wearing_open(false);
+        ui.global::<App>().set_wearing_note("".into());
+    };
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_begin(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wearing_note("".into());
+            }
+            if let Some(c) = sim.borrow_mut().wearing.as_mut() {
+                c.begin(now_ms());
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_retry(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                ui.global::<App>().set_wearing_note("".into());
+            }
+            if let Some(c) = sim.borrow_mut().wearing.as_mut() {
+                c.retry();
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_cancel(move || {
+            if let Some(ui) = ui_w.upgrade() {
+                close(&ui, &mut sim.borrow_mut());
+            }
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_start_anyway(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            close(&ui, &mut s);
+            start_session(&ui, &mut s, false);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_recalibrate(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            close(&ui, &mut s);
+            ui.global::<App>().set_wizard_open(true);
+        });
+    }
+    {
+        let sim = sim.clone();
+        let ui_w = ui.as_weak();
+        app.on_wearing_rezero(move || {
+            let Some(ui) = ui_w.upgrade() else { return };
+            let mut s = sim.borrow_mut();
+            let now = chrono::Utc::now();
+            let id = wizard::new_calibration_id();
+            let at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+            let Some(check) = s.wearing.as_ref() else {
+                return;
+            };
+            // A failed re-zero keeps the dialog open with the reason, so the wearer can check again or
+            // start without re-zeroing (closing it silently looked like "cannot start").
+            let fixed = match check.rezeroed(&id, &at) {
+                Ok(p) => p,
+                Err(why) => {
+                    ui.global::<App>().set_wearing_note(
+                        format!("無法歸零:{why}。可以再檢查一次,或不歸零直接開始。").into(),
+                    );
+                    return;
+                }
+            };
+            // Stored first, like the wizard: a calibration that could not be recorded is not applied.
+            if let Err(e) = s.store.apply_calibration(&fixed, None) {
+                ui.global::<App>()
+                    .set_wearing_note(format!("無法儲存歸零結果:{e}。可以不歸零直接開始。").into());
+                return;
+            }
+            s.slip = SlipMonitor::new(Some(fixed.limbs.shin.hinge));
+            s.profile = Some(fixed);
+            s.wizard = Wizard::new(s.profile.clone());
+            close(&ui, &mut s);
+            start_session(&ui, &mut s, false);
+        });
+    }
+}
+
+/// Slip correction (owner's list item 5): the slip monitor saw the knee hinge move in the shin sensor
+/// frame, so the calibrated shin definition is carried over to where the hinge now is
+/// (`calibration::realign_limb`). In memory for this run only; a quick re-zero afterwards stores it
+/// (it keeps the current hinge) and removes the offset no sweep can show. `false` = could not correct
+/// (no profile, no observed axis, or a change too large to trust): the caller falls back to the
+/// recalibrate warning.
+fn correct_slip(s: &mut Sim, reading: &irms_core::slip_monitor::SlipReading) -> bool {
+    // A narrow sweep fits its axis poorly: warn instead of silently "correcting" to a wrong axis.
+    if reading.span_deg < irms_core::calibration::REALIGN_MIN_SPAN_DEG {
+        return false;
+    }
+    let Some(axis) = s.slip.observed_axis() else {
+        return false;
+    };
+    let Some(profile) = s.profile.as_mut() else {
+        return false;
+    };
+    let Some(fixed) = irms_core::calibration::realign_limb(&profile.limbs.shin, axis) else {
+        return false;
+    };
+    profile.limbs.shin = fixed;
+    let hinge = profile.limbs.shin.hinge;
+    s.slip = SlipMonitor::new(Some(hinge));
+    s.wizard = Wizard::new(s.profile.clone());
+    s.slip_corrected = Some(reading.axis_drift_deg);
+    true
+}
+
+/// After a session in which the shin was realigned, the corrected profile becomes a stored calibration
+/// with its own id (like a quick re-zero), so later session rows never carry a changed profile under
+/// the old calibration id and the correction survives a restart. On failure the correction stays in
+/// memory and the error is shown.
+fn store_slip_correction(s: &mut Sim) -> Result<(), String> {
+    if s.slip_corrected.is_none() {
+        return Ok(());
+    }
+    let Some(profile) = s.profile.as_mut() else {
+        return Ok(());
+    };
+    let now = chrono::Utc::now();
+    profile.id = wizard::new_calibration_id();
+    profile.created_at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+    let profile = profile.clone();
+    s.store.apply_calibration(&profile, None)?;
+    s.wizard = Wizard::new(Some(profile));
+    Ok(())
 }
 
 fn storage_error(ui: &MainWindow, error: impl std::fmt::Display) {
@@ -1129,6 +1845,8 @@ fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
         pose: app.get_pose_view(),
         voice_enabled: app.get_voice_enabled(),
         action_id: (!id.is_empty()).then(|| id.to_string()),
+        telemetry_on: app.get_telemetry_on(),
+        auto_update: app.get_auto_update(),
         ..preferences::Preferences::default()
     }
 }
@@ -1168,6 +1886,9 @@ fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
     let selected = action_edit::selected_index(&s.actions, None);
     let value = preferences::Preferences {
         action_id: selected.map(|i| s.actions[i].id.to_string()),
+        // Resetting display preferences must not silently change the data-sharing choice.
+        telemetry_on: app.get_telemetry_on(),
+        auto_update: app.get_auto_update(),
         ..preferences::Preferences::default()
     };
     if let Some(preferences) = s.preferences.as_mut() {
@@ -1204,18 +1925,96 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
     sessions.set_vec(rows);
 }
 
-fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
+/// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+/// Link-loss recovery, like the Tauri app's attemptReconnect: after an unexpected disconnect the app tries
+/// again by itself. Each attempt is a full connect (scan, connect, subscribe) that already retries inside.
+const RECONNECT_ATTEMPTS: u32 = 3;
+const RECONNECT_GAP: Duration = Duration::from_secs(3);
+
+/// An unexpected link loss (not the wearer's disconnect, not the window closing) starts an auto-reconnect.
+fn should_auto_reconnect(reason: Option<&str>, disconnecting: bool, closing: bool) -> bool {
+    reason == Some("notification_stream_ended") && !disconnecting && !closing
+}
+
+fn start_auto_reconnect(host: &NativeHost) {
+    start_auto_reconnect_with(host, RECONNECT_ATTEMPTS, RECONNECT_GAP);
+}
+
+fn start_auto_reconnect_with(host: &NativeHost, attempts: u32, gap: Duration) {
+    let h = host.clone();
+    // This loop owns the epoch until a manual action bumps it.
+    let epoch = h.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+    host.rt.spawn(async move {
+        let current = || h.epoch.load(Ordering::SeqCst) == epoch;
+        for attempt in 1..=attempts {
+            if !current() {
+                return;
+            }
+            h.emit_json(
+                "native:reconnecting",
+                json!({ "attempt": attempt, "max": attempts }),
+            );
+            match ble::ble_connect(&h, &h.state).await {
+                // The connection event updates the window.
+                Ok(_) => return,
+                Err(message) => {
+                    if message.contains(irms_core::ble_lifecycle::CANCELLED) || !current() {
+                        return;
+                    }
+                    if attempt < attempts {
+                        tokio::time::sleep(gap).await;
+                    }
+                }
+            }
+        }
+        if current() {
+            h.emit_json(
+                "native:connect-failed",
+                json!("自動重新連線失敗:請確認裝置已通電並靠近電腦,再按「連線裝置」"),
+            );
+        }
+    });
+}
+
+/// A live share the wearer is hosting would be cut off by a restart for an update.
+fn share_hosting(sharing: &Rc<RefCell<share_ui::Sharing>>) -> bool {
+    use irms_core::share_session::HostStatus;
+    matches!(
+        sharing.borrow().host.state().status,
+        HostStatus::Starting | HostStatus::Sharing
+    )
+}
+
+/// Nothing the wearer is doing would be cut off by an automatic update.
+fn update_idle(ui: &MainWindow, s: &Sim) -> bool {
     let app = ui.global::<App>();
-    if s.closing
+    !(s.store.active()
+        || s.closing
+        || s.disconnecting
+        || app.get_wizard_open()
+        || app.get_wearing_open()
+        || app.get_editor_open()
+        || app.get_confirmation_open()
+        || app.get_conn() == 1)
+}
+
+fn session_can_start(ui: &MainWindow, s: &Sim, simulated: bool) -> bool {
+    let app = ui.global::<App>();
+    !(s.closing
         || app.get_editor_open()
         || app.get_confirmation_open()
         || s.disconnecting
         || (!simulated && !app.get_valid_angle())
+        || (1..=4).contains(&app.get_ota_phase())
         || app.get_conn() != 2
         || app.get_wizard_open()
         || s.profile.is_none()
-        || s.store.active()
-    {
+        || s.store.active())
+}
+
+fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
+    let app = ui.global::<App>();
+    if !session_can_start(ui, s, simulated) {
         return;
     }
     let index = app.get_action_index() as usize;
@@ -1253,15 +2052,24 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     s.emit(effects);
     s.alarm = false;
     s.mount_shift = false;
+    s.slip_corrected = None;
     s.slip_injected = false;
     s.slip = SlipMonitor::new(s.profile.as_ref().map(|p| p.limbs.shin.hinge));
     app.set_storage_error("".into());
     app.set_session_locked(true);
     ui.global::<Live>().set_running(true);
+    s.telemetry.log(
+        "session_start",
+        serde_json::json!({ "simulated": simulated, "triggerType": s.cfg.map(|c| c.trigger_type as u8) }),
+    );
 }
 
 fn stop_collection(ui: &MainWindow, s: &mut Sim) {
     s.store.stop_recording();
+    s.telemetry.log(
+        "session_end",
+        serde_json::json!({ "reps": s.reps, "seconds": s.session_s.round() }),
+    );
     s.running = false;
     s.hold = 0.0;
     s.engine.reset();
@@ -1294,6 +2102,9 @@ fn finish_session_with_notice(
         if let Some(outputs) = &s.outputs {
             outputs.saved(s.reps, s.voice_enabled);
         }
+    }
+    if let Err(e) = store_slip_correction(s) {
+        storage_error(ui, format!("無法儲存自動修正後的校準:{e}"));
     }
     let app = ui.global::<App>();
     app.set_save_pending(false);
@@ -1335,6 +2146,18 @@ fn accept_sample(
     link.last = Some(received);
     link.fault = None;
     let app = ui.global::<App>();
+    if s.wearing.as_ref().is_some_and(WearingCheck::sampling) {
+        let done = s
+            .wearing
+            .as_mut()
+            .is_some_and(|c| c.push(now_ms, vectors.map(|v| v.0), vectors.map(|v| v.1)));
+        if done && s.wearing.as_ref().and_then(|c| c.verdict()) == Some(&Verdict::Ok) {
+            // Worn as calibrated: nothing to ask, the session starts.
+            s.wearing = None;
+            app.set_wearing_open(false);
+            start_session(ui, s, false);
+        }
+    }
     if app.get_wizard_open()
         && s.wizard
             .push(now_ms, vectors.map(|v| v.0), vectors.map(|v| v.1))
@@ -1353,6 +2176,10 @@ fn accept_sample(
     };
     s.last_knee = angle;
     s.last_thigh = thigh;
+    (s.last_thigh_roll, s.last_shin_roll) = match (&s.profile, vectors) {
+        (Some(p), Some((tv, sv))) => outward_rolls(p, tv, sv),
+        _ => (0.0, 0.0),
+    };
     let roll = raw.shin_roll - raw.thigh_roll;
     app.set_thigh_text(format!("{thigh:.0}°").into());
     app.set_shin_text(format!("{:.0}°", thigh - angle).into());
@@ -1374,16 +2201,21 @@ fn accept_sample(
         return;
     }
     if let (true, Some((tv, sv))) = (s.running, vectors) {
-        if s.slip.push(now_ms, Some(tv), Some(sv)).is_some() {
-            if !s.mount_shift {
-                let feedback_ms = received
-                    .saturating_duration_since(s.feedback_clock)
-                    .as_secs_f64()
-                    * 1000.0;
-                let effects = s.feedback.mount_shift(feedback_ms);
+        if let Some(reading) = s.slip.push(now_ms, Some(tv), Some(sv)) {
+            let feedback_ms = received
+                .saturating_duration_since(s.feedback_clock)
+                .as_secs_f64()
+                * 1000.0;
+            if correct_slip(s, &reading) {
+                let effects = s.feedback.mount_shift_corrected(feedback_ms);
                 s.emit(effects);
+            } else {
+                if !s.mount_shift {
+                    let effects = s.feedback.mount_shift(feedback_ms);
+                    s.emit(effects);
+                }
+                s.mount_shift = true;
             }
-            s.mount_shift = true;
         }
     }
     let previous_reps = s.reps;
@@ -1439,6 +2271,169 @@ mod tests {
         fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, slint::PlatformError> {
             Ok(MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer))
         }
+    }
+
+    /// Owner's list item 5 on the simulated rig: the strap turns 25 deg mid-session, the slip monitor
+    /// sees it from the knee repetitions, and the shin definition is carried over so the knee reads
+    /// right again (and the roll that the turn produced disappears).
+    #[test]
+    fn a_slipped_shin_strap_is_detected_and_corrected_during_repetitions() {
+        use irms_core::calibration::{knee_signed, limb_angles};
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let mut s = Sim::new(store, actions);
+        let cfg = action_config(&s.actions, index, AngleLimits::default());
+        let calibrated = pipeline::auto_calibrate(&s.rig, &cfg).unwrap();
+        s.slip = SlipMonitor::new(Some(calibrated.limbs.shin.hinge));
+        s.profile = Some(calibrated.clone());
+        s.rig.slip_shin(25.0);
+
+        // Worst knee and shin-roll error over a sweep of poses, for a given profile.
+        let error = |p: &irms_core::calibration::CalibrationProfile, rig: &Rig| {
+            let (mut knee_err, mut roll): (f64, f64) = (0.0, 0.0);
+            for knee in [0.0, 30.0, 60.0, 90.0, 110.0] {
+                let (tv, sv) = rig.gravity_abd(0.0, knee, 0.0);
+                let got = knee_signed(p.limbs.thigh.as_ref(), &p.limbs.shin, tv, sv);
+                knee_err = knee_err.max((got - knee).abs());
+                roll = roll.max(limb_angles(&p.limbs.shin, sv).roll.abs());
+            }
+            (knee_err, roll)
+        };
+        let (stale_knee, stale_roll) = error(&calibrated, &s.rig);
+        assert!(stale_roll > 10.0, "the slip shows as roll: {stale_roll}");
+
+        let mut corrected_at = None;
+        for i in 0..(90 * 25) {
+            let t = f64::from(i) / 25.0;
+            let (hip, knee) = pipeline::pose(Script::Exercise, t, &cfg);
+            let (tv, sv) = s.rig.gravity_abd(hip, knee, 0.0);
+            if let Some(reading) = s.slip.push(t * 1000.0, Some(tv), Some(sv)) {
+                assert!(correct_slip(&mut s, &reading));
+                corrected_at = Some(t);
+                break;
+            }
+        }
+        let at = corrected_at.expect("the slip monitor reports the turned strap");
+        let drift = s.slip_corrected.unwrap();
+        assert!((drift - 25.0).abs() < 3.0, "drift {drift}");
+        let fixed = s.profile.clone().unwrap();
+        let (knee_err, roll) = error(&fixed, &s.rig);
+        println!(
+            "slip found after {at:.1} s, drift {drift:.1} deg; knee error {stale_knee:.2} -> {knee_err:.2}, \
+             roll {stale_roll:.1} -> {roll:.1}"
+        );
+        assert!(
+            knee_err < 1.0 && knee_err <= stale_knee,
+            "{knee_err} vs {stale_knee}"
+        );
+        assert!(roll < 2.0, "roll after correction {roll}");
+        // The monitor restarts on the corrected hinge and the quick re-zero wizard uses it too.
+        assert_eq!(s.slip.observed_axis(), None);
+        assert!(!s.mount_shift);
+        // At session end the correction becomes a stored calibration with its own id.
+        let old_id = calibrated.id.clone();
+        store_slip_correction(&mut s).unwrap();
+        let stored = s.store.active_profile().unwrap();
+        assert_ne!(stored.id, old_id);
+        assert_eq!(stored.limbs.shin.hinge, fixed.limbs.shin.hinge);
+
+        // A narrow sweep (limited range of motion) is never auto-corrected: warn instead.
+        let narrow = irms_core::slip_monitor::SlipReading {
+            axis_drift_deg: 25.0,
+            span_deg: 40.0,
+            planarity_deg: 1.0,
+        };
+        let before = s.profile.clone();
+        assert!(!correct_slip(&mut s, &narrow));
+        assert_eq!(s.profile, before);
+    }
+
+    /// Owner's list item 4: wearing position is not restricted because the calibration defines each
+    /// sensor by vectors (hinge axis + reference gravity in that sensor's own frame). Sensors strapped on
+    /// at very different angles, including upside down and sideways, all calibrate through the real
+    /// wizard logic and then read the knee correctly.
+    #[test]
+    fn calibration_works_for_any_sensor_orientation() {
+        use irms_core::calibration::knee_signed;
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let cfg = action_config(&actions, index, AngleLimits::default());
+        let mounts = [
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((20.0, 35.0, 0.0), (65.0, 0.0, -40.0)),
+            ((180.0, 0.0, 0.0), (0.0, 180.0, 0.0)),
+            ((90.0, 0.0, 90.0), (-90.0, 30.0, 150.0)),
+            ((-120.0, 60.0, 45.0), (135.0, -70.0, -100.0)),
+            ((10.0, -80.0, 170.0), (-30.0, 85.0, 20.0)),
+        ];
+        for (thigh, shin) in mounts {
+            let rig = Rig::mounted(thigh, shin);
+            let p = pipeline::auto_calibrate(&rig, &cfg)
+                .unwrap_or_else(|e| panic!("{thigh:?}/{shin:?}: {e}"));
+            for knee in [0.0, 20.0, 45.0, 90.0, 120.0] {
+                for hip in [0.0, 30.0] {
+                    let (tv, sv) = rig.gravity_abd(hip, knee, 0.0);
+                    let got = knee_signed(p.limbs.thigh.as_ref(), &p.limbs.shin, tv, sv);
+                    assert!(
+                        (got - knee).abs() < 1.0,
+                        "{thigh:?}/{shin:?} hip {hip} knee {knee}: read {got:.2}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Owner's list item 3: the pose view is 3D, not the sagittal drawing only. Hip abduction shows as
+    /// thigh roll and moves the knee sideways; a plain knee bend stays in the sagittal plane.
+    #[test]
+    fn the_3d_pose_shows_sideways_movement_from_the_calibrated_vectors() {
+        use irms_core::calibration::{knee_signed, limb_angles};
+        assert_eq!(segment_dir(0.0, 0.0), (0.0, -1.0, 0.0));
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let cfg = action_config(&actions, index, AngleLimits::default());
+        let rig = Rig::new();
+        let p = pipeline::auto_calibrate(&rig, &cfg).unwrap();
+        let thigh_frame = p.limbs.thigh.as_ref().unwrap();
+        let pose = |hip: f64, knee: f64, abd: f64| {
+            let (tv, sv) = rig.gravity_abd(hip, knee, abd);
+            let k = knee_signed(Some(thigh_frame), &p.limbs.shin, tv, sv);
+            let t = limb_angles(thigh_frame, tv);
+            let sr = limb_angles(&p.limbs.shin, sv).roll;
+            (k, t.pitch, t.roll, sr)
+        };
+        // Knee bend only: no sideways component anywhere.
+        let (k, tp, tr, sr) = pose(0.0, 60.0, 0.0);
+        assert!((k - 60.0).abs() < 1.0 && tr.abs() < 1.0 && sr.abs() < 1.0);
+        let flat = leg3d_points(k, tp, tr, sr);
+        assert!(flat.iter().all(|pt| (pt.2 - 0.25).abs() < 0.02), "{flat:?}");
+        // 20 deg hip abduction: the thigh reads about 20 deg of roll and the knee leaves the plane.
+        let (k, tp, tr, sr) = pose(0.0, 30.0, 20.0);
+        assert!((tr.abs() - 20.0).abs() < 2.0, "thigh roll {tr}");
+        let _ = sr;
+        // Signed outward for the worn side, so abduction moves the knee away from the pelvis (+z),
+        // and the same raw tilt on a right-leg profile flips to keep that meaning.
+        let (tv, sv) = rig.gravity_abd(0.0, 30.0, 20.0);
+        let (out_thigh, out_shin) = outward_rolls(&p, tv, sv);
+        assert!(out_thigh > 18.0, "abduction reads outward: {out_thigh}");
+        let open = leg3d_points(k, tp, out_thigh, out_shin);
+        assert!(open[1].2 - 0.25 > 0.3, "knee moves outward: {open:?}");
+        let mut right = p.clone();
+        right.roll_sign.thigh = right.roll_sign.thigh.map(|s| -s);
+        right.roll_sign.shin = right.roll_sign.shin.map(|s| -s);
+        assert!((outward_rolls(&right, tv, sv).0 + out_thigh).abs() < 1e-9);
     }
 
     #[test]
@@ -1545,5 +2540,145 @@ mod tests {
             (Some(45.0), Some(1.0), Some(500))
         );
         action_ui::exercise_crud_and_confirmation_flow(&ui);
+        range_ui::exercise_flow(&ui);
+
+        // 穿戴檢查：與校準一致時直接開始療程；位置不同時留在檢查畫面，由使用者決定。
+        let profile = s.profile.clone().unwrap();
+        let hold_pose = |s: &mut Sim, link: &mut RealLink, shin: Vec3| {
+            let mut ms = 20_000u64;
+            while s.wearing.as_ref().is_some_and(WearingCheck::sampling) {
+                ms += 40;
+                let vec = |v: Vec3| irms_core::protocol::AccelVector {
+                    x: v.x,
+                    y: v.y,
+                    z: v.z,
+                };
+                let mut r = raw;
+                r.thigh_accel = Some(vec(profile.reference.thigh));
+                r.shin_accel = Some(vec(shin));
+                accept_sample(
+                    &ui,
+                    s,
+                    link,
+                    &cfg,
+                    r,
+                    Receipt {
+                        monotonic: start + Duration::from_millis(ms),
+                        utc: wall + chrono::Duration::milliseconds(ms as i64),
+                    },
+                    start,
+                );
+                // The wizard clock in `accept_sample` is the receipt time since `start`; the check began
+                // at the same clock, so it finishes after SAMPLE_MS of receipts.
+                let _ = ms;
+            }
+        };
+        s.wearing = Some(WearingCheck::new(profile.clone()));
+        s.wearing.as_mut().unwrap().begin(20_000.0);
+        app.set_wearing_open(true);
+        hold_pose(&mut s, &mut link, profile.reference.shin);
+        assert!(s.wearing.is_none(), "matching pose closes the check");
+        assert!(!app.get_wearing_open());
+        assert!(s.store.active(), "and starts the session");
+        assert!(finish_session(&ui, &mut s, &sessions));
+        // A pose 40 degrees off the reference does not start anything.
+        let shifted = {
+            let a = profile.limbs.shin.hinge;
+            let v = profile.reference.shin;
+            let (sn, c) = 40f64.to_radians().sin_cos();
+            let k = Vec3 {
+                x: a.y * v.z - a.z * v.y,
+                y: a.z * v.x - a.x * v.z,
+                z: a.x * v.y - a.y * v.x,
+            };
+            let d = (a.x * v.x + a.y * v.y + a.z * v.z) * (1.0 - c);
+            Vec3 {
+                x: v.x * c + k.x * sn + a.x * d,
+                y: v.y * c + k.y * sn + a.y * d,
+                z: v.z * c + k.z * sn + a.z * d,
+            }
+        };
+        s.wearing = Some(WearingCheck::new(profile.clone()));
+        s.wearing.as_mut().unwrap().begin(20_000.0);
+        hold_pose(&mut s, &mut link, shifted);
+        assert!(s.wearing.is_some(), "a shifted sensor waits for the wearer");
+        assert_eq!(
+            s.wearing.as_ref().unwrap().verdict(),
+            Some(&Verdict::TooFar)
+        );
+        assert!(!s.store.active());
+    }
+
+    #[test]
+    fn only_an_unexpected_link_loss_starts_an_auto_reconnect() {
+        assert!(should_auto_reconnect(
+            Some("notification_stream_ended"),
+            false,
+            false
+        ));
+        assert!(
+            !should_auto_reconnect(Some("manual"), false, false),
+            "the wearer disconnected"
+        );
+        assert!(
+            !should_auto_reconnect(Some("notification_stream_ended"), true, false),
+            "disconnect in progress"
+        );
+        assert!(
+            !should_auto_reconnect(Some("notification_stream_ended"), false, true),
+            "window closing"
+        );
+        assert!(!should_auto_reconnect(None, false, false));
+    }
+
+    /// Needs a machine where Bluetooth cannot connect (radio off, no adapter, or no IRMS device nearby): every
+    /// attempt then fails, so the loop must report each attempt and then give up. Run by hand:
+    /// `cargo test auto_reconnect -- --ignored`. A manual action must stop a running loop.
+    #[test]
+    #[ignore]
+    fn auto_reconnect_reports_each_attempt_then_gives_up_and_a_manual_action_stops_it() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let (tx, rx) = mpsc::channel();
+        let host = NativeHost {
+            tx,
+            state: Arc::new(BleState::default()),
+            rt: rt.handle().clone(),
+            telemetry: Arc::new(irms_core::telemetry::TelemetryState::default()),
+            epoch: Arc::new(AtomicU64::new(0)),
+        };
+        start_auto_reconnect_with(&host, 3, Duration::from_millis(20));
+        let mut seen = Vec::new();
+        while let Ok((_, event, payload)) = rx.recv_timeout(Duration::from_secs(90)) {
+            seen.push((event.clone(), payload.clone()));
+            if event == "native:connect-failed" {
+                break;
+            }
+        }
+        let attempts: Vec<u64> = seen
+            .iter()
+            .filter(|(e, _)| e == "native:reconnecting")
+            .map(|(_, p)| p["attempt"].as_u64().unwrap())
+            .collect();
+        assert_eq!(attempts, vec![1, 2, 3], "{seen:?}");
+        let last = seen.last().unwrap();
+        assert_eq!(last.0, "native:connect-failed");
+        assert!(last.1.as_str().unwrap().contains("自動重新連線失敗"));
+        // A manual action bumps the epoch: a loop started before it must not report another attempt.
+        start_auto_reconnect_with(&host, 3, Duration::from_millis(300));
+        let first = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert_eq!(first.2["attempt"].as_u64(), Some(1));
+        host.epoch.fetch_add(1, Ordering::SeqCst);
+        std::thread::sleep(Duration::from_secs(5));
+        let later: Vec<String> = rx.try_iter().map(|(_, e, _)| e).collect();
+        assert!(
+            !later
+                .iter()
+                .any(|e| e == "native:reconnecting" || e == "native:connect-failed"),
+            "a stopped loop stays quiet: {later:?}"
+        );
     }
 }
