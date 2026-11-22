@@ -1,0 +1,308 @@
+// Prescription, history, tools and settings screens (phase 2, simulated data).
+import { Theme, Btn, Card, Chip, Field, PageHead, App } from "theme.slint";
+
+component Row inherits Rectangle {
+    in property <bool> selected;
+    callback clicked;
+    background: root.selected ? Theme.accent.with-alpha(0.12) : ta.has-hover ? Theme.raised : transparent;
+    border-radius: min(Theme.radius, 12px);
+    ta := TouchArea { clicked => { root.clicked(); } }
+    @children
+}
+
+export component ActionsView inherits VerticalLayout {
+    spacing: 14px;
+    property <int> picked: -1;
+    PageHead {
+        title: "動作處方";
+        sub: "每個動作都寫清楚目標與保持時間;舒適角度與極限範圍屬於個人量測,不隨動作設定。";
+        VerticalLayout { alignment: center; Btn { text: "還原預設"; } }
+        VerticalLayout { alignment: center; Btn { text: "+ 新增動作"; primary: true; } }
+    }
+    HorizontalLayout {
+        spacing: 14px;
+        vertical-stretch: 1;
+        Card {
+            horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 12px; spacing: 0px; // hidden rows must not leave gaps
+                Field { placeholder: "搜尋名稱或說明…"; text <=> App.search; edited(t) => { App.search-edited(t); } }
+                for a[i] in App.actions: Row {
+                    height: a.shown ? 84px : 0px;
+                    visible: a.shown;
+                    selected: root.picked == i;
+                    clicked => { root.picked = i; }
+                    VerticalLayout {
+                        padding-left: 16px; padding-right: 16px; alignment: center; spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 10px; alignment: start;
+                            Text { text: a.name; font-size: 17px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
+                            Chip { text: a.kind; }
+                            if App.action-index == i: Chip { text: "使用中"; tone: Theme.good; }
+                        }
+                        HorizontalLayout {
+                            Text { text: "目標 " + a.target; font-size: 14px; color: Theme.dim; }
+                            Text { text: "保持 " + a.hold; font-size: 14px; color: Theme.dim; }
+                        }
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+                Text { text: "共 " + App.actions.length + " 個動作 · 第 1 / 1 頁"; font-size: 12px; color: Theme.dim; }
+            }
+        }
+        Card {
+            width: 42%;
+            if root.picked < 0: Text {
+                text: "選擇左側的動作查看內容,或新增一個動作。";
+                font-size: 14px; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center;
+            }
+            if root.picked >= 0: VerticalLayout {
+                padding: 22px; spacing: 12px; alignment: start;
+                Text { text: App.actions[root.picked].name; font-size: 21px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                Chip { text: App.actions[root.picked].kind; }
+                Text { text: App.actions[root.picked].note; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 24px; alignment: start;
+                    VerticalLayout { Text { text: "目標"; font-size: 12px; color: Theme.dim; } Text { text: App.actions[root.picked].target; font-size: 24px; font-weight: 700; color: Theme.ink; } }
+                    VerticalLayout { Text { text: "保持"; font-size: 12px; color: Theme.dim; } Text { text: App.actions[root.picked].hold; font-size: 24px; font-weight: 700; color: Theme.ink; } }
+                }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    Btn { text: App.action-index == root.picked ? "目前使用中" : "用於即時監測"; primary: true; enabled: !App.session-locked && App.action-index != root.picked; clicked => { App.action-index = root.picked; App.view = 0; } }
+                    Btn { text: "編輯"; }
+                }
+            }
+        }
+    }
+}
+
+export component HistoryView inherits VerticalLayout {
+    spacing: 14px;
+
+    PageHead { title: "療程紀錄"; sub: "每一場療程的處方、次數與來源;點「回顧」查看完整分析。"; }
+    Card {
+        vertical-stretch: 1;
+        VerticalLayout {
+            padding: 12px; spacing: 0px; // hidden rows (other pages) must not leave gaps
+            HorizontalLayout {
+                height: 38px; padding-left: 16px; padding-right: 16px; spacing: 12px;
+                Text { width: 190px; text: "開始時間"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+                Text { horizontal-stretch: 1; text: "動作"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+                Text { width: 90px; text: "完成"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+                Text { width: 80px; text: "時長"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+                Text { width: 170px; text: "操作"; font-size: 13px; color: Theme.dim; vertical-alignment: center; }
+            }
+            Rectangle { height: 1px; background: Theme.border; }
+            if App.sessions.length == 0: Text {
+                text: "還沒有療程紀錄。完成一場療程後會出現在這裡。";
+                font-size: 14px; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center; vertical-stretch: 1;
+            }
+            // v3 rule: no page scrolling; the list is paged, eight rows per page.
+            for s[i] in App.sessions: Row {
+                property <bool> on-page: floor(i / 8) == App.history-page;
+                height: self.on-page ? 56px : 0px;
+                visible: self.on-page;
+                selected: App.review == i;
+                HorizontalLayout {
+                    padding-left: 16px; padding-right: 16px; spacing: 12px;
+                    Text { width: 190px; text: s.started; font-size: 15px; color: Theme.ink; vertical-alignment: center; }
+                    HorizontalLayout {
+                        horizontal-stretch: 1; spacing: 8px; alignment: start;
+                        Text { text: s.action; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
+                        if s.demo: VerticalLayout { alignment: center; Chip { text: "模擬資料"; tone: Theme.warn; } }
+                    }
+                    Text { width: 90px; text: s.reps + " 次"; font-size: 15px; color: Theme.ink; vertical-alignment: center; }
+                    Text { width: 80px; text: s.duration; font-size: 15px; color: Theme.ink; vertical-alignment: center; }
+                    HorizontalLayout {
+                        width: 170px; spacing: 6px; alignment: start;
+                        VerticalLayout { alignment: center; Btn { text: "回顧"; min-height: 36px; primary: true; clicked => { App.review = i; App.request-review(i); } } }
+                        VerticalLayout { alignment: center; Btn { text: "刪除"; min-height: 36px; quiet: true; ink: Theme.danger; clicked => { App.review = -1; App.delete-session(i); } } }
+                    }
+                }
+            }
+            if App.sessions.length > 0: Rectangle { vertical-stretch: 1; }
+            if App.review >= 0 && App.review < App.sessions.length: Rectangle {
+                height: 86px; border-radius: min(Theme.radius, 12px); background: Theme.raised;
+                HorizontalLayout {
+                    padding-left: 16px; padding-right: 12px; spacing: 16px;
+                    VerticalLayout {
+                        alignment: center; horizontal-stretch: 1; spacing: 4px;
+                        Text {
+                            text: "回顧 · " + App.sessions[App.review].action + " · 完成 " + App.sessions[App.review].reps + " 次 · 時長 " + App.sessions[App.review].duration;
+                            font-size: 15px; font-weight: 700; color: Theme.ink;
+                        }
+                        // Statistics from irms_core::session_analysis (full readings, time-weighted).
+                        Text { text: App.review-summary; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    }
+                    VerticalLayout { alignment: center; Btn { text: "關閉"; min-height: 36px; clicked => { App.review = -1; } } }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                property <int> pages: max(1, ceil(App.sessions.length / 8));
+                Text { text: "共 " + App.sessions.length + " 場 · 第 " + (App.history-page + 1) + " / " + parent.pages + " 頁"; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+                Btn { text: "上一頁"; min-height: 34px; enabled: App.history-page > 0; clicked => { App.review = -1; App.history-page -= 1; } }
+                Btn { text: "下一頁"; min-height: 34px; enabled: App.history-page < parent.pages - 1; clicked => { App.review = -1; App.history-page += 1; } }
+            }
+        }
+    }
+}
+
+export component ToolsView inherits VerticalLayout {
+    spacing: 14px;
+    property <int> tab: 0;
+    PageHead { title: "工具"; sub: "已安裝模組提供的操作頁面;安裝、啟用與更新請至「設定 → 模組」。"; }
+    Card {
+        vertical-stretch: 1;
+        VerticalLayout {
+            padding: 14px; spacing: 14px;
+            HorizontalLayout {
+                spacing: 6px; alignment: start;
+                Btn { text: "角度範圍測量"; min-height: 36px; active: root.tab == 0; clicked => { root.tab = 0; } }
+                Btn { text: "即時分享"; min-height: 36px; active: root.tab == 1; clicked => { root.tab = 1; } }
+            }
+            Rectangle { height: 1px; background: Theme.border; }
+            if root.tab == 0: VerticalLayout {
+                spacing: 12px; alignment: start; padding-left: 8px;
+                Text { text: "舒適角度:在此之內不痛或只有輕微疼痛。極限範圍:很痛但還能到達的角度(選填)。每個人都不一樣,所以沒有預設值。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 14px; alignment: start;
+                    Text { text: App.conn == 2 ? App.angle-text : "—"; font-size: 48px; font-weight: 700; color: Theme.ink; }
+                    Text { text: App.conn == 2 ? "即時膝角" : "尚無即時膝角(請先連線裝置)"; font-size: 14px; color: Theme.dim; vertical-alignment: center; }
+                }
+                Text { text: "步驟 1:慢慢彎曲膝蓋。開始感到疼痛或拉筋的感覺時,停住並按下「記錄舒適角度」。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    Btn { text: "記錄舒適角度"; primary: true; enabled: !App.session-locked && App.valid-angle && App.angle >= 0 && App.conn == 2; clicked => { App.range-changed(round(App.angle), -1); } }
+                    Btn { text: "記錄極限範圍 (選填)"; enabled: !App.session-locked && App.valid-angle && App.conn == 2 && App.comfort >= 0 && App.angle >= App.comfort; clicked => { App.range-changed(App.comfort, round(App.angle)); } }
+                    Btn { text: "清除"; quiet: true; ink: Theme.danger; enabled: !App.session-locked && App.comfort >= 0; clicked => { App.range-changed(-1, -1); } }
+                }
+                Text { text: "量測紀錄"; font-size: 14px; font-weight: 700; color: Theme.ink; }
+                Text {
+                    text: App.comfort < 0 ? "還沒有紀錄。療程中不會有任何角度提示,直到你完成第一次量測。" : "舒適角度 " + App.comfort + "°" + (App.limit < 0 ? " · 極限範圍未量測" : " · 極限範圍 " + App.limit + "°");
+                    font-size: 14px; color: Theme.dim; wrap: word-wrap;
+                }
+            }
+            if root.tab == 1: VerticalLayout {
+                spacing: 12px; alignment: start; padding-left: 8px;
+                Text { text: "即時分享"; font-size: 17px; font-weight: 700; color: Theme.ink; }
+                Text { text: "模組系統在沒有 WebView 的情況下如何運作尚未決定(計畫 D2),此頁僅保留位置。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+}
+
+component Setting inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> sub;
+    spacing: 12px;
+    VerticalLayout {
+        horizontal-stretch: 1; alignment: center;
+        Text { text: root.title; font-size: 16px; font-weight: 700; color: Theme.ink; }
+        Text { text: root.sub; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+    }
+    @children
+}
+
+export component SettingsView inherits VerticalLayout {
+    spacing: 14px;
+    property <int> tab <=> App.settings-tab;
+    property <[string]> tabs: ["裝置與連線", "校準", "顯示", "軟體與韌體", "模組", "資料與隱私"];
+    property <[string]> subs: ["連線狀態與判定協定", "零位、屈曲軸與佩戴方向", "外觀、日夜與姿態視圖", "版本與更新", "已安裝模組", "本機紀錄與遙測"];
+    PageHead { title: "系統設定"; sub: "裝置準備、資料選擇,都有各自的位置。"; }
+    Card {
+        vertical-stretch: 1;
+        HorizontalLayout {
+            VerticalLayout {
+                width: 220px; padding: 12px; spacing: 4px; alignment: start;
+                for t[i] in root.tabs: Rectangle {
+                    height: 44px;
+                    border-radius: min(Theme.radius, 12px);
+                    background: root.tab == i ? Theme.accent.with-alpha(0.14) : ta.has-hover ? Theme.raised : transparent;
+                    Text { x: 16px; text: t; font-size: 15px; font-weight: root.tab == i ? 700 : 500; color: Theme.ink; vertical-alignment: center; }
+                    ta := TouchArea { clicked => { root.tab = i; } }
+                }
+            }
+            Rectangle { width: 1px; background: Theme.border; }
+            VerticalLayout {
+                padding: 22px; spacing: 16px; alignment: start;
+                VerticalLayout {
+                    Text { text: root.tabs[root.tab]; font-size: 21px; font-weight: 700; color: Theme.ink; }
+                    Text { text: root.subs[root.tab]; font-size: 13px; color: Theme.dim; }
+                }
+                Rectangle { height: 1px; background: Theme.border; }
+                if root.tab == 0: VerticalLayout {
+                    spacing: 16px;
+                    Setting {
+                        title: "裝置";
+                        sub: App.conn == 2 ? "IRMS-Sim (模擬裝置) · 已連線" : App.conn == 1 ? "連線中…" : "未連線";
+                        VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1; clicked => { App.request-connect(); } } }
+                    }
+                    Text { text: "連線只代表收得到資料;角度是否可信取決於校準。"; font-size: 13px; color: Theme.dim; }
+                    Setting { title: "判定協定"; sub: "判定目前只支援膝關節;其他協定會擋下開始療程。"; VerticalLayout { alignment: center; Chip { text: "Knee Flexion (膝彎曲)"; tone: Theme.accent; } } }
+                }
+                if root.tab == 1: VerticalLayout {
+                    spacing: 16px;
+                    Setting {
+                        title: "校準精靈";
+                        sub: App.calibrated ? "已校準,可以開始療程" : "尚未校準——未校準時無法開始療程";
+                        VerticalLayout { alignment: center; Btn { text: App.calibrated ? "重新校準" : "開始校準"; primary: !App.calibrated; enabled: !App.session-locked && App.conn == 2; clicked => { App.wizard-open = true; } } }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px; alignment: start;
+                        for c in ["零位已捕捉", "大腿軸已建立", "小腿軸已建立", "側向方向已驗證"]: Chip { text: c; tone: App.calibrated ? Theme.good : Theme.dim; }
+                    }
+                    Text { text: "感測器不需要貼得很正:精靈會從「抬大腿」與「勾小腿」兩個動作算出各自的屈曲軸。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    if App.conn != 2: Text { text: "校準需要即時感測器數值,請先連線裝置。"; font-size: 13px; color: Theme.warn; }
+                }
+                if root.tab == 2: VerticalLayout {
+                    spacing: 16px;
+                    Setting {
+                        title: "外觀";
+                        sub: "柔和陪伴為 2026-11-16 選定的風格;其餘兩種保留供比較。";
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "柔和陪伴"; active: Theme.style == 1; clicked => { Theme.style = 1; } } }
+                            VerticalLayout { alignment: center; Btn { text: "Workbook"; active: Theme.style == 0; clicked => { Theme.style = 0; } } }
+                            VerticalLayout { alignment: center; Btn { text: "深色工作室"; active: Theme.style == 2; clicked => { Theme.style = 2; } } }
+                        }
+                    }
+                    Setting {
+                        title: "日夜";
+                        sub: "夜間使用較暗的底色。";
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "日間"; active: !Theme.night; clicked => { Theme.night = false; } } }
+                            VerticalLayout { alignment: center; Btn { text: "夜間"; active: Theme.night; clicked => { Theme.night = true; } } }
+                        }
+                    }
+                    Setting {
+                        title: "姿態視圖";
+                        sub: "預設 2D 側面。";
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout { alignment: center; Btn { text: "2D 側面"; active: App.pose-view == 0; clicked => { App.pose-view = 0; } } }
+                            VerticalLayout { alignment: center; Btn { text: "3D"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
+                        }
+                    }
+                }
+                if root.tab == 3: VerticalLayout {
+                    spacing: 16px;
+                    Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
+                    Setting { title: "韌體"; sub: App.conn == 2 ? "模擬裝置沒有韌體" : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
+                }
+                if root.tab == 4: VerticalLayout {
+                    spacing: 16px;
+                    Setting { title: "角度範圍測量"; sub: "內建於原型,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "已啟用"; tone: Theme.good; } } }
+                    Setting { title: "即時分享"; sub: "等待模組系統設計(計畫 D2)。"; VerticalLayout { alignment: center; Chip { text: "未決定"; tone: Theme.warn; } } }
+                }
+                if root.tab == 5: VerticalLayout {
+                    spacing: 16px;
+                    Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
+                    Setting { title: "遙測"; sub: "預設關閉。"; VerticalLayout { alignment: center; Chip { text: "關閉"; } } }
+                }
+            }
+        }
+    }
+}

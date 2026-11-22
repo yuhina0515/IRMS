@@ -3,17 +3,17 @@ use std::future::Future;
 use std::sync::Mutex as EpochMutex;
 use tokio::sync::Mutex;
 
-pub(crate) const CANCELLED: &str = "Connection attempt superseded or cancelled";
+pub const CANCELLED: &str = "Connection attempt superseded or cancelled";
 
 #[derive(Default)]
-pub(crate) struct Coordinator {
+pub struct Coordinator {
     generation: EpochMutex<u64>,
     attempts: Mutex<()>,
 }
 
 impl Coordinator {
     // 在第一個 await 之前預約世代；新請求或斷線意圖立即退休舊所有權。
-    pub(crate) fn begin(&self) -> u64 {
+    pub fn begin(&self) -> u64 {
         let mut generation = self.generation.lock().unwrap_or_else(|e| e.into_inner());
         *generation += 1;
         *generation
@@ -21,11 +21,7 @@ impl Coordinator {
 
     // callback 不得 await 或重入本鎖；雙鎖次序為 peripheral -> epoch。
     // callback 不修改世代，因此 panic 後仍可取回值以退休連線。
-    pub(crate) fn with_current<R>(
-        &self,
-        generation: u64,
-        callback: impl FnOnce() -> R,
-    ) -> Option<R> {
+    pub fn with_current<R>(&self, generation: u64, callback: impl FnOnce() -> R) -> Option<R> {
         let current = self.generation.lock().unwrap_or_else(|e| e.into_inner());
         if *current != generation {
             return None;
@@ -35,13 +31,13 @@ impl Coordinator {
         Some(result)
     }
 
-    pub(crate) fn check(&self, generation: u64) -> Result<(), String> {
+    pub fn check(&self, generation: u64) -> Result<(), String> {
         self.with_current(generation, || ())
             .ok_or_else(|| CANCELLED.into())
     }
 
     // 等待 peripheral 後重新核對世代，避免排隊期間所有權已被取代。
-    pub(crate) async fn with_peripheral<P, R>(
+    pub async fn with_peripheral<P, R>(
         &self,
         peripheral: &Mutex<Option<P>>,
         generation: u64,
@@ -51,8 +47,9 @@ impl Coordinator {
         self.with_current(generation, || callback(&mut peripheral))
     }
 
-    #[cfg(test)]
-    pub(crate) fn locked_during_callback(&self) -> bool {
+    /// Test probe: used by this crate's tests and by the Tauri app's BLE tests.
+    #[doc(hidden)]
+    pub fn locked_during_callback(&self) -> bool {
         matches!(
             self.generation.try_lock(),
             Err(std::sync::TryLockError::WouldBlock)
@@ -61,7 +58,7 @@ impl Coordinator {
 }
 
 // 傳輸內部若有多個 await，仍須在其間檢查 current，且保證 scan 的收尾。
-pub(crate) trait Connector: Sync {
+pub trait Connector: Sync {
     type Adapter: Send + Sync;
     type Peripheral: Clone + Send + Sync;
     fn adapter(
@@ -110,7 +107,7 @@ fn owned_result<T>(
     }
 }
 
-pub(crate) async fn establish<C: Connector>(
+pub async fn establish<C: Connector>(
     coordinator: &Coordinator,
     peripheral: &Mutex<Option<C::Peripheral>>,
     backend: &C,
@@ -161,7 +158,7 @@ pub(crate) async fn establish<C: Connector>(
     Ok(name)
 }
 
-pub(crate) async fn disconnect<C: Connector>(
+pub async fn disconnect<C: Connector>(
     coordinator: &Coordinator,
     peripheral: &Mutex<Option<C::Peripheral>>,
     backend: &C,

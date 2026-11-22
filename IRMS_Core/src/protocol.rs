@@ -35,14 +35,14 @@ const ERROR_PREFIX: &str = "ERR:";
 /// Order matters: longer TR/SR/KR must be checked before T:/S:/K:, or "T:" would match inside "TR:".
 const FIELD_PREFIXES: [&str; 6] = ["TR:", "SR:", "KR:", "T:", "S:", "K:"];
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
 pub struct AccelVector {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawAngles {
     pub thigh: f64,
@@ -210,8 +210,10 @@ mod tests {
     // 共用 fixture 驗證兩端相同的欄位數、空值與截斷處理。
     #[test]
     fn shared_vector_packet_contract() {
-        let cases: serde_json::Value =
-            serde_json::from_str(include_str!("../../fixtures/vector-packets.json")).unwrap();
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../IRMS_App_Tauri/fixtures/vector-packets.json"
+        ))
+        .unwrap();
         for case in cases.as_array().unwrap() {
             let (raw, _, truncated) = angles(&parse_angle_packet(case["packet"].as_str().unwrap()));
             assert_eq!(
@@ -237,8 +239,10 @@ mod tests {
     // T:/S: 之外的欄位組合都不同。src/shared/protocol.contract.test.ts 讀同一份 JSON。
     #[test]
     fn angle_packet_contract() {
-        let cases: serde_json::Value =
-            serde_json::from_str(include_str!("../../fixtures/angle-packets.json")).unwrap();
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../IRMS_App_Tauri/fixtures/angle-packets.json"
+        ))
+        .unwrap();
         for case in cases.as_array().unwrap() {
             let name = case["name"].as_str().unwrap();
             let packet = case["packet"].as_str().unwrap();
