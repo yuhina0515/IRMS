@@ -442,6 +442,7 @@ export component SettingsView inherits VerticalLayout {
                         spacing: 6px; alignment: start;
                         Btn { text: App.module-busy ? "處理中…" : "檢查更新"; enabled: !App.module-busy; clicked => { App.module-check(); } }
                         Btn { text: "全部還原為內建"; enabled: !App.module-busy; clicked => { App.module-reset(); } }
+                        Btn { text: App.auto-modules ? "自動更新模組:開" : "自動更新模組:關"; active: App.auto-modules; clicked => { App.auto-modules = !App.auto-modules; } }
                     }
                     if App.tips.length > 0: Text { text: "· " + App.tips[0]; font-size: 12px; color: Theme.dim; overflow: elide; }
                     if App.tips.length > 1: Text { text: "· " + App.tips[1]; font-size: 12px; color: Theme.dim; overflow: elide; }

@@ -760,6 +760,7 @@ fn main() -> Result<(), slint::PlatformError> {
         module_ui::Modules::new(
             irms_core::modules::Registry::new(root, env!("CARGO_PKG_VERSION")),
             builtin_tips,
+            updates_allowed,
         )
     };
     module_ui::wire(&ui, modules.clone(), runtime.handle().clone());
@@ -781,6 +782,7 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     app.set_auto_update(saved.auto_update);
+    app.set_auto_modules(saved.auto_modules);
     {
         let firmware = firmware.clone();
         let sim = sim.clone();
@@ -1042,6 +1044,11 @@ fn main() -> Result<(), slint::PlatformError> {
             updater.tick(
                 &update_rt,
                 app.get_auto_update(),
+                update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
+            );
+            modules.tick(
+                &update_rt,
+                app.get_auto_modules(),
                 update_idle(&ui, &s) && !firmware.active() && !share_hosting(&sharing),
             );
             app.set_firmware_can_install(
@@ -1862,6 +1869,7 @@ fn preference_snapshot(ui: &MainWindow) -> preferences::Preferences {
         action_id: (!id.is_empty()).then(|| id.to_string()),
         telemetry_on: app.get_telemetry_on(),
         auto_update: app.get_auto_update(),
+        auto_modules: app.get_auto_modules(),
         ..preferences::Preferences::default()
     }
 }
@@ -1904,6 +1912,7 @@ fn reset_preferences(ui: &MainWindow, s: &mut Sim) -> Result<(), String> {
         // Resetting display preferences must not silently change the data-sharing choice.
         telemetry_on: app.get_telemetry_on(),
         auto_update: app.get_auto_update(),
+        auto_modules: app.get_auto_modules(),
         ..preferences::Preferences::default()
     };
     if let Some(preferences) = s.preferences.as_mut() {

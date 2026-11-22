@@ -396,6 +396,9 @@ pub struct ActiveState {
     pub disabled: bool,
     /// Set when the active version failed verification and was replaced; cleared by the next install.
     pub last_error: Option<String>,
+    /// The version the owner rolled back from. It is still offered, but never installed
+    /// automatically; an offer newer than it clears the mark. Cleared by any install and by a reset.
+    pub rolled_back_from: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -407,6 +410,8 @@ pub enum Status {
     /// Reserved for packs that apply on the next launch (phase 2 logic modules); content packs apply at once.
     Pending,
     Disabled,
+    /// The offered version is the one the owner rolled back from: listed, but not installed automatically.
+    RolledBackFrom,
     /// The installed version failed verification and was rolled back (or dropped).
     RolledBack,
     NeedsNewerApp,
@@ -420,6 +425,7 @@ impl Status {
             Status::UpdateAvailable => "有更新",
             Status::Pending => "待套用",
             Status::Disabled => "已停用",
+            Status::RolledBackFrom => "已退回此版",
             Status::RolledBack => "驗證失敗(已退回)",
             Status::NeedsNewerApp => "需要較新程式",
         }
@@ -730,6 +736,7 @@ impl Registry {
         state.previous = old_active.or(state.previous.clone());
         state.version = Some(entry.version.clone());
         state.last_error = None;
+        state.rolled_back_from = None;
         if let Err(e) = self.save_state(&entry.id, &state) {
             let _ = std::fs::remove_dir_all(&target);
             return Err(e);
@@ -766,6 +773,7 @@ impl Registry {
         self.load_version(id, &prev)
             .map_err(|e| format!("上一版也無法通過驗證: {}", e.message))?;
         let dropped = state.version.replace(prev.clone());
+        state.rolled_back_from = dropped.clone().filter(|d| *d != prev);
         state.previous = None;
         state.last_error = None;
         self.save_state(id, &state)?;
@@ -777,12 +785,23 @@ impl Registry {
         Ok(prev)
     }
 
-    /// Removes every installed pack so only built-in content remains.
-    pub fn reset_all(&self) -> Result<(), String> {
+    /// Removes every installed pack so only built-in content remains. Like a rollback, it holds back
+    /// the versions `offered` right now: they stay listed, but the automatic updater skips them until
+    /// a newer version appears (a manual update still works).
+    pub fn reset_all(&self, offered: &[NativeEntry]) -> Result<(), String> {
         for (id, _) in KNOWN_PACKS {
             if let Some(dir) = self.pack_dir(id) {
                 if dir.exists() {
                     std::fs::remove_dir_all(&dir).map_err(|e| format!("無法清除 {id}: {e}"))?;
+                }
+                if let Some(offer) = offered.iter().find(|e| e.id == id) {
+                    self.save_state(
+                        id,
+                        &ActiveState {
+                            rolled_back_from: Some(offer.version.clone()),
+                            ..ActiveState::default()
+                        },
+                    )?;
                 }
             }
         }
@@ -817,12 +836,15 @@ impl Registry {
             .as_deref()
             .and_then(|v| self.load_version(id, v).err())
             .is_some_and(|e| e.incompatible);
+        let held = usable && offer.is_some_and(|o| Self::is_held(&state, &o.version));
         let status = if state.last_error.is_some() {
             Status::RolledBack
         } else if state.disabled && state.version.is_some() {
             Status::Disabled
         } else if installed_too_new || blocked {
             Status::NeedsNewerApp
+        } else if held {
+            Status::RolledBackFrom
         } else if usable {
             Status::UpdateAvailable
         } else if state.version.is_some() {
@@ -842,6 +864,65 @@ impl Registry {
             can_rollback: state.previous.is_some(),
             last_error: state.last_error,
         }
+    }
+
+    /// True when `offered` is not newer than the version the owner rolled back from.
+    fn is_held(state: &ActiveState, offered: &str) -> bool {
+        match (
+            state
+                .rolled_back_from
+                .as_deref()
+                .map(semver::Version::parse),
+            semver::Version::parse(offered),
+        ) {
+            (Some(Ok(x)), Ok(o)) => o <= x,
+            _ => false,
+        }
+    }
+
+    /// Ids of packs the automatic updater may install from `index`: a newer, compatible version of a
+    /// pack that is not disabled and not held back by an earlier rollback or reset. Read-only: the
+    /// hold is cleared only when a version actually installs.
+    pub fn auto_candidates(&self, index: &Index) -> Vec<String> {
+        let mut out = Vec::new();
+        for (id, _) in KNOWN_PACKS {
+            let Some(offer) = index.entries.iter().find(|e| e.id == id) else {
+                continue;
+            };
+            let state = self.state(id);
+            let newer = match state.version.as_deref() {
+                None => true,
+                Some(v) => matches!(
+                    (semver::Version::parse(v), semver::Version::parse(&offer.version)),
+                    (Ok(cur), Ok(new)) if new > cur
+                ),
+            };
+            if !newer
+                || state.disabled
+                || Self::is_held(&state, &offer.version)
+                || self.check_compatible(offer).is_err()
+            {
+                continue;
+            }
+            out.push(id.to_string());
+        }
+        out
+    }
+
+    /// The automatic updater's install: refused unless the pack is *still* an automatic candidate
+    /// according to the current state on disk (a rollback, reset or manual change may have happened
+    /// since the candidate list was made).
+    pub fn install_auto(
+        &self,
+        index: &Index,
+        id: &str,
+        files: &[(String, Vec<u8>)],
+    ) -> Result<(), String> {
+        let verified = verify_index(&index.raw, &index.sig, &self.pubkey)?;
+        if !self.auto_candidates(&verified).iter().any(|c| c == id) {
+            return Err(format!("{id} 目前不符合自動更新條件,略過"));
+        }
+        self.install(index, id, files)
     }
 
     // ---- offline index cache ----
@@ -947,6 +1028,16 @@ pub async fn download_and_install(
     index: &Index,
     id: &str,
 ) -> Result<(), String> {
+    let files = download_package(registry, index, id).await?;
+    registry.install(index, id, &files)
+}
+
+/// Downloads every file of pack `id` from its official URL without installing anything.
+pub async fn download_package(
+    registry: &Registry,
+    index: &Index,
+    id: &str,
+) -> Result<Vec<(String, Vec<u8>)>, String> {
     let verified = verify_index(&index.raw, &index.sig, registry.pubkey())?;
     let entry = verified
         .entries
@@ -959,7 +1050,7 @@ pub async fn download_and_install(
         let data = get_bytes(&http, &format!("{}{}", entry.url, f.name), f.size).await?;
         files.push((f.name.clone(), data));
     }
-    registry.install(index, id, &files)
+    Ok(files)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1439,7 +1530,7 @@ mod tests {
     fn restore_built_in_removes_every_pack() {
         let env = Env::new("reset", "1.3.0");
         env.install("1.0.0", &tips_json(2)).unwrap();
-        env.reg.reset_all().unwrap();
+        env.reg.reset_all(&[]).unwrap();
         assert_eq!(env.reg.active_tips(), None);
         assert_eq!(env.reg.rows(&[])[0].status, Status::Builtin);
     }
@@ -1480,6 +1571,132 @@ mod tests {
     }
 
     #[test]
+    fn a_rolled_back_version_is_offered_but_not_installed_automatically() {
+        let env = Env::new("held", "1.3.0");
+        env.install("1.0.0", &tips_json(2)).unwrap();
+        env.install("1.1.0", &tips_json(3)).unwrap();
+        assert_eq!(env.reg.rollback(SESSION_TIPS_ID).unwrap(), "1.0.0");
+        assert_eq!(
+            env.reg.state(SESSION_TIPS_ID).rolled_back_from.as_deref(),
+            Some("1.1.0")
+        );
+        let (x, files_x) = pack("1.1.0", &tips_json(3));
+        let idx = signed(&env.kp, std::slice::from_ref(&x));
+        // Shown as available, marked, and the manual update button still works.
+        let rows = env.reg.rows(&idx.entries);
+        assert_eq!(rows[0].status, Status::RolledBackFrom);
+        assert!(rows[0].can_update);
+        assert_eq!(rows[0].available.as_deref(), Some("1.1.0"));
+        // The automatic path skips it, and the mark survives.
+        assert!(env.reg.auto_candidates(&idx).is_empty());
+        assert!(env.reg.state(SESSION_TIPS_ID).rolled_back_from.is_some());
+        // An explicit install of exactly that version is allowed and clears the mark.
+        env.install_entry(&x, &files_x).unwrap();
+        assert_eq!(env.reg.active_tips().unwrap().len(), 3);
+        assert_eq!(env.reg.state(SESSION_TIPS_ID).rolled_back_from, None);
+    }
+
+    #[test]
+    fn a_version_newer_than_the_rolled_back_one_updates_and_the_mark_clears_only_on_install() {
+        let env = Env::new("heldnewer", "1.3.0");
+        env.install("1.0.0", &tips_json(2)).unwrap();
+        env.install("1.1.0", &tips_json(3)).unwrap();
+        env.reg.rollback(SESSION_TIPS_ID).unwrap();
+        let (newer, files) = pack("1.2.0", &tips_json(4));
+        let idx = signed(&env.kp, std::slice::from_ref(&newer));
+        assert_eq!(env.reg.auto_candidates(&idx), vec![SESSION_TIPS_ID]);
+        assert_eq!(
+            env.reg.state(SESSION_TIPS_ID).rolled_back_from.as_deref(),
+            Some("1.1.0"),
+            "listing a candidate does not clear the mark"
+        );
+        assert_eq!(
+            env.reg.rows(&idx.entries)[0].status,
+            Status::UpdateAvailable
+        );
+        env.reg.install_auto(&idx, SESSION_TIPS_ID, &files).unwrap();
+        assert_eq!(env.reg.state(SESSION_TIPS_ID).rolled_back_from, None);
+    }
+
+    #[test]
+    fn the_automatic_install_rechecks_the_state_on_disk() {
+        let env = Env::new("stale", "1.3.0");
+        env.install("1.0.0", &tips_json(2)).unwrap();
+        let (x, files_x) = pack("1.1.0", &tips_json(3));
+        let idx = signed(&env.kp, std::slice::from_ref(&x));
+        // The candidate list was made while 1.1.0 looked installable ...
+        assert_eq!(env.reg.auto_candidates(&idx), vec![SESSION_TIPS_ID]);
+        // ... then the owner updated by hand and rolled back from it.
+        env.install_entry(&x, &files_x).unwrap();
+        env.reg.rollback(SESSION_TIPS_ID).unwrap();
+        assert!(env
+            .reg
+            .install_auto(&idx, SESSION_TIPS_ID, &files_x)
+            .is_err());
+        assert_eq!(
+            env.reg.state(SESSION_TIPS_ID).version.as_deref(),
+            Some("1.0.0")
+        );
+        assert!(env.reg.state(SESSION_TIPS_ID).rolled_back_from.is_some());
+        // Disabling or resetting afterwards also stops a stale candidate.
+        env.reg.reset_all(&idx.entries).unwrap();
+        assert!(env
+            .reg
+            .install_auto(&idx, SESSION_TIPS_ID, &files_x)
+            .is_err());
+        assert_eq!(env.reg.active_tips(), None);
+    }
+
+    #[test]
+    fn restore_built_in_holds_the_offered_versions_until_a_newer_one() {
+        let env = Env::new("heldreset", "1.3.0");
+        env.install("1.0.0", &tips_json(2)).unwrap();
+        env.install("1.1.0", &tips_json(3)).unwrap();
+        let (x, files_x) = pack("1.1.0", &tips_json(3));
+        let idx = signed(&env.kp, std::slice::from_ref(&x));
+        env.reg.reset_all(&idx.entries).unwrap();
+        assert_eq!(env.reg.active_tips(), None);
+        let rows = env.reg.rows(&idx.entries);
+        assert_eq!(rows[0].status, Status::RolledBackFrom);
+        assert_eq!(rows[0].installed, None);
+        assert!(rows[0].can_update, "manual update still works");
+        assert!(
+            env.reg.auto_candidates(&idx).is_empty(),
+            "no auto reinstall"
+        );
+        let (newer, _) = pack("1.2.0", &tips_json(4));
+        let idx2 = signed(&env.kp, std::slice::from_ref(&newer));
+        assert_eq!(env.reg.auto_candidates(&idx2), vec![SESSION_TIPS_ID]);
+        env.install_entry(&x, &files_x).unwrap();
+        assert_eq!(env.reg.active_tips().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn the_automatic_path_skips_disabled_current_and_incompatible_packs() {
+        let env = Env::new("autoskip", "1.3.0");
+        let (e1, _) = pack("1.0.0", &tips_json(2));
+        let idx1 = signed(&env.kp, std::slice::from_ref(&e1));
+        assert_eq!(
+            env.reg.auto_candidates(&idx1),
+            vec![SESSION_TIPS_ID],
+            "first install"
+        );
+        env.install("1.0.0", &tips_json(2)).unwrap();
+        assert!(env.reg.auto_candidates(&idx1).is_empty(), "already current");
+        let (mut e2, _) = pack("1.1.0", &tips_json(2));
+        let idx2 = signed(&env.kp, std::slice::from_ref(&e2));
+        env.reg.set_disabled(SESSION_TIPS_ID, true).unwrap();
+        assert!(env.reg.auto_candidates(&idx2).is_empty(), "disabled");
+        env.reg.set_disabled(SESSION_TIPS_ID, false).unwrap();
+        e2.min_app = Some("9.0.0".into());
+        let idx3 = signed(&env.kp, &[e2]);
+        assert!(
+            env.reg.auto_candidates(&idx3).is_empty(),
+            "needs a newer app"
+        );
+    }
+
+    #[test]
     fn a_registry_without_storage_never_fails() {
         let reg = Registry::new(None, "1.3.0");
         assert_eq!(reg.active_tips(), None);
@@ -1487,6 +1704,6 @@ mod tests {
             .install(&Index::default(), SESSION_TIPS_ID, &[])
             .is_err());
         assert_eq!(reg.rows(&[])[0].status, Status::Builtin);
-        assert!(reg.reset_all().is_ok());
+        assert!(reg.reset_all(&[]).is_ok());
     }
 }
