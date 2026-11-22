@@ -47,6 +47,7 @@ export const TWO_POINT_SPAN_MIN_DEG = 20
 export const HOLD_SEC = 1.5
 export const HOLD_MAX_SAMPLES = 10
 export const HOLD_SPREAD_MAX_DEG = 4
+export const HOLD_MAX_SAMPLE_GAP_MS = 250
 export const MIN_PEAK_DEG = 5
 export const REFERENCE_DRIFT_WARN_DEG = 10
 export const REFERENCE_DRIFT_FAIL_DEG = 20
@@ -175,7 +176,7 @@ export function heldPeakTimed(
   samples: TimedValue[],
   direction: 1 | -1 = 1
 ): { peak: number; spread: number; holdSec: number } | null {
-  if (samples.length < 3) return null
+  if (samples.length < 3 || samples.some((s, i) => !Number.isFinite(s.tMs) || !Number.isFinite(s.value) || (i > 0 && s.tMs <= samples[i - 1].tMs))) return null
   const dt = medianIntervalMs(samples)
   if (!(dt > 0)) return null
   const rate = 1000 / dt
@@ -186,6 +187,8 @@ export function heldPeakTimed(
     while (j < samples.length && samples[j].tMs - samples[i].tMs < HOLD_SEC * 1000) j++
     if (j >= samples.length) break // window would run past the end: not a full hold
     const w = samples.slice(i, j + 1)
+    // 斷流不可算入保持時間；後續連續區段仍可重新形成有效維持。
+    if (w.some((s, k) => k > 0 && s.tMs - w[k - 1].tMs > HOLD_MAX_SAMPLE_GAP_MS)) continue
     if (w.length < needed) continue
     const values = w.map((s) => s.value)
     const spread = Math.max(...values) - Math.min(...values)

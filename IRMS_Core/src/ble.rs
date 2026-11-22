@@ -117,6 +117,7 @@ impl Default for BleState {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ConnectionEvent {
+    generation: Option<u64>,
     connected: bool,
     device_name: Option<String>,
 }
@@ -365,6 +366,7 @@ fn spawn_notification_listener<H: BleHost>(
                 app.emit(
                     "ble:connection",
                     ConnectionEvent {
+                        generation: None,
                         connected: false,
                         device_name: None,
                     },
@@ -399,6 +401,7 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
             app.emit(
                 "ble:connection",
                 ConnectionEvent {
+                    generation: Some(generation),
                     connected: true,
                     device_name: Some(name.to_string()),
                 },
@@ -479,11 +482,29 @@ async fn setup_connection(
 }
 
 pub async fn ble_disconnect<H: BleHost>(app: &H, state: &BleState) -> Result<(), String> {
+    disconnect(app, state, None).await
+}
+
+/// 只收尾指定世代，避免延遲的指令錯誤中斷新連線。
+pub async fn ble_disconnect_for_generation<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    generation: u64,
+) -> Result<(), String> {
+    disconnect(app, state, Some(generation)).await
+}
+
+async fn disconnect<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    expected: Option<u64>,
+) -> Result<(), String> {
     // Retire the listener first so its late stream-end cannot report a second "disconnected".
-    ble_lifecycle::disconnect(
+    ble_lifecycle::disconnect_matching(
         &state.coordinator,
         &state.peripheral,
         &NativeConnector,
+        expected,
         |result| {
             app.record(
                 "connection",
@@ -495,6 +516,7 @@ pub async fn ble_disconnect<H: BleHost>(app: &H, state: &BleState) -> Result<(),
             app.emit(
                 "ble:connection",
                 ConnectionEvent {
+                    generation: None,
                     connected: false,
                     device_name: None,
                 },
@@ -511,7 +533,29 @@ pub async fn ble_send_command<H: BleHost>(
     state: &BleState,
     command: String,
 ) -> Result<(), String> {
+    send_command(app, state, command, None).await
+}
+
+/// 原生回饋佇列必須攜帶產生指令時的連線世代，避免舊指令寫入新連線。
+pub async fn ble_send_command_for_generation<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    command: String,
+    generation: u64,
+) -> Result<(), String> {
+    send_command(app, state, command, Some(generation)).await
+}
+
+async fn send_command<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    command: String,
+    generation: Option<u64>,
+) -> Result<(), String> {
     let guard = state.peripheral.lock().await;
+    if let Some(generation) = generation {
+        state.coordinator.check(generation)?;
+    }
     app.record(
         "ble_command",
         json!({ "command": command, "connected": guard.is_some() }),

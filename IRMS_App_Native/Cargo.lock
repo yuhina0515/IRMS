@@ -2277,6 +2277,7 @@ dependencies = [
  "slint-build",
  "tauri-winres",
  "tokio",
+ "windows 0.61.3",
 ]
 
 [[package]]

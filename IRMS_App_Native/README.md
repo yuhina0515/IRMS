@@ -9,6 +9,11 @@ passes `--real-ble`. Session data stays in
 `%LOCALAPPDATA%\irms-native-prototype\irms.sqlite`; Tauri data is not migrated.
 Software rendering is the default; developers can override `SLINT_BACKEND`.
 
+Development source after beta.1 includes ordered BLE session feedback, temporary
+alarm mute and Windows system speech (toggle in Settings / Display, or launch with
+`--no-voice`). Physical device output and acoustic speech acceptance remain pending.
+Published beta.1 assets do not include these later development changes.
+
 ## Build and package
 
 Prerequisites: Rust MSVC toolchain, Visual Studio C++ build tools, Windows SDK,

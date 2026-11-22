@@ -14,9 +14,17 @@ pub struct Coordinator {
 impl Coordinator {
     // 在第一個 await 之前預約世代；新請求或斷線意圖立即退休舊所有權。
     pub fn begin(&self) -> u64 {
+        self.begin_matching(None).expect("unconditional generation")
+    }
+
+    /// 錯誤收尾只能退休自己擁有的連線，檢查與遞增必須在同一把鎖內。
+    pub fn begin_matching(&self, expected: Option<u64>) -> Option<u64> {
         let mut generation = self.generation.lock().unwrap_or_else(|e| e.into_inner());
+        if expected.is_some_and(|expected| *generation != expected) {
+            return None;
+        }
         *generation += 1;
-        *generation
+        Some(*generation)
     }
 
     // callback 不得 await 或重入本鎖；雙鎖次序為 peripheral -> epoch。
@@ -164,14 +172,34 @@ pub async fn disconnect<C: Connector>(
     backend: &C,
     publish: impl FnOnce(&Result<(), String>) + Send,
 ) -> Result<(), String> {
-    let generation = coordinator.begin();
+    disconnect_matching(coordinator, peripheral, backend, None, publish).await
+}
+
+/// 供背景指令失敗使用的世代限定收尾，舊工作不可拆除後來建立的連線。
+pub async fn disconnect_matching<C: Connector>(
+    coordinator: &Coordinator,
+    peripheral: &Mutex<Option<C::Peripheral>>,
+    backend: &C,
+    expected: Option<u64>,
+    publish: impl FnOnce(&Result<(), String>) + Send,
+) -> Result<(), String> {
+    let Some(generation) = coordinator.begin_matching(expected) else {
+        return Ok(());
+    };
     let mut slot = peripheral.lock().await;
     let Some(old) = coordinator.with_current(generation, || slot.take()) else {
         return Ok(());
     };
     // 持有 peripheral 直到 OS 收尾完成，新嘗試不能提早使用同一裝置。
     let result = match old {
-        Some(old) => backend.disconnect(&old).await,
+        Some(old) => {
+            let result = backend.disconnect(&old).await;
+            // 仍持有 peripheral 鎖；保留失敗的實體 handle，讓重試或新連線先完成清理。
+            if result.is_err() {
+                *slot = Some(old);
+            }
+            result
+        }
         None => Ok(()),
     };
     let _ = coordinator.with_current(generation, || publish(&result));
@@ -181,6 +209,49 @@ pub async fn disconnect<C: Connector>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn old_feedback_cleanup_cannot_retire_a_new_connection() {
+        let coordinator = Coordinator::default();
+        let old = coordinator.begin();
+        let current = coordinator.begin();
+        let slot = Mutex::new(Some(7));
+        let events = Events::default();
+        let backend = Fake::new(1, None, &[], events.clone());
+        disconnect_matching(&coordinator, &slot, &*backend, Some(old), |_| {
+            panic!("old cleanup published")
+        })
+        .await
+        .unwrap();
+        coordinator.check(current).unwrap();
+        assert_eq!(*slot.lock().await, Some(7));
+        assert!(events.lock().unwrap().is_empty());
+    }
+    #[tokio::test]
+    async fn failed_disconnect_preserves_handle_for_a_real_retry() {
+        let coordinator = Coordinator::default();
+        coordinator.begin();
+        let slot = Mutex::new(Some(7));
+        let events = Events::default();
+        let failing = Fake::new(1, None, &["disconnect"], events.clone());
+        assert!(disconnect(&coordinator, &slot, &*failing, |_| {})
+            .await
+            .is_err());
+        assert_eq!(*slot.lock().await, Some(7));
+        let succeeding = Fake::new(1, None, &[], events.clone());
+        disconnect(&coordinator, &slot, &*succeeding, |_| {})
+            .await
+            .unwrap();
+        assert!(slot.lock().await.is_none());
+        assert_eq!(
+            events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|e| e.ends_with("disconnect-target:7"))
+                .count(),
+            2
+        );
+    }
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex as RecordMutex};
     use tokio::sync::{Notify, Semaphore};

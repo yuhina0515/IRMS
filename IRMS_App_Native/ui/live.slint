@@ -2,6 +2,9 @@
 import { Theme, Btn, Card, Chip, PageHead, App } from "theme.slint";
 
 export global Live {
+    in property <bool> alarm-active;
+    in property <bool> alarm-silenced;
+    callback silence-alarm();
     in property <string> coach-title;
     in property <string> coach-sub;
     in property <string> coach-right;
@@ -226,13 +229,17 @@ export component LiveView inherits VerticalLayout {
                 Text { text: Live.time-text; font-size: 26px; font-weight: 700; color: Theme.ink; }
             }
             Text { text: Live.stats; font-size: 12px; color: Theme.dim; vertical-alignment: center; horizontal-stretch: 1; }
+            if Live.alarm-active || Live.alarm-silenced: VerticalLayout {
+                alignment: center;
+                Btn { text: Live.alarm-silenced ? "已暫停警報" : "靜音 30 秒"; enabled: Live.alarm-active; clicked => { Live.silence-alarm(); } }
+            }
             VerticalLayout {
                 alignment: center;
                 Btn {
                     // v3 rule: a session cannot start until the device is connected and calibrated.
                     text: App.save-pending ? "重試儲存" : Live.running ? "結束療程" : !root.live ? "請先連線裝置" : !App.calibrated ? "請先完成校準" : "開始療程";
                     primary: true; min-width: 160px; min-height: 48px;
-                    enabled: App.save-pending || Live.running || (root.live && App.calibrated && App.actions.length > 0);
+                    enabled: !App.closing && !App.disconnecting && (App.save-pending || Live.running || (root.live && App.valid-angle && App.calibrated && App.actions.length > 0));
                     clicked => { Live.toggle-run(); }
                 }
             }

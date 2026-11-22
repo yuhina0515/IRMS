@@ -236,7 +236,7 @@ export component SettingsView inherits VerticalLayout {
                     spacing: 16px;
                     Setting {
                         title: "裝置";
-                        sub: App.conn == 2 ? "IRMS-Sim (模擬裝置) · 已連線" : App.conn == 1 ? "連線中…" : "未連線";
+                        sub: App.conn == 2 ? App.device-name + " · 已連線" : App.conn == 1 ? "連線中…" : "未連線";
                         VerticalLayout { alignment: center; Btn { text: App.conn == 2 ? "中斷連線" : "連線裝置"; primary: App.conn == 0; enabled: App.conn != 1; clicked => { App.request-connect(); } } }
                     }
                     Text { text: "連線只代表收得到資料;角度是否可信取決於校準。"; font-size: 13px; color: Theme.dim; }
@@ -258,6 +258,10 @@ export component SettingsView inherits VerticalLayout {
                 }
                 if root.tab == 2: VerticalLayout {
                     spacing: 16px;
+                    Setting {
+                        title: "語音提示"; sub: App.voice-status;
+                        VerticalLayout { alignment: center; Btn { text: App.voice-enabled ? "已開啟" : "已關閉"; active: App.voice-enabled; clicked => { App.voice-enabled = !App.voice-enabled; } } }
+                    }
                     Setting {
                         title: "外觀";
                         sub: "柔和陪伴為 2026-11-16 選定的風格;其餘兩種保留供比較。";
@@ -290,7 +294,7 @@ export component SettingsView inherits VerticalLayout {
                 if root.tab == 3: VerticalLayout {
                     spacing: 16px;
                     Setting { title: "軟體版本"; sub: "IRMS v" + App.release-version + " · 原生測試版 · 尚未提供自動更新"; VerticalLayout { alignment: center; Btn { text: "檢查更新"; enabled: false; } } }
-                    Setting { title: "韌體"; sub: App.conn == 2 ? "模擬裝置沒有韌體" : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
+                    Setting { title: "韌體"; sub: App.conn == 2 ? (App.device-mode ? "真機韌體更新尚未移植" : "模擬裝置沒有韌體") : "請先連線裝置"; VerticalLayout { alignment: center; Btn { text: "更新韌體"; enabled: false; } } }
                 }
                 if root.tab == 4: VerticalLayout {
                     spacing: 16px;
