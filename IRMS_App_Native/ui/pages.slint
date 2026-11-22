@@ -172,25 +172,55 @@ export component ToolsView inherits VerticalLayout {
             }
             Rectangle { height: 1px; background: Theme.border; }
             if root.tab == 0: VerticalLayout {
-                spacing: 12px; alignment: start; padding-left: 8px;
+                spacing: 10px; alignment: start; padding-left: 8px;
                 Text { text: "舒適角度:在此之內不痛或只有輕微疼痛。極限範圍:很痛但還能到達的角度(選填)。每個人都不一樣,所以沒有預設值。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
                 HorizontalLayout {
                     spacing: 14px; alignment: start;
-                    Text { text: App.conn == 2 ? App.angle-text : "—"; font-size: 48px; font-weight: 700; color: Theme.ink; }
-                    Text { text: App.conn == 2 ? "即時膝角" : "尚無即時膝角(請先連線裝置)"; font-size: 14px; color: Theme.dim; vertical-alignment: center; }
+                    Text { text: (App.conn == 2 && App.valid-angle) ? App.angle-text : "—"; font-size: 44px; font-weight: 700; color: Theme.ink; }
+                    Text { text: (App.conn == 2 && App.valid-angle) ? "目前膝關節角度" : "尚無即時膝角(請先連線裝置)"; font-size: 14px; color: Theme.dim; vertical-alignment: center; }
+                    if App.range-peak >= 0 && App.range-step < 2: Text { text: "本次最大 " + App.range-peak + "°"; font-size: 14px; color: Theme.dim; vertical-alignment: center; }
                 }
-                Text { text: "步驟 1:慢慢彎曲膝蓋。開始感到疼痛或拉筋的感覺時,停住並按下「記錄舒適角度」。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
-                HorizontalLayout {
-                    spacing: 10px; alignment: start;
-                    Btn { text: "記錄舒適角度"; primary: true; enabled: !App.session-locked && App.valid-angle && App.angle >= 0 && App.conn == 2; clicked => { App.range-changed(round(App.angle), -1); } }
-                    Btn { text: "記錄極限範圍 (選填)"; enabled: !App.session-locked && App.valid-angle && App.conn == 2 && App.comfort >= 0 && App.angle >= App.comfort; clicked => { App.range-changed(App.comfort, round(App.angle)); } }
-                    Btn { text: "清除"; quiet: true; ink: Theme.danger; enabled: !App.session-locked && App.comfort >= 0; clicked => { App.range-changed(-1, -1); } }
+                if App.session-locked: Text { text: "療程進行中無法量測或變更角度範圍,請先結束療程。"; font-size: 14px; color: Theme.warn; wrap: word-wrap; }
+                if !App.session-locked && App.range-step == 0: VerticalLayout {
+                    spacing: 10px;
+                    Text { text: "步驟 1:慢慢彎曲膝蓋。開始感到疼痛或拉筋的感覺時,停住並按下「記錄舒適角度」。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                    HorizontalLayout { alignment: start; Btn { text: "記錄舒適角度"; primary: true; enabled: (App.conn == 2 && App.valid-angle); clicked => { App.range-notice = ""; App.range-record-comfort(); } } }
                 }
+                if !App.session-locked && App.range-step == 1: VerticalLayout {
+                    spacing: 10px;
+                    Text { text: "已記錄舒適角度 " + App.range-edit-comfort + "°。步驟 2(選填):在安全的前提下繼續慢慢彎,到「很痛但還能到達」的角度時按「記錄極限範圍」。不想設定可以略過。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                    HorizontalLayout {
+                        spacing: 10px; alignment: start;
+                        Btn { text: "記錄極限範圍"; primary: true; enabled: (App.conn == 2 && App.valid-angle); clicked => { App.range-record-limit(); } }
+                        Btn { text: "略過"; clicked => { App.range-skip-limit(); } }
+                        Btn { text: "重來"; quiet: true; ink: Theme.danger; clicked => { App.range-restart(); } }
+                    }
+                }
+                if !App.session-locked && App.range-step == 2: VerticalLayout {
+                    spacing: 10px;
+                    Text { text: "步驟 3:確認數值後儲存。之後的療程會以這筆紀錄提示舒適角度與極限範圍。"; font-size: 14px; font-weight: 700; color: Theme.ink; wrap: word-wrap; }
+                    HorizontalLayout {
+                        spacing: 10px; alignment: start;
+                        VerticalLayout { spacing: 4px; Text { text: "舒適角度 (°)"; font-size: 13px; color: Theme.dim; } Field { width: 110px; text <=> App.range-edit-comfort; } }
+                        VerticalLayout { spacing: 4px; Text { text: "極限範圍 (°,選填)"; font-size: 13px; color: Theme.dim; } Field { width: 130px; placeholder: "未設定"; text <=> App.range-edit-limit; } }
+                        VerticalLayout { spacing: 4px; Text { text: "備註"; font-size: 13px; color: Theme.dim; } Field { width: 260px; placeholder: "例如:術後第 3 週、早上量"; text <=> App.range-edit-note; } }
+                        VerticalLayout { alignment: end; Btn { text: "儲存紀錄"; primary: true; clicked => { App.range-save(); } } }
+                        VerticalLayout { alignment: end; Btn { text: "重來"; quiet: true; ink: Theme.danger; clicked => { App.range-restart(); } } }
+                    }
+                }
+                if App.range-error != "": Text { text: App.range-error; font-size: 14px; color: Theme.warn; wrap: word-wrap; }
+                if App.range-notice != "": Text { text: App.range-notice; font-size: 14px; color: Theme.good; wrap: word-wrap; }
                 Text { text: "量測紀錄"; font-size: 14px; font-weight: 700; color: Theme.ink; }
-                Text {
-                    text: App.comfort < 0 ? "還沒有紀錄。療程中不會有任何角度提示,直到你完成第一次量測。" : "舒適角度 " + App.comfort + "°" + (App.limit < 0 ? " · 極限範圍未量測" : " · 極限範圍 " + App.limit + "°");
-                    font-size: 14px; color: Theme.dim; wrap: word-wrap;
+                if App.range-total == 0: Text { text: "還沒有紀錄。療程中不會有任何角度提示,直到你完成第一次量測。"; font-size: 14px; color: Theme.dim; wrap: word-wrap; }
+                if App.range-total > 0: VerticalLayout {
+                    spacing: 0px;
+                    for r in App.range-rows: HorizontalLayout {
+                        spacing: 10px;
+                        Text { text: r.text + (r.current ? " · 目前生效" : ""); font-size: 14px; color: r.current ? Theme.ink : Theme.dim; vertical-alignment: center; wrap: word-wrap; horizontal-stretch: 1; }
+                        Btn { text: "刪除"; min-height: 28px; quiet: true; ink: Theme.danger; enabled: !App.session-locked; clicked => { App.request-delete-range(r.id); } }
+                    }
                 }
+                if App.range-total > App.range-rows.length: Text { text: "共 " + App.range-total + " 筆,顯示最近 " + App.range-rows.length + " 筆。"; font-size: 13px; color: Theme.dim; }
             }
             if root.tab == 1: VerticalLayout {
                 spacing: 12px; alignment: start; padding-left: 8px;
@@ -375,14 +405,16 @@ export component SettingsView inherits VerticalLayout {
                     Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
                     Setting { title: "即時分享"; sub: "內建,位於「工具」分頁;需要先開啟遙測。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "韌體更新"; sub: "檢查已內建;實機 OTA 尚未驗證,不提供更新按鈕。"; VerticalLayout { alignment: center; Chip { text: "僅檢查"; tone: Theme.warn; } } }
+                    Setting { title: "韌體更新"; sub: "內建,位於「設定 → 軟體與韌體」;Windows 上的 OTA 尚未在實機上看到完成。"; VerticalLayout { alignment: center; Chip { text: "實驗性"; tone: Theme.warn; } } }
+                    Setting { title: "使用提示"; sub: "內建,以下提示協助穿戴與校準。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
+                    for tip in App.tips: Text { text: "· " + tip; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;
                     if App.import-notice != "": Text { text: App.import-notice; font-size: 13px; color: Theme.good; wrap: word-wrap; }
                     Setting { title: "本機紀錄"; sub: "療程儲存在原生測試版的獨立資料庫,重新開啟後仍保留;不會讀寫 Tauri 版資料庫。"; VerticalLayout { alignment: center; Chip { text: "本機儲存"; tone: Theme.good; } } }
                     Setting { title: "遙測"; sub: App.telemetry-status; VerticalLayout { alignment: center; Btn { text: App.telemetry-on ? "關閉上傳" : "開啟上傳"; primary: !App.telemetry-on; clicked => { App.telemetry-set(!App.telemetry-on); } } } }
-                    Text { text: "開啟後會把原始藍牙封包、連線與療程開始/結束的事件傳給開發者的收集器(不含姓名或電腦名稱)。預設關閉,每次啟動都需要重新開啟;關閉會丟棄尚未傳出的資料。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    Text { text: "開啟後會把原始藍牙封包、連線與療程開始/結束的事件傳給開發者的收集器(不含姓名或電腦名稱)。預設關閉,選擇會被記住;關閉會丟棄尚未傳出的資料。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
                 }
             }
         }

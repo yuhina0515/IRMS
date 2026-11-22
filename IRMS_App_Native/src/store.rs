@@ -16,8 +16,8 @@ use irms_core::judge::{
 };
 use irms_core::session_analysis::{analyze_session, MetricPoint};
 use irms_core::types::{
-    AngleRangeInput, CalibrationProfileInput, CustomAction, MobilityRecordInput, MobilityRecordRow,
-    SensorReading, Session, SessionStartInput,
+    AngleRangeInput, AngleRangeRecord, CalibrationProfileInput, CustomAction, MobilityRecordInput,
+    MobilityRecordRow, SensorReading, Session, SessionStartInput,
 };
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -243,26 +243,23 @@ impl Store {
         )
     }
 
-    /// Records a new measurement (measurements are a history; the newest one is in force).
-    pub fn save_range(&self, comfort: f64, limit: Option<f64>) -> Result<(), String> {
-        angle_ranges_repo::add(
-            &self.conn,
-            &AngleRangeInput {
-                comfort_angle: comfort,
-                limit_angle: limit,
-                note: None,
-            },
-        )
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    /// Every angle-range measurement, newest first (the first one is in force).
+    pub fn ranges(&self) -> rusqlite::Result<Vec<AngleRangeRecord>> {
+        angle_ranges_repo::list(&self.conn)
     }
 
-    /// Removes every measurement, back to "not measured".
-    pub fn clear_range(&self) -> Result<(), String> {
-        self.conn
-            .execute("DELETE FROM angle_range_records", [])
+    /// Records one finished measurement (measurements are a history; the newest one is in force).
+    pub fn save_range(&self, input: &AngleRangeInput) -> Result<(), String> {
+        self.allow_mutation()?;
+        angle_ranges_repo::add(&self.conn, input)
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    /// Deletes one measurement; the next newer-or-older record then becomes the one in force.
+    pub fn delete_range(&self, id: i64) -> Result<(), String> {
+        self.allow_mutation()?;
+        angle_ranges_repo::delete(&self.conn, id).map_err(|e| e.to_string())
     }
 
     /// One-time import of the Tauri app's records, on the first launch after the update. Only into a
@@ -579,6 +576,13 @@ fn parse_utc(iso: &str) -> Option<DateTime<Utc>> {
 
 fn parse_ms(iso: &str) -> Option<f64> {
     parse_utc(iso).map(|d| d.timestamp_millis() as f64)
+}
+
+/// A stored UTC timestamp in local time (`YYYY/MM/DD HH:MM`), or the raw text if it does not parse.
+pub fn local_time(iso: &str) -> String {
+    parse_utc(iso)
+        .map(|d| d.with_timezone(&Local).format("%Y/%m/%d %H:%M").to_string())
+        .unwrap_or_else(|| iso.to_string())
 }
 
 /// Start time in local time for the history list.

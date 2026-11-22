@@ -93,6 +93,7 @@ export component PageHead inherits HorizontalLayout {
 
 export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
 export struct ViewerItem { id: string, name: string }
+export struct RangeRow { id: string, text: string, current: bool }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
 // Simulated app state shared by all screens (phase 2: no real device or database behind it).
@@ -257,6 +258,26 @@ export global App {
     callback request-review(int);
     callback export-session(int);
     in-out property <string> export-notice;
-    // the personal comfort / limit angles changed in Tools: store them
-    callback range-changed(int, int);
+    // personal angle-range measurement in Tools (range_ui.rs, port of the angle-range module)
+    in-out property <int> range-step: 0;        // 0 comfort 1 limit 2 review
+    in-out property <string> range-edit-comfort;
+    in-out property <string> range-edit-limit;
+    in-out property <string> range-edit-note;
+    in property <int> range-peak: -1;           // highest knee angle while measuring, -1 = none
+    in property <string> range-error;
+    in-out property <string> range-notice;
+    in property <[RangeRow]> range-rows;        // newest first, at most six
+    in property <int> range-total;
+    callback range-record-comfort();
+    callback range-record-limit();
+    callback range-skip-limit();
+    callback range-restart();
+    callback range-save();
+    callback request-delete-range(string);
+    // built-in usage tips (port of the session-tips module)
+    out property <[string]> tips: [
+        "感測器請貼在大腿與小腿外側、盡量與腿平行;衣物墊高會讓角度偏差,重新跑校準精靈可修正。",
+        "校準「膝蓋彎曲」時大腿保持不動,只把腳跟往後往上勾,幅度越大屈曲軸越準。",
+        "校準「髖屈曲」需至少把大腿抬高 20°,建議抬到 40–60° 並停住等待捕捉。",
+    ];
 }

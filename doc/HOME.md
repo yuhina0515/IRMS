@@ -20,6 +20,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-22 原生版模組全數內建** · [[log_20261122_native_builtin_modules_complete]]: IRMS-Modules 三個模組都已內建(D2)。角度範圍測量補齊模組流程(舒適 → 極限或略過 → 確認與備註 → 一次量測一筆)、最近 6 筆歷史含趨勢與逐筆刪除(修正舊版一次量測存兩筆、「清除」刪光全部);使用提示列在設定 → 模組。51 native 測試通過,未發版、未實機。
 - **2026-11-18 文件校準** · [[log_20261118_doc_validity_audit]] · [[PROJECT_STATUS]] 頂部「文件校準:現況總表」: 逐檔核對版本與狀態。出貨線 Tauri `v1.2.0-beta.25`、原生線 `v1.3.0-beta.11` 已發布;PR #3/#4/#6 已合併進 `main`,#7、#9 到 #12 為草稿;實測 722 前端 / 195 core / 47 native 測試、DB `user_version = 10`;11-10 起「全無實機驗證」的說法已更正(原生線 11-17 有實機證據)。
 - **2026-11-17 原生版 vs Tauri 功能對照(Phase 7)** · [[2026-11-17-native-vs-tauri-parity-checklist]]: 已對等項目、由決策造成的差異(i18n、模組、3D 腿)與真缺口(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式);同日補上連線中斷後的自動重連([[log_20261117_native_connect_retry_and_ota]])與 `cargo audit` 修正([[log_20261117_dependency_audit]])。
 - **2026-11-17 Native 連線穩定性 + OTA (beta.10/11)** · [[log_20261117_native_connect_retry_and_ota]]: 連線失敗自動重試 3 次、每個 Windows 藍牙步驟有逾時(連線/探索 20 s、訂閱 10 s)、連線中可「取消連線」、錯誤訊息會指引處置;原生版可用「更新韌體」(確認+進度+中止,韌體簽章清單驗證)。實機發現:Windows 佔用已配對的 IRMS_Device 時 App 找不到裝置或一直連線中,移除 Windows 配對後恢復。OTA 在 Windows 上仍從未在實機看過完成(9 月 Tauri 那次 6.8 分鐘沒有結果)。

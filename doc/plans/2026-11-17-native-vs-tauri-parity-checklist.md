@@ -31,7 +31,9 @@ else is read from code. Real-device evidence so far: connection, streaming, cali
 ## Differs by an owner decision (not a gap)
 
 - Languages: Tauri has zh-Hant and English; native is zh-Hant only (i18n deferred by the project ruling).
-- Modules: built into the program (D2), no downloaded scripts; the Tauri app has a runtime module panel.
+- Modules: built into the program (D2), no downloaded scripts; the Tauri app has a runtime module panel. Since
+  2026-11-22 all three IRMS-Modules (live-share, angle-range with its full flow and history, session-tips) are built in
+  ([[log_20261122_native_builtin_modules_complete]]).
 - 3D leg: native keeps the projected drawing (D3); Tauri has `Leg3D`.
 - Legacy Euler / "calibration B" wizards: deliberately not ported.
 - Android and iOS: paused.

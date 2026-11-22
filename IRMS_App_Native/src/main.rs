@@ -34,6 +34,7 @@ mod instance;
 mod outputs;
 mod pipeline;
 mod preferences;
+mod range_ui;
 mod share_ui;
 mod store;
 mod update_ui;
@@ -524,9 +525,7 @@ fn main() -> Result<(), slint::PlatformError> {
         app.set_active_action_id(action.id.to_string().into());
     }
     preferences.start_run(preference_snapshot(&ui), int("--action").is_none());
-    let range = store.latest_range().map_err(db_error)?;
-    app.set_comfort(range.comfort.map_or(-1, |v| v.round() as i32));
-    app.set_limit(range.limit.map_or(-1, |v| v.round() as i32));
+    range_ui::refresh(&app, &store).map_err(slint::PlatformError::Other)?;
     live.set_grid3d_path(grid3d_path().into());
 
     // `shown` follows the search box.
@@ -660,32 +659,7 @@ fn main() -> Result<(), slint::PlatformError> {
             ui.global::<App>().set_export_notice(notice.into());
         });
     }
-    {
-        let sim = sim.clone();
-        let ui_w = ui.as_weak();
-        app.on_range_changed(move |comfort, limit| {
-            let Some(ui) = ui_w.upgrade() else { return };
-            let app = ui.global::<App>();
-            let s = sim.borrow();
-            if s.store.active() {
-                return;
-            }
-            let result = if comfort < 0 {
-                s.store.clear_range()
-            } else {
-                let measured_limit = (limit >= 0).then(|| f64::from(limit));
-                s.store.save_range(f64::from(comfort), measured_limit)
-            };
-            match result {
-                Ok(()) => {
-                    app.set_comfort(comfort);
-                    app.set_limit(limit);
-                    app.set_storage_error("".into());
-                }
-                Err(e) => storage_error(&ui, e),
-            }
-        });
-    }
+    range_ui::wire(&ui, sim.clone());
     if precalibrate {
         // Same wizard logic as the window, on scripted movements: no faked profile.
         let mut s = sim.borrow_mut();
@@ -1325,6 +1299,7 @@ fn main() -> Result<(), slint::PlatformError> {
             };
             let frac = |v: f64| (v.clamp(0.0, RULER_MAX) / RULER_MAX) as f32;
             app.set_angle(angle as f32);
+            range_ui::observe(&app);
             app.set_angle_text(format!("{angle:.0}°").into());
             live.set_metric_label(metric_label.into());
             // Rounding first and adding 0.0 turns a negative zero into zero, so a resting leg never reads "-0".
@@ -2264,6 +2239,7 @@ mod tests {
             (Some(45.0), Some(1.0), Some(500))
         );
         action_ui::exercise_crud_and_confirmation_flow(&ui);
+        range_ui::exercise_flow(&ui);
 
         // 穿戴檢查：與校準一致時直接開始療程；位置不同時留在檢查畫面，由使用者決定。
         let profile = s.profile.clone().unwrap();

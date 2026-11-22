@@ -8,6 +8,7 @@ use std::rc::Rc;
 enum Pending {
     Action(i64),
     Session(i64),
+    Range(i64),
     Restore(u64),
     Preferences,
 }
@@ -552,6 +553,38 @@ pub fn wire(
     {
         let (sim, state) = (sim.clone(), state.clone());
         let weak = ui.as_weak();
+        app.on_request_delete_range(move |id| {
+            let Some(ui) = weak.upgrade() else { return };
+            if !entry_allowed(&ui, &sim.borrow()) {
+                return;
+            }
+            let app = ui.global::<App>();
+            use slint::Model;
+            let Some(row) = app.get_range_rows().iter().find(|row| row.id == id) else {
+                return;
+            };
+            let Ok(id) = id.parse::<i64>() else { return };
+            state.borrow_mut().pending = Some(Pending::Range(id));
+            app.set_confirmation_title("刪除這筆量測紀錄？".into());
+            app.set_confirmation_message(
+                format!(
+                    "{}{}將永久刪除。",
+                    row.text,
+                    if row.current {
+                        "(目前生效,刪除後改用前一筆)"
+                    } else {
+                        ""
+                    }
+                )
+                .into(),
+            );
+            app.set_confirmation_error("".into());
+            app.set_confirmation_open(true);
+        });
+    }
+    {
+        let (sim, state) = (sim.clone(), state.clone());
+        let weak = ui.as_weak();
         app.on_request_reset_preferences(move || {
             let Some(ui) = weak.upgrade() else { return };
             if !entry_allowed(&ui, &sim.borrow()) {
@@ -615,6 +648,7 @@ pub fn wire(
                     })
                 }
                 Some(Pending::Restore(_)) => Err("動作清單已變更，請取消後重新確認".into()),
+                Some(Pending::Range(id)) => crate::range_ui::delete(&ui, &s.store, *id),
                 Some(Pending::Preferences) => super::reset_preferences(&ui, &mut s),
                 None => Err("沒有待確認的操作".into()),
             };
