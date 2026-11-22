@@ -48,7 +48,7 @@ impl Cue {
             Self::Hyperextension => "膝蓋過度伸直，請稍微彎曲".into(),
             Self::ConnectionLost => "裝置已斷線，療程停止".into(),
             Self::MountShift => "感測器可能移位，療程結束後請重新校準".into(),
-            Self::MountShiftCorrected => "感測器移位，已自動修正".into(),
+            Self::MountShiftCorrected => "感測器移位，已自動修正，療程後請重設零位".into(),
         }
     }
 }

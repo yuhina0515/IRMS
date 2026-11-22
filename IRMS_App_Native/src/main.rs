@@ -328,6 +328,20 @@ fn project(x: f64, y: f64, z: f64) -> (f64, f64) {
     (150.0 + xr * 95.0 * depth, 250.0 - yr * 95.0 * depth)
 }
 
+/// Out-of-plane tilt of each calibrated segment, signed so that outward (away from the body) is
+/// positive on either leg: the raw roll reads positive outward on the left leg and negative on the
+/// right (`profile.roll_sign`, from `solve_profile`). 0 for a missing thigh frame.
+fn outward_rolls(p: &irms_core::calibration::CalibrationProfile, tv: Vec3, sv: Vec3) -> (f64, f64) {
+    let sign = |s: Option<i8>| f64::from(s.unwrap_or(1));
+    (
+        p.limbs
+            .thigh
+            .as_ref()
+            .map_or(0.0, |f| limb_angles(f, tv).roll * sign(p.roll_sign.thigh)),
+        limb_angles(&p.limbs.shin, sv).roll * sign(p.roll_sign.shin),
+    )
+}
+
 /// Direction of a segment pointing down the leg, in stage space (x forward, y up, z sideways), from its
 /// forward tilt (pitch about the hinge) and its out-of-plane tilt (roll). Gravity sensing gives these two
 /// angles per segment; the heading about the vertical is not observable and is drawn facing forward.
@@ -1392,10 +1406,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 limb3d_path(angle, thigh, s.last_thigh_roll, s.last_shin_roll).into(),
             );
             live.set_limb3d_note(
-                if s.profile.is_some() {
+                if let Some(p) = &s.profile {
+                    // Rounding then adding 0.0 turns a negative zero into zero ("-0°" on a still leg).
+                    let deg = |v: f64| format!("{}°", v.round() + 0.0);
                     format!(
-                        "3D 姿態 · 膝 {angle:.0}° · 大腿側向 {:.0}° · 小腿側向 {:.0}°",
-                        s.last_thigh_roll, s.last_shin_roll
+                        "3D 姿態 · 膝 {angle:.0}° · 大腿外展 {} · 小腿側向 {}",
+                        if p.limbs.thigh.is_some() { deg(s.last_thigh_roll) } else { "—".into() },
+                        deg(s.last_shin_roll)
                     )
                 } else {
                     "3D 姿態需要先完成校準(目前只有前後角度)".into()
@@ -1770,7 +1787,11 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
 /// (it keeps the current hinge) and removes the offset no sweep can show. `false` = could not correct
 /// (no profile, no observed axis, or a change too large to trust): the caller falls back to the
 /// recalibrate warning.
-fn correct_slip(s: &mut Sim, drift_deg: f64) -> bool {
+fn correct_slip(s: &mut Sim, reading: &irms_core::slip_monitor::SlipReading) -> bool {
+    // A narrow sweep fits its axis poorly: warn instead of silently "correcting" to a wrong axis.
+    if reading.span_deg < irms_core::calibration::REALIGN_MIN_SPAN_DEG {
+        return false;
+    }
     let Some(axis) = s.slip.observed_axis() else {
         return false;
     };
@@ -1784,8 +1805,28 @@ fn correct_slip(s: &mut Sim, drift_deg: f64) -> bool {
     let hinge = profile.limbs.shin.hinge;
     s.slip = SlipMonitor::new(Some(hinge));
     s.wizard = Wizard::new(s.profile.clone());
-    s.slip_corrected = Some(drift_deg);
+    s.slip_corrected = Some(reading.axis_drift_deg);
     true
+}
+
+/// After a session in which the shin was realigned, the corrected profile becomes a stored calibration
+/// with its own id (like a quick re-zero), so later session rows never carry a changed profile under
+/// the old calibration id and the correction survives a restart. On failure the correction stays in
+/// memory and the error is shown.
+fn store_slip_correction(s: &mut Sim) -> Result<(), String> {
+    if s.slip_corrected.is_none() {
+        return Ok(());
+    }
+    let Some(profile) = s.profile.as_mut() else {
+        return Ok(());
+    };
+    let now = chrono::Utc::now();
+    profile.id = wizard::new_calibration_id();
+    profile.created_at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
+    let profile = profile.clone();
+    s.store.apply_calibration(&profile, None)?;
+    s.wizard = Wizard::new(Some(profile));
+    Ok(())
 }
 
 fn storage_error(ui: &MainWindow, error: impl std::fmt::Display) {
@@ -2062,6 +2103,9 @@ fn finish_session_with_notice(
             outputs.saved(s.reps, s.voice_enabled);
         }
     }
+    if let Err(e) = store_slip_correction(s) {
+        storage_error(ui, format!("無法儲存自動修正後的校準:{e}"));
+    }
     let app = ui.global::<App>();
     app.set_save_pending(false);
     app.set_session_locked(false);
@@ -2133,13 +2177,7 @@ fn accept_sample(
     s.last_knee = angle;
     s.last_thigh = thigh;
     (s.last_thigh_roll, s.last_shin_roll) = match (&s.profile, vectors) {
-        (Some(p), Some((tv, sv))) => (
-            p.limbs
-                .thigh
-                .as_ref()
-                .map_or(0.0, |f| limb_angles(f, tv).roll),
-            limb_angles(&p.limbs.shin, sv).roll,
-        ),
+        (Some(p), Some((tv, sv))) => outward_rolls(p, tv, sv),
         _ => (0.0, 0.0),
     };
     let roll = raw.shin_roll - raw.thigh_roll;
@@ -2168,7 +2206,7 @@ fn accept_sample(
                 .saturating_duration_since(s.feedback_clock)
                 .as_secs_f64()
                 * 1000.0;
-            if correct_slip(s, reading.axis_drift_deg) {
+            if correct_slip(s, &reading) {
                 let effects = s.feedback.mount_shift_corrected(feedback_ms);
                 s.emit(effects);
             } else {
@@ -2274,7 +2312,7 @@ mod tests {
             let (hip, knee) = pipeline::pose(Script::Exercise, t, &cfg);
             let (tv, sv) = s.rig.gravity_abd(hip, knee, 0.0);
             if let Some(reading) = s.slip.push(t * 1000.0, Some(tv), Some(sv)) {
-                assert!(correct_slip(&mut s, reading.axis_drift_deg));
+                assert!(correct_slip(&mut s, &reading));
                 corrected_at = Some(t);
                 break;
             }
@@ -2296,6 +2334,22 @@ mod tests {
         // The monitor restarts on the corrected hinge and the quick re-zero wizard uses it too.
         assert_eq!(s.slip.observed_axis(), None);
         assert!(!s.mount_shift);
+        // At session end the correction becomes a stored calibration with its own id.
+        let old_id = calibrated.id.clone();
+        store_slip_correction(&mut s).unwrap();
+        let stored = s.store.active_profile().unwrap();
+        assert_ne!(stored.id, old_id);
+        assert_eq!(stored.limbs.shin.hinge, fixed.limbs.shin.hinge);
+
+        // A narrow sweep (limited range of motion) is never auto-corrected: warn instead.
+        let narrow = irms_core::slip_monitor::SlipReading {
+            axis_drift_deg: 25.0,
+            span_deg: 40.0,
+            planarity_deg: 1.0,
+        };
+        let before = s.profile.clone();
+        assert!(!correct_slip(&mut s, &narrow));
+        assert_eq!(s.profile, before);
     }
 
     /// Owner's list item 4: wearing position is not restricted because the calibration defines each
@@ -2368,8 +2422,18 @@ mod tests {
         // 20 deg hip abduction: the thigh reads about 20 deg of roll and the knee leaves the plane.
         let (k, tp, tr, sr) = pose(0.0, 30.0, 20.0);
         assert!((tr.abs() - 20.0).abs() < 2.0, "thigh roll {tr}");
-        let open = leg3d_points(k, tp, tr, sr);
-        assert!((open[1].2 - 0.25).abs() > 0.3, "knee moves sideways: {open:?}");
+        let _ = sr;
+        // Signed outward for the worn side, so abduction moves the knee away from the pelvis (+z),
+        // and the same raw tilt on a right-leg profile flips to keep that meaning.
+        let (tv, sv) = rig.gravity_abd(0.0, 30.0, 20.0);
+        let (out_thigh, out_shin) = outward_rolls(&p, tv, sv);
+        assert!(out_thigh > 18.0, "abduction reads outward: {out_thigh}");
+        let open = leg3d_points(k, tp, out_thigh, out_shin);
+        assert!(open[1].2 - 0.25 > 0.3, "knee moves outward: {open:?}");
+        let mut right = p.clone();
+        right.roll_sign.thigh = right.roll_sign.thigh.map(|s| -s);
+        right.roll_sign.shin = right.roll_sign.shin.map(|s| -s);
+        assert!((outward_rolls(&right, tv, sv).0 + out_thigh).abs() < 1e-9);
     }
 
     #[test]

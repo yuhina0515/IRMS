@@ -570,10 +570,10 @@ pub fn wire(
                 format!(
                     "{}{}將永久刪除。",
                     row.text,
-                    if row.current {
-                        "(目前生效,刪除後改用前一筆)"
-                    } else {
-                        ""
+                    match (row.current, app.get_range_total() > 1) {
+                        (true, true) => "(目前生效，刪除後改用前一筆)",
+                        (true, false) => "(目前生效，刪除後療程不再有角度提示)",
+                        _ => "",
                     }
                 )
                 .into(),

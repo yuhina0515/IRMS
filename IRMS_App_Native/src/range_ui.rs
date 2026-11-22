@@ -59,8 +59,9 @@ pub fn rows(records: &[AngleRangeRecord]) -> Vec<RangeRow> {
                 trend(Some(r.comfort_angle), prev.map(|p| p.comfort_angle)),
             );
             if let Some(note) = r.note.as_deref().filter(|n| !n.is_empty()) {
+                // Long notes would wrap and push the list past the card (no page scrolling).
                 text.push_str(" · ");
-                text.push_str(note);
+                text.push_str(&short_note(note));
             }
             RangeRow {
                 id: r.id.to_string().into(),
@@ -71,6 +72,17 @@ pub fn rows(records: &[AngleRangeRecord]) -> Vec<RangeRow> {
         .collect()
 }
 
+/// Notes are shown cut to [`NOTE_SHOWN`] characters in the list and the delete dialog.
+pub const NOTE_SHOWN: usize = 24;
+
+fn short_note(note: &str) -> String {
+    if note.chars().count() <= NOTE_SHOWN {
+        note.to_string()
+    } else {
+        format!("{}…", note.chars().take(NOTE_SHOWN).collect::<String>())
+    }
+}
+
 /// Checks the review form. Empty limit = not set; the note is trimmed and capped at 200 characters.
 pub fn parse_review(comfort: &str, limit: &str, note: &str) -> Result<AngleRangeInput, String> {
     let angle = |text: &str, name: &str| -> Result<Option<f64>, String> {
@@ -79,7 +91,9 @@ pub fn parse_review(comfort: &str, limit: &str, note: &str) -> Result<AngleRange
             return Ok(None);
         }
         match text.parse::<f64>() {
-            Ok(v) if v.is_finite() && (0.0..=180.0).contains(&v) => Ok(Some(v)),
+            // Whole degrees, like the module's measured values: the ruler, the sessions and the
+            // trend text then all use the same number.
+            Ok(v) if v.is_finite() && (0.0..=180.0).contains(&v) => Ok(Some(v.round())),
             _ => Err(format!("{name}必須是 0 到 180 之間的數字。")),
         }
     };
@@ -101,14 +115,20 @@ fn whole(v: f64) -> String {
 }
 
 /// The live knee angle when it can be recorded (connected, a real reading), rounded.
+/// A slightly hyperextended straight leg reads below zero; like the module it counts as 0.
 fn knee_now(app: &App) -> Option<i32> {
-    (app.get_conn() == 2 && app.get_valid_angle()).then(|| app.get_angle().round() as i32)
+    (app.get_conn() == 2 && app.get_valid_angle()).then(|| app.get_angle().max(0.0).round() as i32)
 }
 
 /// Called on every live tick: keeps "本次最大" while comfort or limit is being measured.
 pub fn observe(app: &App) {
     let step = app.get_range_step();
-    if step != STEP_COMFORT && step != STEP_LIMIT {
+    // Only while measuring on the Tools angle-range tab, never from a session or another page.
+    if (step != STEP_COMFORT && step != STEP_LIMIT)
+        || app.get_view() != 3
+        || app.get_tools_tab() != 0
+        || app.get_session_locked()
+    {
         return;
     }
     if let Some(k) = knee_now(app) {
@@ -215,13 +235,15 @@ pub fn wire(ui: &MainWindow, sim: Rc<RefCell<Sim>>) {
                 Ok(input) => input,
                 Err(e) => return app.set_range_error(e.into()),
             };
-            match s
-                .store
-                .save_range(&input)
-                .and_then(|()| refresh(&app, &s.store))
-            {
+            match s.store.save_range(&input) {
                 Ok(()) => {
                     restart(&app);
+                    // Saved already: a list refresh failure must not read as a failed save (a retry
+                    // would store the measurement twice).
+                    if let Err(e) = refresh(&app, &s.store) {
+                        app.set_range_error(format!("已儲存,但無法重新載入紀錄:{e}").into());
+                        return;
+                    }
                     app.set_range_notice(
                         format!(
                             "已儲存:舒適 {}°{}。之後的療程會使用這筆紀錄。",
@@ -271,6 +293,8 @@ pub fn exercise_flow(ui: &MainWindow) {
     app.set_wizard_open(false);
     app.set_editor_open(false);
     app.set_confirmation_open(false);
+    app.set_view(3);
+    app.set_tools_tab(0);
     refresh(&app, &sim.borrow().store).unwrap();
     restart(&app);
     assert_eq!((app.get_comfort(), app.get_range_total()), (-1, 0));
@@ -401,6 +425,18 @@ mod tests {
         );
         assert!(first.ends_with("· 術後第 3 週"), "{first}");
         assert!(out[1].text.contains("極限 未設定"));
+        let long = record(
+            1,
+            "2026-11-22T01:00:00.000Z",
+            90.0,
+            None,
+            Some(&"長".repeat(200)),
+        );
+        let shown = rows(&[long])[0].text.to_string();
+        assert!(
+            shown.ends_with(&format!("{}…", "長".repeat(NOTE_SHOWN))),
+            "{shown}"
+        );
         // The last listed row still compares against the (unlisted) older record.
         assert!(out[5].text.contains("(+2°)"));
     }

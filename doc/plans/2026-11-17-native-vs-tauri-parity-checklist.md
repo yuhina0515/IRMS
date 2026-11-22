@@ -14,7 +14,7 @@ else is read from code. Real-device evidence so far: connection, streaming, cali
 
 | Area | Tauri | Native |
 |---|---|---|
-| Live monitoring, guidance, hold timer, personal range | yes | yes (verified on a real device) |
+| Live monitoring, guidance, hold timer, personal range | yes | yes (verified on a real device; the angle-range measuring flow was rewritten 2026-11-22 and is not yet run on hardware) |
 | Calibration (unified) with leg choice, mobility and quick re-zero presets | yes | yes (verified on a real device) |
 | Pre-session wearing check, slip monitor | yes | yes (the wearing check ran on a real device and gave a re-zero verdict; the slip monitor was not observed) |
 | Prescriptions (create, edit, delete), search | yes | yes |
@@ -34,8 +34,8 @@ else is read from code. Real-device evidence so far: connection, streaming, cali
 - Modules: built into the program (D2), no downloaded scripts; the Tauri app has a runtime module panel. Since
   2026-11-22 all three IRMS-Modules (live-share, angle-range with its full flow and history, session-tips) are built in
   ([[log_20261122_native_builtin_modules_complete]]).
-- 3D leg: native keeps a projected drawing (D3); Tauri has `Leg3D`. Since 2026-11-22 the native drawing is a real 3D
-  pose (pitch + roll of both segments) and the native app also corrects a slipped shin strap in the session, which
+- 3D leg: native keeps a projected drawing (D3); Tauri has `Leg3D`. Since 2026-11-22 the native drawing is a 3D
+  pose from pitch + roll of both segments (no heading; simulator-checked) and the native app also corrects a slipped shin strap in the session, which
   the Tauri app does not ([[log_20261122_native_pose_slip_strategy]]).
 - Legacy Euler / "calibration B" wizards: deliberately not ported.
 - Android and iOS: paused.

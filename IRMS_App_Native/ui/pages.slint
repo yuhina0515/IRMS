@@ -217,7 +217,7 @@ export component ToolsView inherits VerticalLayout {
                     for r in App.range-rows: HorizontalLayout {
                         spacing: 10px;
                         Text { text: r.text + (r.current ? " · 目前生效" : ""); font-size: 14px; color: r.current ? Theme.ink : Theme.dim; vertical-alignment: center; wrap: word-wrap; horizontal-stretch: 1; }
-                        Btn { text: "刪除"; min-height: 28px; quiet: true; ink: Theme.danger; enabled: !App.session-locked; clicked => { App.request-delete-range(r.id); } }
+                        Btn { text: "刪除"; min-height: 28px; quiet: true; ink: Theme.danger; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.request-delete-range(r.id); } }
                     }
                 }
                 if App.range-total > App.range-rows.length: Text { text: "共 " + App.range-total + " 筆,顯示最近 " + App.range-rows.length + " 筆。"; font-size: 13px; color: Theme.dim; }
@@ -361,7 +361,7 @@ export component SettingsView inherits VerticalLayout {
                         HorizontalLayout {
                             spacing: 6px;
                             VerticalLayout { alignment: center; Btn { text: "2D 側面"; active: App.pose-view == 0; clicked => { App.pose-view = 0; } } }
-                            VerticalLayout { alignment: center; Btn { text: "立體投影"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
+                            VerticalLayout { alignment: center; Btn { text: "3D 姿態"; active: App.pose-view == 1; clicked => { App.pose-view = 1; } } }
                         }
                     }
                 }
