@@ -13,6 +13,7 @@ export global Live {
     in property <string> limb-path;
     in property <string> limb3d-path;
     in property <string> grid3d-path;
+    in property <string> limb3d-note;
     in property <string> knee-label;
     in property <float> knee-x: 110;
     in property <float> knee-y: 135;
@@ -150,7 +151,7 @@ export component LiveView inherits VerticalLayout {
                 padding-left: 18px; padding-right: 12px; spacing: 4px;
                 Text { text: "動作姿態"; font-size: 15px; font-weight: 700; color: Theme.ink; vertical-alignment: center; horizontal-stretch: 1; }
                 Btn { text: "2D 側面"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 0; clicked => { App.pose-view = 0; } }
-                Btn { text: "立體投影"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 1; clicked => { App.pose-view = 1; } }
+                Btn { text: "3D 姿態"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 1; clicked => { App.pose-view = 1; } }
                 Btn { text: "數值"; min-height: 34px; horizontal-stretch: 0; active: App.pose-view == 2; clicked => { App.pose-view = 2; } }
             }
             if !root.live: Text { text: "尚無即時資料"; font-size: 20px; font-weight: 700; color: Theme.dim; horizontal-alignment: center; vertical-alignment: center; }
@@ -171,7 +172,7 @@ export component LiveView inherits VerticalLayout {
                 Text { x: Live.knee-x * 1px + 20px; y: Live.knee-y * 1px - 26px; text: Live.knee-label; font-size: 15px; font-weight: 700; color: Theme.ink; }
                 Rectangle { x: 40px; y: 282px; width: 220px; height: 2px; background: Theme.border; }
             }
-            // G2 candidate: a projected drawing (three-quarter view on a ground grid), no 3D engine.
+            // 3D pose: both segments from pitch + roll (gravity sensing has no heading), drawn as a projection.
             if root.live && App.pose-view == 1: Rectangle {
                 x: (parent.width - 300px) / 2; y: 56px;
                 width: 300px; height: 300px;
@@ -186,7 +187,7 @@ export component LiveView inherits VerticalLayout {
                     stroke: Theme.accent; stroke-width: 14px;
                     stroke-line-cap: round; stroke-line-join: round; fill: transparent;
                 }
-                Text { x: 0; y: 284px; width: 300px; text: "投影示意 (G2 候選方案) · " + Live.knee-label; font-size: 12px; color: Theme.dim; horizontal-alignment: center; }
+                Text { x: 0; y: 284px; width: 300px; text: Live.limb3d-note; font-size: 12px; color: Theme.dim; horizontal-alignment: center; }
             }
             if root.live && App.pose-view == 2: VerticalLayout {
                 x: 24px; y: 70px; width: parent.width - 48px; spacing: 10px; alignment: start;

@@ -57,6 +57,17 @@ impl Rig {
         }
     }
 
+    /// Sensors strapped on at the given angles (degrees about the segment's z, then x, then y axis), to
+    /// test that the calibration does not depend on how the sensors are worn.
+    #[cfg(test)]
+    pub fn mounted(thigh: (f64, f64, f64), shin: (f64, f64, f64)) -> Self {
+        let m = |(z, x, y): (f64, f64, f64)| mul(mul(rot_z(z), rot_x(x)), rot_y(y));
+        Self {
+            mount_thigh: m(thigh),
+            mount_shin: m(shin),
+        }
+    }
+
     /// The shin sensor turns on the leg (strap slipped): `deg` about the segment's long axis.
     pub fn slip_shin(&mut self, deg: f64) {
         self.mount_shin = mul(self.mount_shin, rot_y(deg));

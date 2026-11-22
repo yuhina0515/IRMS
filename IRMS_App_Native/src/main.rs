@@ -216,6 +216,10 @@ struct Sim {
     alarm: bool,
     last_knee: f64,
     last_thigh: f64,
+    /// Out-of-plane tilt of each calibrated segment (thigh: hip abduction/adduction; shin: sideways
+    /// lean of the shin). 0 without a calibration.
+    last_thigh_roll: f64,
+    last_shin_roll: f64,
     // Frozen when the session row is created.
     cfg: Option<TriggerConfig>,
     session_started: Instant,
@@ -231,6 +235,8 @@ struct Sim {
     slip: SlipMonitor,
     /// The slip monitor reported that the shin sensor moved during this session.
     mount_shift: bool,
+    /// The shift was corrected automatically (axis drift in degrees, the last correction).
+    slip_corrected: Option<f64>,
     slip_injected: bool,
     session_s: f64,
     store: Store,
@@ -257,6 +263,8 @@ impl Sim {
             alarm: false,
             last_knee: 0.0,
             last_thigh: 0.0,
+            last_thigh_roll: 0.0,
+            last_shin_roll: 0.0,
             session_started: Instant::now(),
             cfg: None,
             rig: Rig::new(),
@@ -267,6 +275,7 @@ impl Sim {
             profile: None,
             slip: SlipMonitor::new(None),
             mount_shift: false,
+            slip_corrected: None,
             slip_injected: false,
             session_s: 0.0,
             store,
@@ -319,19 +328,49 @@ fn project(x: f64, y: f64, z: f64) -> (f64, f64) {
     (150.0 + xr * 95.0 * depth, 250.0 - yr * 95.0 * depth)
 }
 
-fn limb3d_path(knee_deg: f64, thigh_deg: f64) -> String {
-    let t = thigh_deg.to_radians();
-    let f = (thigh_deg - knee_deg).to_radians();
-    let hip = (0.0, 2.1);
-    let knee = (hip.0 + 1.05 * t.sin(), hip.1 - 1.05 * t.cos());
-    let ankle = (knee.0 + 1.05 * f.sin(), knee.1 - 1.05 * f.cos());
-    let toe = (ankle.0 + 0.32 * f.cos(), ankle.1 + 0.32 * f.sin());
+/// Direction of a segment pointing down the leg, in stage space (x forward, y up, z sideways), from its
+/// forward tilt (pitch about the hinge) and its out-of-plane tilt (roll). Gravity sensing gives these two
+/// angles per segment; the heading about the vertical is not observable and is drawn facing forward.
+fn segment_dir(pitch_deg: f64, roll_deg: f64) -> (f64, f64, f64) {
+    let (p, r) = (pitch_deg.to_radians(), roll_deg.to_radians());
+    let d = (p.sin() * r.cos(), -p.cos() * r.cos(), r.sin());
+    let n = (d.0 * d.0 + d.1 * d.1 + d.2 * d.2).sqrt().max(1e-9);
+    (d.0 / n, d.1 / n, d.2 / n)
+}
+
+/// 3D leg points (hip, knee, ankle, toe) from both segments' pitch and roll.
+fn leg3d_points(
+    knee_deg: f64,
+    thigh_deg: f64,
+    thigh_roll: f64,
+    shin_roll: f64,
+) -> [(f64, f64, f64); 4] {
+    let hip = (0.0, 2.1, 0.25);
+    let t = segment_dir(thigh_deg, thigh_roll);
+    let f = segment_dir(thigh_deg - knee_deg, shin_roll);
+    let knee = (hip.0 + 1.05 * t.0, hip.1 + 1.05 * t.1, hip.2 + 1.05 * t.2);
+    let ankle = (
+        knee.0 + 1.05 * f.0,
+        knee.1 + 1.05 * f.1,
+        knee.2 + 1.05 * f.2,
+    );
+    // The foot points forward, perpendicular to the shin within its sagittal tilt.
+    let fp = (thigh_deg - knee_deg).to_radians();
+    let toe = (
+        ankle.0 + 0.32 * fp.cos(),
+        ankle.1 + 0.32 * fp.sin(),
+        ankle.2,
+    );
+    [hip, knee, ankle, toe]
+}
+
+fn limb3d_path(knee_deg: f64, thigh_deg: f64, thigh_roll: f64, shin_roll: f64) -> String {
     let mut s = String::new();
-    // pelvis bar across z, then the leg in the sagittal plane at z = 0.25
-    let (ax, ay) = project(hip.0, hip.1, -0.25);
+    // pelvis bar across z, then the leg
+    let (ax, ay) = project(0.0, 2.1, -0.25);
     let _ = write!(s, "M {ax:.1} {ay:.1} ");
-    for (x, y) in [hip, knee, ankle, toe] {
-        let (px, py) = project(x, y, 0.25);
+    for (x, y, z) in leg3d_points(knee_deg, thigh_deg, thigh_roll, shin_roll) {
+        let (px, py) = project(x, y, z);
         let _ = write!(s, "L {px:.1} {py:.1} ");
     }
     s
@@ -1274,6 +1313,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         guidance_text(&guidance, verb),
                         1,
                     ),
+                    EnginePhase::Idle if !s.mount_shift && s.slip_corrected.is_some() => (
+                        guidance_text(&guidance, verb),
+                        format!(
+                            "小腿感測器移位約 {:.0}°,已自動修正轉軸;起點若不準,結束後請快速重設零位",
+                            s.slip_corrected.unwrap_or(0.0)
+                        ),
+                        3,
+                    ),
                     EnginePhase::Idle if s.mount_shift => (
                         guidance_text(&guidance, verb),
                         "感測器可能移位,這場結束後請重新校準".into(),
@@ -1341,7 +1388,20 @@ fn main() -> Result<(), slint::PlatformError> {
                 live.set_limb_path(path.into());
                 live.set_knee_x(kx as f32);
                 live.set_knee_y(ky as f32);
-                live.set_limb3d_path(limb3d_path(angle, thigh).into());
+                live.set_limb3d_path(
+                limb3d_path(angle, thigh, s.last_thigh_roll, s.last_shin_roll).into(),
+            );
+            live.set_limb3d_note(
+                if s.profile.is_some() {
+                    format!(
+                        "3D 姿態 · 膝 {angle:.0}° · 大腿側向 {:.0}° · 小腿側向 {:.0}°",
+                        s.last_thigh_roll, s.last_shin_roll
+                    )
+                } else {
+                    "3D 姿態需要先完成校準(目前只有前後角度)".into()
+                }
+                .into(),
+            );
                 live.set_chart_path(
                     chart_path(&s.buf, live.get_chart_w() as f64, live.get_chart_h() as f64).into(),
                 );
@@ -1704,6 +1764,30 @@ fn wire_wearing(ui: &MainWindow, sim: Rc<RefCell<Sim>>, started: Instant) {
     }
 }
 
+/// Slip correction (owner's list item 5): the slip monitor saw the knee hinge move in the shin sensor
+/// frame, so the calibrated shin definition is carried over to where the hinge now is
+/// (`calibration::realign_limb`). In memory for this run only; a quick re-zero afterwards stores it
+/// (it keeps the current hinge) and removes the offset no sweep can show. `false` = could not correct
+/// (no profile, no observed axis, or a change too large to trust): the caller falls back to the
+/// recalibrate warning.
+fn correct_slip(s: &mut Sim, drift_deg: f64) -> bool {
+    let Some(axis) = s.slip.observed_axis() else {
+        return false;
+    };
+    let Some(profile) = s.profile.as_mut() else {
+        return false;
+    };
+    let Some(fixed) = irms_core::calibration::realign_limb(&profile.limbs.shin, axis) else {
+        return false;
+    };
+    profile.limbs.shin = fixed;
+    let hinge = profile.limbs.shin.hinge;
+    s.slip = SlipMonitor::new(Some(hinge));
+    s.wizard = Wizard::new(s.profile.clone());
+    s.slip_corrected = Some(drift_deg);
+    true
+}
+
 fn storage_error(ui: &MainWindow, error: impl std::fmt::Display) {
     ui.global::<App>()
         .set_storage_error(format!("儲存或讀取失敗：{error}").into());
@@ -1927,6 +2011,7 @@ fn start_session(ui: &MainWindow, s: &mut Sim, simulated: bool) {
     s.emit(effects);
     s.alarm = false;
     s.mount_shift = false;
+    s.slip_corrected = None;
     s.slip_injected = false;
     s.slip = SlipMonitor::new(s.profile.as_ref().map(|p| p.limbs.shin.hinge));
     app.set_storage_error("".into());
@@ -2047,6 +2132,16 @@ fn accept_sample(
     };
     s.last_knee = angle;
     s.last_thigh = thigh;
+    (s.last_thigh_roll, s.last_shin_roll) = match (&s.profile, vectors) {
+        (Some(p), Some((tv, sv))) => (
+            p.limbs
+                .thigh
+                .as_ref()
+                .map_or(0.0, |f| limb_angles(f, tv).roll),
+            limb_angles(&p.limbs.shin, sv).roll,
+        ),
+        _ => (0.0, 0.0),
+    };
     let roll = raw.shin_roll - raw.thigh_roll;
     app.set_thigh_text(format!("{thigh:.0}°").into());
     app.set_shin_text(format!("{:.0}°", thigh - angle).into());
@@ -2068,16 +2163,21 @@ fn accept_sample(
         return;
     }
     if let (true, Some((tv, sv))) = (s.running, vectors) {
-        if s.slip.push(now_ms, Some(tv), Some(sv)).is_some() {
-            if !s.mount_shift {
-                let feedback_ms = received
-                    .saturating_duration_since(s.feedback_clock)
-                    .as_secs_f64()
-                    * 1000.0;
-                let effects = s.feedback.mount_shift(feedback_ms);
+        if let Some(reading) = s.slip.push(now_ms, Some(tv), Some(sv)) {
+            let feedback_ms = received
+                .saturating_duration_since(s.feedback_clock)
+                .as_secs_f64()
+                * 1000.0;
+            if correct_slip(s, reading.axis_drift_deg) {
+                let effects = s.feedback.mount_shift_corrected(feedback_ms);
                 s.emit(effects);
+            } else {
+                if !s.mount_shift {
+                    let effects = s.feedback.mount_shift(feedback_ms);
+                    s.emit(effects);
+                }
+                s.mount_shift = true;
             }
-            s.mount_shift = true;
         }
     }
     let previous_reps = s.reps;
@@ -2133,6 +2233,143 @@ mod tests {
         fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, slint::PlatformError> {
             Ok(MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer))
         }
+    }
+
+    /// Owner's list item 5 on the simulated rig: the strap turns 25 deg mid-session, the slip monitor
+    /// sees it from the knee repetitions, and the shin definition is carried over so the knee reads
+    /// right again (and the roll that the turn produced disappears).
+    #[test]
+    fn a_slipped_shin_strap_is_detected_and_corrected_during_repetitions() {
+        use irms_core::calibration::{knee_signed, limb_angles};
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let mut s = Sim::new(store, actions);
+        let cfg = action_config(&s.actions, index, AngleLimits::default());
+        let calibrated = pipeline::auto_calibrate(&s.rig, &cfg).unwrap();
+        s.slip = SlipMonitor::new(Some(calibrated.limbs.shin.hinge));
+        s.profile = Some(calibrated.clone());
+        s.rig.slip_shin(25.0);
+
+        // Worst knee and shin-roll error over a sweep of poses, for a given profile.
+        let error = |p: &irms_core::calibration::CalibrationProfile, rig: &Rig| {
+            let (mut knee_err, mut roll): (f64, f64) = (0.0, 0.0);
+            for knee in [0.0, 30.0, 60.0, 90.0, 110.0] {
+                let (tv, sv) = rig.gravity_abd(0.0, knee, 0.0);
+                let got = knee_signed(p.limbs.thigh.as_ref(), &p.limbs.shin, tv, sv);
+                knee_err = knee_err.max((got - knee).abs());
+                roll = roll.max(limb_angles(&p.limbs.shin, sv).roll.abs());
+            }
+            (knee_err, roll)
+        };
+        let (stale_knee, stale_roll) = error(&calibrated, &s.rig);
+        assert!(stale_roll > 10.0, "the slip shows as roll: {stale_roll}");
+
+        let mut corrected_at = None;
+        for i in 0..(90 * 25) {
+            let t = f64::from(i) / 25.0;
+            let (hip, knee) = pipeline::pose(Script::Exercise, t, &cfg);
+            let (tv, sv) = s.rig.gravity_abd(hip, knee, 0.0);
+            if let Some(reading) = s.slip.push(t * 1000.0, Some(tv), Some(sv)) {
+                assert!(correct_slip(&mut s, reading.axis_drift_deg));
+                corrected_at = Some(t);
+                break;
+            }
+        }
+        let at = corrected_at.expect("the slip monitor reports the turned strap");
+        let drift = s.slip_corrected.unwrap();
+        assert!((drift - 25.0).abs() < 3.0, "drift {drift}");
+        let fixed = s.profile.clone().unwrap();
+        let (knee_err, roll) = error(&fixed, &s.rig);
+        println!(
+            "slip found after {at:.1} s, drift {drift:.1} deg; knee error {stale_knee:.2} -> {knee_err:.2}, \
+             roll {stale_roll:.1} -> {roll:.1}"
+        );
+        assert!(
+            knee_err < 1.0 && knee_err <= stale_knee,
+            "{knee_err} vs {stale_knee}"
+        );
+        assert!(roll < 2.0, "roll after correction {roll}");
+        // The monitor restarts on the corrected hinge and the quick re-zero wizard uses it too.
+        assert_eq!(s.slip.observed_axis(), None);
+        assert!(!s.mount_shift);
+    }
+
+    /// Owner's list item 4: wearing position is not restricted because the calibration defines each
+    /// sensor by vectors (hinge axis + reference gravity in that sensor's own frame). Sensors strapped on
+    /// at very different angles, including upside down and sideways, all calibrate through the real
+    /// wizard logic and then read the knee correctly.
+    #[test]
+    fn calibration_works_for_any_sensor_orientation() {
+        use irms_core::calibration::knee_signed;
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let cfg = action_config(&actions, index, AngleLimits::default());
+        let mounts = [
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((20.0, 35.0, 0.0), (65.0, 0.0, -40.0)),
+            ((180.0, 0.0, 0.0), (0.0, 180.0, 0.0)),
+            ((90.0, 0.0, 90.0), (-90.0, 30.0, 150.0)),
+            ((-120.0, 60.0, 45.0), (135.0, -70.0, -100.0)),
+            ((10.0, -80.0, 170.0), (-30.0, 85.0, 20.0)),
+        ];
+        for (thigh, shin) in mounts {
+            let rig = Rig::mounted(thigh, shin);
+            let p = pipeline::auto_calibrate(&rig, &cfg)
+                .unwrap_or_else(|e| panic!("{thigh:?}/{shin:?}: {e}"));
+            for knee in [0.0, 20.0, 45.0, 90.0, 120.0] {
+                for hip in [0.0, 30.0] {
+                    let (tv, sv) = rig.gravity_abd(hip, knee, 0.0);
+                    let got = knee_signed(p.limbs.thigh.as_ref(), &p.limbs.shin, tv, sv);
+                    assert!(
+                        (got - knee).abs() < 1.0,
+                        "{thigh:?}/{shin:?} hip {hip} knee {knee}: read {got:.2}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Owner's list item 3: the pose view is 3D, not the sagittal drawing only. Hip abduction shows as
+    /// thigh roll and moves the knee sideways; a plain knee bend stays in the sagittal plane.
+    #[test]
+    fn the_3d_pose_shows_sideways_movement_from_the_calibrated_vectors() {
+        use irms_core::calibration::{knee_signed, limb_angles};
+        assert_eq!(segment_dir(0.0, 0.0), (0.0, -1.0, 0.0));
+        let store = Store::open(Some(":memory:".into())).unwrap();
+        let actions = store.actions().unwrap();
+        let index = actions
+            .iter()
+            .position(|a| a.trigger_type == "joint_angle")
+            .unwrap();
+        let cfg = action_config(&actions, index, AngleLimits::default());
+        let rig = Rig::new();
+        let p = pipeline::auto_calibrate(&rig, &cfg).unwrap();
+        let thigh_frame = p.limbs.thigh.as_ref().unwrap();
+        let pose = |hip: f64, knee: f64, abd: f64| {
+            let (tv, sv) = rig.gravity_abd(hip, knee, abd);
+            let k = knee_signed(Some(thigh_frame), &p.limbs.shin, tv, sv);
+            let t = limb_angles(thigh_frame, tv);
+            let sr = limb_angles(&p.limbs.shin, sv).roll;
+            (k, t.pitch, t.roll, sr)
+        };
+        // Knee bend only: no sideways component anywhere.
+        let (k, tp, tr, sr) = pose(0.0, 60.0, 0.0);
+        assert!((k - 60.0).abs() < 1.0 && tr.abs() < 1.0 && sr.abs() < 1.0);
+        let flat = leg3d_points(k, tp, tr, sr);
+        assert!(flat.iter().all(|pt| (pt.2 - 0.25).abs() < 0.02), "{flat:?}");
+        // 20 deg hip abduction: the thigh reads about 20 deg of roll and the knee leaves the plane.
+        let (k, tp, tr, sr) = pose(0.0, 30.0, 20.0);
+        assert!((tr.abs() - 20.0).abs() < 2.0, "thigh roll {tr}");
+        let open = leg3d_points(k, tp, tr, sr);
+        assert!((open[1].2 - 0.25).abs() > 0.3, "knee moves sideways: {open:?}");
     }
 
     #[test]

@@ -53,6 +53,25 @@ Software that goes with it (all on `integrate/beta26`, simulator-verified only):
 a session, one-step re-zero for the donning difference, in-session check for a shifted shin sensor.
 Software reports and re-zeroes; it does not replace a mounting that holds.
 
+**Strategy update 2026-11-22 (owner's list items 2, 4, 5; native app, simulator-verified only,
+[[log_20261122_native_pose_slip_strategy]]):**
+
+- Sensor orientation is free: six very different strap-on angles (upside down, sideways) all calibrate
+  and read the knee within 1 deg. So Mount v2 needs to fix where each sensor *stays*, not how it is
+  turned; "keep the board parallel to the leg" is advice, not a requirement.
+- A shin strap that turns about the leg is now corrected in the session: the slip monitor's fitted
+  hinge replaces the calibrated one (smallest rotation), measured on the rig 25 deg turn: knee error
+  2.57 to 0.07 deg, shin roll 25 to 0 deg, found 20 s into the repetitions. Such a turn costs little
+  knee accuracy (about 2.5 deg) but a lot of roll, which corrupts the 3D pose.
+- What software still cannot fix, so the mounting must prevent it: a tilt of the board about the knee
+  hinge (a constant knee offset, removed only by a quick re-zero), any thigh sensor movement (the hip is
+  not a hinge), and a shin turn above 60 deg.
+- The priority for Mount v2 therefore shifts to: shin board must not rock forward/back on the tibia
+  (curved cradle, bone seat), thigh unit must not creep (grip bands); rotation about the shin is the
+  failure software now tolerates best.
+- Acceptance step 5 extends: after the deliberate 20 deg shin turn, check the in-session banner says
+  「已自動修正轉軸」 and the knee angle at the reference posture is still within 3 deg.
+
 ## 3. Acceptance test for a mounting
 
 1. Reference posture, calibrate, note the zero.
