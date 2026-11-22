@@ -152,19 +152,17 @@ pub mod actions_repo {
 
     /// Clears existing actions and reloads the default template set (avoids duplicates).
     pub fn restore_defaults(conn: &Connection) -> rusqlite::Result<Vec<CustomAction>> {
-        conn.execute_batch("BEGIN")?;
-        let result = (|| {
-            conn.execute("DELETE FROM custom_actions", [])?;
-            insert_default_actions(conn)
-        })();
-        match result {
-            Ok(()) => conn.execute_batch("COMMIT")?,
-            Err(e) => {
-                conn.execute_batch("ROLLBACK").ok();
-                return Err(e);
-            }
-        }
-        list(conn)
+        let transaction = conn.unchecked_transaction()?;
+        replace_defaults_in(&transaction)?;
+        let rows = list(&transaction)?;
+        transaction.commit()?;
+        Ok(rows)
+    }
+
+    /// 宿主需將後續快照讀取納入同一筆交易；型別明確要求現有 Transaction。
+    pub fn replace_defaults_in(transaction: &rusqlite::Transaction<'_>) -> rusqlite::Result<()> {
+        transaction.execute("DELETE FROM custom_actions", [])?;
+        insert_default_actions(transaction)
     }
 }
 
@@ -561,6 +559,25 @@ mod tests {
         actions_repo::create(&conn, &sample_input()).unwrap();
         let restored = actions_repo::restore_defaults(&conn).unwrap();
         assert_eq!(restored.len(), default_actions().len());
+    }
+
+    #[test]
+    fn failed_default_replacement_rolls_back_and_releases_the_transaction() {
+        let conn = fresh_db();
+        actions_repo::create(&conn, &sample_input()).unwrap();
+        let before = serde_json::to_value(actions_repo::list(&conn).unwrap()).unwrap();
+        conn.execute_batch("CREATE TRIGGER refuse_defaults BEFORE INSERT ON custom_actions BEGIN SELECT RAISE(ABORT,'disk full'); END").unwrap();
+        assert!(actions_repo::restore_defaults(&conn).is_err());
+        assert!(conn.is_autocommit());
+        assert_eq!(
+            serde_json::to_value(actions_repo::list(&conn).unwrap()).unwrap(),
+            before
+        );
+        conn.execute_batch("DROP TRIGGER refuse_defaults").unwrap();
+        assert_eq!(
+            actions_repo::restore_defaults(&conn).unwrap().len(),
+            default_actions().len()
+        );
     }
 
     fn sample_session_input() -> SessionStartInput {

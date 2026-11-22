@@ -1,0 +1,70 @@
+import { Theme, Btn, Card, Field, App } from "theme.slint";
+
+export component ActionEditor inherits Rectangle {
+    background: #000000.with-alpha(0.45);
+    TouchArea { }
+    Card {
+        x: (parent.width - self.width)/2; y: (parent.height - self.height)/2;
+        width: min(640px,parent.width - 32px); height: 560px;
+        VerticalLayout {
+            padding: 24px; spacing: 12px;
+            Text { text: App.editor-editing ? "編輯動作處方" : "新增動作處方"; font-size: 22px; font-weight: 700; color: Theme.ink; }
+            Text { text: "個人舒適角度與極限範圍由量測設定，不隨動作改變。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+            VerticalLayout { spacing: 4px;
+                Text { text: "動作名稱"; color: Theme.ink; font-size: 14px; }
+                Field { text <=> App.editor-name; placeholder: "輸入名稱"; }
+            }
+            VerticalLayout { spacing: 4px;
+                Text { text: "說明"; color: Theme.ink; font-size: 14px; }
+                Field { text <=> App.editor-description; placeholder: "動作說明（選填）"; }
+            }
+            HorizontalLayout { spacing: 8px;
+                Btn { text: "關節角度"; active: App.editor-trigger == 0; clicked => { App.editor-trigger = 0; } }
+                Btn { text: "肢段抬高"; active: App.editor-trigger == 1; clicked => { App.editor-trigger = 1; } }
+                Btn { text: "肢段後伸"; active: App.editor-trigger == 2; clicked => { App.editor-trigger = 2; } }
+            }
+            HorizontalLayout { spacing: 16px;
+                VerticalLayout { spacing: 4px;
+                    Text { text: "目標角度 · 10–170°"; color: Theme.ink; font-size: 14px; }
+                    Field { text <=> App.editor-target; }
+                }
+                VerticalLayout { spacing: 4px;
+                    Text { text: "容錯 · 1–30°"; color: Theme.ink; font-size: 14px; }
+                    Field { text <=> App.editor-tolerance; }
+                }
+                VerticalLayout { spacing: 4px;
+                    Text { text: "保持 · 0.5–20 秒"; color: Theme.ink; font-size: 14px; }
+                    Field { text <=> App.editor-hold; }
+                }
+            }
+            Text { text: "超出有效範圍的數值會調整至界限內。"; color: Theme.dim; font-size: 13px; }
+            if App.editor-error != "": Text { text: App.editor-error; color: Theme.danger; font-size: 14px; wrap: word-wrap; }
+            Rectangle { vertical-stretch: 1; }
+            HorizontalLayout { spacing: 12px;
+                Btn { text: "取消"; clicked => { App.cancel-editor(); } }
+                Rectangle { horizontal-stretch: 1; }
+                Btn { text: "儲存動作"; primary: true; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.save-action(); } }
+            }
+        }
+    }
+}
+
+export component MutationConfirmation inherits Rectangle {
+    background: #000000.with-alpha(0.45);
+    TouchArea { }
+    Card {
+        x: (parent.width - self.width)/2; y: (parent.height - self.height)/2;
+        width: min(540px,parent.width - 32px); height: 300px;
+        VerticalLayout { padding: 24px; spacing: 16px;
+            Text { text: App.confirmation-title; font-size: 22px; font-weight: 700; color: Theme.ink; }
+            Text { text: App.confirmation-message; font-size: 15px; color: Theme.dim; wrap: word-wrap; }
+            if App.confirmation-error != "": Text { text: App.confirmation-error; font-size: 14px; color: Theme.danger; wrap: word-wrap; }
+            Rectangle { vertical-stretch: 1; }
+            HorizontalLayout { spacing: 12px;
+                Btn { text: "取消"; clicked => { App.cancel-confirmation(); } }
+                Rectangle { horizontal-stretch: 1; }
+                Btn { text: "確認"; ink: Theme.danger; enabled: !App.session-locked && !App.closing && !App.disconnecting; clicked => { App.confirm-mutation(); } }
+            }
+        }
+    }
+}
