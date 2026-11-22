@@ -93,6 +93,7 @@ export component PageHead inherits HorizontalLayout {
 
 export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
 export struct ViewerItem { id: string, name: string }
+export struct ModuleItem { id: string, name: string, note: string, installed: string, available: string, status: string, tone: int, can-update: bool, can-toggle: bool, disabled: bool, can-rollback: bool }
 export struct RangeRow { id: string, text: string, current: bool }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
@@ -274,8 +275,17 @@ export global App {
     callback range-restart();
     callback range-save();
     callback request-delete-range(string);
-    // built-in usage tips (port of the session-tips module)
-    out property <[string]> tips: [
+    // module registry (module_ui.rs): rows for Settings -> modules; tips come from the active content
+    // pack, and this list is the built-in fallback that main.rs restores when no valid pack is active.
+    in property <[ModuleItem]> module-rows;
+    in property <string> module-status;
+    in property <bool> module-busy: false;
+    callback module-check();
+    callback module-update(string);
+    callback module-toggle(string);
+    callback module-rollback(string);
+    callback module-reset();
+    in property <[string]> tips: [
         "感測器請貼在大腿與小腿外側、盡量與腿平行;衣物墊高會讓角度偏差,重新跑校準精靈可修正。",
         "校準「膝蓋彎曲」時大腿保持不動,只把腳跟往後往上勾,幅度越大屈曲軸越準。",
         "校準「髖屈曲」需至少把大腿抬高 20°,建議抬到 40–60° 並停住等待捕捉。",

@@ -2445,10 +2445,12 @@ checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 name = "irms_app_native"
 version = "1.3.0-beta.12"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "image",
  "irms_core",
  "rfd",
+ "ring",
  "rusqlite",
  "same-file",
  "serde",

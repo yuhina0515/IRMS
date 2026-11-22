@@ -266,11 +266,23 @@ component Setting inherits HorizontalLayout {
     @children
 }
 
+component BuiltinRow inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> sub;
+    in property <string> chip: "內建";
+    in property <color> tone: Theme.good;
+    height: 26px;
+    spacing: 12px;
+    Text { text: root.title; width: 110px; font-size: 14px; font-weight: 700; color: Theme.ink; vertical-alignment: center; }
+    Text { text: root.sub; horizontal-stretch: 1; font-size: 12px; color: Theme.dim; vertical-alignment: center; overflow: elide; }
+    VerticalLayout { alignment: center; Chip { text: root.chip; tone: root.tone; } }
+}
+
 export component SettingsView inherits VerticalLayout {
     spacing: 14px;
     property <int> tab <=> App.settings-tab;
     property <[string]> tabs: ["裝置與連線", "校準", "顯示", "軟體與韌體", "模組", "資料與隱私"];
-    property <[string]> subs: ["連線狀態與判定協定", "零位、屈曲軸與佩戴方向", "外觀、日夜與姿態視圖", "版本與更新", "已安裝模組", "本機紀錄與遙測"];
+    property <[string]> subs: ["連線狀態與判定協定", "零位、屈曲軸與佩戴方向", "外觀、日夜與姿態視圖", "版本與更新", "可獨立更新的內容套件", "本機紀錄與遙測"];
     PageHead { title: "系統設定"; sub: "裝置準備、資料選擇,都有各自的位置。"; }
     Card {
         vertical-stretch: 1;
@@ -399,15 +411,41 @@ export component SettingsView inherits VerticalLayout {
                     }
                 }
                 if root.tab == 4: VerticalLayout {
-                    spacing: 16px;
-                    Text { text: "模組內建於程式中(計畫 D2,2026-11-17 決定):不下載腳本,功能隨版本更新。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
-                    Setting { title: "角度範圍測量"; sub: "內建,位於「工具」分頁。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "活動度量測"; sub: "內建,位於「設定 → 校準」。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "療程分析"; sub: "內建,療程回顧使用。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "即時分享"; sub: "內建,位於「工具」分頁;需要先開啟遙測。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    Setting { title: "韌體更新"; sub: "內建,位於「設定 → 軟體與韌體」;Windows 上的 OTA 尚未在實機上看到完成。"; VerticalLayout { alignment: center; Chip { text: "實驗性"; tone: Theme.warn; } } }
-                    Setting { title: "使用提示"; sub: "內建,以下提示協助穿戴與校準。"; VerticalLayout { alignment: center; Chip { text: "內建"; tone: Theme.good; } } }
-                    for tip in App.tips: Text { text: "· " + tip; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    spacing: 6px;
+                    Text { text: App.module-status != "" ? App.module-status : "內容套件經簽章與雜湊驗證後才會啟用;驗證失敗時自動退回上一版或內建內容。更新後立即生效。"; font-size: 13px; color: Theme.dim; wrap: word-wrap; }
+                    for row in App.module-rows: Rectangle {
+                        height: 52px; border-radius: min(Theme.radius, 12px); background: Theme.raised.with-alpha(0.5);
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 10px; spacing: 10px;
+                            VerticalLayout {
+                                horizontal-stretch: 1; alignment: center;
+                                Text { text: row.name; font-size: 15px; font-weight: 700; color: Theme.ink; overflow: elide; }
+                                Text { text: row.note; font-size: 12px; color: Theme.dim; overflow: elide; }
+                            }
+                            VerticalLayout { alignment: center; width: 150px; Text { text: (row.installed != "" ? "已裝 " + row.installed : "") + (row.available != "" ? (row.installed != "" ? " · " : "") + "可用 " + row.available : ""); font-size: 12px; color: Theme.dim; horizontal-alignment: right; overflow: elide; } }
+                            VerticalLayout { alignment: center; width: 128px; Chip { text: row.status; tone: row.tone == 0 ? Theme.good : row.tone == 1 ? Theme.accent : row.tone == 2 ? Theme.warn : Theme.dim; } }
+                            HorizontalLayout {
+                                spacing: 6px; alignment: end; width: 210px;
+                                if row.can-update: VerticalLayout { alignment: center; Btn { text: "更新"; primary: true; enabled: !App.module-busy; min-height: 34px; clicked => { App.module-update(row.id); } } }
+                                if row.can-toggle: VerticalLayout { alignment: center; Btn { text: row.disabled ? "啟用" : "停用"; enabled: !App.module-busy; min-height: 34px; clicked => { App.module-toggle(row.id); } } }
+                                if row.can-rollback: VerticalLayout { alignment: center; Btn { text: "退回上一版"; enabled: !App.module-busy; min-height: 34px; clicked => { App.module-rollback(row.id); } } }
+                            }
+                        }
+                    }
+                    Rectangle { height: 1px; background: Theme.border; }
+                    BuiltinRow { title: "角度範圍測量"; sub: "位於「工具」分頁。"; }
+                    BuiltinRow { title: "即時分享"; sub: "位於「工具」分頁;需要先開啟遙測。"; }
+                    BuiltinRow { title: "活動度量測"; sub: "位於「設定 → 校準」。"; }
+                    BuiltinRow { title: "療程分析"; sub: "療程回顧使用。"; }
+                    BuiltinRow { title: "韌體更新"; sub: "位於「軟體與韌體」;Windows 上的 OTA 尚未在實機上看到完成。"; chip: "實驗性"; tone: Theme.warn; }
+                    HorizontalLayout {
+                        spacing: 6px; alignment: start;
+                        Btn { text: App.module-busy ? "處理中…" : "檢查更新"; enabled: !App.module-busy; clicked => { App.module-check(); } }
+                        Btn { text: "全部還原為內建"; enabled: !App.module-busy; clicked => { App.module-reset(); } }
+                    }
+                    if App.tips.length > 0: Text { text: "· " + App.tips[0]; font-size: 12px; color: Theme.dim; overflow: elide; }
+                    if App.tips.length > 1: Text { text: "· " + App.tips[1]; font-size: 12px; color: Theme.dim; overflow: elide; }
+                    if App.tips.length > 2: Text { text: "…共 " + App.tips.length + " 則提示,這裡只列前 2 則"; font-size: 12px; color: Theme.dim; }
                 }
                 if root.tab == 5: VerticalLayout {
                     spacing: 16px;

@@ -31,6 +31,7 @@ mod action_edit;
 mod action_ui;
 mod firmware_ui;
 mod instance;
+mod module_ui;
 mod outputs;
 mod pipeline;
 mod preferences;
@@ -548,6 +549,7 @@ fn main() -> Result<(), slint::PlatformError> {
     if log {
         println!("database: {}", store.location);
     }
+    let db_location = store.location.clone();
     let stored_actions = store.actions().map_err(db_error)?;
     let mut preferences = preferences::PreferenceStore::open(&store.location);
     let saved = preferences.loaded.clone();
@@ -750,6 +752,18 @@ fn main() -> Result<(), slint::PlatformError> {
         && !has("--snapshot")
         && !has("--no-update")
         && std::env::var_os("IRMS_NO_AUTOUPDATE").is_none();
+    // Content packs (session tips): installed ones live next to the database, so a custom --db keeps
+    // its own set. An in-memory run keeps nothing and always shows the built-in content.
+    let modules = {
+        let root = module_ui::modules_root(&db_location);
+        let builtin_tips: Vec<String> = app.get_tips().iter().map(|t| t.to_string()).collect();
+        module_ui::Modules::new(
+            irms_core::modules::Registry::new(root, env!("CARGO_PKG_VERSION")),
+            builtin_tips,
+        )
+    };
+    module_ui::wire(&ui, modules.clone(), runtime.handle().clone());
+    modules.sync(&app);
     let updater = update_ui::Updater::new(updates_allowed);
     update_ui::wire(&ui, updater.clone(), runtime.handle().clone());
     {
@@ -1275,6 +1289,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 share_ui::sync(&app, &sharing);
                 firmware_ui::sync(&app, &firmware);
                 update_ui::sync(&app, &updater);
+                modules.sync(&app);
             }
 
             // State contract kept from v3: fault and personal limit first, blocking conditions, then coaching.
