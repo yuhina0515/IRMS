@@ -73,3 +73,7 @@ shipping a UI compiler.
 Dissent to monitor: the operations view that the existing silent self-updater already gives "no
 reinstall" for code; if phase 2 slips, phase 1 alone still meets the content half of the request.
 Binary-size impact of wasmi is unmeasured: measure before committing to phase 2.
+
+## Deferred module candidates
+
+- Battery and power-consumption page (owner, 2026-11-22): recorded only, no research or implementation until the owner asks. Likely needs the firmware to report battery voltage/current.
