@@ -20,10 +20,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }))
 
 import { useStore } from '../store/useStore'
-import { SAFETY_HOLD_MS, isVoiceSupported, resetVoiceStateForTests, speak, stopSpeaking } from './voice'
+import { SAFETY_HOLD_MS, SAFETY_MAX_HOLD_MS, isVoiceSupported, resetVoiceStateForTests, speak, stopSpeaking } from './voice'
 
 class FakeUtterance {
   lang = ''
+  onend: (() => void) | null = null
+  onerror: (() => void) | null = null
   constructor(public text: string) {}
 }
 
@@ -102,8 +104,44 @@ describe('speak', () => {
     expect(spoken.map((u) => u.text)).toEqual(['warning'])
 
     vi.advanceTimersByTime(2)
+    spoken[0].onend?.()
     speak('routine')
     expect(spoken.map((u) => u.text)).toEqual(['warning', 'routine'])
+  })
+
+  it('keeps dropping routine cues while a long safety cue is still being spoken', () => {
+    // zh-TW "超過極限角度,請慢慢放鬆" measured at ~3.7 s, longer than SAFETY_HOLD_MS
+    speak('warning', 'safety')
+    vi.advanceTimersByTime(3500)
+    speak('rep')
+    expect(spoken.map((u) => u.text)).toEqual(['warning'])
+
+    spoken[0].onend?.()
+    speak('rep')
+    expect(spoken.map((u) => u.text)).toEqual(['warning', 'rep'])
+  })
+
+  it('stops waiting for a missing end event after SAFETY_MAX_HOLD_MS', () => {
+    speak('warning', 'safety')
+    vi.advanceTimersByTime(SAFETY_MAX_HOLD_MS - 1)
+    speak('rep')
+    expect(spoken).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    speak('rep')
+    expect(spoken.map((u) => u.text)).toEqual(['warning', 'rep'])
+  })
+
+  it('does not let an interrupted older safety cue release the newer one', () => {
+    speak('first', 'safety')
+    vi.advanceTimersByTime(1000)
+    speak('second', 'safety')
+    spoken[0].onerror?.() // engine reports "interrupted" for the cancelled first cue
+    vi.advanceTimersByTime(SAFETY_HOLD_MS + 500)
+    speak('rep')
+    expect(spoken.map((u) => u.text)).toEqual(['first', 'second'])
+    spoken[1].onend?.()
+    speak('rep')
+    expect(spoken.map((u) => u.text)).toEqual(['first', 'second', 'rep'])
   })
 
   it('lets a safety cue through even inside the safety window', () => {

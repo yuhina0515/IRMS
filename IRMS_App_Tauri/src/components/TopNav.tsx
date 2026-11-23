@@ -8,7 +8,7 @@ import { useUiStore } from '../store/useUiStore'
 import { bluetoothService } from '../services/bluetooth'
 import { useGlobalShortcut } from '../hooks/useGlobalShortcut'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { useToolModules } from '../views/ToolsView'
+import { useToolModules } from '../hooks/useToolModules'
 import logoIcon from '../assets/logo-icon-only.png'
 import { connectionStatusText, useT } from '../i18n'
 

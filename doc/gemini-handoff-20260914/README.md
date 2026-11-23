@@ -26,7 +26,7 @@ actual design response. **No design output was received this round.**
 Gemini CLI account can be pointed at a paid/higher-quota tier or a different model
 (`gemini -m <model>`), or fall back to the pre-CLI manual flow (paste this brief + screenshots into
 the web version of Gemini 3.1 Pro by hand, per
-[[feedback_irms_ui_design_delegated_to_gemini|the original convention]]) if the quota issue isn't
+[[AI_CODING_RULES|the original convention]]) if the quota issue isn't
 quickly resolvable.
 
 **After Gemini responds**: implement directly per the standing
