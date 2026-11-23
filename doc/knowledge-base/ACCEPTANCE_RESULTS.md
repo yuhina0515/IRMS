@@ -6,7 +6,7 @@
 
 使用者明確授權「允許官方免安裝版驗收」。由 [Zotero 官方下載頁](https://www.zotero.org/download/) 取得 Windows x64 ZIP，解壓後確認版本 **10.0.5**、執行檔 Authenticode 簽章 **Valid / Corporation for Digital Scholarship**；未執行安裝程式。
 
-依 [官方 profile 說明](https://www.zotero.org/support/kb/multiple_profiles) 分別建立 `zotero-profile-bib`、`zotero-profile-ris`，並在啟動前指定不同的 `extensions.zotero.useDataDir`／`dataDir`。兩個空白資料庫皆在 `C:\Users\Yuhina\AppData\Local\Temp\irms-evidence-20261006` 內，沒有登入帳號或啟動同步。透過真正的 Windows File → Import 精靈選擇本庫輸出檔，兩次均顯示「已匯入 202 個項目」。
+依 [官方 profile 說明](https://www.zotero.org/support/kb/multiple_profiles) 分別建立 `zotero-profile-bib`、`zotero-profile-ris`，並在啟動前指定不同的 `extensions.zotero.useDataDir`／`dataDir`。兩個空白資料庫皆在 暫存本機證據目錄(未提交) 內，沒有登入帳號或啟動同步。透過真正的 Windows File → Import 精靈選擇本庫輸出檔，兩次均顯示「已匯入 202 個項目」。
 
 ![RIS 精靈實際顯示匯入 202 筆](evidence/zotero-ris-import-202.png)
 

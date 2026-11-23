@@ -11,7 +11,7 @@
   "signature_signer": "Corporation for Digital Scholarship",
   "method": "Actual File > Import wizard through Windows UI; independent fresh profile and custom data directory per format; closed saved SQLite read-only comparison against catalog",
   "isolation": "Profiles and custom data directories in temporary acceptance directory; no account login or sync initiated",
-  "raw_evidence_directory": "C:\\Users\\Yuhina\\AppData\\Local\\Temp\\irms-evidence-20261006",
+  "raw_evidence_directory": "<temporary local evidence directory, not committed>",
   "audit_script_sha256": "a66a36395db7f0d48fdb74baaa0bc05ffadcd3d19f4687025d31d53a70842119",
   "formats": [
     {

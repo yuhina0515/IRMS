@@ -8,7 +8,7 @@ summary: "Add 202 traceable references, 22 topics, 12 guides, offline search and
 
 ## Request and decisions
 
-Build a substantial IRMS reference library that supports research background, engineering choices and future validation. Use the active `yuhina0515/IRMS` repository; the existing E: checkout points to `IRMS-archive` and contains a pre-existing Cargo.toml edit. Preserve it by working in an isolated clone at `E:\Monitoring-and-IoT\IRMS-wt\knowledge-base` on `codex/irms-knowledge-base-20261003`.
+Build a substantial IRMS reference library that supports research background, engineering choices and future validation. Use the active `yuhina0515/IRMS` repository; the existing E: checkout points to `IRMS-archive` and contains a pre-existing Cargo.toml edit. Preserve it by working in an isolated clone at `a separate isolated git worktree` on `codex/irms-knowledge-base-20261003`.
 
 Pin application source mapping to `af65daa2c4eb29b2e296c2023caf07d0e4b4a9e1` and separately inspect firmware `15c5c709ba12603454449a2311faf3489ac7f96e`. Treat source logic as authoritative where historical comments disagree. Do not change application behavior, firmware, clinical targets or existing user data.
 
