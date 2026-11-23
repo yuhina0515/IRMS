@@ -1,0 +1,523 @@
+[
+  {
+    "id": "DOC-MPU-DATASHEET",
+    "requested_url": "https://product.tdk.com/system/files/dam/doc/product/sensor/mortion-inertial/imu/data_sheet/mpu-6000-datasheet1.pdf",
+    "checked_on": "2026-10-03",
+    "status": "unavailable-to-checker",
+    "error": "HTTP Error 403: Forbidden",
+    "prior_attempts": [
+      {
+        "id": "DOC-MPU-DATASHEET",
+        "requested_url": "https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet.pdf",
+        "checked_on": "2026-10-03",
+        "status": "unavailable-to-checker",
+        "error": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "id": "DOC-MPU-REGISTERS",
+    "requested_url": "https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf",
+    "checked_on": "2026-10-03",
+    "status": "unexpected-non-pdf-response",
+    "http_status": 200,
+    "final_url": "https://www.invensense.tdk.com/en-us/search-result?query=RM-MPU-6000A-00%20%E2%80%93%20MPU-6000%20and%20MPU-6050%20Register%20Map",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "1059f998008c360e434a44b3bce29b8fb4e301cca981b730c52a3439ee2b68eb",
+    "page_title": "Global Search | TDK InvenSense",
+    "prior_attempts": [
+      {
+        "id": "DOC-MPU-REGISTERS",
+        "requested_url": "https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf",
+        "checked_on": "2026-10-03",
+        "status": "redirected-to-search-page",
+        "http_status": 200,
+        "final_url": "https://www.invensense.tdk.com/en-us/search-result?query=RM-MPU-6000A-00%20%E2%80%93%20MPU-6000%20and%20MPU-6050%20Register%20Map",
+        "content_type": "text/html; charset=utf-8",
+        "content_hash": "1059f998008c360e434a44b3bce29b8fb4e301cca981b730c52a3439ee2b68eb",
+        "page_title": "Global Search | TDK InvenSense"
+      }
+    ]
+  },
+  {
+    "id": "DOC-ESP-DATASHEET",
+    "requested_url": "https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://documentation.espressif.com/esp32_datasheet_en.pdf",
+    "content_type": "application/pdf",
+    "content_hash": "a7917e6b47528c9dcab06837a49d452e582751335797db879f1cf2d17cd29adf"
+  },
+  {
+    "id": "DOC-I2C",
+    "requested_url": "https://cache.nxp.com/docs/en/user-guide/UM10204.pdf",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://cache.nxp.com/docs/en/user-guide/UM10204.pdf",
+    "content_type": "application/pdf",
+    "content_hash": "dc91f00f65584e06ef36e26c93bf9d91a95fb3c8a1830a9223e53caf678b36af"
+  },
+  {
+    "id": "DOC-ESP-FREERTOS",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos_idf.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos_idf.html",
+    "content_type": "text/html",
+    "content_hash": "9efbd64a533fea69c0848622bd1e497c90b1e44b6b0c6c89542172108f3feb3e",
+    "page_title": "FreeRTOS (IDF) - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-I2C",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/i2c.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/i2c.html",
+    "content_type": "text/html",
+    "content_hash": "7f310e8151c7669600808a4dbedb80b2f638bdd4d182bdd6abd85f41542d278d",
+    "page_title": "Inter-Integrated Circuit (I2C) - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-BLE",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/ble/overview.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/ble/overview.html",
+    "content_type": "text/html",
+    "content_hash": "a25e28d8119f953fc1bbf7f81257986f4855364321b7c74b289dc08d061b30ca",
+    "page_title": "Introduction - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-GATT",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/esp_gatts.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/esp_gatts.html",
+    "content_type": "text/html",
+    "content_hash": "21b5da8448019e76919bc6ae61a0a007f6892f1349163b1153f6064526c59b19",
+    "page_title": "GATT Server API - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-OTA",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html",
+    "content_type": "text/html",
+    "content_hash": "8a9f11261ca4e14248bb58f88146d99655b818d6c602b7e73909027c0e3492c2",
+    "page_title": "Over The Air Updates (OTA) - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-SECUREBOOT",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/security/secure-boot-v2.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/security/secure-boot-v2.html",
+    "content_type": "text/html",
+    "content_hash": "00ea76e5cd2f8888bcd433c0b13bd69c542d55c1570679c985bd5472adbe336b",
+    "page_title": "Secure Boot v2 - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-POWER",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/power_management.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/power_management.html",
+    "content_type": "text/html",
+    "content_hash": "caa77d901bb445363ceb55538d5185d93f628e4b6282aa32fb99842f3ac62d63",
+    "page_title": "Power Management - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-WATCHDOG",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/wdts.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/wdts.html",
+    "content_type": "text/html",
+    "content_hash": "bd3647c75e68a955b0a1c28a61097d1173b58bc409f970f9398ca1bc5ad58cc5",
+    "page_title": "Watchdogs - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-PARTITIONS",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/partition-tables.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/partition-tables.html",
+    "content_type": "text/html",
+    "content_hash": "c26e480d4af393cbf97a2dac25aed74b3d2410004196cb04649b14850066485d",
+    "page_title": "Partition Tables - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-ESP-TIMER",
+    "requested_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/esp_timer.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/esp_timer.html",
+    "content_type": "text/html",
+    "content_hash": "119c1d441342950323e0063812ec9937ab5a1d0e846b4221c380c706c5f05715",
+    "page_title": "ESP Timer (High Resolution Timer) - ESP32 -  — ESP-IDF Programming Guide v6.1 documentation"
+  },
+  {
+    "id": "DOC-BLE-ATT",
+    "requested_url": "https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-62/out/en/host/attribute-protocol--att-.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-62/out/en/host/attribute-protocol--att-.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "8e93fb00ec036390fdabc97ad8ef33f37fee2cba3d318b41e3141fc5239a3b2a",
+    "page_title": "Part F Attribute Protocol (ATT)"
+  },
+  {
+    "id": "DOC-BLE-GATT",
+    "requested_url": "https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-62/out/en/host/generic-attribute-profile--gatt-.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-62/out/en/host/generic-attribute-profile--gatt-.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "002ee39efb95fcf2a145b336812fe24a144d0e4efc09faaffc76e5858c91ff4d",
+    "page_title": "Part G Generic Attribute Profile (GATT)"
+  },
+  {
+    "id": "DOC-SQLITE-TRANSACTION",
+    "requested_url": "https://www.sqlite.org/lang_transaction.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.sqlite.org/lang_transaction.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "b65dc308fd9e0ce471844c97366a4f5ad3a1f42833a3b19486ad7d6555a8e24e",
+    "page_title": "Transaction"
+  },
+  {
+    "id": "DOC-SQLITE-WAL",
+    "requested_url": "https://www.sqlite.org/wal.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.sqlite.org/wal.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "f3467b530b883d4a00574fe1a898b3d121ed72764ae28cf66941080ac0badb9e",
+    "page_title": "Write-Ahead Logging"
+  },
+  {
+    "id": "DOC-SQLITE-FK",
+    "requested_url": "https://www.sqlite.org/foreignkeys.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.sqlite.org/foreignkeys.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "f9cc6cefbdf18e07893b036365a2f3ca2a9a81fa41ed0849c7e4df214ccca8c0",
+    "page_title": "SQLite Foreign Key Support"
+  },
+  {
+    "id": "DOC-SQLITE-ATOMIC",
+    "requested_url": "https://www.sqlite.org/atomiccommit.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.sqlite.org/atomiccommit.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "5a5be7b660217c9408c8a81eaf2faa2d08832ed3790f895a0a713916ad856ea1",
+    "page_title": "Atomic Commit In SQLite"
+  },
+  {
+    "id": "DOC-SQLITE-PRAGMA",
+    "requested_url": "https://www.sqlite.org/pragma.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.sqlite.org/pragma.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "b9bcb335ae818497f3fa05114a10492f64f35503f275da2264f2d5d436db3f5d",
+    "page_title": "Pragma statements supported by SQLite"
+  },
+  {
+    "id": "DOC-TAURI-IPC",
+    "requested_url": "https://v2.tauri.app/concept/inter-process-communication/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://v2.tauri.app/concept/inter-process-communication/",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "9f7674c3b980c154f7f52fb59d3d0159b17a37a2f162c08a17e52d1b07703eec",
+    "page_title": "Inter-Process Communication | Tauri"
+  },
+  {
+    "id": "DOC-TAURI-SECURITY",
+    "requested_url": "https://v2.tauri.app/security/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://v2.tauri.app/security/",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "1ac840b47f1738e43b9a62e2596f6fa7ce7023f0c92196f3600ceb9f111402ce",
+    "page_title": "Security | Tauri"
+  },
+  {
+    "id": "DOC-TAURI-CAPABILITIES",
+    "requested_url": "https://v2.tauri.app/security/capabilities/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://v2.tauri.app/security/capabilities/",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "02ade5520a8f76b3a0224ddecbab8a3e872cea1b8a23550569532a09cd223b6c",
+    "page_title": "Capabilities | Tauri"
+  },
+  {
+    "id": "DOC-TAURI-UPDATER",
+    "requested_url": "https://v2.tauri.app/plugin/updater/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://v2.tauri.app/plugin/updater/",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "a6532391ef2afffae63318d30b0f14c6d0ff2a15c6c75db97b3c2ff65ff22c33",
+    "page_title": "Updater | Tauri"
+  },
+  {
+    "id": "DOC-TAURI-MOBILE",
+    "requested_url": "https://v2.tauri.app/develop/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://v2.tauri.app/develop/",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "bc69532ab7e39a7b723c98f98a9d9b669cf507afbcd61d5a62ce35080f80f129",
+    "page_title": "Develop | Tauri"
+  },
+  {
+    "id": "DOC-RUST-MUTEX",
+    "requested_url": "https://doc.rust-lang.org/std/sync/struct.Mutex.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://doc.rust-lang.org/std/sync/struct.Mutex.html",
+    "content_type": "text/html",
+    "content_hash": "0e83e7ca04ae2abf148c26b563beeae1f48fe0bd86bc3f0c9055678de6cfcd12",
+    "page_title": "Mutex in std::sync - Rust"
+  },
+  {
+    "id": "DOC-TOKIO-SELECT",
+    "requested_url": "https://docs.rs/tokio/latest/tokio/macro.select.html",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://docs.rs/tokio/latest/tokio/macro.select.html",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "3e2fef1bad1fd53cc39a1474830eccb749aa7e5535c9ff6ae1e02963b3b252be",
+    "page_title": "select in tokio - Rust"
+  },
+  {
+    "id": "DOC-RFC8032",
+    "requested_url": "https://www.rfc-editor.org/rfc/rfc8032",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.rfc-editor.org/info/rfc8032/",
+    "content_type": "text/html;charset=utf-8",
+    "content_hash": "2479110d55d658e602cee74643f66d5218d41d97e4e7db4f269ee1175fa97759",
+    "page_title": "RFC 8032: Edwards-Curve Digital Signature Algorithm (EdDSA) | RFC Editor"
+  },
+  {
+    "id": "DOC-RFC3339",
+    "requested_url": "https://www.rfc-editor.org/rfc/rfc3339",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.rfc-editor.org/info/rfc3339/",
+    "content_type": "text/html;charset=utf-8",
+    "content_hash": "ab5bd725fea90e74ab3dadb502f5a713cc01425af93a2f32711323cfc28727d5",
+    "page_title": "RFC 3339: Date and Time on the Internet: Timestamps | RFC Editor"
+  },
+  {
+    "id": "DOC-RFC8259",
+    "requested_url": "https://www.rfc-editor.org/rfc/rfc8259",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.rfc-editor.org/info/rfc8259/",
+    "content_type": "text/html;charset=utf-8",
+    "content_hash": "fee641871953cfe3c36d89443c7e9153ef62161e4fa732b9e2ca1081287e62ac",
+    "page_title": "RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format | RFC Editor"
+  },
+  {
+    "id": "DOC-NIST-SSDF",
+    "requested_url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "a50b4f5fe7427ca0d2f1e09a394d9076d48aafe5748ffdba4872addd97591ca3",
+    "page_title": "SP 800-218, Secure Software Development Framework (SSDF) Version 1.1: Recommendations for Mitigating the Risk of Software Vulnerabilities | CSRC"
+  },
+  {
+    "id": "DOC-NIST-IOT",
+    "requested_url": "https://csrc.nist.gov/pubs/sp/800/213/final",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://csrc.nist.gov/pubs/sp/800/213/final",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "a5e511468f6de09d0df0f9a3d1da7dc0f1eb561c3d2b51897a5e61324b555081",
+    "page_title": "SP 800-213, IoT Device Cybersecurity Guidance for the Federal Government: Establishing IoT Device Cybersecurity Requirements | CSRC"
+  },
+  {
+    "id": "DOC-NIST-BASELINE",
+    "requested_url": "https://csrc.nist.gov/pubs/ir/8259/a/final",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://csrc.nist.gov/pubs/ir/8259/a/final",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "319193b8ba6eb0472ef31c8566aaebbdea2315eabbaab6dc7b03178b2fecb3c0",
+    "page_title": "IR 8259A, IoT Device Cybersecurity Capability Core Baseline | CSRC"
+  },
+  {
+    "id": "DOC-WCAG22",
+    "requested_url": "https://www.w3.org/TR/WCAG22/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.w3.org/TR/WCAG22/",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "6e3c5fe397257cae509a2fb4752b73062cf8cbeb92c2cec618989b17e4cf7057",
+    "page_title": "Web Content Accessibility Guidelines (WCAG) 2.2"
+  },
+  {
+    "id": "DOC-WHO-REHAB",
+    "requested_url": "https://www.who.int/news-room/fact-sheets/detail/rehabilitation",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.who.int/news-room/fact-sheets/detail/rehabilitation",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "2c853726f1e5e469489d998b0960645b321ac6983bf63dfe632c3caad698b35d",
+    "page_title": "\r\n\tRehabilitation\r\n"
+  },
+  {
+    "id": "DOC-WHO-ICF",
+    "requested_url": "https://www.who.int/standards/classifications/international-classification-of-functioning-disability-and-health",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.who.int/standards/classifications/international-classification-of-functioning-disability-and-health",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "571c2c6633109dc2e2b859a6c9e6b88c8b00e9ba94785a48e8c462bf33b1867a",
+    "page_title": "\r\n\tInternational Classification of Functioning, Disability and Health (ICF)\r\n"
+  },
+  {
+    "id": "DOC-NICE-OA",
+    "requested_url": "https://www.nice.org.uk/guidance/ng226/chapter/Recommendations",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.nice.org.uk/guidance/ng226/chapter/Recommendations",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "e34c6fecdddf3ba69f935c8fc966431c7c7e403dc99ce05bf52562655142bd80",
+    "page_title": "Recommendations | Osteoarthritis in over 16s: diagnosis and management  | Guidance | NICE"
+  },
+  {
+    "id": "DOC-NICE-JOINT",
+    "requested_url": "https://www.nice.org.uk/guidance/ng157/chapter/Recommendations",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.nice.org.uk/guidance/ng157/chapter/Recommendations",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "35bc3f58737d1060cb5f084e950637781b71a076b33e1a6b8189fb2fe2cf6254",
+    "page_title": "Recommendations | Joint replacement (primary): hip, knee and shoulder | Guidance | NICE"
+  },
+  {
+    "id": "DOC-FDA-DHT",
+    "requested_url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/digital-health-technologies-remote-data-acquisition-clinical-investigations",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/digital-health-technologies-remote-data-acquisition-clinical-investigations",
+    "content_type": "text/html; charset=UTF-8",
+    "content_hash": "27d1762e6a8ad394df022e6ec3d748a4983645ba9d4f88a431baf855c0c97d86",
+    "page_title": "Digital Health Technologies for Remote Data Acquisition in Clinical Investigations | FDA"
+  },
+  {
+    "id": "DOC-UCI-HAR",
+    "requested_url": "https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones",
+    "content_type": "text/html",
+    "content_hash": "691d549f457efcd32d726f6dde73fb5b751c3c3dc4a1fac136eefe67c037a733",
+    "page_title": "UCI Machine Learning Repository"
+  },
+  {
+    "id": "DOC-UCI-PAMAP2",
+    "requested_url": "https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://archive.ics.uci.edu/dataset/231/pamap2+physical+activity+monitoring",
+    "content_type": "text/html",
+    "content_hash": "205c51388b51e7af24b6139122971472df6eaa4119dabf9c71a2ffc7add248f8",
+    "page_title": "UCI Machine Learning Repository"
+  },
+  {
+    "id": "DOC-UCI-MHEALTH",
+    "requested_url": "https://archive.ics.uci.edu/dataset/319/mhealth+dataset",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://archive.ics.uci.edu/dataset/319/mhealth+dataset",
+    "content_type": "text/html",
+    "content_hash": "fca8f0a7e71ce1cf7e2346c4481bf0e63dddd842b5a2ad06e5446d477a9a9436",
+    "page_title": "UCI Machine Learning Repository"
+  },
+  {
+    "id": "DOC-VQF-IMPLEMENTATION",
+    "requested_url": "https://vqf.readthedocs.io/en/stable/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://vqf.readthedocs.io/en/stable/",
+    "content_type": "text/html; charset=utf-8",
+    "content_hash": "452e2250ece049161cc09a843e25117fdd6f5c8b4c3def63a4feda1c6d9fd642",
+    "page_title": "VQF: A Versatile Quaternion-based Filter for IMU Orientation Estimation — VQF  documentation"
+  },
+  {
+    "id": "ALG-VQF2023",
+    "requested_url": "https://research.uni-hannover.de/de/publications/vqf-highly-accurate-imu-orientation-estimation-with-bias-estimati/",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://research.uni-hannover.de/de/publications/vqf-highly-accurate-imu-orientation-estimation-with-bias-estimati/",
+    "content_type": "text/html;charset=UTF-8",
+    "content_hash": "e3bf4978d23cbd6c621f65177b995070feb3f5b1183e574a1945e71cf437fd04",
+    "page_title": "\n        VQF: Highly accurate IMU orientation estimation with bias estimation and magnetic disturbance rejection\n      -  Leibniz Universität Hannover Forschungsportal"
+  },
+  {
+    "id": "ALG-MADGWICK2010",
+    "requested_url": "https://x-io.co.uk/downloads/madgwick_internal_report.pdf",
+    "checked_on": "2026-10-03",
+    "status": "retrieved",
+    "http_status": 200,
+    "final_url": "https://x-io.co.uk/downloads/madgwick_internal_report.pdf",
+    "content_type": "application/pdf",
+    "content_hash": "d80f0e520c0c0a25ebb91a7c78be84e52783c1209221fca5783b66a26f59f3d8"
+  }
+]

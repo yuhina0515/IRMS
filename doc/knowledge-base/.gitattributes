@@ -1,0 +1,8 @@
+*.md text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.html text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.bib text eol=lf
+*.ris text eol=lf
