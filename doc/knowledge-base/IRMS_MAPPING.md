@@ -10,8 +10,8 @@
 | 平滑 | [smoothing.ts](../../IRMS_App_Tauri/src/services/smoothing.ts) | EMA 與最短弧、重置及累積延遲 |
 | 達標與警示 | [triggerEngine.ts](../../IRMS_App_Tauri/src/services/triggerEngine.ts) | 區間、維持、返回休息與獨立範圍提示 |
 | 歷程統計 | [sessionAnalysis.ts](../../IRMS_App_Tauri/src/services/sessionAnalysis.ts) | 全量點、有效時間、缺口與分析語意 |
-| 協定 | [protocol.ts](../../IRMS_App_Tauri/src/shared/protocol.ts)、[protocol.rs](../../IRMS_App_Tauri/src-tauri/src/protocol.rs) | 25 Hz 串流、可選向量延伸與有效性 |
-| 資料庫 | [db.rs](../../IRMS_App_Tauri/src-tauri/src/db.rs)、[migrations.rs](../../IRMS_App_Tauri/src-tauri/src/migrations.rs) | WAL／外鍵、交易與歷史資料 |
+| 協定 | [protocol.ts](../../IRMS_App_Tauri/src/shared/protocol.ts)、[protocol.rs](../../IRMS_Core/src/protocol.rs) | 25 Hz 串流、可選向量延伸與有效性 |
+| 資料庫 | [db.rs](../../IRMS_Core/src/db.rs)、[migrations.rs](../../IRMS_Core/src/migrations.rs) | WAL／外鍵、交易與歷史資料 |
 | 模組 | [MODULE_CONTRACT.md](../MODULE_CONTRACT.md)、[modules.ts](../../IRMS_App_Tauri/src/services/modules.ts) | 研究功能需保持獨立操作頁與取消清理 |
 | OTA／更新 | [firmware.rs](../../IRMS_App_Tauri/src-tauri/src/firmware.rs)、[firmware_update.rs](../../IRMS_App_Tauri/src-tauri/src/firmware_update.rs) | 程序階段、簽章及裝置版本確認 |
 | 過伸警示 | `feat/unified-calibration` commit `3c1c57d`（不在本快照）：`movementMetric.ts` 的 `HYPEREXTENSION_TOLERANCE_DEG = 5`（帶符號膝角低於 -5° 時警示）；`i18n/zh-Hant.ts`、`en.ts` 的過伸文字與語音。本快照只有 [movementMetric.ts](../../IRMS_App_Tauri/src/services/movementMetric.ts)、[zh-Hant.ts](../../IRMS_App_Tauri/src/i18n/zh-Hant.ts) 的舊版 | 5° 沒有動態警示的文獻依據；門檻需 V01／V02 誤差資料，語句需 V11 測試。見 [導讀 13](guides/13-hyperextension-and-alert-wording.md)、C26–C30（2026-10-16 查核） |

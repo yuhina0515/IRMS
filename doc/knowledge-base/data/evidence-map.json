@@ -520,8 +520,8 @@
       ],
       "app_paths": [
         "IRMS_App_Tauri/src/services/sessionAnalysis.ts",
-        "IRMS_App_Tauri/src-tauri/src/db.rs",
-        "IRMS_App_Tauri/src-tauri/src/protocol.rs"
+        "IRMS_Core/src/db.rs",
+        "IRMS_Core/src/protocol.rs"
       ],
       "gap": "規格與綠色 CI 不能證明真機零丟包、資料恢復或更新成功。",
       "acceptance_evidence": "版本明確的低 MTU／重連、交易失敗／中止／備份與 OTA 分階段故障紀錄。",

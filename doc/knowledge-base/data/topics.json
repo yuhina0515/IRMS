@@ -15,7 +15,7 @@
   {"id":"hardware","name":"IMU、I2C 與電氣規格","question":"晶片、模組板與接線是否符合實際電氣與採樣條件？","code_paths":["I2C_Scanner/I2C_Scanner.ino","IRMS_Sensor/README.md"]},
   {"id":"firmware","name":"ESP32 即時系統與 OTA","question":"感測、排程、錯誤恢復與更新是否維持可預測狀態？","code_paths":["IRMS_Sensor/README.md","IRMS_App_Tauri/src-tauri/src/firmware.rs"]},
   {"id":"ble","name":"BLE 協定與時間完整性","question":"封包完整性、MTU、延遲與重連如何驗證？","code_paths":["IRMS_App_Tauri/src/shared/protocol.ts","IRMS_App_Tauri/src-tauri/src/ble.rs"]},
-  {"id":"data","name":"SQLite、時間戳與資料保存","question":"原始、校準、判定與展示資料能否被可靠重現？","code_paths":["IRMS_App_Tauri/src-tauri/src/db.rs","IRMS_App_Tauri/src-tauri/src/migrations.rs","IRMS_App_Tauri/src/services/sessionAnalysis.ts"]},
+  {"id":"data","name":"SQLite、時間戳與資料保存","question":"原始、校準、判定與展示資料能否被可靠重現？","code_paths":["IRMS_Core/src/db.rs","IRMS_Core/src/migrations.rs","IRMS_App_Tauri/src/services/sessionAnalysis.ts"]},
   {"id":"security","name":"簽章、權限與資安工程","question":"更新、模組與遙測各自跨越哪些信任邊界？","code_paths":["IRMS_App_Tauri/src-tauri/src/modules.rs","IRMS_App_Tauri/src-tauri/src/firmware_update.rs","IRMS_App_Tauri/src-tauri/src/telemetry.rs"]},
   {"id":"architecture","name":"Tauri、Rust 與非同步生命週期","question":"跨前後端、取消與資源釋放是否符合明確契約？","code_paths":["IRMS_App_Tauri/src/platform/irmsApi.ts","IRMS_App_Tauri/src/services/modules.ts","doc/MODULE_CONTRACT.md"]},
   {"id":"accessibility","name":"無障礙與資訊理解","question":"回饋能否由鍵盤、視覺與其他感知方式可靠理解？","code_paths":["IRMS_App_Tauri/src/views/DashboardView.tsx"]},

@@ -6,8 +6,8 @@
 
 ## 專案對照
 
-- [IRMS_App_Tauri/src-tauri/src/db.rs](../../../IRMS_App_Tauri/src-tauri/src/db.rs)
-- [IRMS_App_Tauri/src-tauri/src/migrations.rs](../../../IRMS_App_Tauri/src-tauri/src/migrations.rs)
+- [IRMS_Core/src/db.rs](../../../IRMS_Core/src/db.rs)
+- [IRMS_Core/src/migrations.rs](../../../IRMS_Core/src/migrations.rs)
 - [IRMS_App_Tauri/src/services/sessionAnalysis.ts](../../../IRMS_App_Tauri/src/services/sessionAnalysis.ts)
 
 ## 來源導讀

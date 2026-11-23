@@ -320,7 +320,7 @@
 - [DOC-BLE-ATT](sources/DOC-BLE-ATT.md)：Official page or document headings; availability recorded separately；`primary-page-excerpt`。
 - [DOC-SQLITE-WAL](sources/DOC-SQLITE-WAL.md)：Official page or document headings; availability recorded separately；`primary-page-excerpt`。
 
-**實作對照**：[IRMS_App_Tauri/src/services/sessionAnalysis.ts](../../IRMS_App_Tauri/src/services/sessionAnalysis.ts) · [IRMS_App_Tauri/src-tauri/src/db.rs](../../IRMS_App_Tauri/src-tauri/src/db.rs) · [IRMS_App_Tauri/src-tauri/src/protocol.rs](../../IRMS_App_Tauri/src-tauri/src/protocol.rs)
+**實作對照**：[IRMS_App_Tauri/src/services/sessionAnalysis.ts](../../IRMS_App_Tauri/src/services/sessionAnalysis.ts) · [IRMS_Core/src/db.rs](../../IRMS_Core/src/db.rs) · [IRMS_Core/src/protocol.rs](../../IRMS_Core/src/protocol.rs)
 
 **尚缺**：規格與綠色 CI 不能證明真機零丟包、資料恢復或更新成功。
 

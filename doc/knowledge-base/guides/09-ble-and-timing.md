@@ -19,4 +19,4 @@ Notification 沒有 ATT 層對每筆通知的確認，與 Indication 的語意�
 
 建議原始資料品質報告包含接收間隔分布、最大停頓、截斷／錯誤計數、斷線與恢復時間；若未來擴協定，可考慮裝置序號與採樣時間。這是研究與工程需求，不是本次更改協定。
 
-程式對照：[前端協定](../../../IRMS_App_Tauri/src/shared/protocol.ts)、[Rust parser](../../../IRMS_App_Tauri/src-tauri/src/protocol.rs)、[BLE](../../../IRMS_App_Tauri/src-tauri/src/ble.rs)、[共享封包案例](../../../IRMS_App_Tauri/fixtures/vector-packets.json)。
+程式對照：[前端協定](../../../IRMS_App_Tauri/src/shared/protocol.ts)、[Rust parser](../../../IRMS_Core/src/protocol.rs)、[BLE](../../../IRMS_App_Tauri/src-tauri/src/ble.rs)、[共享封包案例](../../../IRMS_App_Tauri/fixtures/vector-packets.json)。

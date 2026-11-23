@@ -21,4 +21,4 @@ SQLite WAL 可以改善並行讀寫，仍有單一寫入者、checkpoint 與備�
 
 公開資料集可測試工具鏈與方法，但要保留原始資料及授權，寫出轉換版本和分割規則。應避免把光學標記直接貼在 IMU 的驗證，描述成完整解剖角度驗證。[GAITEX](../sources/PMID-41469404.md)、[DIODEM](../sources/PMID-40702014.md)
 
-本資料庫的 `irms-knowledge.sqlite` 是參考文獻資料庫，由 `data/catalog.json` 重建，與 IRMS 使用者 Session 資料庫完全分開。程式對照：[db.rs](../../../IRMS_App_Tauri/src-tauri/src/db.rs)、[migrations.rs](../../../IRMS_App_Tauri/src-tauri/src/migrations.rs)、[sessionAnalysis.ts](../../../IRMS_App_Tauri/src/services/sessionAnalysis.ts)。
+本資料庫的 `irms-knowledge.sqlite` 是參考文獻資料庫，由 `data/catalog.json` 重建，與 IRMS 使用者 Session 資料庫完全分開。程式對照：[db.rs](../../../IRMS_Core/src/db.rs)、[migrations.rs](../../../IRMS_Core/src/migrations.rs)、[sessionAnalysis.ts](../../../IRMS_App_Tauri/src/services/sessionAnalysis.ts)。
