@@ -6,13 +6,80 @@
 
 ---
 
+## BLE notification retirement (2026-10-29)
+
+Native development update (2026-11-16): session feedback runs through an ordered
+worker. Connection events carry an optional generation; writes check it after
+acquiring the peripheral lock. Disconnect follows OFF commands, failed cleanup
+retains its handle, and final close waits for cleanup. Unified held peaks require
+finite increasing clocks and gaps no greater than 250 ms in TS/Rust. See
+[[log_20261116_native_session_feedback]].
+
+Native angle/raw-calibration/OTA-status dispatch and telemetry are checked under the same short
+connection-epoch gate used by begin/invalidate. An invalidation waits for an already-running
+dispatch, and a retired listener cannot start another dispatch afterward. Stream acquisition errors
+use the same gate; stream-end teardown first waits for the peripheral lock, then rechecks the epoch
+before clearing the handle or publishing disconnect. No await or recursive BLE lock acquisition is
+allowed within the synchronous epoch callback (lock order: peripheral -> epoch). Poison recovery
+keeps retirement available after callback panic. Debug stderr output runs outside that short gate.
+
+This does not recall frontend events already queued before invalidation or add source timestamps.
+Native btleplug/OS race acceptance remains open.
+
+### Native connect ownership (2026-10-29)
+
+`ble_lifecycle.rs` reserves an epoch before its first await and serializes native attempts through
+cleanup. Current ownership is checked at awaited boundaries; native adapter/scan/setup also check
+their internal boundaries. Scan uses one stop_scan epilogue and reports cleanup failures. Installation,
+connected publication and listener scheduling run in that order under peripheral/epoch protection.
+Disconnect cannot take a newer handle or publish a stale disconnected event. Cancellation preserves
+simultaneous backend/cleanup errors. Lock order is attempts -> peripheral -> epoch; disconnect skips
+attempts so it can retire ownership promptly.
+
+OS calls already running are awaited before cleanup; cancellation does not mean instantaneous physical
+disconnect. Cleanup failure leaves physical state unverified, and arbitrary orchestration-future abort
+is not a cleanup guarantee. Fake transports verify the shared orchestration, not real OS timing.
+
+## Mobility and session reliability (2026-10-20)
+
+Repetition-hold follow-up (2026-10-29): TriggerEngine now uses a monotonic receiver clock and reads
+it once per sample. A gap above 250 ms, backwards time or a nonfinite clock cancels the current hold;
+the next valid strictly in-zone sample starts a fresh hold. Completed repetitions still require an
+actual rest sample before rearming, and personal-angle warnings remain independent. This prevents
+notification silence from earning hold time. The 250 ms threshold is an engineering continuity
+guard; native BLE scheduling and source timestamps remain separate validation work. Visual freshness
+during total silence is not changed: this guard is evaluated when the next sample arrives.
+
+Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,
+and no inter-sample gap above 250 ms. The gap threshold is an engineering continuity guard, not a validated
+clinical threshold. Knee capture requires aligned thigh-reference samples. Trends compare the same movement
+set and recorded leg; legacy records without a leg remain a separate group. Closing or disconnecting cancels
+the current measurement; a background save still refreshes history without closing a replacement wizard.
+
+Ending a session immediately stops acquisition and repetition counting, waits for any in-flight batch write,
+then performs one final flush. A disconnect invalidates a pending session start even if the connection returns.
+These changes have automated regression coverage; real BLE timing and native speech remain unverified.
+
+### Session save recovery (2026-10-21)
+
+Final append/finalization failure now retains the stopped session ID, totals and pending readings for explicit
+retry. Completion notices and speech occur only after persistence succeeds. A successful append is not replayed
+when only finalization failed. Retry is available in the session dock and hardware/crash error fallbacks.
+Pending sessions block update installation, firmware updates, demo/calibration changes, and deletion of their
+history row. Demo purge removes only completed rows; repeated finalization preserves its first successful end time
+and a missing session cannot be reported saved. No database schema or IPC signature changed.
+
+Recovery keeps the app process alive; it is not a durable crash-recovery journal. The existing 2,000-reading
+failed-write buffer cap remains. Genuine failed SQLite batches roll back atomically; ambiguous IPC acknowledgements
+are not deduplicated and require a separate batch-token design if that failure must be handled.
+
 ## 1. 系統概述 (System Overview)
 
 本系統旨在提供一套精準、即時且具備雙向參數同步與互動回饋機制的智慧復健輔助方案。透過穿戴式 ESP32 物聯網 (IoT) 裝置擷取人體運動力學數據，結合邊緣運算 (Edge Computing) 與桌面監測端應用程式，協助物理治療師與患者即時監控關節夾角變化，並將所有復健歷程自動儲存於本地 SQLite 資料庫中，以進行量化分析與成效追蹤。
 
 > **2026-09-16 現役實作更正:**桌面監測端現役實作是 `IRMS_App_Tauri`(Tauri 2 + Rust +
 > React/TypeScript),取代下面第 3、4、5 節仍在描述的 Electron v2 架構。Electron
-> (`IRMS_App`)目前仍留在 repo 內、尚未正式除役(遷移退場條件見
+> (`IRMS_App`)已於 2026-09 切換為 Tauri 後停用(原始碼目錄暫留在 repo 內作歷史參照;切換紀錄見
 > [TAURI_MIGRATION_PLAN.md](TAURI_MIGRATION_PLAN.md)),故下方 Electron 相關章節保留為
 > **歷史/v2 世代文件**,不代表現況。現役架構與開發指引請見
 > [`IRMS_App_Tauri/README.md`](../IRMS_App_Tauri/README.md)。硬體(ESP32 韌體、腳位、
@@ -42,6 +109,8 @@
 * **電源管理**：支援 3.7V 鋰電池供電。
 
 ### 2.1 六軸方向定義(校準後統一慣例,2026-07-05 制定)
+
+> **2026-10-01**:除流程 A 校準精靈外,設定頁新增「校準 B (beta)」——以重力平面、陀螺儀樞軸與六面地面階段推算安裝方向,輸出相同的 Settings 欄位;實機驗證待辦。
 
 App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;所有偵測、量表、3D/2D 顯示均以此為準:
 
@@ -142,11 +211,12 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * **角度推播 (Angle TX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483e-36e1-4688-b7f5-ea07361b26a8`
     * **格式 (6 軸)**：I2C 正常時以 **25Hz** 頻率通知發送 `T:大腿Pitch,S:小腿Pitch,K:膝夾角,TR:大腿Roll,SR:小腿Roll,KR:膝Roll差` (例如 `T:12.5,S:-45.2,K:57.7,TR:1.2,SR:-0.8,KR:2.0`);其中 `K`、`KR` 為衍生值,前端會由 Pitch/Roll 自行重算。若 I2C 離線則發送 `ERR:1`。
+    * **原始串流 (`G:`,韌體 1.0.1-beta.2 起,opt-in)**:App 送出 `CMD:RAW_ON` 後,韌體額外推播 `G:tgx/tgy/tgz/sgx/sgy/sgz/tax/tay/taz/sax/say/saz`——前 6 欄為大腿/小腿陀螺儀(deg/s,已扣偏差,含 gz),後 6 欄為原始加速度(g,±4g、8192 LSB/g)。`CMD:RAW_OFF`、斷線與 OTA 傳輸中皆停止;最長約 85 bytes。舊版 App 從不開啟,不受影響。
     * **MTU**：韌體顯式設定 `setMTU(128)`,確保 6 軸封包(6 軸最長約 54 bytes;含 `V:` 擴充欄位最長 114 bytes,需 MTU ≥ 117)不被截斷。
   * **指令接收 (Profile RX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483f-36e1-4688-b7f5-ea07361b26a8`
     * **指令格式 (`CMD:`)**:
-      `CMD:LED_ON/OFF`(達標回饋燈)、`CMD:GOAL`(達標雙短響)、`CMD:ALARM_ON/OFF`(超限長鳴)。
+      `CMD:LED_ON/OFF`(達標回饋燈)、`CMD:GOAL`(達標雙短響)、`CMD:ALARM_ON/OFF`(超限長鳴)、`CMD:RAW_ON/OFF`(開關下述 `G:` 原始串流,預設關閉)。
       韌體以 `trim()` 剝除尾端空白後**精確比對**;指令字串不可附加換行。
     * **依 D1 不再解析**:Profile 參數(`目標,容錯,維持ms`)與 `CMD:SYNC` 校準同步——判定與校準
       皆在 App 端完成,韌體收到後直接忽略(無 NVS 持久化)。
@@ -160,7 +230,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--8)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--10)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。

@@ -7,8 +7,11 @@ import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { sessionController } from '../services/sessionController'
 import { bluetoothService } from '../services/bluetooth'
+import { zeroIsUpright } from '../services/calibrationCore'
+import { applyQuickRezero, rezeroWithinReach, wearingCheck, wearingProfile } from '../services/calibrationRuntime'
 import { firmwareUpdateBusy, useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import { GlassDropdown } from './GlassDropdown'
+import { SessionSaveControl } from './SessionSaveControl'
 import { isProtocolSupported } from '@shared/types'
 import {
   HOLD_TIME_BOUND,
@@ -37,7 +40,13 @@ export function startBlocker(s: {
   calibrated: boolean
   simulated: boolean
   running: boolean
+  finishing?: boolean
+  /** The selected action is a segment trigger but the calibration zero is not an upright leg. */
+  segmentNeedsUprightZero?: boolean
+  /** A unified calibration is active but the BLE link is truncated, so the gravity vectors never arrive. */
+  unifiedLinkTruncated?: boolean
 }): StartBlocker | null {
+  if (s.finishing) return 'finishing'
   if (s.running) return 'running'
   if (!s.protocolOk) return 'protocolUnsupported'
   if (s.fwBusy) return 'firmwareUpdating'
@@ -46,6 +55,8 @@ export function startBlocker(s: {
   // 2026-09-25 使用者裁定:未校準不得開始。實測證明角度正確性取決於校準
   // (衣物墊高讓感測器不平行);示範模式的模擬姿態本身就在校準座標系,不受此限。
   if (!s.calibrated && !s.simulated) return 'notCalibrated'
+  if (s.unifiedLinkTruncated) return 'unifiedNeedsVectors'
+  if (s.segmentNeedsUprightZero) return 'segmentNeedsUprightZero'
   return null
 }
 
@@ -55,6 +66,8 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const setParams = useStore((s) => s.setParams)
   const protocol = useStore((s) => s.settings.protocol)
   const calibrated = useStore((s) => s.settings.lastCalibratedAt != null)
+  const unifiedLinkTruncated = useStore((s) => s.settings.calibrationMethod === 'unified' && s.linkTruncated)
+  const zeroUpright = useStore((s) => zeroIsUpright(s.settings))
   const actions = useStore((s) => s.customActions)
   const selectedActionId = useStore((s) => s.selectedActionId)
   const selectAction = useStore((s) => s.selectAction)
@@ -69,6 +82,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   const running = session.running
   const protocolOk = isProtocolSupported(protocol)
   const fwBusy = firmwareUpdateBusy(fwStatus)
+  const selectedTrigger = actions.find((a) => a.id === selectedActionId)?.triggerType
   const blocker = startBlocker({
     protocolOk,
     fwBusy,
@@ -76,11 +90,42 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
     hasAction: selectedActionId != null,
     calibrated,
     simulated: bluetoothService.isSimulated,
-    running
+    running,
+    finishing: !running && session.id != null,
+    unifiedLinkTruncated,
+    segmentNeedsUprightZero: selectedTrigger != null && selectedTrigger !== 'joint_angle' && !zeroUpright
   })
   const canStart = blocker == null
 
   const handleStart = async (): Promise<void> => {
+    // Wearing check against the stored unified reference: a turned strap or shifted sensor is reported before the
+    // session, never silently corrected. The user is told which posture to take BEFORE sampling starts, and an
+    // inconclusive reading (moving, no data) asks instead of silently starting.
+    if (!bluetoothService.isSimulated) {
+      const profile = await wearingProfile()
+      if (profile) {
+        const w = m.calibrationFlow.wearing
+        const posture = profile.reference.kind === 'neutral' ? w.neutralPosture : m.calibrationFlow.postures[profile.reference.posture ?? 'standing']
+        if (!(await requestConfirm(w.title, w.posture({ posture })))) return
+        const worn = await wearingCheck(profile)
+        if (!worn) {
+          if (!(await requestConfirm(w.title, w.inconclusive))) return
+        } else if (rezeroWithinReach(worn.check)) {
+          // The pose just held IS the reference posture, so the offset can be removed on the spot. Starting with a
+          // known zero offset is not offered: every angle of the session would carry it.
+          if (!(await requestConfirm(w.title, w.rezero))) return
+          const outcome = await applyQuickRezero(profile, worn.frames)
+          if (outcome !== 'applied') {
+            showToast(outcome === 'refused' ? w.rezeroRefused : m.calibrationFlow.applyFailed, 'error')
+            return
+          }
+          showToast(w.rezeroDone, 'success')
+        } else if (worn.check.verdict !== 'ok') {
+          // A sideways turn, or an offset too large to be the strap alone: no automatic fix, the wearer decides.
+          if (!(await requestConfirm(w.title, worn.check.verdict === 'recalibrate' ? w.recalibrate : w.tooFar))) return
+        }
+      }
+    }
     // 個人角度範圍沒有預設值:未量測時判定不做任何角度警示,開始前提醒一次(仍可開始)
     if (useStore.getState().angleRange == null && !bluetoothService.isSimulated) {
       const ok = await requestConfirm(m.clinical.noRangeTitle, m.clinical.noRangeBody)
@@ -102,8 +147,12 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
   // Ctrl/Cmd+Enter:與按鈕走同一個守衛(handler 為 null 時不掛 listener)
   useGlobalShortcut({ key: 'Enter' }, running ? () => void handleEnd() : canStart ? () => void handleStart() : null)
 
+  if (!running && session.id != null) {
+    return <div className="v3-dock"><SessionSaveControl /></div>
+  }
+
   if (running) {
-    const holdSec = (session.holdProgress / 100) * (params.holdTimeMs / 1000)
+    const holdSec = (session.holdProgress / 100) * (clampHoldTimeMs(params.holdTimeMs) / 1000)
     return (
       <div className="v3-dock running">
         <div className="v3-dock-stat">
@@ -117,7 +166,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           <span className="v3-dock-label">{m.sessionDock.currentHold}</span>
           <span className="v3-dock-value">
             {formatNumber(locale, holdSec)}
-            <small>{m.sessionDock.holdOf({ total: formatNumber(locale, params.holdTimeMs / 1000) })}</small>
+            <small>{m.sessionDock.holdOf({ total: formatNumber(locale, clampHoldTimeMs(params.holdTimeMs) / 1000) })}</small>
           </span>
           <span className="v3-hold-bar" aria-hidden>
             <span style={{ width: `${Math.min(100, session.holdProgress)}%` }} />
@@ -155,7 +204,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           type="number"
           min={TARGET_ANGLE_BOUND.min}
           max={TARGET_ANGLE_BOUND.max}
-          value={params.targetAngle}
+          value={Number.isFinite(params.targetAngle) ? params.targetAngle : ''}
           onChange={(e) => setParams({ targetAngle: parseFloat(e.target.value) })}
           onBlur={(e) => setParams({ targetAngle: clampTargetAngle(parseFloat(e.target.value)) })}
         />
@@ -167,7 +216,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           type="number"
           min={TOLERANCE_BOUND.min}
           max={TOLERANCE_BOUND.max}
-          value={params.tolerance}
+          value={Number.isFinite(params.tolerance) ? params.tolerance : ''}
           onChange={(e) => setParams({ tolerance: parseFloat(e.target.value) })}
           onBlur={(e) => setParams({ tolerance: clampTolerance(parseFloat(e.target.value)) })}
         />
@@ -180,7 +229,7 @@ export function SessionDock({ onCalibrate }: { onCalibrate: () => void }): JSX.E
           min={HOLD_TIME_BOUND.min / 1000}
           max={HOLD_TIME_BOUND.max / 1000}
           step={0.1}
-          value={params.holdTimeMs / 1000}
+          value={Number.isFinite(params.holdTimeMs) ? params.holdTimeMs / 1000 : ''}
           onChange={(e) => setParams({ holdTimeMs: Math.round(parseFloat(e.target.value) * 1000) })}
           onBlur={(e) => setParams({ holdTimeMs: clampHoldTimeMs(Math.round(parseFloat(e.target.value) * 1000)) })}
         />

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>準備開始</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="{{themeVars}};width:1280px;height:800px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--canvas);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;overflow:hidden">
+  <header style="height:64px;flex-shrink:0;display:flex;align-items:center;gap:32px;padding:0 24px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;letter-spacing:0.04em">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" style="fill:var(--accent)"/><path d="M12 6 L13 15 L21 18" fill="none" style="stroke:var(--onaccent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      IRMS
+    </div>
+    <nav aria-label="主要功能" style="display:flex;gap:4px;flex-grow:1">
+      <a href="Main.dc.html" aria-current="page" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;background:var(--tint);color:var(--accent);font-weight:700;text-decoration:none">即時監測</a>
+      <a href="Actions.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">動作處方</a>
+      <a href="History.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">療程紀錄</a>
+      <a href="Settings.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">設定</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span role="status" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)"><span style="width:10px;height:10px;border-radius:50%;background:var(--good)"></span>裝置已連線</span>
+      <button style="height:44px;padding:0 20px;border-radius:22px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:500 15px 'Noto Sans TC',sans-serif">中斷連線</button>
+    </div>
+  </header>
+
+  <main style="flex-grow:1;min-height:0;padding:0 24px 24px;box-sizing:border-box;display:flex">
+    <section aria-label="即時監測" style="flex-grow:1;min-width:0;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:24px;overflow:hidden">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:22px 32px 0">
+        <div>
+          <h1 style="margin:0;font-family:'Noto Serif TC',serif;font-weight:700;font-size:30px;line-height:1.2">膝關節屈曲</h1>
+          <p style="margin:6px 0 0;font-size:15px;color:var(--muted)">到達目標區後保持 · 目標 85–95° · 保持 5 秒</p>
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:18px;background:var(--warnbg);color:var(--warn);font-size:14px;font-weight:700">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3 V9 M8 12.2 V12.3" fill="none" style="stroke:var(--warn)" stroke-width="2.2" stroke-linecap="round"/></svg>
+          尚未校準
+        </span>
+      </div>
+
+      <div style="flex-grow:1;min-height:0;display:flex;gap:32px;padding:14px 32px 20px;box-sizing:border-box">
+        <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:28px">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--muted);letter-spacing:0.06em">主指標 · 屈膝角度</div>
+            <div style="display:flex;align-items:baseline;margin-top:4px;color:var(--muted)">
+              <span style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:176px;line-height:1">—</span>
+              <span style="font-family:'Noto Serif TC',serif;font-weight:500;font-size:72px;line-height:1">°</span>
+            </div>
+          </div>
+          <div style="padding:22px 24px;border-radius:18px;background:var(--warnbg);color:var(--ink)">
+            <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;color:var(--warn)">請先完成校準</div>
+            <p style="margin:8px 0 18px;font-size:16px;line-height:1.6">未校準時,角度的方向與大小都可能不正確。完成站姿與屈膝兩個步驟(約 1 分鐘)後才能開始療程。</p>
+            <button style="height:52px;padding:0 28px;border-radius:26px;border:0;background:var(--accent);color:var(--onaccent);font:700 17px 'Noto Sans TC',sans-serif">開始校準</button>
+          </div>
+        </div>
+
+        <div style="flex:1 1 0;min-width:0;border-radius:20px;background:var(--soft);display:flex;flex-direction:column">
+          <div style="padding:16px 18px 0">
+            <span style="font-size:14px;font-weight:700;color:var(--muted);letter-spacing:0.06em">校準步驟</span>
+          </div>
+          <ol style="list-style:none;margin:0;padding:20px 24px;display:flex;flex-direction:column;gap:16px;flex-grow:1;justify-content:center">
+            <li style="display:flex;gap:16px;align-items:center;padding:16px 18px;border-radius:16px;background:var(--paper);border:2px solid var(--accent)">
+              <span style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--onaccent);display:inline-flex;align-items:center;justify-content:center;font-weight:700">1</span>
+              <div><div style="font-weight:700;font-size:17px">站直,雙腳與肩同寬</div><div style="font-size:14px;color:var(--muted);margin-top:2px">記錄伸直時的零點,保持不動 3 秒</div></div>
+            </li>
+            <li style="display:flex;gap:16px;align-items:center;padding:16px 18px;border-radius:16px;background:var(--paper);border:1px solid var(--line)">
+              <span style="width:40px;height:40px;border-radius:50%;border:2px solid var(--edge);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-weight:700;box-sizing:border-box">2</span>
+              <div><div style="font-weight:700;font-size:17px;color:var(--muted)">向後彎曲膝蓋</div><div style="font-size:14px;color:var(--muted);margin-top:2px">確認屈曲方向,角度會自動換算</div></div>
+            </li>
+            <li style="display:flex;gap:16px;align-items:center;padding:16px 18px;border-radius:16px;background:var(--paper);border:1px solid var(--line)">
+              <span style="width:40px;height:40px;border-radius:50%;border:2px solid var(--edge);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-weight:700;box-sizing:border-box">3</span>
+              <div><div style="font-weight:700;font-size:17px;color:var(--muted)">確認並儲存</div><div style="font-size:14px;color:var(--muted);margin-top:2px">完成後即可選擇動作並開始療程</div></div>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <div style="flex-shrink:0;height:96px;box-sizing:border-box;border-top:1px solid var(--line);display:flex;align-items:center;gap:28px;padding:0 32px">
+        <div>
+          <div style="font-size:13px;color:var(--muted)">動作</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px">膝關節屈曲</div>
+        </div>
+        <div style="display:flex;gap:16px">
+          <div><div style="font-size:13px;color:var(--muted)">目標 (°)</div><div style="width:92px;height:48px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">90</div></div>
+          <div><div style="font-size:13px;color:var(--muted)">容許 (±°)</div><div style="width:92px;height:48px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">5</div></div>
+          <div><div style="font-size:13px;color:var(--muted)">保持 (秒)</div><div style="width:92px;height:48px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">5</div></div>
+        </div>
+        <div style="flex-grow:1"></div>
+        <span style="font-size:15px;color:var(--warn);font-weight:500">請先完成校準</span>
+        <button disabled style="height:52px;padding:0 32px;border-radius:26px;border:2px solid var(--edge);background:transparent;color:var(--muted);font:700 17px 'Noto Sans TC',sans-serif">開始療程</button>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+const L = {canvas:'#EEEAE2',paper:'#FFFCF6',soft:'#E8E2D8',ink:'#29252D',muted:'#625C65',line:'#CFC6BD',edge:'#827784',accent:'#684563',onaccent:'#FFFFFF',tint:'#EDE1EA',good:'#286047',goodbg:'#E0EBDF',warn:'#805017',warnbg:'#F4E7CF',danger:'#B02D32',dangerbg:'#FAE5E0'};
+const D = {canvas:'#201E23',paper:'#29262D',soft:'#36313A',ink:'#F4EEE6',muted:'#C3B8C5',line:'#514853',edge:'#A698AA',accent:'#D9B6D0',onaccent:'#29252D',tint:'#463443',good:'#ACD7B8',goodbg:'#2D4033',warn:'#F0C182',warnbg:'#493922',danger:'#FFA7A0',dangerbg:'#502D30'};
+const t = this.props.dark ? D : L;
+return { themeVars: Object.keys(t).map((k) => '--' + k + ':' + t[k]).join(';') };
+}
+}
+</script>
+</body>
+</html>

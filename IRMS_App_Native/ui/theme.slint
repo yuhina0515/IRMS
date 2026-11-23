@@ -1,0 +1,294 @@
+// Shared palette and small widgets. Palette index = style * 2 + (night ? 1 : 0).
+// Styles: 0 Workbook (v3 carry-over), 1 Calm companion (chosen 2026-11-16), 2 Dark studio.
+export global Theme {
+    in-out property <int> style: 1;
+    in-out property <bool> night: false;
+    out property <int> idx: root.style * 2 + (root.night ? 1 : 0);
+    out property <color> canvas: [#EEEAE2, #161E20, #E9F0EA, #1B2420, #1A1C21, #101114][root.idx];
+    out property <color> surface: [#FFFCF6, #1D282A, #F8FBF7, #232F29, #22252B, #181A1F][root.idx];
+    out property <color> raised: [#E8E2D8, #283638, #DCE8DF, #2F3E36, #2C3037, #23262D][root.idx];
+    out property <color> border: [#CFC6BD, #45585A, #BFD0C4, #46594D, #3A3F47, #353941][root.idx];
+    out property <color> ink: [#29252D, #E7EFEC, #25332B, #E6F0E9, #ECEDEF, #ECEDEF][root.idx];
+    out property <color> dim: [#625C65, #AEC1BF, #5E6F64, #A9BBB0, #A0A4AC, #A0A4AC][root.idx];
+    out property <color> accent: [#684563, #97CCDE, #3F8F6B, #7FD1A8, #FF8A3D, #FF8A3D][root.idx];
+    out property <color> on-accent: [#FFFFFF, #161E20, #FFFFFF, #10201A, #101114, #101114][root.idx];
+    out property <color> good: [#2E7D4F, #6FD39A, #2E7D4F, #7FD1A8, #5BD48A, #5BD48A][root.idx];
+    out property <color> warn: [#9A6412, #F0BE6A, #9A6412, #F0BE6A, #F0BE6A, #F0BE6A][root.idx];
+    out property <color> danger: [#B3362F, #FF8F85, #B3362F, #FF8F85, #FF6B5E, #FF6B5E][root.idx];
+    out property <length> radius: [6px, 6px, 18px, 18px, 4px, 4px][root.idx];
+}
+
+export component Btn inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> active: false;
+    in property <bool> enabled: true;
+    in property <bool> quiet: false;
+    in property <color> ink: Theme.ink;
+    callback clicked;
+    min-height: 40px;
+    min-width: label.preferred-width + 32px;
+    border-radius: min(Theme.radius, self.height / 2);
+    opacity: root.enabled ? 1 : 0.45;
+    background: root.primary || root.active ? Theme.accent : root.quiet ? transparent : ta.has-hover && root.enabled ? Theme.border : Theme.raised;
+    border-width: root.quiet ? 0 : 1px;
+    border-color: root.primary || root.active ? Theme.accent : Theme.border;
+    label := Text {
+        text: root.text;
+        color: root.primary || root.active ? Theme.on-accent : root.ink;
+        font-size: 15px;
+        font-weight: root.primary ? 700 : 500;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+export component Field inherits Rectangle {
+    in property <string> placeholder;
+    in-out property <string> text <=> input.text;
+    callback edited(string);
+    height: 40px;
+    border-radius: min(Theme.radius, 20px);
+    background: Theme.canvas;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.border;
+    if input.text == "": Text { x: 14px; text: root.placeholder; font-size: 15px; color: Theme.dim; vertical-alignment: center; }
+    input := TextInput {
+        x: 14px; width: parent.width - 28px;
+        font-size: 15px; color: Theme.ink;
+        vertical-alignment: center; single-line: true;
+        edited => { root.edited(self.text); }
+    }
+}
+
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <color> tone: Theme.dim;
+    height: 24px;
+    width: t.preferred-width + 20px;
+    border-radius: 12px;
+    background: root.tone.with-alpha(0.14);
+    t := Text { text: root.text; font-size: 12px; color: root.tone; horizontal-alignment: center; vertical-alignment: center; }
+}
+
+export component Card inherits Rectangle {
+    border-radius: Theme.radius;
+    background: Theme.surface;
+    border-width: 1px;
+    border-color: Theme.border;
+}
+
+export component PageHead inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> sub;
+    spacing: 10px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        Text { text: root.title; font-size: 26px; font-weight: 700; color: Theme.ink; }
+        Text { text: root.sub; font-size: 13px; color: Theme.dim; }
+    }
+    @children
+}
+
+export struct ActionItem { id: string, name: string, kind: string, target: string, hold: string, note: string, shown: bool, position: int }
+export struct ViewerItem { id: string, name: string }
+export struct ModuleItem { id: string, name: string, note: string, installed: string, available: string, status: string, tone: int, can-update: bool, can-toggle: bool, disabled: bool, can-rollback: bool }
+export struct RangeRow { id: string, text: string, current: bool }
+export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
+
+// Simulated app state shared by all screens (phase 2: no real device or database behind it).
+export global App {
+    in property <string> preferences-status;
+    in property <bool> preferences-can-retry;
+    callback retry-preferences();
+    callback request-reset-preferences();
+    in-out property <int> action-page: 0;
+    in property <int> action-matches;
+    in property <string> active-action-id;
+    in property <string> picked-action-id;
+    in property <bool> has-picked-action;
+    in property <ActionItem> picked-action;
+    callback pick-action(string);
+    callback select-action(string);
+    callback new-action();
+    callback edit-action(string);
+    callback request-delete-action(string);
+    callback request-restore-actions();
+    in property <bool> editor-open;
+    in property <bool> editor-editing;
+    in property <string> editor-error;
+    in-out property <string> editor-name;
+    in-out property <string> editor-description;
+    in-out property <string> editor-target;
+    in-out property <string> editor-tolerance;
+    in-out property <string> editor-hold;
+    in-out property <int> editor-trigger;
+    callback save-action();
+    callback cancel-editor();
+    in property <bool> confirmation-open;
+    in property <string> confirmation-title;
+    in property <string> confirmation-message;
+    in property <string> confirmation-error;
+    callback confirm-mutation();
+    callback cancel-confirmation();
+    callback request-delete-session(string);
+    in property <bool> closing;
+    in property <bool> disconnecting;
+    in property <string> feedback-error;
+    in-out property <bool> voice-enabled: true;
+    in property <string> voice-status: "語音啟動中";
+    in property <string> device-name: "IRMS-Sim (模擬裝置)";
+    in-out property <string> release-version;
+    in property <string> storage-error;
+    in property <bool> session-locked;
+    in property <bool> save-pending;
+    in property <bool> device-mode;
+    in property <bool> valid-angle;
+    in-out property <int> review: -1;
+    in-out property <int> view: 0;            // 0 live 1 actions 2 history 3 tools 4 settings
+    in-out property <int> conn: 0;            // 0 disconnected 1 connecting 2 connected
+    in-out property <bool> calibrated: false;
+    in-out property <bool> wizard-open: false;
+    in-out property <int> action-index: 1;
+    in-out property <int> settings-tab: 0;
+    in-out property <int> tools-tab: 0;
+    in-out property <int> pose-view: 0;       // 0 2D 1 3D 2 values
+    in-out property <int> comfort: -1;        // personal comfort angle, -1 = not measured
+    in-out property <int> limit: -1;
+    in property <[ActionItem]> actions;      // filled from Rust; `shown` follows the search box
+    in-out property <string> search;
+    in-out property <int> history-page: 0;
+    out property <int> history-page-size: 5;
+    callback search-edited(string);
+    in property <[SessionRow]> sessions;
+    // live values pushed from Rust
+    in property <float> angle: 0;
+    in property <string> angle-text: "—";
+    in property <string> thigh-text: "—";
+    in property <string> shin-text: "—";
+    in property <string> roll-text: "—";
+    callback request-connect();
+    // calibration wizard, driven from Rust (irms_core::calibration_flow over the captured vectors)
+    in property <int> wizard-page: 0;          // 0 prepare 1 reference 2 movement 3 review
+    in property <string> wizard-title;
+    in property <string> wizard-body;
+    in property <string> wizard-label;
+    in property <float> wizard-progress: 0;
+    in property <bool> wizard-busy: false;
+    in property <bool> wizard-step-done: false;
+    in property <string> wizard-status;
+    in property <int> wizard-tone: 0;          // 0 plain 1 good 2 problem
+    in property <string> wizard-result;
+    in property <float> wizard-seconds: 2;
+    in property <int> wizard-side: -1;         // -1 unchosen 0 left 1 right
+    in property <int> wizard-preset: 0;        // 0 calibrate 1 mobility 2 quick re-zero
+    in property <bool> wizard-neutral: false;
+    in property <int> wizard-posture: 0;
+    in property <string> wizard-posture-name;
+    in property <bool> wizard-has-stored: false;
+    in property <bool> wizard-can-begin: false;
+    in property <bool> wizard-can-skip: false;
+    in property <bool> wizard-can-apply: false;
+    in property <bool> wizard-can-redo: false;
+    in property <bool> wizard-can-save-mobility: false;
+    in property <bool> wizard-save-mobility: true;
+    callback wizard-set-side(int);
+    callback wizard-set-preset(int);
+    callback wizard-set-neutral(bool);
+    callback wizard-set-posture(int);
+    callback wizard-begin();
+    callback wizard-start();
+    callback wizard-next();
+    callback wizard-skip();
+    callback wizard-recapture();
+    callback wizard-redo();
+    callback wizard-toggle-save();
+    callback wizard-apply();
+    callback wizard-cancel();
+    in property <string> import-notice;
+    in property <string> firmware-status;
+    callback firmware-check();
+    // firmware update over BLE (firmware_ui.rs): 0 idle 1 downloading 2 starting 3 transferring 4 finalizing 5 done 6 error
+    in property <int> ota-phase: 0;
+    in property <float> ota-progress: 0;
+    in property <bool> firmware-can-install: false;
+    in-out property <bool> firmware-confirm: false;
+    callback firmware-install();
+    callback firmware-abort();
+    // program updates (update_ui.rs)
+    in property <string> update-status;
+    in property <bool> update-ready: false;
+    in-out property <bool> auto-update: true;
+    in-out property <bool> auto-modules: true;
+    callback update-check();
+    callback update-install();
+    // telemetry opt-in and live share (IRMS_Core::telemetry, IRMS_Core::share_session)
+    in property <bool> telemetry-on: false;
+    in property <string> telemetry-status;
+    callback telemetry-set(bool);
+    in property <int> share-host-status: 0;     // 0 idle 1 starting 2 sharing 3 ended
+    in property <string> share-code;
+    in property <string> share-host-note;
+    in property <[ViewerItem]> share-viewers;
+    callback share-start();
+    callback share-stop();
+    callback share-kick(string);
+    in property <int> share-viewer-status: 0;   // 0 idle 1 joining 2 watching 3 ended
+    in property <string> share-viewer-note;
+    in property <string> share-viewer-text;
+    callback share-join(string);
+    callback share-leave();
+    // pre-session wearing check (real device only), driven from Rust
+    in-out property <bool> wearing-open: false;
+    in property <int> wearing-page: 0;         // 0 take the pose 1 sampling 2 verdict
+    in property <string> wearing-body;
+    in-out property <string> wearing-note;      // why the last action failed (re-zero), shown in the dialog
+    in property <float> wearing-progress: 0;
+    in property <int> wearing-verdict: 0;      // 0 none 1 ok 2 inconclusive 3 re-zero 4 recalibrate 5 too far
+    callback wearing-begin();
+    callback wearing-retry();
+    callback wearing-start-anyway();
+    callback wearing-rezero();
+    callback wearing-recalibrate();
+    callback wearing-cancel();
+    // range-of-motion totals (Settings): the newest record and the comparable history, newest first
+    in property <string> mobility-latest;
+    in property <[string]> mobility-history;
+    // review statistics of the session picked in History, computed from its stored readings
+    in property <string> review-summary;
+    callback request-review(int);
+    callback export-session(int);
+    in-out property <string> export-notice;
+    // personal angle-range measurement in Tools (range_ui.rs, port of the angle-range module)
+    in-out property <int> range-step: 0;        // 0 comfort 1 limit 2 review
+    in-out property <string> range-edit-comfort;
+    in-out property <string> range-edit-limit;
+    in-out property <string> range-edit-note;
+    in property <int> range-peak: -1;           // highest knee angle while measuring, -1 = none
+    in property <string> range-error;
+    in-out property <string> range-notice;
+    in property <[RangeRow]> range-rows;        // newest first, at most six
+    in property <int> range-total;
+    callback range-record-comfort();
+    callback range-record-limit();
+    callback range-skip-limit();
+    callback range-restart();
+    callback range-save();
+    callback request-delete-range(string);
+    // module registry (module_ui.rs): rows for Settings -> modules; tips come from the active content
+    // pack, and this list is the built-in fallback that main.rs restores when no valid pack is active.
+    in property <[ModuleItem]> module-rows;
+    in property <string> module-status;
+    in property <bool> module-busy: false;
+    callback module-check();
+    callback module-update(string);
+    callback module-toggle(string);
+    callback module-rollback(string);
+    callback module-reset();
+    in property <[string]> tips: [
+        "感測器請貼在大腿與小腿外側、盡量與腿平行;衣物墊高會讓角度偏差,重新跑校準精靈可修正。",
+        "校準「膝蓋彎曲」時大腿保持不動,只把腳跟往後往上勾,幅度越大屈曲軸越準。",
+        "校準「髖屈曲」需至少把大腿抬高 20°,建議抬到 40–60° 並停住等待捕捉。",
+    ];
+}

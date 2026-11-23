@@ -64,7 +64,8 @@ export const OTA_ERROR_HINTS: Readonly<Record<string, string>> = {
   ALREADY_RUNNING: '裝置已有進行中的更新,請先等待或中止',
   NOT_STARTED: '尚未送出 OTA:START 就收到 END',
   SIZE_MISMATCH: '實際收到的位元組數與宣告的大小不符,更新已中止',
-  WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)'
+  WRITE_FAIL: '寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)',
+  MTU_TOO_SMALL: '藍牙連線 MTU 過小(裝置要求 128),韌體分塊會被截斷;請斷線後重新連線,仍無法改善時請改用其他藍牙配接器'
 }
 
 // 已移除:buildSyncCommand / buildProfilePayload — 文件化了一份現行韌體並不實作的
@@ -249,4 +250,24 @@ export function parseAnglePacket(value: string): ParsedPacket {
     hasRoll,
     truncated
   }
+}
+
+/** 韌體 `CMD:RAW_ON` 之後才會送的原始運動封包(`G:`):陀螺儀 deg/s(含 gz)與未正規化加速度 g。 */
+export interface RawMotion {
+  thighGyro: AccelVector
+  shinGyro: AccelVector
+  thighAcc: AccelVector
+  shinAcc: AccelVector
+}
+
+/** 解析 `G:` 封包;欄位數不是 12、含非數值或被截斷時回傳 null(寧可丟棄也不用半包資料校準)。 */
+export function parseRawPacket(value: string): RawMotion | null {
+  const text = value.trim()
+  if (!text.startsWith('G:')) return null
+  const fields = text.slice(2).split('/').map((f) => f.trim())
+  if (fields.length !== 12 || fields.some((f) => f.length === 0)) return null
+  const n = fields.map(Number)
+  if (!n.every(Number.isFinite)) return null
+  const v = (i: number): AccelVector => ({ x: n[i], y: n[i + 1], z: n[i + 2] })
+  return { thighGyro: v(0), shinGyro: v(3), thighAcc: v(6), shinAcc: v(9) }
 }

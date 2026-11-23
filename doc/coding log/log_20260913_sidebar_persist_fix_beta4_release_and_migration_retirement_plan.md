@@ -6,7 +6,7 @@ date: 2026-09-13
 
 # 2026-09-13 變更日誌 — 側邊欄持久化修復 + 1.2.0-beta.4 發布 + 資料遷移退場計畫
 
-> **相關文件**:[[HOME|導覽首頁]] · [[irms-project-conventions]] ·
+> **相關文件**:[[HOME|導覽首頁]] · [[AI_CODING_RULES|專案慣例]] ·
 > [[log_20260909_calibration_wizard_fixes|Electron 09-09 sidebarCollapsed 原始修法]] ·
 > [[log_20260910_electron_to_tauri_data_migration|Electron→Tauri 資料遷移模組]]
 

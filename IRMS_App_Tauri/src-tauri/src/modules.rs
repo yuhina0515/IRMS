@@ -121,6 +121,26 @@ fn pubkey() -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
+/// The previously verified index, if one is cached and still verifies.
+fn cached_entries(dir: &Path, key: &[u8]) -> Option<Vec<ModuleEntry>> {
+    let idx = std::fs::read(dir.join("index.json")).ok()?;
+    let sig = std::fs::read_to_string(dir.join("index.json.sig")).ok()?;
+    verify_index(&idx, &sig, key).ok()
+}
+
+/// A validly signed index stays valid forever, so an old one replayed as "latest" would
+/// otherwise downgrade modules. Returns the first module whose version went backwards.
+fn find_rollback(cached: &[ModuleEntry], fresh: &[ModuleEntry]) -> Option<String> {
+    fresh.iter().find_map(|f| {
+        let old = cached.iter().find(|c| c.id == f.id)?;
+        let (old_v, new_v) = (
+            semver::Version::parse(&old.version).ok()?,
+            semver::Version::parse(&f.version).ok()?,
+        );
+        (new_v < old_v).then(|| f.id.clone())
+    })
+}
+
 /// Keeps only files named in `keep`; stray or superseded module files are removed so the
 /// asset scope never serves something no verified index vouches for.
 fn prune(dir: &Path, keep: &[String]) {
@@ -145,6 +165,13 @@ async fn sync(dir: PathBuf, app_version: String) -> Result<ModuleSyncResult, Str
         let idx = get_bytes(&http, &format!("{RELEASES}/latest/download/index.json")).await?;
         let sig = get_bytes(&http, &format!("{RELEASES}/latest/download/index.json.sig")).await?;
         let entries = verify_index(&idx, &String::from_utf8_lossy(&sig), &key)?;
+        if let Some(cached) = cached_entries(&dir, &key) {
+            if let Some(id) = find_rollback(&cached, &entries) {
+                return Err(format!(
+                    "遠端模組清單中的 {id} 版本比本機已驗證的更舊,拒絕採用"
+                ));
+            }
+        }
         Ok::<_, String>((idx, sig, entries))
     }
     .await;
@@ -277,6 +304,54 @@ mod tests {
         let kp = keypair();
         let b = index("../../evil.js");
         assert!(verify_index(&b, &sign(&kp, &b), kp.public_key().as_ref()).is_err());
+    }
+
+    fn entry(id: &str, version: &str) -> ModuleEntry {
+        ModuleEntry {
+            id: id.into(),
+            version: version.into(),
+            name: "t".into(),
+            description: String::new(),
+            file: format!("{id}-{version}.js"),
+            size: 10,
+            sha256: "00".into(),
+            min_app_version: None,
+        }
+    }
+
+    #[test]
+    fn rollback_is_detected_but_upgrades_additions_and_removals_pass() {
+        let cached = vec![entry("a-mod", "1.2.0"), entry("b-mod", "1.0.0")];
+        assert_eq!(
+            find_rollback(&cached, &[entry("a-mod", "1.1.9")]),
+            Some("a-mod".to_string())
+        );
+        assert_eq!(find_rollback(&cached, &[entry("a-mod", "1.2.0")]), None);
+        assert_eq!(
+            find_rollback(&cached, &[entry("a-mod", "2.0.0-beta.1")]),
+            None
+        );
+        assert_eq!(find_rollback(&cached, &[entry("c-mod", "0.1.0")]), None);
+        assert_eq!(find_rollback(&cached, &[]), None);
+    }
+
+    #[test]
+    fn cached_entries_requires_a_verifying_cache() {
+        let kp = keypair();
+        let dir = std::env::temp_dir().join(format!("irms-mod-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(cached_entries(&dir, kp.public_key().as_ref()).is_none());
+        let b = index("session-tips-1.0.0.js");
+        std::fs::write(dir.join("index.json"), &b).unwrap();
+        std::fs::write(dir.join("index.json.sig"), sign(&kp, &b)).unwrap();
+        assert_eq!(
+            cached_entries(&dir, kp.public_key().as_ref())
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(cached_entries(&dir, keypair().public_key().as_ref()).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

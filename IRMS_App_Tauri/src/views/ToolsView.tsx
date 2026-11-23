@@ -1,18 +1,11 @@
 // views/ToolsView.tsx
 // 「工具」頁:已安裝且啟用的模組提供的操作介面。設定 → 模組只負責管理(啟用、更新)。
+import { useState } from 'react'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { ModulePanelMount } from '../components/ModulePanelMount'
-import { modulePage } from '../services/moduleFeatures'
-import { useModulesStore } from '../services/modules'
+import { useToolModules } from '../hooks/useToolModules'
 import { useUiStore } from '../store/useUiStore'
 import { useT } from '../i18n'
-
-export function useToolModules(): { id: string; name: string }[] {
-  const modules = useModulesStore((s) => s.modules)
-  return modules.flatMap((m) => {
-    const page = m.status === 'active' ? modulePage(m.id) : undefined
-    return page ? [{ id: m.id, name: page.title }] : []
-  })
-}
 
 export function ToolsView(): JSX.Element {
   const tools = useToolModules()
@@ -21,6 +14,8 @@ export function ToolsView(): JSX.Element {
   const setView = useUiStore((s) => s.setView)
   const m = useT()
   const current = tools.find((t) => t.id === selected) ?? tools[0]
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEscapeKey(menuOpen ? () => setMenuOpen(false) : null)
 
   return (
     <div className="v3-page">
@@ -41,9 +36,29 @@ export function ToolsView(): JSX.Element {
         </section>
       ) : (
         <section className="v3-sheet work-tools">
-          <div className="v3-segmented" role="group" aria-label={m.tools.groupAria}>
+          <div className="v3-tools-bar">
+            <button
+              type="button"
+              className="v3-tools-menu"
+              aria-label={m.tools.groupAria}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              ☰
+            </button>
+            <span>{current?.name}</span>
+          </div>
+          {menuOpen && <div className="v3-tools-scrim" onClick={() => setMenuOpen(false)} />}
+          <div className={`v3-segmented${menuOpen ? ' is-open' : ''}`} role="group" aria-label={m.tools.groupAria}>
             {tools.map((t) => (
-              <button key={t.id} aria-pressed={t.id === current?.id} onClick={() => setToolModule(t.id)}>
+              <button
+                key={t.id}
+                aria-pressed={t.id === current?.id}
+                onClick={() => {
+                  setToolModule(t.id)
+                  setMenuOpen(false)
+                }}
+              >
                 {t.name}
               </button>
             ))}

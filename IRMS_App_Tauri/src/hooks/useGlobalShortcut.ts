@@ -67,6 +67,8 @@ export function useGlobalShortcut(shortcut: Shortcut, handler: (() => void) | nu
       // 只在真的要處理時才吞掉事件:否則會把瀏覽器/Electron 的原生快捷鍵
       // 一併吃掉,而使用者不會知道是誰吃的
       e.preventDefault()
+      // 按住不放時會連發 keydown:第二下會對剛切換完的狀態再觸發一次(開始後立刻結束)
+      if (e.repeat) return
       handlerRef.current?.()
     }
 

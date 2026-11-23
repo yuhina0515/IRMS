@@ -37,6 +37,8 @@
 
 ## 1.1 視覺/UI/藝術設計權責 (Design Authority)
 
+> **2026-10-01 註記**:本節為 2026-09-11 的歷史規則。現行分工:UI 提案由 Claude/GPT 起草、使用者最終裁定(v3「Rehabilitation Workbook」於 2026-09-25 採用)。Gemini 不再是唯一設計權責方。
+
 **（2026-09-11 起生效）AI 協同開發角色完全脫離美術與 UI 設計判斷**——排版節奏、色彩組合、
 視覺層次、動效語言等一切「好不好看」的判斷,全權交給 Gemini(3.1 Pro / 3.8 Flash)決定,
 不由 AI 協同開發角色自行提出或評斷。
@@ -130,6 +132,18 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 
 ### 4.2 BLE 協定契約 (BLE Protocol)
 
+> 2026-10-29 connection ownership: `ble_lifecycle.rs` reserves before await, serializes attempts
+> through cleanup, and installs/publishes before listener scheduling. Ordering is attempts ->
+> peripheral -> epoch; disconnect skips attempts and checks epoch after waiting. Native scan
+> always attempts stop_scan, with cleanup errors retained even alongside cancellation. Awaited
+> OS calls are not blindly aborted; physical cleanup failure remains an explicit unknown state.
+
+> 2026-10-29 native lifecycle addendum: angle/raw/OTA dispatch and listener errors share a short
+> synchronous epoch gate with connection retirement. Teardown waits for peripheral then rechecks
+> epoch; no await, recursive epoch call or peripheral acquisition inside the gated callback.
+> Lock order is peripheral -> epoch. Already-queued frontend events and physical OS cancellation
+> timing remain separate acceptance risks. Wire protocol and IPC shapes unchanged.
+
 > **2026-09-16 Tauri WIP addendum:** the final optional `V:x/y/z/x/y/z` field carries
 > thigh then shin normalized acceleration. Both parsers require exactly six nonempty finite
 > fields; invalid extensions are discarded together and mark the packet truncated. Valid
@@ -152,14 +166,20 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
 * **Profile RX 特徵值 (參數與指令接收,App → ESP32,Write)**：
   * **UUID**：`beb5483f-36e1-4688-b7f5-ea07361b26a8`
   * **Profile 寫入格式**：`"目標角度,容錯範圍,維持時間ms"`（例如 `"90.0,10.0,3000"`）
-  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`(目前協定不含 `CMD:SYNC`)
+  * **控制指令 (`CMD:`)**：`CMD:LED_ON/OFF`、`CMD:GOAL`、`CMD:ALARM_ON/OFF`、`CMD:RAW_ON/OFF`(opt-in 原始串流,見 doc/README §4.2;目前協定不含 `CMD:SYNC`)
 
-### 4.3 SQLite Schema(目前 `user_version = 8`)
+### 4.2.1 國際化(i18n)規則
+
+* 所有使用者可見字串一律走 `src/i18n`:元件用 `useT()`/`rich()`,服務層用 `getT()`;**不得在元件內寫死中文或英文字串**。
+* 新鍵必須同時加入 `zh-Hant.ts` 與 `en.ts`(`zh-Hant.ts` 定義 `Messages` 型別,`en.ts` 以 `satisfies` 強制鍵值一致)。
+* 臨床措辭(`clinical.*`)與校準 B 文案的英文需經臨床人員審閱後才算定稿。
+
+### 4.3 SQLite Schema(目前 `user_version = 10`)
 
 > 權威來源為 [`IRMS_App_Tauri/src-tauri/src/migrations.rs`](../IRMS_App_Tauri/src-tauri/src/migrations.rs) 的 migration 列表;
 > DB 檔存於 Tauri 的 app data 目錄(不進版控)。
 
-* **變更 schema 的唯一方式:新增一個 migration**。`db.ts` 不再有 `createSchema()`——
+* **變更 schema 的唯一方式:新增一個 migration**(並遞增 `PRAGMA user_version`,本節標題的版本號需同步更新)。`db.ts` 不再有 `createSchema()`——
   schema 演進走 `PRAGMA user_version` 遞增式 runner(ROADMAP 決策 D4,2026-08-01 實作)。
   * **嚴禁**直接修改既有 migration 的 SQL:使用者手上的安裝已經跑過它了,改動只會影響
     全新安裝,造成新舊安裝 schema 分歧,而開發者永遠看不到(他的 dev DB 想刪就刪)。
@@ -187,8 +207,19 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
     NULL = 當時未量測,不補預設值)
   * `angle_range_records`(migration 8):使用者個人的舒適角度/極限範圍量測紀錄(`measuredAt`、
     `comfortAngle`、`limitAngle` 選填、`note`),由獨立發佈的 `angle-range` 模組寫入;不綁動作類型。
+  * `mobility_records`(migration 9):長期活動度紀錄(`id`、`measuredAt`、`movementSet` 排序後以 `+` 串接的動作 id、
+    `totalDeg` 0–1000 該組動作各保持峰值之和、`detail` 不透明 JSON 預設 `'{}'`,資料庫不解讀其內容);
+    趨勢比較需同一 `movementSet`、同側且同校正方式;未記錄側別的舊資料獨立分組(舊精靈的側別在 `detail.side`)。migration 10 另加可為 NULL 的方法身分欄位
+    `schema`、`side`、`referenceKind`、`posture`、`calibrationId`(NULL = 統一校正之前的紀錄)。
+  * `calibration_profiles`(migration 10):統一校正檔案(`id` TEXT 主鍵、`createdAt`、`side` left/right、
+    `profile` 不透明 JSON、`active` 0/1;一台裝置一位病人,沒有擁有者欄位)。
   * `actionName` / `triggerType` / `targetAngle` 等都是**當場快照**:動作可能事後被改或刪除,
     歷史紀錄必須保留當時實際生效的處方,否則回顧圖會畫出一條當時不存在的線。
+  * Session save recovery (2026-10-21): `running = false` stops acquisition; a non-null runtime ID still owns
+    an unsaved session. Keep that ID, counters and failed readings until append and finalization succeed.
+    `sessionSaveState` distinguishes saving/failed/idle and is not persisted. Retry must not resume acquisition
+    or replay already acknowledged batches. Block destructive history actions and updater installation while
+    the runtime ID is retained. Backend demo purge skips unfinished sessions; finalization rejects missing IDs.
   * ⚠ **`source` 刻意不採「NULL = 舊行為」慣例**(migration 4/5/6 都採)。那三次的 NULL
     意思是「我們確實不知道當時是什麼」;`source` 我們知道——示範模式在那些列被寫入時
     還不存在。更關鍵的是失效模式:可為 NULL 的欄位其失效表現恰好是**靜默地呈現為真實
@@ -199,6 +230,30 @@ AI 助手在編寫代碼時，必須嚴格對齊以下系統參數，嚴禁單�
   * 索引：`idx_sensor_data_sessionId` on `sensor_data(sessionId)`
 
 ### 4.4 智慧判定邏輯 (Target & Alarm Rules)
+
+> 2026-11-16 native parity: effective trigger parameters use the existing TS bounds
+> and are stored exactly as judged. Feedback writes are ordered and generation
+> scoped; stop/fault sends OFF before cleanup. Alarm mute lasts 30 seconds, safety
+> speech repeats at 8 seconds and blocks routine cues for 3 seconds. Unified held
+> peaks cannot bridge gaps over 250 ms. See [[log_20261116_native_session_feedback]];
+> physical outputs remain unverified.
+
+> 2026-10-29 hold continuity: the current Tauri TriggerEngine uses one monotonic receive timestamp
+> per sample; >250 ms gaps, backwards or nonfinite time cannot extend a hold. Cancelling a hold
+> preserves `restPending` and personal-angle warnings. This is a receiver continuity check, not
+> source-clock synchronization, stale-payload detection or a clinical threshold.
+
+> 2026-11-10 (branch `integrate/beta26`, all values provisional and simulator-derived, none bench-verified):
+> - Hyperextension alert (unified calibration only): starts after `HYPEREXTENSION_DWELL_MS` = 300 ms of
+>   continuous samples below -`HYPEREXTENSION_TOLERANCE_DEG` (5), ends once the knee is back by
+>   `HYPEREXTENSION_CLEAR_MARGIN_DEG` (2). A data gap restarts the dwell and never ends an active alert.
+> - Pre-session wearing check: in-plane offset above 5 deg up to `QUICK_REZERO_MAX_DEG` (20) offers a one-step
+>   re-zero from the pose just held (new stored profile first, live settings second); above that, or an
+>   out-of-plane turn above 10 deg, nothing is corrected automatically. Declining the re-zero does not start.
+> - In-session mounting check (`services/slipMonitor.ts`): shin sensor only, thigh must rest (within 8 deg);
+>   sweep of at least 30 deg fitted within 6 deg; axis more than 12 deg off the calibrated hinge for 18 s sets
+>   `session.mountShift` (runtime only, not a DB column), one toast, one voice cue, `mount_shift` telemetry.
+>   It never changes angles or calibration.
 
 > 判定 100% 在 App 端(ROADMAP 決策 D1,App-Driven);韌體只負責感測、濾波、傳輸與執行
 > `CMD:`。權威來源為 `IRMS_App_Tauri/src/services/` 下的 triggerEngine

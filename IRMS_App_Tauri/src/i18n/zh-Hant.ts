@@ -16,6 +16,8 @@ export const zhHant = {
   clinical: {
     /** 膝角超過使用者個人極限範圍時的緊急回落提示 */
     overLimit: (p: { deg: string }) => `⚠ 超出極限範圍 ${p.deg}°,請立即回落`,
+    /** 膝蓋過度伸直(帶符號膝角低於 0 超過容許值);措辭待負責人審閱 */
+    hyperextension: (p: { deg: string }) => `⚠ 膝蓋往後伸多了 ${p.deg}°,稍微彎回來就好`,
     /** segment 類動作的前置條件:膝蓋需近乎打直 */
     straightenKnee: (p: { deg: string }) => `膝蓋再打直 ${p.deg}°`,
     /** 主指標名稱(movementMetric.metricInfo) */
@@ -66,7 +68,10 @@ export const zhHant = {
       sensorFault: (p: { code: string }) => `感測器異常 · ${p.code}`,
       sensorFaultSub: '已停止回饋輸出,等待感測器復原;可隨時結束療程',
       overLimitTitle: '超出極限範圍,請停止加深',
+      mountShiftSub: '感測器可能移位,之後的角度可能不準。結束後請重新檢查穿戴。',
       overLimitSub: (p: { knee: string; limit: string }) => `膝角 ${p.knee}° · 你的極限範圍 ${p.limit}°`,
+      hyperTitle: '膝蓋稍微彎一點',
+      hyperSub: (p: { deg: string }) => `膝蓋往後伸多了 ${p.deg}°。稍微彎回來就好,不用往後壓`,
       holding: '很好,保持這個位置',
       holdingSub: (p: { sec: string }) => `已進入目標區間,保持滿 ${p.sec} 秒`,
       restPending: '已完成,請回到起始位',
@@ -154,6 +159,17 @@ export const zhHant = {
   },
 
   /** 教練提示(services/guidance.ts)中非安全性的引導 */
+  voice: {
+    sessionStart: '療程開始',
+    rep: (p: { n: number }) => `第 ${p.n} 下完成`,
+    hold: '保持',
+    overLimit: '超過極限角度,請慢慢放鬆',
+    hyperextension: '膝蓋稍微彎一點',
+    sessionEnd: (p: { n: number }) => `療程結束,共完成 ${p.n} 下`,
+    connectionLost: '連線中斷,療程已結束',
+    mountShift: '感測器可能移位了'
+  },
+
   guidance: {
     noData: '等待感測資料…',
     raise: (p: { verb: string; deg: string }) => `再${p.verb} ${p.deg}°`,
@@ -179,6 +195,7 @@ export const zhHant = {
     incompatible: (p: { version: string }) => `韌體 ${p.version} 需要較新的 App,請先更新 App`,
     alreadyFailed: (p: { version: string }) => `自動更新到 ${p.version} 已失敗過一次,請到設定頁手動更新`,
     deferredStateChanged: '狀態改變,韌體更新延後',
+    deferredTruncatedLink: '藍牙連線的 MTU 過小(封包被截斷),韌體更新延後;請中斷後重新連線再試',
     done: (p: { version: string }) => `裝置韌體已更新到 ${p.version},裝置重新啟動中`,
     deviceStateChanged: '裝置狀態改變，更新已延後',
     updatingToast: (p: { version: string }) => `正在自動更新裝置韌體到 ${p.version},請勿關閉 App 或讓裝置斷電`,
@@ -197,6 +214,11 @@ export const zhHant = {
 
   /** 跨畫面共用的按鈕與短語 */
   common: {
+    saveBeforeClose: '請先完成療程儲存或等待應用程式操作完成再關閉；若儲存失敗，請先重試儲存。',
+    closeProtectionFailed: '視窗關閉保護無法使用，開始下一場療程前請重新啟動應用程式。',
+    storageBackpressure: '儲存速度不足，已停止本場資料收集。請確認療程儲存狀態。',
+    // 圖示關閉按鈕的可存取名稱。
+    close: '關閉',
     cancel: '取消',
     confirm: '確認',
     save: '儲存',
@@ -228,6 +250,7 @@ export const zhHant = {
   /** 主導覽分頁(也作為錯誤邊界的區塊名稱) */
   nav: {
     ariaLabel: '主要功能',
+    menuAria: '開啟主選單',
     dashboard: '即時監測',
     actions: '動作處方',
     history: '療程紀錄',
@@ -261,10 +284,14 @@ export const zhHant = {
   },
 
   updateBanner: {
+    installing: '正在套用更新，等待應用程式關閉。',
+    installFailed: '套用更新時發生錯誤，可以重試。',
     ready: (p: { version: string }) => `新版本 ${p.version} 已下載完成,重新啟動即可套用`,
     sessionNote: '(Session 進行中,建議結束後再重啟)',
     restartBlocked: 'Session 進行中無法重啟——結束後這個按鈕會恢復可用',
-    restartNow: '立即重新啟動'
+    restartNow: '立即重新啟動',
+    apkReady: (p: { version: string }) => `新版本 ${p.version} 可下載,請下載 APK 後直接覆蓋安裝`,
+    apkDownload: '下載'
   },
 
   pose: {
@@ -325,18 +352,24 @@ export const zhHant = {
   },
 
   sessionDock: {
+    mountShift: '感測器可能移位了,之後的角度可能不準。這一組做完後請檢查穿戴,必要時重新校準。',
     blocker: {
+      finishing: '療程儲存中…',
       running: '療程進行中',
       protocolUnsupported: '此協定尚未支援',
       firmwareUpdating: '韌體更新中',
       notConnected: '請先連線裝置',
       noAction: '請先選擇動作',
-      notCalibrated: '請先完成校準'
+      notCalibrated: '請先完成校準',
+      unifiedNeedsVectors: '連線封包被截斷,統一校準無法讀取膝角。請重新連線(加大 MTU)或改用舊式校準',
+      segmentNeedsUprightZero: '抬腿類動作需要「站姿、膝蓋打直」的校準。請重新校準,或改選膝蓋動作'
     },
     firmwareUpdatingPct: (p: { pct: number }) => `韌體更新中 ${p.pct}%`,
     started: '療程已開始',
     startFailed: '無法開始療程',
     ended: '療程已結束並儲存',
+    saveFailed: '療程已停止，但儲存失敗。請保持程式開啟，並重試儲存。',
+    retrySave: '重試儲存療程',
     completed: '已完成',
     repsUnit: ' 次',
     currentHold: '本次保持',
@@ -380,7 +413,8 @@ export const zhHant = {
     view2d: '2D 側面',
     values: '數值',
     loading3d: '載入 3D…',
-    notCalibratedCaption: '! 尚未校準'
+    notCalibratedCaption: '! 尚未校準',
+    poseNeedsUprightZero: '目前的校準零點不是「站姿、膝蓋打直」,姿勢圖會失真,已先隱藏。數值與警示不受影響;想看姿勢圖請重新校準。'
   },
 
   actions: {
@@ -465,6 +499,17 @@ export const zhHant = {
     drift: (p: { keys: string }) =>
       `校準已變更:這場的 ${p.keys} 與目前設定不同。曲線的零點或方向可能與現在不一致,請勿直接與近期紀錄比較。`,
     sameCalibration: '與目前校準相同。',
+    methodUnknown: '校準方式:舊資料,方法未記錄',
+    methodLabel: (p: { method: string }) => `校準方式:${p.method}`,
+    methods: {
+      unified: '統一校準',
+      legacyAVector: '舊版方法 A(向量)',
+      legacyAEuler: '舊版方法 A(歐拉角)',
+      legacyB: '舊版方法 B',
+      legacyUnknownVector: '舊版向量校準(來源不明)',
+      manual: '手動調整',
+      none: '未校準'
+    },
     perRep: '逐次分析',
     perRepNote:
       '目前紀錄只保存連續角度與完成次數,尚未保存每一次動作的開始與結束事件,因此不提供逐次峰值與保持時間,以免呈現推測出的精確度。',
@@ -507,6 +552,202 @@ export const zhHant = {
     apply: '確認套用'
   },
 
+  mobility: {
+    title: '活動度測量',
+    intro: '依平常方式佩戴感測器,**隔著衣物也可以**。不需要站直:先選一個你覺得放鬆的姿勢當作起點,再依序做幾個動作,每個動作慢慢做到**你能穩定維持的最大角度**。各動作的最大角度會加總成「總活動度」,長期追蹤變化。',
+    painNote: '**只做到不會受傷的程度。** 感到疼痛、頭暈或不適就停止,以你當下能安心維持的角度為準,不必勉強。',
+    movementsLabel: '要測量的動作',
+    movementNames: {
+      kneeFlexion: '膝蓋彎曲',
+      hipFlexion: '髖屈曲(抬大腿向前)',
+      hipExtension: '髖伸展(大腿向後)',
+      hipAbduction: '髖外展(大腿向側邊打開)'
+    },
+    movementDesc: {
+      kneeFlexion: '坐或站都可以,大腿保持不動,慢慢把小腿向後彎到最大,維持約 2 秒,再慢慢放回。',
+      hipFlexion: '站穩,上身不要前後晃動。把大腿慢慢向前抬到最高,維持約 2 秒,再慢慢放下。',
+      hipExtension: '站穩並扶住支撐物,上身保持直立。把大腿慢慢向後擺到最大,維持約 2 秒,再慢慢放回。',
+      hipAbduction: '站穩並扶住支撐物,上身保持直立。把大腿慢慢向側邊打開到最大,維持約 2 秒,再慢慢放回。'
+    },
+    hipCaveat: '髖部動作只用大腿上的一顆感測器,量到的是**大腿相對你起始姿勢的傾斜**,不是醫學上的關節角度;上身晃動也會影響結果,側向動作的誤差通常比前後動作更大。',
+    sideHint: '請選擇佩戴感測器的那一側腿。',
+    neutralTitle: '起始姿勢',
+    neutralDesc: '放鬆、不用勉強站直,保持任何一個舒服的姿勢不動。按下開始後倒數 3 秒,接著靜止 2 秒。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    capture: '開始(3 秒倒數)',
+    recording: '錄製中…',
+    moveNow: '現在慢慢動作,到最大角度後維持住。',
+    noData: '感測資料不足,請檢查連線後重試。',
+    errors: {
+      invalidInput: '感測資料無效,請重試。',
+      sweepTooSmall: '動作幅度太小,請再大一點(在安全範圍內)。',
+      sweepNotPlanar: '動作偏離了單一平面,請沿著同一個方向慢慢動作。',
+      neutralOffPlane: '起始姿勢和這個動作的方向不一致,請重新量起始姿勢。',
+      referenceMoved: '固定的那一段(大腿)有在動,請保持不動只動小腿。',
+      noHold: '沒有偵測到穩定維持的角度,請在最大角度停住約 2 秒。',
+      peakTooSmall: '維持的角度太小,請再大一點(在安全範圍內)。',
+      implausible: '角度超出合理範圍,請檢查感測器是否滑動後重試。'
+    },
+    retry: '重做這個動作',
+    skip: '略過這個動作',
+    resultTitle: '本次結果',
+    resultLine: (p: { name: string; peak: string }) => `${p.name}:${p.peak}°`,
+    total: (p: { total: string }) => `總活動度 ${p.total}°`,
+    incomplete: '有動作被略過,總和只代表已完成的動作組合,只會和相同組合的紀錄比較。',
+    save: '儲存紀錄',
+    saved: '已儲存活動度紀錄',
+    saveFailed: '儲存失敗,請重試。',
+    viewTitle: '活動度趨勢',
+    noRecords: '還沒有紀錄。完成一次活動度測量後,這裡會顯示長期變化。',
+    startMeasure: '開始測量',
+    compareNote: '只比較同側腿、動作組合與校正方式都相同的紀錄。未記錄側別的舊資料會分開比較。',
+    methodBreak: '── 校正方式改變,此線以下與以上的數值不能直接比較 ──',
+    setLabel: (p: { names: string }) => `動作:${p.names}`,
+    best: (p: { total: string }) => `最佳 ${p.total}°`,
+    latest: (p: { total: string }) => `最近 ${p.total}°`
+  },
+
+  calibrationFlow: {
+    title: '感測器校準',
+    presetLabel: '校準內容',
+    presets: {
+      calibrate: { name: '只校準', desc: '零位 + 膝蓋彎曲 + 髖屈曲,約 2 分鐘。' },
+      mobility: { name: '校準 + 活動度', desc: '再加髖伸展與髖外展,並把各動作的最大穩定角度存為活動度紀錄。' },
+      quickRezero: { name: '快速重設零位', desc: '只重新量零位,沿用既有的轉軸;換穿或鬆動後使用。' }
+    },
+    sideHint: '選擇感測器穿戴的腿。',
+    intro: '感測器照平常穿戴即可,**隔著衣物也行**。零位預設是「膝蓋伸直站立」。流程中的動作請在安全範圍內慢慢做。',
+    postureLabel: '零位姿勢',
+    postures: { standing: '站立', longSitting: '長坐(腿伸直)', supine: '仰躺', seated: '坐姿', other: '其他' },
+    neutralLabel: '我的膝蓋無法完全伸直',
+    neutralHint: '勾選後零位記為「自然姿勢」。此時分段觸發與 3D/2D 姿態會停用,因為它們假設零位是直立的腿。',
+    start: '開始',
+    legacyTitle: '此韌體或連線需使用舊版校準',
+    legacyDesc: '目前的韌體(Euler 協定)或連線(BLE MTU 協商失敗,roll 資料沒有送達)不支援新流程,改用逐步的舊版校準。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    referenceTitle: '量測零位',
+    referenceStraight: '雙腿站直、膝蓋伸直,**維持不動**。',
+    referenceNeutral: '擺出你能做到最自然、放鬆的姿勢,**維持不動**。',
+    handsFree: (p: { sec: string }) => `免按鈕:姿勢穩定 ${p.sec} 秒會自動開始`,
+    capture: '開始(3 秒倒數)',
+    recording: '錄製中…',
+    moveNow: '現在慢慢做動作,到最大角度後停住。',
+    movementTitle: (p: { name: string }) => `動作:${p.name}`,
+    optionalNote: '這個動作可以略過;略過髖屈曲時只會建立小腿的校準。',
+    mandatoryNote: '膝蓋彎曲是必要的,用來決定小腿的座標。',
+    skip: '略過這個動作',
+    recapture: '重新量零位',
+    recaptureConfirmTitle: '重新量零位?',
+    recaptureConfirmBody: '所有動作都是對照舊零位量的,重新量零位會清掉已錄的動作。',
+    back: '返回',
+    reviewTitle: '確認結果',
+    quality: { high: '品質:高', medium: '品質:中', low: '品質:低,建議重做' },
+    warnings: {
+      shinOnly: '沒有大腿座標(已略過髖屈曲),大腿不會被補償。',
+      gyroWeak: '陀螺儀訊號偏弱,轉軸只用重力估計。',
+      gyroDisagrees: '重力與陀螺儀估計的轉軸不一致,請確認感測器沒有鬆動後重做。',
+      twoPoint: '動作幅度偏小,轉軸由兩點估計,可靠度較低。'
+    },
+    resultLine: (p: { name: string; peak: string }) => `${p.name}:${p.peak}°`,
+    driftWarn: '大腿在膝蓋動作中有移動,結果僅供參考。',
+    redo: '重做這個動作',
+    saveMobility: '同時儲存活動度紀錄',
+    apply: '套用',
+    discard: '放棄',
+    applied: '校準已套用',
+    applyFailed: '儲存校準失敗,未套用。請再試一次。',
+    mobilityNotSaved: '校準已套用,但活動度紀錄儲存失敗',
+    cancelledLink: '連線中斷或療程開始,校準已取消,未寫入任何資料。',
+    noData: '感測器資料不足,請確認連線後重試。',
+    noProfile: '找不到先前的校準檔案,請先做完整校準。',
+    unverified: '角度與量角器的吻合程度尚未在實機驗證。',
+    referenceErrors: {
+      invalidInput: '感測器資料無效,請重試。',
+      tooShort: '穩定的時間太短,請維持姿勢再試一次。',
+      shaking: '偵測到晃動,請維持不動再試一次。'
+    },
+    movementErrors: {
+      invalidInput: '感測器資料無效,請重試。',
+      needsThighFrame: '這個動作需要大腿座標,請先完成髖屈曲。',
+      wrongDirection: '動作方向與預期相反,請依指示重做。',
+      referenceMoved: '大腿在膝蓋動作中移動太多,請固定大腿只動小腿。',
+      noHold: '沒有偵測到穩定停留,請在最大角度停住約 2 秒。',
+      peakTooSmall: '停留的角度太小,請在安全範圍內再多做一點。',
+      implausible: '角度超出合理範圍,請確認感測器沒有滑動後重做。'
+    },
+    limbErrors: {
+      invalidInput: '感測器資料無效',
+      sweepTooSmall: '動作幅度太小',
+      sweepNotPlanar: '動作偏離了單一平面',
+      referenceOffPlane: '零位姿勢與動作平面不符',
+      wrongDirection: '動作方向與預期相反'
+    },
+    solveFailed: (p: { limb: string; reason: string }) => `${p.limb}無法建立座標:${p.reason}。請重做。`,
+    missing: { reference: '尚未量零位', side: '尚未選擇腿', kneeFlexion: '尚未錄膝蓋彎曲' },
+    wearing: {
+      rezero: '感測器的位置和校準時有些不同(屈伸方向的偏移)。要用剛才的姿勢重設零位,然後開始嗎?',
+      rezeroDone: '零位已重設',
+      tooFar: '目前姿勢和校準時的零位差很多。請先確認是否擺出零位姿勢;若姿勢沒錯,代表感測器位置變了,建議重新校準。仍要開始嗎?',
+      rezeroRefused: '剛才的姿勢不夠穩定,無法重設零位。請站穩後再按一次開始。',
+      recalibrate: '感測器相對零位出現側向旋轉,可能是綁帶轉動。建議重新校準再開始。仍要開始嗎?',
+      title: '穿戴檢查',
+      posture: (p: { posture: string }) => `要檢查感測器位置,請擺出校準時的零位姿勢(${p.posture}),並保持不動 2 秒。開始檢查嗎?`,
+      neutralPosture: '你的自然放鬆姿勢',
+      inconclusive: '沒能取得穩定讀數(腿在動或沒有資料),無法檢查穿戴。仍要開始嗎?'
+    }
+  },
+
+  calibrationB: {
+    title: '校準 B',
+    beta: 'beta',
+    intro: '依平常方式佩戴感測器,**隔著衣物也可以**。先保持四個靜止姿勢,再做兩個簡單的腿部動作。精靈會用重力(有陀螺儀時一併使用)推算每個感測器的安裝方向。',
+    sideHint: '請選擇佩戴感測器的那一側腿。',
+    rawChecking: '正在偵測原始運動資料串流…',
+    rawOn: '已偵測到原始運動串流:將使用地面階段與陀螺儀。',
+    rawOff: '未偵測到原始運動串流(感測器韌體較舊),將僅以重力繼續校準。',
+    progress: (p: { n: string; total: string }) => `第 ${p.n} / ${p.total} 步`,
+    capture: '開始擷取(3 秒倒數)',
+    recording: '錄製中…',
+    noData: '感測資料不足,請檢查連線後重試。',
+    noRaw: '未收到原始運動資料,請檢查感測器韌體後重試。',
+    floorTitle: '地面階段',
+    faceDesc: (p: { face: string }) => `將**感測器組**放在平面上,**${p.face}** 面朝上,並保持不動。`,
+    skipFloor: '略過地面階段',
+    faces: { '+x': '+X', '-x': '-X', '+y': '+Y', '-y': '-Y', '+z': '+Z', '-z': '-Z' },
+    poses: {
+      standing: { title: '姿勢:站立', desc: '**自然站直放鬆**,雙腿伸直,保持不動。' },
+      seated: { title: '姿勢:坐姿', desc: '坐下使**大腿水平**、小腿自然垂直向下,保持不動。' },
+      supine: { title: '姿勢:仰躺', desc: '**平躺仰臥**,雙腿伸直,保持不動。' },
+      prone: { title: '姿勢:俯臥', desc: '**平躺俯臥**,雙腿伸直,保持不動。' },
+      sideLying: { title: '姿勢:側躺', desc: '朝**感測器所在的那一側**側躺,雙腿伸直,保持不動。' }
+    },
+    sweepTitle: (p: { limb: string }) => `動作:${p.limb}`,
+    sweeps: {
+      thigh: '站立,**大腿向前抬起**再放下,緩慢重複數次,共約 6 秒。',
+      shin: '站立,**腳跟向後踢**(彎曲膝蓋)再放下,緩慢重複數次,共約 6 秒。'
+    },
+    gyroMissing: '沒有陀螺儀資料,此動作僅使用重力。',
+    resultTitle: '校準結果',
+    resultLine: (p: { limb: string; confidence: string; rms: string; gyro: string }) =>
+      `${p.limb}:信心 ${p.confidence}、殘差 ${p.rms}°、${p.gyro}。`,
+    confidence: { high: '高', medium: '中', low: '低' },
+    gyroUsed: '已使用陀螺儀',
+    gyroNotUsed: '僅用重力',
+    rejected: (p: { poses: string }) => `已忽略的姿勢:${p.poses}。`,
+    failed: (p: { limb: string; reason: string }) => `無法校準${p.limb}:${p.reason}`,
+    unverified: '這是 **beta** 版。套用後請確認抬腿時畫面角度會變大。',
+    errors: {
+      invalidInput: '資料無效',
+      signAmbiguous: '動作方向不明確',
+      underdetermined: '姿勢種類不足',
+      inconsistent: '各姿勢之間互相矛盾',
+      sweepTooSmall: '動作幅度太小',
+      sweepNotPlanar: '動作不是乾淨的前後擺動',
+      gyroDisagrees: '陀螺儀與重力不一致,已忽略陀螺儀',
+      gyroWeak: '陀螺儀訊號太弱,已忽略陀螺儀'
+    }
+  },
+
   settings: {
     title: '系統設定',
     subtitle: '裝置準備、資料選擇,都有各自的位置。',
@@ -545,10 +786,28 @@ export const zhHant = {
       needConnection: '校準需要即時感測器數值,請先連線裝置。',
       locked: '療程進行中無法變更校準——一場的資料必須全程由同一組轉換產生。請先結束療程。',
       manualSummary: '進階手動校準(一般情況請使用精靈)',
+      manualUnifiedNote: '目前校準來自統一校準流程,這些舊式欄位已鎖定。請改用「重新校準」或「快速重新歸零」。',
       manualHint: 'Zero 欄位是「站直姿勢當下,感測器的原始讀值」,不是要加減的偏移量——多數情況請用「快速歸零」。',
       invertThigh: 'Invert Thigh 反相',
       invertShin: 'Invert Shin 反相',
-      quickZero: '快速歸零'
+      quickZero: '快速歸零',
+      method: {
+        unified: '統一校準',
+        legacyB: '舊版 B',
+        legacyAVector: '舊版 A',
+        legacyAEuler: '舊版 A(Euler)',
+        legacyUnknownVector: '舊版(來源不明)',
+        manual: '手動',
+        none: '尚未校準'
+      },
+      summary: (p: { method: string; reference: string; quality: string }) => `方式:${p.method} · 零位:${p.reference} · ${p.quality}`,
+      referenceKind: { straight: '伸直', neutral: '自然姿勢' },
+      qualityShort: { high: '品質高', medium: '品質中', low: '品質低' },
+      unifiedStart: '校準',
+      quickRezeroStart: '快速重設零位',
+      legacySummary: '開發者:舊版校準',
+      legacyToggle: '顯示舊版校準(A / B / 活動度精靈)',
+      legacyHint: '舊版精靈保留供比對與回溯,一般使用請走上方的統一校準。'
     },
     display: {
       language: '語言',
@@ -560,7 +819,10 @@ export const zhHant = {
       pose2d: '2D 側面(建議)',
       poseHint: '2D 只呈現判定平面的屈伸;3D 的側向角度尚未驗證,僅作方向示意。',
       maxChartPoints: '即時圖表最大點數',
-      flushInterval: '資料寫入間隔 (秒)'
+      flushInterval: '資料寫入間隔 (秒)',
+      voice: '語音提示',
+      voiceHint: '療程中以語音報讀次數、保持與超過極限角度的提醒。',
+      voiceUnsupported: '此裝置不支援語音提示(系統 WebView 沒有語音合成),超限警示仍會顯示在畫面上。'
     },
     autoPhase: {
       idle: '連線裝置後自動檢查',
@@ -581,6 +843,7 @@ export const zhHant = {
       available: (p: { version: string }) => `發現新版本 ${p.version},準備下載…`,
       downloading: (p: { pct: number }) => `下載中…${p.pct}%`,
       downloaded: (p: { version: string }) => `新版本 ${p.version} 已下載完成,見下方橫幅重新啟動套用`,
+      apkAvailable: (p: { version: string }) => `發現新版本 ${p.version},見下方橫幅下載 APK`,
       notAvailable: '已是最新版本',
       error: (p: { message: string }) => `檢查失敗:${p.message}`
     },
@@ -588,6 +851,8 @@ export const zhHant = {
       heading: 'Software Update 軟體更新',
       intro:
         '新版本會在背景自動下載,不會跳出安裝精靈;下載完成後畫面下方會出現提示,按下重啟即可套用(或直接關閉 App,下次啟動時自動套用)。',
+      introAndroid:
+        'Android 無法自行更新。發現新版本時畫面下方會出現提示,點下後下載 APK,再開啟檔案直接覆蓋安裝即可,資料會保留。',
       currentVersion: (p: { version: string }) => `目前版本:${p.version}`,
       downloadedWaiting: '已下載，等待套用',
       processing: '更新處理中…',
@@ -602,6 +867,7 @@ export const zhHant = {
       needDevice: '需要先於頂部連線真實裝置',
       demoNoFirmware: 'Demo 模式沒有真實裝置,無法更新韌體',
       deviceNotConnected: '裝置未連線',
+      linkTruncated: '藍牙連線的 MTU 過小,韌體分塊會被截斷;請中斷後重新連線再試',
       readFailedOld: '讀取失敗,裝置可能是舊韌體(尚未支援 OTA)',
       readFileFailed: (p: { message: string }) => `讀取韌體失敗：${p.message}`,
       emptyFile: '選擇的檔案是空的,請重新選擇 .bin',

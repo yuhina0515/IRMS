@@ -14,7 +14,7 @@
 // 否則封包長度不對,而長度正是 MTU 截斷測試唯一在測的東西:少兩欄會讓切點落在
 // 完全不同的位置,於是「截斷」情境測到的是一個現實中不存在的截斷。
 
-import type { RawAngles } from '@shared/protocol'
+import type { AccelVector, RawAngles, RawMotion } from '@shared/protocol'
 
 /**
  * BLE MTU 未協商成功時,ATT notify 的實際承載上限(bytes)。
@@ -36,6 +36,28 @@ export function encodeAnglePacket(raw: RawAngles): string {
     `T:${f(raw.thigh)},S:${f(raw.shin)},K:${f(knee)},` +
     `TR:${f(raw.thighRoll)},SR:${f(raw.shinRoll)},KR:${f(kneeRoll)}`
   )
+}
+
+/**
+ * Firmware packet with the trailing `V:` field (IRMS_Sensor.ino, Task_Comm):
+ * `T:..,S:..,K:..,TR:..,SR:..,KR:..,V:%.3f/%.3f/%.3f/%.3f/%.3f/%.3f` (thigh xyz, then shin xyz).
+ */
+export function encodeAnglePacketWithAccel(raw: RawAngles, thighAccel: AccelVector, shinAccel: AccelVector): string {
+  const g = (n: number): string => n.toFixed(3)
+  return (
+    `${encodeAnglePacket(raw)},V:` +
+    `${g(thighAccel.x)}/${g(thighAccel.y)}/${g(thighAccel.z)}/${g(shinAccel.x)}/${g(shinAccel.y)}/${g(shinAccel.z)}`
+  )
+}
+
+/**
+ * Firmware `G:` packet, sent only after `CMD:RAW_ON`:
+ * `G:` six gyro values (%.1f deg/s, thigh xyz then shin xyz) and six raw accelerometer values (%.3f g).
+ */
+export function encodeRawMotionPacket(m: RawMotion): string {
+  const gy = (v: AccelVector): string => `${f(v.x)}/${f(v.y)}/${f(v.z)}`
+  const ac = (v: AccelVector): string => `${v.x.toFixed(3)}/${v.y.toFixed(3)}/${v.z.toFixed(3)}`
+  return `G:${gy(m.thighGyro)}/${gy(m.shinGyro)}/${ac(m.thighAcc)}/${ac(m.shinAcc)}`
 }
 
 /**

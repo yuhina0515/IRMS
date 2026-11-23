@@ -25,6 +25,9 @@ use tauri::{AppHandle, Manager};
 const FLUSH_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_BATCH: usize = 2000;
 const MAX_QUEUE: usize = 200_000;
+/// RISK-FIX (2026-10-10): largest serialized `data` a frontend event may carry; bigger payloads
+/// are counted as dropped so one oversized event cannot bloat the queue or its upload batch.
+const MAX_EVENT_DATA_BYTES: usize = 64 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Longest wait between retries after consecutive failures.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
@@ -185,12 +188,33 @@ pub fn telemetry_log(state: tauri::State<'_, TelemetryState>, kind: String, data
     if kind.is_empty() || kind.len() > 40 {
         return;
     }
+    if !data_within_limit(&data) {
+        state.lock().dropped += 1;
+        return;
+    }
     state.record(&kind, data);
+}
+
+fn data_within_limit(data: &Value) -> bool {
+    serde_json::to_vec(data).is_ok_and(|b| b.len() <= MAX_EVENT_DATA_BYTES)
 }
 
 #[tauri::command]
 pub fn telemetry_status(state: tauri::State<'_, TelemetryState>) -> TelemetryStatus {
     state.status()
+}
+
+/// Android: trust the bundled Mozilla roots; elsewhere: keep reqwest's platform verifier.
+pub(crate) fn with_platform_roots(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    #[cfg(target_os = "android")]
+    {
+        let roots = webpki_root_certs::TLS_SERVER_ROOT_CERTS
+            .iter()
+            .filter_map(|c| reqwest::Certificate::from_der(c.as_ref()).ok());
+        builder.tls_certs_only(roots)
+    }
+    #[cfg(not(target_os = "android"))]
+    builder
 }
 
 fn build_client() -> Option<reqwest::Client> {
@@ -199,7 +223,7 @@ fn build_client() -> Option<reqwest::Client> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
-    reqwest::Client::builder()
+    with_platform_roots(reqwest::Client::builder())
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| eprintln!("[telemetry] HTTP client init failed: {e}"))
@@ -232,7 +256,8 @@ pub fn spawn_uploader(app: AppHandle) {
 }
 
 /// Sends at most one batch. Ok(n) = n events delivered (0 when disabled or idle);
-/// Err(()) = the request failed and the batch stays queued (error kept in `last_error`).
+/// Err(()) = the request failed (error kept in `last_error`); the batch stays queued unless the
+/// server rejected it as permanently invalid (400/413/422), in which case it is dropped.
 async fn flush_once(
     client: &reqwest::Client,
     state: &TelemetryState,
@@ -264,12 +289,18 @@ async fn flush_once(
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (e.to_string(), false))
         .and_then(|res| {
+            let code = res.status().as_u16();
             if res.status().is_success() {
                 Ok(())
             } else {
-                Err(format!("伺服器回應 HTTP {}", res.status().as_u16()))
+                // 400/413/422 mean this exact batch is rejected; retrying it would block every
+                // later event forever. Other failures (404, 5xx, 429, network) may heal.
+                Err((
+                    format!("伺服器回應 HTTP {code}"),
+                    matches!(code, 400 | 413 | 422),
+                ))
             }
         });
 
@@ -285,7 +316,12 @@ async fn flush_once(
             inner.last_error = None;
             Ok(delivered)
         }
-        Err(err) => {
+        Err((err, permanent)) => {
+            if permanent {
+                let before = inner.queue.len();
+                inner.queue.retain(|e| e.seq > last_seq);
+                inner.dropped += (before - inner.queue.len()) as u64;
+            }
             inner.last_error = Some(err);
             Err(())
         }
@@ -300,6 +336,14 @@ mod tests {
         let state = TelemetryState::default();
         state.lock().enabled = true;
         state
+    }
+
+    #[test]
+    fn oversized_event_data_is_rejected_but_normal_data_passes() {
+        assert!(data_within_limit(&json!({ "n": 1 })));
+        assert!(data_within_limit(&Value::Null));
+        let big = json!({ "blob": "x".repeat(MAX_EVENT_DATA_BYTES) });
+        assert!(!data_within_limit(&big));
     }
 
     #[test]

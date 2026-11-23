@@ -33,7 +33,9 @@ GitHub push/PR 會在 Windows runner 執行同一套 `npm ci` + `npm run ci`。
 - `src/platform/irmsApi.ts`：主要的 Tauri IPC adapter，**但非唯一**——`src/services/bluetooth.ts`
   （BLE 相關指令）與 `src/splash.ts`（`splash_ready`）直接呼叫 `invoke()`，未經過此層（見
   [`doc/PROJECT_STATUS.md`](../doc/PROJECT_STATUS.md) 與 2026-09-17 CON-01 稽核紀錄）。
-- `src-tauri/src`：SQLite、BLE、OTA、更新器與原生應用生命週期。
+- `src-tauri/src`：BLE、OTA、更新器與原生應用生命週期。SQLite schema 與 migration（`PRAGMA user_version`，目前 10）已移到共用 crate `../IRMS_Core`，與原生線（`../IRMS_App_Native`）共用。
+
+> 本 App（`1.2.0-beta.x`）是目前的出貨線；Rust 原生測試線 `1.3.0-beta.x` 尚未取代它。現況見 [`../doc/PROJECT_STATUS.md`](../doc/PROJECT_STATUS.md) 頂部。
 
 不需要硬體的檢查應全部由 `npm run ci` 完成。BLE OTA、GPIO 回饋、真實感測資料與斷線復原
 仍必須在實體 ESP32 上執行 release gate；模擬模式不能替代硬體驗證。

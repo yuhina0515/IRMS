@@ -48,9 +48,9 @@ function sessionLimits(session: Session): { comfort: number | null; limit: numbe
 }
 
 function durationText(sec: number): string {
-  const m = Math.floor(sec / 60)
-  const s = Math.round(sec % 60)
-  return `${m}:${String(s).padStart(2, '0')}`
+  if (!Number.isFinite(sec) || sec < 0) return '--:--'
+  const total = Math.round(sec)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
 async function exportCsv(session: Session): Promise<boolean> {
@@ -309,6 +309,13 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
             ) : (
               <p className="v3-note">{m.history.sameCalibration}</p>
             )}
+            {snapshot != null && (
+              <p className="v3-note" data-testid="history-calibration-method">
+                {snapshot.calibrationMethod
+                  ? m.history.methodLabel({ method: m.history.methods[snapshot.calibrationMethod] ?? snapshot.calibrationMethod })
+                  : m.history.methodUnknown}
+              </p>
+            )}
             <h3>{m.history.perRep}</h3>
             <p className="v3-note">{m.history.perRepNote}</p>
           </aside>
@@ -319,6 +326,7 @@ function SessionReview({ session, onBack }: { session: Session; onBack: () => vo
 }
 
 export function HistoryView(): JSX.Element {
+  const activeSessionId = useStore((s) => s.session.id)
   const [sessions, setSessions] = useState<Session[]>([])
   const [reviewing, setReviewing] = useState<Session | null>(null)
   const [page, setPage] = useState(0)
@@ -342,8 +350,10 @@ export function HistoryView(): JSX.Element {
   }, [])
 
   const remove = async (s: Session): Promise<void> => {
+    if (useStore.getState().session.id === s.id) return
     const ok = await requestConfirm(m.history.deleteTitle, m.history.deleteBody({ id: s.id }))
     if (!ok) return
+    if (useStore.getState().session.id === s.id) return
     await irms.sessions.delete(s.id)
     showToast(m.history.deleted({ id: s.id }), 'success')
     await load()
@@ -407,7 +417,7 @@ export function HistoryView(): JSX.Element {
                   <button className="btn btn-primary btn-sm" onClick={() => setReviewing(s)}>
                     {m.history.review}
                   </button>
-                  <button className="btn btn-danger-ghost btn-sm" aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
+                  <button className="btn btn-danger-ghost btn-sm" disabled={activeSessionId === s.id} aria-label={m.history.deleteAria({ id: s.id })} onClick={() => void remove(s)}>
                     {m.common.delete}
                   </button>
                 </span>

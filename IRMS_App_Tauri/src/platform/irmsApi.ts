@@ -14,11 +14,18 @@
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getVersion } from '@tauri-apps/api/app'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
+import { useStore } from '../store/useStore'
+import { acquireAppTransition } from '../services/appTransition'
 import type {
   AngleRangeInput,
   AngleRangeRecord,
+  CalibrationProfileInput,
+  CalibrationProfileRow,
+  MobilityRecordInput,
+  MobilityRecordRow,
   CustomAction,
   CustomActionInput,
   FirmwareBinary,
@@ -52,6 +59,8 @@ const AUTO_CHECK_ENABLED = !import.meta.env.DEV
 const AUTO_CHECK_DELAY_MS = 5000
 
 let currentUpdate: Update | null = null
+let currentApkUrl: string | null = null
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
 let checkInFlight: Promise<void> | null = null
 let lastStatus: UpdateStatus | null = null
 let readyToInstall = false
@@ -59,9 +68,18 @@ let installing = false
 let allowBeta = false
 const statusListeners = new Set<(status: UpdateStatus) => void>()
 
+// UI 訂閱者不能中斷安裝交接、遮蔽原始拒絕或使其他訂閱者漏接狀態。
+function notifyStatus(cb: (status: UpdateStatus) => void, status: UpdateStatus): void {
+  try { cb(status) } catch { useStore.getState().log('Update status listener failed.') }
+}
+
 function emitStatus(status: UpdateStatus): void {
   lastStatus = status
-  statusListeners.forEach((cb) => cb(status))
+  for (const cb of [...statusListeners]) {
+    // 同步重入已發布更新狀態時，不再把較舊狀態送給後面的訂閱者。
+    if (lastStatus !== status) break
+    notifyStatus(cb, status)
+  }
 }
 
 function performCheck(): Promise<void> {
@@ -74,6 +92,14 @@ function performCheck(): Promise<void> {
 async function checkAndDownload(): Promise<void> {
   emitStatus({ state: 'checking' })
   try {
+    const apk = IS_ANDROID
+      ? await invoke<{ version: string; url: string } | null>('android_update_check', { allowBeta })
+      : null
+    if (apk) {
+      currentApkUrl = apk.url
+      emitStatus({ state: 'apk-available', version: apk.version })
+      return
+    }
     const metadata = await invoke<UpdateMetadata | null>('update_check', { allowBeta })
     if (!metadata) {
       emitStatus({ state: 'not-available' })
@@ -158,6 +184,17 @@ export const irms: IrmsApi = {
     list: () => invoke<AngleRangeRecord[]>('angle_ranges_list'),
     add: (input: AngleRangeInput) => invoke<AngleRangeRecord>('angle_ranges_add', { input }),
     remove: (id: number) => invoke<void>('angle_ranges_delete', { id })
+  },
+  mobility: {
+    list: () => invoke<MobilityRecordRow[]>('mobility_list'),
+    add: (input: MobilityRecordInput) => invoke<MobilityRecordRow>('mobility_add', { input }),
+    remove: (id: number) => invoke<void>('mobility_delete', { id })
+  },
+  calibrationProfiles: {
+    list: () => invoke<CalibrationProfileRow[]>('calibration_profiles_list'),
+    add: (input: CalibrationProfileInput) =>
+      invoke<CalibrationProfileRow>('calibration_profiles_add', { input }),
+    remove: (id: string) => invoke<void>('calibration_profiles_delete', { id })
   },
   data: {
     async appendBatch(sessionId: number, readings: SensorReading[]) {
@@ -257,16 +294,33 @@ export const irms: IrmsApi = {
     async restartNow() {
       // Windows:install() 成功送出安裝程式後會直接結束 App(見 update.rs 開頭註解),
       // 不需要另外呼叫 relaunch——這點行為跟 electron-updater 的 quitAndInstall() 一致。
-      if (!currentUpdate || !readyToInstall || installing) return
+      const { session } = useStore.getState()
+      if (session.running || session.id != null || !currentUpdate || !readyToInstall || installing) return
+      const update = currentUpdate
+      const version = update.version
+      const release = acquireAppTransition()
+      if (!release) return
       installing = true
-      try { await currentUpdate.install() } finally { installing = false }
+      emitStatus({ state: 'installing', version })
+      try {
+        await update.install()
+        // 安裝程式已交接但程序未必已退出；成功後保留閘門，禁止再建立量測資料。
+      } catch (error) {
+        installing = false
+        release()
+        emitStatus({ state: 'install-error', version })
+        throw error
+      }
+    },
+    async openApkDownload() {
+      if (currentApkUrl) await openUrl(currentApkUrl)
     },
     async setAllowPrerelease(allow: boolean) {
       allowBeta = allow
     },
     onStatusChange(cb: (status: UpdateStatus) => void) {
       statusListeners.add(cb)
-      if (lastStatus) cb(lastStatus)
+      if (lastStatus) notifyStatus(cb, lastStatus)
       return () => {
         statusListeners.delete(cb)
       }

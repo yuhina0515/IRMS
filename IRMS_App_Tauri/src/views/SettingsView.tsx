@@ -6,14 +6,20 @@ import { JOINT_PROTOCOLS } from '@shared/types'
 import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import type { Settings } from '../store/useStore'
 import { CalibrationWizard } from '../components/CalibrationWizard'
+import { CalibrationWizardB } from '../components/CalibrationWizardB'
+import { CalibrationFlow } from '../components/CalibrationFlow'
+import type { Preset } from '../services/calibrationFlow'
+import { MobilityTrend } from '../components/MobilityTrend'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { ModulesPanel } from '../components/ModulesPanel'
 import { GlassDropdown } from '../components/GlassDropdown'
 import { buildQuickZeroPatch } from '../services/calibration'
+import { isVoiceSupported } from '../services/voice'
 import { SCENARIOS } from '../services/simulation/scenarios'
 import { deviceSimulator } from '../services/simulation/simulator'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useFirmwareAutoStore } from '../services/firmwareAutoUpdate'
 import {
   DATE_TIME,
@@ -24,6 +30,7 @@ import {
   type LanguageSetting,
   type Messages
 } from '../i18n'
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
 
 /**
  * Language names are endonyms (each written in its own language) and deliberately not translated:
@@ -68,14 +75,22 @@ function NumField({
   onChange: (v: number) => void
   disabled?: boolean
 }): JSX.Element {
+  // 輸入中的字串另存:每個按鍵都立刻鉗制並回寫的話,輸入「20」會先變成 10(被 max(10,…) 擋),
+  // 清空欄位則會把 0 寫進校準值。只有可解析的數字才回寫,離開欄位後才以儲存值為準。
+  const [draft, setDraft] = useState<string | null>(null)
   return (
     <div className="field" style={{ flex: 1 }}>
       <label>{label}</label>
       <input
         type="number"
-        value={value}
+        value={draft ?? value}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          const n = parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(n)
+        }}
+        onBlur={() => setDraft(null)}
       />
     </div>
   )
@@ -116,7 +131,7 @@ function DevicePane(): JSX.Element {
   const deviceName = useStore((s) => s.deviceName)
   const connectionStatus = useStore((s) => s.connectionStatus)
   const hardwareError = useStore((s) => s.hardwareError)
-  const running = useStore((s) => s.session.running)
+  const running = useStore((s) => s.session.running || s.session.id != null)
   const demoMode = useUiStore((s) => s.demoMode)
   const m = useT()
   return (
@@ -161,11 +176,20 @@ function CalibrationPane(): JSX.Element {
   const isConnected = useStore((s) => s.isConnected)
   const showToast = useUiStore((s) => s.showToast)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardBOpen, setWizardBOpen] = useState(false)
+  const [flowPreset, setFlowPreset] = useState<Preset | null>(null)
+  const [legacyOn, setLegacyOn] = useState(false)
+  // A hand edit of a calibration number makes the wizard provenance untrue: mark it 'manual'
+  // (it cannot be detected retroactively, so this only applies from now on).
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
-    setSettings({ [key]: value } as Partial<Settings>)
+    setSettings({ [key]: value, calibrationMethod: 'manual', calibrationId: null } as Partial<Settings>)
   // 校準在 Session 進行中凍結(見 store 的 CALIBRATION_KEYS):一場的資料必須
   // 全程由同一組轉換產生,sessions.calibration 那個單一快照才不是謊報。
-  const calibrationLocked = useStore((s) => s.session.running)
+  const calibrationLocked = useStore((s) => s.session.running || s.session.id != null)
+  // The Euler-era fields below are not what a unified profile reads, and flipping the method to 'manual' would
+  // drop its signed knee (hyperextension alarm). Unified profiles are changed only through the flow.
+  const unified = settings.calibrationMethod === 'unified'
+  const manualLocked = calibrationLocked || unified
   // MTU 沒協商上去時 roll 恆為 0,快速歸零仍會寫入 roll 的 zeroRaw(寫入 0,實質無效)。
   const linkTruncated = useStore((s) => s.linkTruncated)
   const m = useT()
@@ -201,10 +225,56 @@ function CalibrationPane(): JSX.Element {
               : mc.notCalibrated}
           </p>
         </div>
-        <button className="btn btn-primary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
-          {settings.lastCalibratedAt ? mc.recalibrate : mc.start}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          {settings.calibrationMethod === 'unified' && (
+            <button
+              className="btn btn-secondary"
+              data-testid="flow-quick-rezero"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setFlowPreset('quickRezero')}
+            >
+              {mc.quickRezeroStart}
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            data-testid="flow-open"
+            disabled={!isConnected || calibrationLocked}
+            onClick={() => setFlowPreset('calibrate')}
+          >
+            {settings.lastCalibratedAt ? mc.recalibrate : mc.unifiedStart}
+          </button>
+        </div>
       </div>
+      <p className="field-hint" data-testid="calibration-summary">
+        {mc.summary({
+          method: mc.method[settings.calibrationMethod],
+          reference: settings.referenceKind ? mc.referenceKind[settings.referenceKind] : '-',
+          quality: settings.calibrationQuality ? mc.qualityShort[settings.calibrationQuality] : '-'
+        })}
+      </p>
+      <label className="field-hint">
+        <input type="checkbox" data-testid="legacy-toggle" checked={legacyOn} onChange={(e) => setLegacyOn(e.target.checked)} /> {mc.legacyToggle}
+      </label>
+      {legacyOn && (
+        <>
+          <p className="field-hint">{mc.legacyHint}</p>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-secondary" disabled={!isConnected || calibrationLocked} onClick={() => setWizardOpen(true)}>
+              {mc.start} (A)
+            </button>
+            <button
+              className="btn btn-secondary"
+              data-testid="calib-b-open"
+              disabled={!isConnected || calibrationLocked}
+              onClick={() => setWizardBOpen(true)}
+            >
+              {m.calibrationB.title} ({m.calibrationB.beta})
+            </button>
+          </div>
+        </>
+      )}
+      <MobilityTrend disabled={!isConnected || (calibrationLocked && !legacyOn)} legacy={legacyOn} />
       <ul className="v3-scope">
         {scope.map(([label, ok]) => (
           <li key={label} className={ok ? 'ok' : ''}>
@@ -219,27 +289,30 @@ function CalibrationPane(): JSX.Element {
       <details className="adv-fold">
         <summary>{mc.manualSummary}</summary>
         <p className="field-hint">{mc.manualHint}</p>
+        {unified && <p className="field-hint" data-testid="manual-unified-note">{mc.manualUnifiedNote}</p>}
         <div className="row">
-          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Zero (raw °)" value={settings.proximalZeroRaw} onChange={(v) => set('proximalZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Zero (raw °)" value={settings.distalZeroRaw} onChange={(v) => set('distalZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 14 }}>
-          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={calibrationLocked} />
-          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={calibrationLocked} />
+          <Toggle label={mc.invertThigh} checked={settings.proximalInvert} onChange={(v) => set('proximalInvert', v)} disabled={manualLocked} />
+          <Toggle label={mc.invertShin} checked={settings.distalInvert} onChange={(v) => set('distalInvert', v)} disabled={manualLocked} />
         </div>
         <div className="row">
-          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={calibrationLocked} />
-          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={calibrationLocked} />
+          <NumField label="Thigh Roll Zero (raw °)" value={settings.proximalRollZeroRaw} onChange={(v) => set('proximalRollZeroRaw', v)} disabled={manualLocked} />
+          <NumField label="Shin Roll Zero (raw °)" value={settings.distalRollZeroRaw} onChange={(v) => set('distalRollZeroRaw', v)} disabled={manualLocked} />
         </div>
         <div className="row" style={{ gap: 24, marginBottom: 16 }}>
-          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={calibrationLocked} />
-          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={calibrationLocked} />
+          <Toggle label="Invert Thigh Roll" checked={settings.proximalRollInvert} onChange={(v) => set('proximalRollInvert', v)} disabled={manualLocked} />
+          <Toggle label="Invert Shin Roll" checked={settings.distalRollInvert} onChange={(v) => set('distalRollInvert', v)} disabled={manualLocked} />
         </div>
-        <button className="btn btn-secondary" disabled={calibrationLocked} onClick={quickZero}>
+        <button className="btn btn-secondary" disabled={manualLocked} onClick={quickZero}>
           {mc.quickZero}
         </button>
       </details>
+      {flowPreset && <CalibrationFlow preset={flowPreset} onClose={() => setFlowPreset(null)} />}
       {wizardOpen && <CalibrationWizard onClose={() => setWizardOpen(false)} />}
+      {wizardBOpen && <CalibrationWizardB onClose={() => setWizardBOpen(false)} />}
     </>
   )
 }
@@ -249,6 +322,7 @@ function DisplayPane(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const m = useT()
   const md = m.settings.display
+  const voiceSupported = isVoiceSupported()
   return (
     <>
       <div className="field" style={{ maxWidth: 360 }}>
@@ -288,6 +362,17 @@ function DisplayPane(): JSX.Element {
         />
         <p className="field-hint">{md.poseHint}</p>
       </div>
+      <div style={{ maxWidth: 360 }}>
+        <Toggle
+          label={md.voice}
+          checked={voiceSupported && settings.voiceEnabled}
+          onChange={(v) => setSettings({ voiceEnabled: v })}
+          disabled={!voiceSupported}
+        />
+        <p className="field-hint" style={{ marginTop: 6 }} data-testid="voice-hint">
+          {voiceSupported ? md.voiceHint : md.voiceUnsupported}
+        </p>
+      </div>
       <details className="adv-fold">
         <summary>{m.common.advanced}</summary>
         <div className="row">
@@ -309,9 +394,11 @@ function DisplayPane(): JSX.Element {
 
 export function SettingsView(): JSX.Element {
   const [category, setCategory] = useState<SettingsCategory>('device')
+  const [navOpen, setNavOpen] = useState(false)
   const setView = useUiStore((s) => s.setView)
   const m = useT()
   const meta = m.settings.categories[category]
+  useEscapeKey(navOpen ? () => setNavOpen(false) : null)
 
   return (
     <div className="v3-page">
@@ -322,9 +409,10 @@ export function SettingsView(): JSX.Element {
         </div>
       </div>
       <section className="v3-sheet v3-settings">
-        <nav className="v3-settings-index" aria-label={m.settings.indexAria}>
+        {navOpen && <div className="v3-settings-scrim" onClick={() => setNavOpen(false)} />}
+        <nav className={`v3-settings-index${navOpen ? ' is-open' : ''}`} aria-label={m.settings.indexAria}>
           {CATEGORIES.map((id) => (
-            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => setCategory(id)}>
+            <button key={id} aria-current={id === category ? 'page' : undefined} onClick={() => { setCategory(id); setNavOpen(false) }}>
               {m.settings.categories[id].label}
               <span aria-hidden>›</span>
             </button>
@@ -332,8 +420,19 @@ export function SettingsView(): JSX.Element {
         </nav>
         <div className="v3-settings-pane">
           <header className="v3-settings-head">
-            <h2>{meta.title}</h2>
-            <p>{meta.hint}</p>
+            <button
+              type="button"
+              className="v3-settings-menu"
+              aria-label={m.settings.indexAria}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              ☰
+            </button>
+            <div>
+              <h2>{meta.title}</h2>
+              <p>{meta.hint}</p>
+            </div>
           </header>
           <div className="v3-settings-body v3-scroll">
             {category === 'device' && <DevicePane />}
@@ -374,6 +473,12 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
       return u.downloading({ pct: status.percent })
     case 'downloaded':
       return u.downloaded({ version: status.version })
+    case 'installing':
+      return m.updateBanner.installing
+    case 'install-error':
+      return m.updateBanner.installFailed
+    case 'apk-available':
+      return u.apkAvailable({ version: status.version })
     case 'not-available':
       return u.notAvailable
     case 'error':
@@ -382,8 +487,8 @@ function describeUpdateStatus(m: Messages, status: UpdateStatus | null): string 
 }
 
 /**
- * App 軟體更新面板。下載/重啟套用本身仍然靜默——見 `UpdateBanner.tsx`,只有
- * 「已下載完成」才會在畫面下方冒出來。但「檢查」這一步本身的結果(已是最新版/
+ * App 軟體更新面板。背景檢查/下載保持靜默；使用者啟動安裝的通知由 UpdateBanner 統一負責。
+ * 下方橫幅從「已下載完成」開始出現，之後保留安裝進度與失敗提示。但「檢查」這一步本身的結果(已是最新版/
  * 失敗/發現新版本)過去完全沒有出口:`checkNow()` 只丟一句固定文案的 toast,不管
  * `performCheck()` 實際結果是什麼——2026-09-13 使用者實測回報「按下去之後就沒有任何
  * 提示了」正是這個缺口:如果檢查失敗(網路錯誤/manifest 抓不到)或單純沒有新版本,
@@ -395,7 +500,7 @@ function SoftwareUpdatePanel(): JSX.Element {
   const setSettings = useStore((s) => s.setSettings)
   const [version, setVersion] = useState<string | null>(null)
   const [status, setStatus] = useState<UpdateStatus | null>(null)
-  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded'].includes(status.state)
+  const checking = status != null && ['checking', 'available', 'downloading', 'downloaded', 'apk-available', 'installing', 'install-error'].includes(status.state)
   const m = useT()
   const ms = m.settings.software
 
@@ -414,15 +519,15 @@ function SoftwareUpdatePanel(): JSX.Element {
   return (
     <div className="panel glass">
       <h3 style={{ marginBottom: 14 }}>{ms.heading}</h3>
-      <p className="text-text-muted text-sm mb-3">{ms.intro}</p>
+      <p className="text-text-muted text-sm mb-3">{IS_ANDROID ? ms.introAndroid : ms.intro}</p>
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
         {version && <span className="text-sm text-text-muted">{ms.currentVersion({ version })}</span>}
         <button className="btn btn-secondary" disabled={checking} onClick={() => void checkNow()}>
-          {status?.state === 'downloaded' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
+          {status?.state === 'downloaded' || status?.state === 'install-error' ? ms.downloadedWaiting : checking ? ms.processing : ms.checkNow}
         </button>
       </div>
       {statusText && (
-        <p className="field-hint" style={{ marginTop: 8 }} role="status">
+        <p className="field-hint" style={{ marginTop: 8 }} role={status?.state === 'install-error' || status?.state === 'installing' ? undefined : 'status'}>
           {statusText}
         </p>
       )}
@@ -455,7 +560,7 @@ function FirmwareOtaPanel(): JSX.Element {
   // 停頓(SPI flash 操作需要暫停 cache),Task_Sensor 的 50Hz 取樣與 Task_Comm 的
   // 25Hz BLE 推播都會跟著卡頓。療程進行中出現這種卡頓,輕則資料出現偽影,重則
   // 讓正在半蹲/外展的患者因為回饋延遲而失去平衡——這是本檔其他鎖定沒有的傷害路徑。
-  const sessionRunning = useStore((s) => s.session.running)
+  const sessionRunning = useStore((s) => s.session.running || s.session.id != null)
   const showToast = useUiStore((s) => s.showToast)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
 
@@ -642,7 +747,7 @@ function DemoModePanel(): JSX.Element {
   const setDemoMode = useUiStore((s) => s.setDemoMode)
   const requestConfirm = useUiStore((s) => s.requestConfirm)
   const showToast = useUiStore((s) => s.showToast)
-  const sessionRunning = useStore((s) => s.session.running)
+  const sessionRunning = useStore((s) => s.session.running || s.session.id != null)
   const scenarioId = useUiStore((s) => s.demoScenarioId)
   const setScenarioId = useUiStore((s) => s.setDemoScenario)
   const playingId = useUiStore((s) => s.demoPlayingId)
@@ -662,8 +767,11 @@ function DemoModePanel(): JSX.Element {
   }
 
   const purge = async (): Promise<void> => {
+    if (useStore.getState().session.running || useStore.getState().session.id != null) return
     const ok = await requestConfirm(md.purgeTitle, md.purgeBody)
     if (!ok) return
+    // 確認對話框開啟期間可能開始療程，刪除前必須再次確認。
+    if (useStore.getState().session.running || useStore.getState().session.id != null) return
     setBusy(true)
     try {
       const { deleted } = await irms.sessions.purgeDemo()
@@ -716,7 +824,7 @@ function DemoModePanel(): JSX.Element {
       )}
 
       <hr className="my-4 border-0 border-t border-border" />
-      <button className="btn btn-danger-ghost" disabled={busy} onClick={() => void purge()}>
+      <button className="btn btn-danger-ghost" disabled={busy || sessionRunning} onClick={() => void purge()}>
         {md.purgeButton}
       </button>
       <p className="field-hint" style={{ marginTop: 8 }}>

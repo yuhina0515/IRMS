@@ -144,6 +144,17 @@ function updateModule(id: string, patch: Partial<LoadedModuleState>): void {
   store.set({ modules: store.modules.map(m => m.id === id ? { ...m, ...patch } : m) })
 }
 
+/** RISK-FIX (2026-10-10): a module whose activate() never settles used to block the serial load queue forever. */
+export const ACTIVATE_TIMEOUT_MS = 30_000
+
+function withTimeout<T>(p: T | Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms)
+  })
+  return Promise.race([Promise.resolve(p), timeout]).finally(() => clearTimeout(timer))
+}
+
 async function activate(m: InstalledModule, deps: ModuleLoaderDeps): Promise<LoadedModuleState> {
   await dispose(m.id)
   const base = { id: m.id, name: m.name, version: m.version, description: m.description, enabled: true }
@@ -160,7 +171,7 @@ async function activate(m: InstalledModule, deps: ModuleLoaderDeps): Promise<Loa
     check()
     if (!isIrmsModule(mod)) throw new Error(getT().modules.noActivate)
     if (mod.contractVersion !== undefined && mod.contractVersion !== 1) throw new Error('Unsupported module contract version')
-    await mod.activate({
+    await withTimeout(mod.activate({
       appVersion: deps.appVersion,
       apiVersion: 2,
       signal: runtime.controller.signal,
@@ -196,7 +207,7 @@ async function activate(m: InstalledModule, deps: ModuleLoaderDeps): Promise<Loa
       liveShare: m.id === 'live-share' ? liveShareApi : undefined,
       angleRange: m.id === 'angle-range' ? angleRangeModuleApi : undefined,
       log: (message) => deps.log(`[module:${m.id}] ${String(message).slice(0, 300)}`)
-    })
+    }), ACTIVATE_TIMEOUT_MS, 'Module activation timed out')
     check()
     registering = false
     if (readDisabled().has(m.id)) {

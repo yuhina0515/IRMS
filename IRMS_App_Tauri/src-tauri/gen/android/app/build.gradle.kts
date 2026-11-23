@@ -24,6 +24,18 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    signingConfigs {
+        // Release signing is opt-in via env vars so the key never lives in the repo (see IRMS_secrets).
+        val ks = System.getenv("IRMS_ANDROID_KEYSTORE")
+        if (ks != null) {
+            create("release") {
+                storeFile = file(ks)
+                storePassword = System.getenv("IRMS_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = "irms"
+                keyPassword = System.getenv("IRMS_ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -38,6 +50,7 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))

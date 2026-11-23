@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>療程回顧</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="{{themeVars}};width:1280px;height:800px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--canvas);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;overflow:hidden">
+  <header style="height:64px;flex-shrink:0;display:flex;align-items:center;gap:32px;padding:0 24px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;letter-spacing:0.04em">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" style="fill:var(--accent)"/><path d="M12 6 L13 15 L21 18" fill="none" style="stroke:var(--onaccent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      IRMS
+    </div>
+    <nav aria-label="主要功能" style="display:flex;gap:4px;flex-grow:1">
+      <a href="Main.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">即時監測</a>
+      <a href="Actions.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">動作處方</a>
+      <a href="History.dc.html" aria-current="page" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;background:var(--tint);color:var(--accent);font-weight:700;text-decoration:none">療程紀錄</a>
+      <a href="Settings.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">設定</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span role="status" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)"><span style="width:10px;height:10px;border-radius:50%;background:var(--good)"></span>裝置已連線</span>
+      <button style="height:44px;padding:0 20px;border-radius:22px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:500 15px 'Noto Sans TC',sans-serif">中斷連線</button>
+    </div>
+  </header>
+
+  <main style="flex-grow:1;min-height:0;padding:0 24px 24px;box-sizing:border-box;display:flex">
+    <section aria-label="療程回顧" style="flex-grow:1;min-width:0;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:24px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 32px 0">
+        <div style="display:flex;align-items:center;gap:16px">
+          <button aria-label="回到療程列表" style="width:44px;height:44px;border-radius:22px;border:1.5px solid var(--edge);background:transparent;display:inline-flex;align-items:center;justify-content:center">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M11 3 L5 9 L11 15" fill="none" style="stroke:var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div>
+            <h1 style="margin:0;font-family:'Noto Serif TC',serif;font-weight:700;font-size:30px;line-height:1.2">療程 #42 · 膝關節屈曲</h1>
+            <p style="margin:6px 0 0;font-size:15px;color:var(--muted)">10 月 6 日 14:07 · 真實量測 · 本機紀錄</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <button style="height:48px;padding:0 22px;border-radius:24px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:700 15px 'Noto Sans TC',sans-serif">匯出紀錄</button>
+          <button style="height:48px;padding:0 22px;border-radius:24px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:700 15px 'Noto Sans TC',sans-serif">下一場 →</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:20px 32px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+        <div style="padding:16px 0 16px 0">
+          <div style="font-size:13px;color:var(--muted)">完成次數</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:34px;font-variant-numeric:tabular-nums">10<span style="font-size:18px;color:var(--muted);font-weight:500"> / 10</span></div>
+        </div>
+        <div style="padding:16px 0 16px 20px;border-left:1px solid var(--line)">
+          <div style="font-size:13px;color:var(--danger);font-weight:700">先看例外 · 超出上限</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:34px;color:var(--danger);font-variant-numeric:tabular-nums">1 次<span style="font-size:18px;font-weight:500"> · 2 秒</span></div>
+        </div>
+        <div style="padding:16px 0 16px 20px;border-left:1px solid var(--line)">
+          <div style="font-size:13px;color:var(--muted)">峰值</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:34px;font-variant-numeric:tabular-nums">97°</div>
+        </div>
+        <div style="padding:16px 0 16px 20px;border-left:1px solid var(--line)">
+          <div style="font-size:13px;color:var(--muted)">目標區時間</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:34px;font-variant-numeric:tabular-nums">50<span style="font-size:18px;color:var(--muted);font-weight:500"> 秒</span></div>
+        </div>
+        <div style="padding:16px 0 16px 20px;border-left:1px solid var(--line)">
+          <div style="font-size:13px;color:var(--muted)">有效量測</div>
+          <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:34px;font-variant-numeric:tabular-nums">4:32</div>
+        </div>
+      </div>
+
+      <div style="flex-grow:1;min-height:0;display:flex;gap:32px;padding:16px 32px 20px;box-sizing:border-box">
+        <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:700;color:var(--muted);letter-spacing:0.06em">屈膝角度隨時間變化</span>
+            <span style="display:inline-flex;gap:16px;font-size:13px;color:var(--muted)">
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:3px;background:var(--accent)"></span>角度</span>
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:10px;border-radius:2px;background:var(--goodbg);border:1px solid var(--good)"></span>目標區 85–95°</span>
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--danger)"></span>超出上限</span>
+            </span>
+          </div>
+          <svg viewBox="0 0 780 290" preserveAspectRatio="xMidYMid meet" role="img" aria-label="療程角度曲線,共 10 次,第 7 次超出目標上限" style="flex-grow:1;min-height:0;width:100%">
+            <line x1="40" y1="30" x2="770" y2="30" style="stroke:var(--line)" stroke-width="1"/>
+            <line x1="40" y1="116" x2="770" y2="116" style="stroke:var(--line)" stroke-width="1"/>
+            <line x1="40" y1="201" x2="770" y2="201" style="stroke:var(--line)" stroke-width="1"/>
+            <rect x="40" y="88" width="730" height="17" style="fill:var(--goodbg)"/>
+            <line x1="40" y1="258" x2="770" y2="258" style="stroke:var(--edge)" stroke-width="1.5"/>
+            <text x="32" y="34" text-anchor="end" font-size="12" style="fill:var(--muted)">120°</text>
+            <text x="32" y="120" text-anchor="end" font-size="12" style="fill:var(--muted)">80°</text>
+            <text x="32" y="205" text-anchor="end" font-size="12" style="fill:var(--muted)">40°</text>
+            <text x="32" y="262" text-anchor="end" font-size="12" style="fill:var(--muted)">0°</text>
+            <path d="{{curve}}" fill="none" style="stroke:var(--accent)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="{{overX}}" cy="{{overY}}" r="7" style="fill:var(--danger);stroke:var(--paper)" stroke-width="3"/>
+            <text x="{{overLabelX}}" y="{{overLabelY}}" font-size="13" font-weight="700" style="fill:var(--danger)">97°</text>
+            <text x="40" y="280" font-size="12" style="fill:var(--muted)">0:00</text>
+            <text x="405" y="280" text-anchor="middle" font-size="12" style="fill:var(--muted)">2:16</text>
+            <text x="770" y="280" text-anchor="end" font-size="12" style="fill:var(--muted)">4:32</text>
+          </svg>
+        </div>
+
+        <div style="flex:0 0 330px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+          <div style="padding:16px 18px;border-radius:16px;background:var(--soft)">
+            <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.06em;margin-bottom:8px">處方(當時生效)</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:15px;font-variant-numeric:tabular-nums">
+              <span style="color:var(--muted)">目標</span><span style="font-weight:700">90° ± 5°</span>
+              <span style="color:var(--muted)">保持</span><span style="font-weight:700">5 秒</span>
+              <span style="color:var(--muted)">判定</span><span style="font-weight:700">到達後保持</span>
+            </div>
+          </div>
+          <div style="padding:16px 18px;border-radius:16px;background:var(--goodbg);color:var(--ink)">
+            <div style="font-size:13px;font-weight:700;color:var(--good);letter-spacing:0.06em;margin-bottom:6px">校準</div>
+            <div style="font-size:15px;line-height:1.55">與目前校準相同,可與近期紀錄比較。</div>
+          </div>
+          <div style="padding:16px 18px;border-radius:16px;border:1px solid var(--line)">
+            <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px">逐次分析</div>
+            <div style="font-size:14px;line-height:1.6;color:var(--muted)">目前紀錄只保存連續角度與完成次數,尚未保存每次動作的起訖事件,因此不提供逐次峰值與保持時間。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+const L = {canvas:'#EEEAE2',paper:'#FFFCF6',soft:'#E8E2D8',ink:'#29252D',muted:'#625C65',line:'#CFC6BD',edge:'#827784',accent:'#684563',onaccent:'#FFFFFF',tint:'#EDE1EA',good:'#286047',goodbg:'#E0EBDF',warn:'#805017',warnbg:'#F4E7CF',danger:'#B02D32',dangerbg:'#FAE5E0'};
+const D = {canvas:'#201E23',paper:'#29262D',soft:'#36313A',ink:'#F4EEE6',muted:'#C3B8C5',line:'#514853',edge:'#A698AA',accent:'#D9B6D0',onaccent:'#29252D',tint:'#463443',good:'#ACD7B8',goodbg:'#2D4033',warn:'#F0C182',warnbg:'#493922',danger:'#FFA7A0',dangerbg:'#502D30'};
+const t = this.props.dark ? D : L;
+const y = (a) => (258 - a * 2.143).toFixed(1);
+let p = 'M40 258';
+let overX = 0, overY = 0;
+for (let i = 0; i < 10; i++) {
+const x0 = 40 + i * 73;
+const peak = i === 6 ? 97 : 88 + (i % 3);
+p += ' L' + (x0 + 8) + ' 258 L' + (x0 + 20) + ' ' + y(peak - 4) + ' L' + (x0 + 26) + ' ' + y(peak) + ' L' + (x0 + 50) + ' ' + y(peak - 1) + ' L' + (x0 + 58) + ' ' + y(peak - 6) + ' L' + (x0 + 68) + ' 258';
+if (i === 6) { overX = x0 + 26; overY = Number(y(peak)); }
+}
+return {
+themeVars: Object.keys(t).map((k) => '--' + k + ':' + t[k]).join(';'),
+curve: p,
+overX: overX,
+overY: overY,
+overLabelX: overX + 12,
+overLabelY: overY - 6
+};
+}
+}
+</script>
+</body>
+</html>

@@ -57,6 +57,9 @@ export default function App(): JSX.Element {
             {view === 'settings' && <SettingsView />}
           </Suspense>
         </ErrorBoundary>
+        <div className="v3-update-slot">
+          <UpdateBanner />
+        </div>
         <footer className="v3-footer">
           <span>{m.app.footerBrand}</span>
           <span>{demoMode ? m.app.footerDemo : m.app.footerLocal}</span>
@@ -66,7 +69,6 @@ export default function App(): JSX.Element {
       <ToastHost />
       <ConfirmDialog />
       <ErrorOverlay />
-      <UpdateBanner />
     </>
   )
 }

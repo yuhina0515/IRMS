@@ -61,6 +61,13 @@ const SETTINGS: Settings = {
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
   language: 'system',
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 describe('computeCaptureStats', () => {
@@ -395,6 +402,30 @@ describe('buildQuickZeroPatch(2026-08-07 會議發現的迴歸)', () => {
   })
 })
 
+describe('buildQuickZeroPatch with hinge axes (finding X1)', () => {
+  it('keeps the reference perpendicular to the hinge so the re-zeroed pose reads 0 deg', () => {
+    const hinge = { x: 1, y: 0, z: 0 }
+    const hinged: Settings = { ...SETTINGS, proximalHingeAxis: hinge, distalHingeAxis: hinge }
+    // Current still pose is tilted 10 deg out of the hinge plane (x component 0.17).
+    const tilted = { x: 0.1736, y: 0, z: 0.9848 }
+    const cur: RawAngles = { ...raw(0, 0), thighAccel: tilted, shinAccel: tilted }
+    const patch = buildQuickZeroPatch(cur, hinged)
+    for (const z of [patch.proximalZeroAccel, patch.distalZeroAccel]) {
+      if (!z) throw new Error('zero missing')
+      expect(Math.abs(z.x * hinge.x + z.y * hinge.y + z.z * hinge.z)).toBeLessThan(1e-9)
+    }
+    const stand = applyCalibration(cur, { ...hinged, ...patch })
+    expect(stand.thigh).toBeCloseTo(0, 5)
+    expect(stand.shin).toBeCloseTo(0, 5)
+  })
+
+  it('without hinge axes the reference is stored unchanged', () => {
+    const v = { x: 0.1, y: 0.2, z: 0.97 }
+    const patch = buildQuickZeroPatch({ ...raw(0, 0), thighAccel: v, shinAccel: v }, SETTINGS)
+    expect(patch.proximalZeroAccel).toEqual(v)
+  })
+})
+
 describe('校準快照(migration 6)', () => {
   it('快照涵蓋全部被凍結的欄位,一個都不少', () => {
     // 漏掉任一欄位,那個欄位就是「有在影響角度、卻沒被記錄」——正是這個功能要消滅的狀況
@@ -429,6 +460,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
     expect(calibrationDrift(buildCalibrationSnapshot(SETTINGS), SETTINGS)).toEqual([])
   })
 
+  it('向量欄位從 JSON 讀回(新物件)後不算漂移', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 0, y: 1, z: 0 },
+      distalZeroAccel: { x: 0.1, y: 0.2, z: 0.97 }
+    }
+    const roundTripped = JSON.parse(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(roundTripped, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 0, y: 0, z: 1 } }
+    expect(calibrationDrift(roundTripped, moved)).toEqual(['proximalHingeAxis'])
+  })
+
   it('列出所有不一致的欄位', () => {
     const snapshot = buildCalibrationSnapshot(SETTINGS)
     const now: Settings = { ...SETTINGS, distalInvert: true, proximalZeroRaw: 4 }
@@ -450,6 +493,18 @@ describe('calibrationDrift — 這場資料能不能照今天的設定解讀', (
       distalRollVerified: true
     }
     expect(calibrationDrift(snapshot, recalibrated)).toEqual([])
+  })
+
+  it('vector fields compare by value after a JSON round trip, and still detect a change', () => {
+    const withVectors: Settings = {
+      ...SETTINGS,
+      proximalHingeAxis: { x: 1, y: 0, z: 0 },
+      proximalZeroAccel: { x: 0, y: 0.6, z: 0.8 }
+    }
+    const stored = parseCalibrationSnapshot(JSON.stringify(buildCalibrationSnapshot(withVectors)))
+    expect(calibrationDrift(stored, withVectors)).toEqual([])
+    const moved: Settings = { ...withVectors, proximalHingeAxis: { x: 1, y: 0.1, z: 0 } }
+    expect(calibrationDrift(stored, moved)).toEqual(['proximalHingeAxis'])
   })
 
   it('每一個會改變算式的欄位單獨改動都偵測得到', () => {

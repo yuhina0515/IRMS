@@ -160,10 +160,18 @@ setTimeout(startOrbit, reduceMotion ? 0 : SPLASH_ASSEMBLY_DONE_MS)
 // preference" goes up in one round trip instead of the Electron version's did-finish-load +
 // separate executeJavaScript(matchMedia) query. Fire-and-forget: the Rust side degrades to
 // motion-on if this never arrives (see splash.rs's SPLASH_READY_TIMEOUT_MS).
-void invoke('splash_ready', { reducedMotion: reduceMotion })
-
-void listen('splash-advance', () => triggerStage2())
-void listen('splash-fade-out-frame', () => fadeOutFrame())
+// RISK-FIX (2026-10-10): listen() registers asynchronously, so the listeners are awaited BEFORE
+// announcing readiness; otherwise an early splash-advance event could be emitted into the void.
+void (async () => {
+  try {
+    await Promise.all([
+      listen('splash-advance', () => triggerStage2()),
+      listen('splash-fade-out-frame', () => fadeOutFrame())
+    ])
+  } finally {
+    await invoke('splash_ready', { reducedMotion: reduceMotion })
+  }
+})()
 
 /** test-only hook so Playwright can drive the stage-2 transition without a real IPC round trip */
 declare global {

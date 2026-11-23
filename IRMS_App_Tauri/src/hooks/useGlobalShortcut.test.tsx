@@ -49,6 +49,20 @@ describe('觸發條件', () => {
     expect(onFire).toHaveBeenCalledTimes(1)
   })
 
+  it('按住不放的連發 keydown 只觸發一次', () => {
+    const onFire = vi.fn()
+    render(<Harness onFire={onFire} />)
+    const fire = (repeat: boolean): void => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat, bubbles: true })
+      )
+    }
+    fire(false)
+    fire(true)
+    fire(true)
+    expect(onFire).toHaveBeenCalledTimes(1)
+  })
+
   it('大小寫不敏感', async () => {
     const onFire = vi.fn()
     render(<Harness onFire={onFire} />)

@@ -68,7 +68,7 @@
 ### 8. 基礎建設
 - [x] IPC + contextBridge 型別安全資料層 (`window.irms`)
 - [x] better-sqlite3(WAL、外鍵、交易批次寫入)
-- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 8 版(Tauri 版 `migrations.rs`);見 [ROADMAP](ROADMAP.md) D4)
+- [x] `PRAGMA user_version` migration runner(2026-08-01,目前 9 版(Tauri 版 `migrations.rs`);見 [ROADMAP](ROADMAP.md) D4)
 - [x] 孤兒 session 啟動收尾 + `abandoned` 標記(2026-08-01)
 - [x] React ErrorBoundary 包裹各視圖(2026-08-01)
 - [x] Toast / Confirm / TopHeader+BottomBar UI 基礎(2026-07-14 側欄改版)
@@ -96,11 +96,11 @@
 ### 🔴 P0 — 正確性與安全(優先)
 - [→] 📡 **實機端對端驗證**——**已部分完成**。2026-08-07 燒錄韌體 v3、BLE 連線、
       跑完校準精靈,快速歸零修正經實測確認正常。**仍未驗證**:達標音 → 超限長鳴 →
-      斷線收尾這條回饋鏈(issue [#3](https://github.com/yuhina0515/IRMS/issues/3))
-      與 ±180° 桌面旋轉記錄(issue [#2](https://github.com/yuhina0515/IRMS/issues/2) 的後半)。
+      斷線收尾這條回饋鏈(issue #3(舊儲存庫 issue,已封存))
+      與 ±180° 桌面旋轉記錄(issue #2(舊儲存庫 issue,已封存) 的後半)。
       依專案慣例,需要實機的工作一律走 issue,不佔用桌面 backlog。
       ⚠ **裝置取得零星,下次拿到之前必須先備妥錄製能力**,否則時間窗會被浪費在
-      「錄了但事後無法解讀」的 session 上(issue [#4](https://github.com/yuhina0515/IRMS/issues/4))。
+      「錄了但事後無法解讀」的 session 上(issue #4(舊儲存庫 issue,已封存))。
 - [x] ~~**下發 Profile 參數至韌體**~~:**依 [ROADMAP](ROADMAP.md) 決策 D1 關閉,不需要**——正式採 App-Driven 架構,判定不在韌體(現行韌體亦無 Task_Logic/NVS/Profile 解析)。(2026-07-03)
 - [x] **ERR 當下主動關閉回饋**:收到 `ERR:` 時重置判定引擎並強制下發 `LED_OFF` + `ALARM_OFF`。(2026-07-03)
 - [x] **斷線時的 Session 收尾**:重連耗盡或手動斷線時自動 End Session 並 flush 緩衝資料。(2026-07-03)
@@ -146,8 +146,8 @@
       原本的「Reconnecting (n/5)」寫進 `statusText`,但下一行 `connectGATT()` 的
       `'Connecting...'` 會在同一次嘗試內蓋掉它——那個計數器自 2026-06-27 起從來沒被看見過。
       改用結構化的 `useStore.reconnect` 欄位 + 確定性進度軌道。
-- [ ] i18n(繁中 / English 切換),目前介面中英混用。
-      (依專案規則 #2 明確延後;2026-08-27 使用者再次裁定不納入)
+- [x] i18n(繁中 / English 切換)。**2026-10-01 已於 beta.19 上線**(`src/i18n`,Settings 語言選單);
+      先前依專案規則 #2 延後、2026-08-27 曾裁定不納入,其後使用者改變決定。`clinical.*` 英文待臨床人員審閱。
 - [x] 鍵盤快捷鍵(連線、開始/結束 Session)。(2026-08-27)Ctrl+K / Ctrl+Enter,
       **走與按鈕完全相同的守衛**,不可用時不掛 listener,不得繞過未支援協定封鎖或示範模式互斥。
 
@@ -342,7 +342,7 @@
    指不出來就是裝飾性的,排到清單最後面。舊版寫作「指出它餵給哪條判定路徑」,但那條
    規則按字面會把「History 畫錯的安全線」判為裝飾性——它不餵給引擎,卻改變督導的判讀。
 2. **修缺陷,不擴大議程。**(2026-08-03 立、2026-08-07 沿用)發現缺陷就修該缺陷,
-   不順勢啟動架構級重寫。i18n、Electron 升級、多關節泛化、ESLint 35 項都是照此延後。
+   不順勢啟動架構級重寫。Electron 升級、多關節泛化、ESLint 35 項都是照此延後(i18n 曾在此列,2026-10-01 已上線)。
 3. **需要實機/硬體的工作一律開 GitHub issue**,不寫進本文件或 ROADMAP,
    避免硬體滑期時整份 backlog 看起來是空的。
 
@@ -381,6 +381,45 @@
 
 ## Runtime module contract (2026-09-27)
 
+### Reliability follow-up (2026-10-20)
+
+- [x] Session save recovery (2026-10-21): retain a stopped session and pending readings on append/end failure; explicit retry across normal/error views; no false saved toast/speech; pending-session guards for restart, firmware, demo/calibration and history deletion. See [[log_20261021_session_recovery]].
+- [ ] Process-crash recovery and ambiguous IPC acknowledgement deduplication remain separate work; existing failed-write buffer cap is 2,000 readings.
+
+- [x] Mobility C: require a timestamped two-second hold, reject gaps over 250 ms, use held evidence for sweep direction, and require aligned knee-reference samples.
+- [x] Mobility UI: compare the same leg and movement set, isolate legacy unknown-side records, cancel captures on dismissal/disconnect, refresh background saves without dismissing replacement windows, and show retry on history-load failure.
+- [x] Session lifecycle: serialize batch writes, freeze acquisition at End, retire starts invalidated by disconnect, clear speech suppression at boundaries, and disable Start during final persistence.
+- [ ] Native acceptance: BLE cadence/gaps, two-second hold usability, interrupted capture, delayed storage and WebView2 speech. Unified calibration still requires the separate bench-data gate.
+
 Module listings manage modules only; operation UI belongs to module-owned pages hosted on the 工具 (Tools) tab.
 See [MODULE_CONTRACT.md](MODULE_CONTRACT.md) for page registration, immediate reactivation,
 cancellation/disposal, compatibility and release integration requirements.
+
+---
+
+## 校準 B 與 `G:` 原始串流(2026-10-01,beta)
+
+- [x] 校準 B 引擎(`services/calibrationB.ts`):重力平面 + Horn 解旋轉、陀螺儀樞軸融合(與平面法向量偏差 >15° 時捨棄並警示)、六面地面階段(每軸偏差與增益)。
+- [x] 精靈(`components/CalibrationWizardB.tsx`,設定頁「校準 B (beta)」);舊韌體(無 `G:`)自動退回僅重力。
+- [x] 活動度 C(2026-10-03):`services/mobilityC.ts` 引擎、`MobilityWizard`/`MobilityTrend`、`mobility_records` 表;髖屈伸/外展。待辦:執行時帶正負號膝角、隱藏 `segment_elevation`/`segment_extension`、併入舒適/極限角度、實機驗證。
+- [x] 韌體 1.0.1-beta.2:opt-in `G:` 封包(`CMD:RAW_ON` / `CMD:RAW_OFF`,斷線與 OTA 傳輸中暫停)。
+- [ ] **實機驗證(Harold)**:`G:` 串流、1.0.1-beta.2 的 OTA、約 50 notify/s 的 BLE 負載、真實穿戴者的校準 B 結果;皆以遙測回傳。目前只有合成資料與單元測試。
+- [ ] `clinical.*` 英文措辭與校準 B 的英文文案待臨床人員審閱。
+
+---
+
+## 2026-11-10 beta.26 候選(已於 2026-11-10 以 PR #6 合併進 `main`;未發版)
+
+> **2026-11-18 更正**:原生線(Rust/Slint,`v1.3.0-beta.11` 已發布)已取得下列對等項目:療程回饋與警報靜音、語音、連續保持、處方 CRUD、偏好、活動度流程與趨勢、穿戴檢查、歷史與 CSV 匯出、遙測、即時分享、韌體檢查與 OTA、簽章自我更新、自動重連。仍未對等的項目(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式、toast)與由決策造成的差異(僅繁中、模組內建、投影式腿圖)見 `doc/plans/2026-11-17-native-vs-tauri-parity-checklist.md`。實機驗收仍部分未完成(OTA、CSV 外觀、渲染器、輸入法)。
+
+- [x] 合併統一校準與療程存檔復原(PR #4);活動度趨勢依腿別分開;未存檔時鎖定統一校準流程。
+- [x] 由 PR #5 挑入:保持連續性、BLE 通知退場與連線圍欄、儲存交易上限、關窗保護、啟動/關閉/安裝互鎖、更新交接狀態。
+- [x] 訓練中穿戴位移偵測(小腿、大腿靜止時;`services/slipMonitor.ts`)。
+- [x] 過度伸直警示:300 ms 停留 + 2° 遲滯。
+- [x] 穿戴檢查:屈伸方向偏移 20° 內可一步重設零位後開始。
+- [ ] **實機驗證(需裝置)**:以上全部,加上統一校準 S9、Tauri 完整 E2E、BLE OTA、連線/斷線/重連;門檻值(12°/18 s/8°、300 ms/2°、20°)皆為暫定。
+- [ ] 穿戴機構改良(定位護膝套筒)與驗收測試:見 `doc/plans/2026-11-10-december-report-plan.md`。
+- [ ] 位移標記尚未隨療程存入資料庫(僅日誌與遙測);History 看不到。
+- [ ] 統一校準規格缺口:換邊/換協定/換韌體後的過期提示、獨立的感測器 `ERR` 狀態、動作步驟免手動擷取。
+- [ ] PR #5 其餘部分:無障礙系列(需對統一校準流程重做)、歷史分頁與存檔收據(migration 編號需改為 11 起)、即時分享所有權(需與收集端同步上線)。
+- [x] 文件:2026-11-18 已在 `PROJECT_STATUS` 頂部加入現況總表與文件有效性對照,並就地更正過時列;其主體仍是 2026-09 的敘述。兩個計畫資料夾仍並存:`plans/` 與 `doc/plans/` 兩個計畫資料夾並存,未合併(移動會弄壞既有連結)。

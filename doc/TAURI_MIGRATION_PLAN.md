@@ -4,6 +4,8 @@
 > `doc/coding log/` is for). See [[HOME]] for the latest status line and [[ROADMAP]] for how this
 > relates to the desktop app's other architecture decisions (D1–D5).
 
+> **Cutover complete (2026-09)**: Tauri is the shipping desktop app; the Electron source (`IRMS_App`) is retained only as history. D5 (React Native) was superseded by Tauri mobile.
+
 ## Status at a glance
 
 **Decided (2026-09-07): proceed with Tauri v2 as the primary direction for IRMS_App.** This
@@ -52,7 +54,7 @@ independent effort, gated on desktop UI Phase 4 being done — it already is); a
 multi-relation-joint generalization, or any other item already deferred in `[[ROADMAP]]`/
 `[[OPTIMIZATION]]` — this plan doesn't reopen those.
 
-> **Status note (2026-10-01): the cutover has happened. `IRMS_App_Tauri` (v1.2.0-beta.19) is the shipped app and `IRMS_App` (Electron) is retired history. The text below is the original plan, kept as written.**
+> **Status note (2026-10-01): the cutover has happened. `IRMS_App_Tauri` (the v1.2.0-beta.x series) is the shipped app and `IRMS_App` (Electron) is retired history. The text below is the original plan, kept as written.**
 
 **`IRMS_App` (Electron) stays the shipped, production app until the cutover criteria below are
 met.** It is not frozen — bug fixes and small features may still land there — but no further
@@ -306,7 +308,7 @@ pipeline established manually (2026-09-11, see below) — ⚠ not yet proven end
       release: `{version, notes, pub_date, platforms: {"windows-x86_64": {signature, url}}}` where
       `signature` is the raw contents of the generated `.sig` file and `url` is the versioned
       release's installer asset URL (mind the GitHub space→dot filename mangling noted in
-      [[irms-project-conventions]]). Upload that `latest.json` to **two** places every beta
+      [[AI_CODING_RULES|專案慣例]]). Upload that `latest.json` to **two** places every beta
       release: the versioned release itself (so `gh release view` shows a complete asset set) and
       as a replacement asset on the fixed `beta-latest` tag (`gh release upload beta-latest
       latest.json --clobber`, or delete+recreate the release, since `gh release upload` won't

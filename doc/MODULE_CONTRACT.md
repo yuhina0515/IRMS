@@ -25,7 +25,7 @@ contract does not prescribe page layout, business workflows or optional extensio
 Native privileges continue to be supplied explicitly by the host; modules are trusted
 first-party code, not sandboxed JavaScript.
 
-Rollout (rebased onto beta.18; current app is beta.19): beta.17/beta.18 shipped without these host changes, so
+Rollout (historical, written at beta.19; the app has since moved on): beta.17/beta.18 shipped without these host changes, so
 the companion live-share release is 1.0.2 with `minAppVersion` 1.2.0-beta.19; publish the
 compatible app first. The `angleRange` capability and the angle-range module are retained;
 angle-range is migrated to `registerPage` plus `contractVersion: 1` and `requires` metadata

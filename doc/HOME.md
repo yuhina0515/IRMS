@@ -17,19 +17,53 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[PROJECT_STATUS\|開發進度]] | 各階段完成狀況與已知待驗證項目 |
 | [[OPTIMIZATION\|優化待辦]] | 待改進項目清單 |
 | [[AI_CODING_RULES\|編碼規範]] | AI 協作與程式碼規範(含 SQLite Schema) |
-| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Electron 三進程互動圖 |
-| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D4) 與 Phase 0–5 開發路線圖 |
+| [[IRMS_架構圖.canvas\|🗺 系統架構 Canvas]] | ESP32 任務 ↔ BLE ↔ Tauri 原生層/前端互動圖 |
+| [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-23 專業知識與文獻資料庫** ([README](knowledge-base/README.md) · [Log](coding%20log/log_20261016_hyperextension_and_alert_wording_evidence.md)): 222 筆來源、24 個主題、13 篇導讀,含離線搜尋與引用匯出;過度伸直文獻僅以 5° 作為靜態或被動切點,動態 -5° 警示尚無證據基礎,候選用語待 V11。僅附書目資訊與本專案自寫摘要,不含第三方摘要全文。
+- **2026-11-22 原生模組套件第一階段** · [[log_20261122_native_module_packages_phase1]]: 簽章內容套件(IRMS-Modules 索引的 native 陣列)、暫存安裝 + 上一版保留 + 每次載入以已存簽章重新驗證、防降版/重播、設定 → 模組管理頁,第一個套件是使用提示。eng-developer 實作、eng-qa 審查 10 項已修。尚未發布任何套件。
+- **2026-11-22 模組可獨立更新(D2 翻案)** · [[log_20261122_meeting_updatable_modules]]: 擁有者筆記要求「App 不用更新,只更新部分模組」並有管理頁。會議結論:第一階段簽章模組套件 + App 端宣告式畫面引擎 + 註冊/回復 + 管理頁(先做 session-tips 內容包);第二階段 wasmi 邏輯模組(角度範圍先試),不在警示路徑上。不採 runtime .slint、Rhai、DLL。
+- **2026-11-22 原生版滑動自動修正、配戴方向不限、3D 姿態** · [[log_20261122_native_pose_slip_strategy]]: 偵測到小腿感測器繞腿轉動時,用最近動作擬合的轉軸自動修正校準定義(模擬 25° 滑動:膝角誤差 2.57°→0.07°、側向 25°→0°);模擬中六種貼法(含倒貼、橫貼)校準後膝角誤差 <1°;動作幅度 ≥60° 才自動修正,療程結束存成新校準;「3D 姿態」改用兩段肢體的前後+側向角。穿戴計畫 §2 依此調整(重點改為防止小腿板前後晃、大腿單元滑移)。僅模擬器,未發版。
+- **2026-11-22 原生版模組全數內建** · [[log_20261122_native_builtin_modules_complete]]: IRMS-Modules 三個模組都已內建(D2)。角度範圍測量補齊模組流程(舒適 → 極限或略過 → 確認與備註 → 一次量測一筆)、最近 6 筆歷史含趨勢與逐筆刪除(修正舊版一次量測存兩筆、「清除」刪光全部);使用提示列在設定 → 模組。54 native 測試通過(含同日審查修正),未發版、未實機。
+- **2026-11-18 文件校準** · [[log_20261118_doc_validity_audit]] · [[PROJECT_STATUS]] 頂部「文件校準:現況總表」: 逐檔核對版本與狀態。出貨線 Tauri `v1.2.0-beta.25`、原生線 `v1.3.0-beta.11` 已發布;PR #3/#4/#6 已合併進 `main`,#7、#9 到 #12 為草稿;實測 722 前端 / 195 core / 47 native 測試、DB `user_version = 10`;11-10 起「全無實機驗證」的說法已更正(原生線 11-17 有實機證據)。
+- **2026-11-17 原生版 vs Tauri 功能對照(Phase 7)** · [[2026-11-17-native-vs-tauri-parity-checklist]]: 已對等項目、由決策造成的差異(i18n、模組、3D 腿)與真缺口(自動韌體更新、鍵盤快捷鍵、跟隨系統主題、App 內示範模式);同日補上連線中斷後的自動重連([[log_20261117_native_connect_retry_and_ota]])與 `cargo audit` 修正([[log_20261117_dependency_audit]])。
+- **2026-11-17 Native 連線穩定性 + OTA (beta.10/11)** · [[log_20261117_native_connect_retry_and_ota]]: 連線失敗自動重試 3 次、每個 Windows 藍牙步驟有逾時(連線/探索 20 s、訂閱 10 s)、連線中可「取消連線」、錯誤訊息會指引處置;原生版可用「更新韌體」(確認+進度+中止,韌體簽章清單驗證)。實機發現:Windows 佔用已配對的 IRMS_Device 時 App 找不到裝置或一直連線中,移除 Windows 配對後恢復。OTA 在 Windows 上仍從未在實機看過完成(9 月 Tauri 那次 6.8 分鐘沒有結果)。
+- **2026-11-17 Native 自動更新 (beta.9)** · [[log_20261117_native_auto_update]]: 簽章驗證的自我更新(beta-latest 清單、官方網址限制、minisign 公鑰)、安裝程式 `/SELFUPDATE` 靜默更新並重開、安裝前自動關閉舊版;穿戴檢查可「不歸零直接開始」;最小化還原後整窗重畫。筆電上 beta.9 到 beta.10 到 beta.11 已自動更新成功。
+- **2026-11-17 Native 首次實機 (beta.7/8)** · [[log_20261117_native_beta7_first_device_run]] · [[log_20261117_native_real_ble_default]]: beta.1 到 beta.6 的預設是模擬器(要 `--real-ble` 才連真機),beta.7 起預設真機、`--simulate` 才是模擬;遙測證實真實連線、串流、療程;校正精靈「起始姿勢」改為 5 個按鈕。
+- **2026-11-17 Native 小修與授權** · [[log_20261117_native_telemetry_choice_and_id_fix]]: 遙測選擇會被記住(預設關)、校正 id 同毫秒碰撞修正;[[log_20261117_slint_license_review]]: Slint Royalty-free 2.0 對照 IRMS 授權,無衝突。
+- **2026-11-17 Native mobility + wearing check** · [[log_20261117_native_mobility_wearing]]: calibration flow ported to `IRMS_Core::calibration_flow`, native wizard with presets/quick re-zero, calibration restored at startup, range-of-motion records with trend, pre-session wearing check; released as `v1.3.0-beta.2` (simulated rig only, no physical-device acceptance, unsigned).
+- **2026-11-16 Native prescriptions/preferences** · [[log_20261116_native_actions_preferences]]: CRUD, transactional refresh, confirmations and preference persistence; 15 native / 136 core tests passed. Expansion stopped after the owner cleared the goal.
+- **2026-11-16 Native session feedback** · [[log_20261116_native_session_feedback|Squad migration and verification]]: ordered generation-scoped BLE feedback, alarm mute, Windows speech and continuous unified holds. 722 frontend / 135 core / 6 native / 43 Tauri Rust tests passed; physical outputs remain unverified. Published beta.1 unchanged.
+- **2026-11-16 Native beta installer** · `v1.3.0-beta.1`, separate unsigned Windows test installer; install/reinstall/uninstall checks and signing boundary: [[log_20261116_native_beta1_installer]]. Tauri updater cutover and physical-device acceptance remain open.
+- **2026-11-16 Native SQLite sessions** · [[log_20261116_native_sqlite_recovery|Windows reopen and failure-recovery checks]]
+- **2026-11-16 Rust 原生介面原型** ([[2026-11-16-rust-native-ui-plan|計畫]]): Slint 原型 `IRMS_App_Native`,模擬資料;風格定為柔和陪伴;Phase 1 量測(Tauri 療程中約 250 MB private,原型 8–100 MB 視渲染器)→ [[log_20261116_rust_native_phase1_prototype]];Phase 2 全部畫面已建、待 owner 實際點過 → [[log_20261116_rust_native_phase2_screens]];Phase 3 第一段:七個模組抽成 `IRMS_Core` → [[log_20261116_rust_native_phase3_core_slice1]];Phase 4:判定、療程分析、角度數學、滑移監測、校準核心已移植並與 TS 逐筆比對 → [[log_20261116_rust_native_phase4_judge]];原型已走完整管線(封包→校準→判定→滑移→分析)→ [[log_20261116_rust_native_prototype_real_pipeline]]
 
-- **2026-10-16 hyperextension and alert-wording evidence** ([Log](coding%20log/log_20261016_hyperextension_and_alert_wording_evidence.md)): gaps G1/G2 recorded; 20 Europe PMC-verified sources (222 total), 24 topics, C26-C30 and guide 13. The literature uses 5° only as a static or passive cut-off, so there is no evidence base for a fixed dynamic -5° alarm. Candidate prompts are expert reasoning pending V11; app threshold and strings are unchanged.
-- **2026-10-06 Zotero portable import acceptance** ([Log](coding%20log/log_20261006_zotero_portable_import_acceptance.md)): official signed Zotero 10.0.5 actually imported 202 BibTeX and 202 RIS records in separate temporary libraries; saved fields/integrity checked. Export round trip and browser/keyboard acceptance remain open due to UI control and file URL restrictions.
-- **2026-10-06 second full-text batch** ([Log](coding%20log/log_20261006_second_batch_and_bench_protocol.md)): ten further located extractions, 24 total full texts within 202 sources; first-batch appraisal scope stays explicit. V01/V02 data requirements and human-reference plan prepared, but actual browser/Zotero and hardware acceptance remain open.
-- **2026-10-06 evidence audit and mapping** ([Log](coding%20log/log_20261006_evidence_audit_and_claim_mapping.md)): four primary-source discrepancy audits, 25 claims/all 12 validation activities and 14 located single-reviewer appraisals. Claude CAL-03 hardware evidence reconciled; saved raw trace replayed. Browser/Zotero and V01/V02 acceptance remain open.
-- **2026-10-04 core full-text extraction** ([Log](coding%20log/log_20261004_core_fulltext_review.md)): 14 located full-text reviews, sample/method/reference distinctions, source discrepancies and ICC erratum notice; searchable through HTML, CLI, JSONL and SQLite. Single-reviewer extraction; no IRMS performance or clinical validation.
-- **2026-10-03 reference knowledge base** ([Log](coding%20log/log_20261003_knowledge_base.md)): 202 traceable sources, 22 topics, 12 guides, claim boundaries, validation proposals and offline search. Reading depth is explicit; no IRMS accuracy or clinical outcome validation was performed.
+- **2026-11-10 文件整理與交接** ([[2026-11-10-december-report-plan|12 月報告計畫]]): 現況摘要在 [[PROJECT_STATUS]] 頂部;待辦在 [[OPTIMIZATION]] 最末節;新門檻值在 [[AI_CODING_RULES]] 4.4。**下一步(需擁有者)**:取回裝置 → 依序合併 PR #3、#4、#6(**2026-11-18 更正:三者皆已合併,見最上方一筆**)→ 用計畫第 3 節的驗收測試量現有束帶基準。
+
+- **2026-11-10 beta.26 候選:軟體整理** ([[log_20261110_beta26_software_round|Log]]): 由 PR #5 挑入 7 個修正(保持連續性、BLE 生命週期、儲存上限、關窗保護、更新交接);過度伸直警示加入 300 ms 停留與 2° 遲滯;穿戴檢查發現屈伸方向偏移(20° 內)時可直接用剛才的姿勢重設零位再開始。705 前端 / 119 Rust 測試通過;實機未驗證,BLE 原生改動需真機確認。
+
+- **2026-11-10 訓練中穿戴位移偵測** ([[log_20261110_mounting_shift_check|Log]]): 統一校準的療程中,由膝屈伸動作本身反推小腿感測器的鉸鏈軸,與校準值相差超過 12° 且持續 18 秒即提醒一次並標記該場(`session.mountShift`);不自動修正。只看小腿、大腿需靜止;繞鉸鏈軸的偏移看不到。658 前端測試通過;門檻為模擬器推得,實機未驗證。
+
+- **2026-11-10 整合分支 integrate/beta26** ([[log_20261110_integrate_beta26|Log]]): 本機合併 PR #4(活動度保持、存檔失敗重試)與統一校準;12 個衝突與 3 個語意衝突已解(趨勢依腿別分開、未存檔時鎖定統一校準流程、教練提示順序)。644 前端測試 / 103 Rust 測試、rustfmt、Clippy 通過。(當時)未推送、未發版、實機全未驗證;**後續已推送並以 PR #6 合併進 `main`(2026-11-10)**,仍未發版。
+
+- **2026-10-21 Session save recovery** ([[log_20261021_session_recovery|Log]]): failed final writes retain the stopped session for explicit retry; truthful status in Dock/error fallbacks; pending data blocks destructive/update operations. Extends draft PR #4; no merge, release or device acceptance.
+
+- **2026-10-20 beta.25 reliability follow-up** ([[log_20261020_squad_progress|Log]]): timestamped mobility holds, separate leg trends, capture/save cleanup, and serialized Session persistence. Automated checks only; unified calibration remains gated on bench data. Delivered as a stacked draft PR; no merge or release.
+
+- **2026-10-16 實機測試請求已寄出給 Harold**:隊友 GitHub `harold1008` 已由使用者確認就是 Harold(測試負責人,持有 ESP32 裝置)。已寄出 15 項待測清單(連線與 OTA、issue #3 E2E、統一校準與量角器對照、過度伸直警報、遙測回傳);**尚無回覆**,所有實機項目仍未驗證。
+- **2026-10-15 統一校準實作** ([[log_20261015_unified_calibration|Log]]): 分支 `feat/unified-calibration` 完成 S0–S8(帶正負號膝角與過度伸直警示、統一精靈與快速歸零、`calibration_profiles` migration 10、活動度趨勢依校準方式分組、零位非直立時停用分段觸發與姿態);S9 硬體關卡略過,實機全未驗證;過度伸直容許值 5° 與用語待擁有者確認。未推送。
+- **2026-10-15 iOS 開發暫停** ([[log_20261015_ios_paused_doc_sync|Log]]): iOS 暫停,不再列為進行中或下一步;既有成果只有分支 `feat/ios-unsigned-ipa` 的未簽章 IPA 工作流程(未合併,真機未驗證)。Android 維持原狀。文件同步:ROADMAP D5 標為已被 Tauri mobile 取代,AI_CODING_RULES 4.3 補上 `mobility_records`。
+- **2026-10-14 簽章與文件跟進** ([[log_20261014_followup_audit|Log]]): 模組清單加回滾防護(拒絕比本機已驗證快取更舊的版本);校準 A/B/C 分析與簽章 S1 評估;敘述文件版本與 DB 版本更正。
+- **2026-10-10 風險修補與語音提示** ([[log_20261010_risk_hardening_and_voice|Log]]): 修掉 10-09 稽核留下的 RISK 項,新增訓練中的語音提示(Settings -> Display 可關)。僅自動化檢查,未實機測試。
+- **2026-10-09 主動稽核** ([[log_20261009_proactive_audit|Log]]): 修正已驗證 bug(migration 清理、downsample、telemetry、trigger、session、BLE)。
+- **2026-10-04 beta.24 發版** ([[log_20261004_beta24_release|Log]]): 含校準 C 活動度紀錄([[log_20261003_calibration_c_mobility|Log]])與 beta.23 抽屜選單([[log_20261003_drawer_menus_beta23|Log]])。
+
+- **2026-10-01 校準 B(beta)+ 韌體 `G:` 原始串流** ([[log_20261001_calibration_b_beta_and_raw_stream|Log]]): 重力平面 + 陀螺儀樞軸 + 六面地面階段的新校準流程(設定頁「校準 B (beta)」),韌體 1.0.1-beta.2 新增 opt-in `G:` 封包(`CMD:RAW_ON`)。僅合成資料與單元測試驗證,**實機待 Harold 測試並以遙測回傳**。
+- **2026-10-17 beta.25 發版** ([[log_20261017_beta25_release|Log]]): OTA 截斷連線防護與稽核修正;統一校準不在內,待 Harold 實測。
+- **2026-10-06 OTA on truncated link** ([[log_20261006_ota_truncated_link|Log]]): run f86c2579 failed because MTU stayed 23; app now blocks OTA on truncated links and fails fast on unacked transfers. Firmware untouched; hardware retest pending.
 - **2026-10-01 v1.2.0-beta.19 released** ([[log_20261001_beta19_release|Log]]): ships #11 window clamp, #20 adaptive workbench, #21 i18n, #22 mobile prep, #23 module page lifecycle. Not manually verified on device.
-- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. PR #21, not pushed.
+- **2026-10-01 i18n P1 views** ([[log_20261001_i18n_views_p1|Log]]): all view/component strings in the zh-Hant/en dictionary, Settings language selector, English render tests; `clinical.*` English awaits clinician review. Shipped in beta.19.
 
 - **2026-09-30 adaptive workbench UI** ([[log_20260930_adaptive_workbench|Log]]): clinical palette and responsive inner-scroll regions; 410 frontend tests passed. Full CI invocation, visual acceptance and Git delivery have environment restrictions; see log.
 
@@ -47,7 +81,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 - **2026-09-26 v3 review + PR stack** ([[log_20260926_v3_review_guidance_fix_pr_stack|Log]]):
   v2 rebuild (#10) closed in favour of GPT v3 (#12); ported the guidance negative "lower by" fix
   into v3 (`fcb9018`). Codex's modules/updater/dropdown work opened as draft #14 on top of the OTA
-  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 still lacks i18n and Windows DPI checks.
+  fix #13 (CI green). Merge order #9 → #12 → #13 → #14; v3 lacked i18n and Windows DPI checks at that time (i18n shipped in beta.19).
 - **2026-09-25 real-device session → beta.12/13, auto delivery, UI v3** ([[log_20260925_realdevice_fixes_autopush_ui_v3|Log]]):
   telemetry-driven fixes (manual disconnect no longer auto-reconnects; knee now hinge-frame
   thigh−shin — CAL-03 A/B done on real data), beta.13 released. Firmware moved to
@@ -593,6 +627,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   UI 層與桌面版 Electron+Tailwind 各自獨立(商業邏輯層 `services/` 純函式兩邊共用不受影響)。
   **手機作業排在桌面版 Phase 4 完成之後**才開始(Task #10 佔位追蹤,目前阻塞中)。純決策,
   無程式碼變更
+  (註:此 React Native 決策後來被 Tauri mobile 取代,見 [[ROADMAP#D5|ROADMAP D5]];iOS 自 2026-10-15 暫停)
 - **2026-09-02 UI 重建 Phase 4(一):基礎元件層 + 新導覽**
   ([[log_20260902_ui_redesign_phase4_foundation_and_nav|日誌]]):`tailwind.css` 新增
   `@layer components`,把舊 `global.css` 的 class 詞彙(panel/glass/btn/field/dialog/
@@ -760,7 +795,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   `electron-builder --publish` 自動產生的 `latest.yml`,三種檔名規則(本地/GitHub/
   yml 內宣告)還互不一致——刪掉重來,改用 `electron-builder --publish always` 正確
   發布。最終隔離啟動打包後的 exe 拿到正確的 `not-available` 結果(目前就是最新版),
-  證實整條檢查/比對流程真的能動。**連帶更正了 [[irms-project-conventions]] 的 beta
+  證實整條檢查/比對流程真的能動。**連帶更正了 irms-project-conventions 的 beta
   發版慣例**:往後一律要用 `electron-builder --publish`,不能再手動拼湊。
 - **2026-09-05 Dashboard 改用 Container Query 自適應版面(依 Gemini 04 號簡報)**
   ([[log_20260905_dashboard_container_query_adaptive_layout|完整日誌]]):針對「換更小
@@ -826,10 +861,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
   隔離 profile 快速煙霧測試通過(auto-update 正確判定「已是最新版」)。**OTA 硬體
   驗證(B4/D1/D2)仍待 Harold**,release notes 已註明,本次沒有任何 OTA 相關程式碼
   變動。
-- **📡 硬體工作已移至 GitHub issues**:[#2](https://github.com/yuhina0515/IRMS/issues/2)
+- **📡 硬體工作已移至 GitHub issues**:#2(舊儲存庫 issue,已封存)
   桌上 ±180° 旋轉記錄——**已於 2026-08-28 完成並關閉**。
-  [#3](https://github.com/yuhina0515/IRMS/issues/3) 實機 E2E——阻塞已解除,待進行。
-  [#4](https://github.com/yuhina0515/IRMS/issues/4) 校準快照 migration 已於 2026-08-22 完成關閉。
+  #3(舊儲存庫 issue,已封存) 實機 E2E——阻塞已解除,待進行。
+  #4(舊儲存庫 issue,已封存) 校準快照 migration 已於 2026-08-22 完成關閉。
   **慣例:需要實機的工作一律開 issue,不寫進 ROADMAP**
 - **韌體 v3**(模組化 + 斷線即靜音,[[log_20260704_firmware_v3_rewrite|日誌]])→ **已於 2026-08-07 燒錄**,
   BLE 實機連線與校準精靈都在真裝置上跑過(2026-08-12 更正);**2026-08-28 重新燒錄現行版本

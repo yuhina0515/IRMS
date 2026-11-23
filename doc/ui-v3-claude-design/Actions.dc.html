@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>動作處方</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="{{themeVars}};width:1280px;height:800px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--canvas);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;overflow:hidden">
+  <header style="height:64px;flex-shrink:0;display:flex;align-items:center;gap:32px;padding:0 24px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;letter-spacing:0.04em">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" style="fill:var(--accent)"/><path d="M12 6 L13 15 L21 18" fill="none" style="stroke:var(--onaccent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      IRMS
+    </div>
+    <nav aria-label="主要功能" style="display:flex;gap:4px;flex-grow:1">
+      <a href="Main.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">即時監測</a>
+      <a href="Actions.dc.html" aria-current="page" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;background:var(--tint);color:var(--accent);font-weight:700;text-decoration:none">動作處方</a>
+      <a href="History.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">療程紀錄</a>
+      <a href="Settings.dc.html" style="display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:22px;color:var(--muted);font-weight:500;text-decoration:none">設定</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span role="status" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)"><span style="width:10px;height:10px;border-radius:50%;background:var(--good)"></span>裝置已連線</span>
+      <button style="height:44px;padding:0 20px;border-radius:22px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);font:500 15px 'Noto Sans TC',sans-serif">中斷連線</button>
+    </div>
+  </header>
+
+  <main style="flex-grow:1;min-height:0;padding:0 24px 24px;box-sizing:border-box;display:flex">
+    <section aria-label="動作處方" style="flex-grow:1;min-width:0;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:24px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 32px 16px">
+        <div>
+          <h1 style="margin:0;font-family:'Noto Serif TC',serif;font-weight:700;font-size:30px;line-height:1.2">動作處方</h1>
+          <p style="margin:6px 0 0;font-size:15px;color:var(--muted)">選一個動作查看與調整參數;療程會使用目前選取的處方。</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <label style="display:flex;align-items:center;gap:10px;width:260px;height:48px;box-sizing:border-box;padding:0 16px;border:1.5px solid var(--edge);border-radius:24px;color:var(--muted)">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" style="stroke:var(--muted)" stroke-width="2"/><path d="M12.5 12.5 L16 16" style="stroke:var(--muted)" stroke-width="2" stroke-linecap="round"/></svg>
+            <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">搜尋動作</span>
+            <input placeholder="搜尋動作" style="flex-grow:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:400 15px 'Noto Sans TC',sans-serif">
+          </label>
+          <button style="height:48px;padding:0 24px;border-radius:24px;border:0;background:var(--accent);color:var(--onaccent);font:700 16px 'Noto Sans TC',sans-serif">新增動作</button>
+        </div>
+      </div>
+
+      <div style="flex-grow:1;min-height:0;display:flex;gap:24px;padding:0 32px 24px;box-sizing:border-box">
+        <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;border-top:1px solid var(--line)">
+          <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;padding:14px 20px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.04em">
+            <span>動作 · 判定</span><span>目標</span><span>容許</span><span>保持</span><span>次數</span>
+          </div>
+          <div style="flex-grow:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
+            <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;min-height:72px;border-radius:16px;background:var(--tint);border:2px solid var(--accent);font-variant-numeric:tabular-nums">
+              <span><span style="display:block;font-weight:700;font-size:17px;color:var(--accent)">膝關節屈曲</span><span style="display:block;font-size:13px;color:var(--muted);margin-top:2px">到達後保持</span></span>
+              <span style="font-size:17px;font-weight:700">90°</span><span style="font-size:17px">±5°</span><span style="font-size:17px">5 秒</span><span style="font-size:17px">10 次</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;min-height:72px;border-radius:16px;border:1px solid var(--line);font-variant-numeric:tabular-nums">
+              <span><span style="display:block;font-weight:700;font-size:17px">膝關節伸直</span><span style="display:block;font-size:13px;color:var(--muted);margin-top:2px">到達後保持</span></span>
+              <span style="font-size:17px;font-weight:700">0°</span><span style="font-size:17px">±4°</span><span style="font-size:17px">5 秒</span><span style="font-size:17px">10 次</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;min-height:72px;border-radius:16px;border:1px solid var(--line);font-variant-numeric:tabular-nums">
+              <span><span style="display:block;font-weight:700;font-size:17px">直腿抬高</span><span style="display:block;font-size:13px;color:var(--muted);margin-top:2px">到達後保持</span></span>
+              <span style="font-size:17px;font-weight:700">45°</span><span style="font-size:17px">±5°</span><span style="font-size:17px">3 秒</span><span style="font-size:17px">12 次</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;min-height:72px;border-radius:16px;border:1px solid var(--line);font-variant-numeric:tabular-nums">
+              <span><span style="display:block;font-weight:700;font-size:17px">坐姿膝伸展</span><span style="display:block;font-size:13px;color:var(--muted);margin-top:2px">往返計次</span></span>
+              <span style="font-size:17px;font-weight:700">70°</span><span style="font-size:17px">±6°</span><span style="font-size:17px">—</span><span style="font-size:17px">15 次</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:0 20px;min-height:72px;border-radius:16px;border:1px solid var(--line);font-variant-numeric:tabular-nums">
+              <span><span style="display:block;font-weight:700;font-size:17px">站姿髖外展</span><span style="display:block;font-size:13px;color:var(--muted);margin-top:2px">到達後保持</span></span>
+              <span style="font-size:17px;font-weight:700">30°</span><span style="font-size:17px">±5°</span><span style="font-size:17px">3 秒</span><span style="font-size:17px">10 次</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;font-size:14px;color:var(--muted)">
+            <span>共 5 個動作</span>
+            <button style="height:44px;padding:0 16px;border-radius:22px;border:0;background:transparent;color:var(--accent);font:500 14px 'Noto Sans TC',sans-serif">還原預設處方</button>
+          </div>
+        </div>
+
+        <aside aria-label="處方細節" style="flex:0 0 400px;box-sizing:border-box;border-radius:20px;background:var(--soft);padding:22px 24px;display:flex;flex-direction:column;gap:18px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.06em">編輯中</div>
+            <div style="font-family:'Noto Serif TC',serif;font-weight:700;font-size:24px;margin-top:2px">膝關節屈曲</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+            <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">目標 (°)</div><div style="height:52px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">90</div></div>
+            <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">容許 (±°)</div><div style="height:52px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">5</div></div>
+            <div><div style="font-size:13px;color:var(--muted);margin-bottom:6px">保持 (秒)</div><div style="height:52px;box-sizing:border-box;border:1.5px solid var(--edge);border-radius:12px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">5</div></div>
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">目標區預覽</div>
+            <div style="position:relative;height:14px;border-radius:7px;background:var(--paper)">
+              <div style="position:absolute;left:60.71%;width:7.14%;top:0;bottom:0;border-radius:7px;background:var(--good)"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums"><span>0°</span><span>目標 85–95°</span><span>140°</span></div>
+          </div>
+          <div style="padding:14px 16px;border-radius:14px;background:var(--paper);font-size:14px;line-height:1.6">
+            <div style="font-weight:700;margin-bottom:2px">判定方式</div>
+            角度進入目標區並連續保持 5 秒,計為完成 1 次。
+          </div>
+          <div style="flex-grow:1"></div>
+          <button style="height:52px;border-radius:26px;border:2px solid var(--edge);background:transparent;color:var(--ink);font:700 16px 'Noto Sans TC',sans-serif">以目前姿勢記錄目標角度</button>
+          <a href="Main.dc.html" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:26px;background:var(--accent);color:var(--onaccent);font:700 17px 'Noto Sans TC',sans-serif;text-decoration:none">使用此處方開始</a>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+const L = {canvas:'#EEEAE2',paper:'#FFFCF6',soft:'#E8E2D8',ink:'#29252D',muted:'#625C65',line:'#CFC6BD',edge:'#827784',accent:'#684563',onaccent:'#FFFFFF',tint:'#EDE1EA',good:'#286047',goodbg:'#E0EBDF',warn:'#805017',warnbg:'#F4E7CF',danger:'#B02D32',dangerbg:'#FAE5E0'};
+const D = {canvas:'#201E23',paper:'#29262D',soft:'#36313A',ink:'#F4EEE6',muted:'#C3B8C5',line:'#514853',edge:'#A698AA',accent:'#D9B6D0',onaccent:'#29252D',tint:'#463443',good:'#ACD7B8',goodbg:'#2D4033',warn:'#F0C182',warnbg:'#493922',danger:'#FFA7A0',dangerbg:'#502D30'};
+const t = this.props.dark ? D : L;
+return { themeVars: Object.keys(t).map((k) => '--' + k + ':' + t[k]).join(';') };
+}
+}
+</script>
+</body>
+</html>

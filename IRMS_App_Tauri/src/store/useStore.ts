@@ -5,7 +5,16 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AngleRangeRecord, CustomAction, JointProtocol } from '@shared/types'
+import type {
+  AngleRangeRecord,
+  CalibrationMethod,
+  CalibrationQuality,
+  CustomAction,
+  FirmwareProtocol,
+  JointProtocol,
+  ReferenceKind,
+  ReferencePosture
+} from '@shared/types'
 import type { AccelVector, LiveAngles, RawAngles } from '@shared/protocol'
 import type { EnginePhase } from '../services/triggerEngine'
 import {
@@ -131,6 +140,22 @@ export interface Settings {
    * 刻意**不**列入 CALIBRATION_KEYS:它不改變任何角度算式,Session 進行中也可以切換。
    */
   language: LanguageSetting
+  /** Spoken cues during a session (rep count, hold, over-limit, end). Added in persist v18. */
+  voiceEnabled: boolean
+  /**
+   * Provenance of the active calibration (persist v19, unified calibration S1). These do not change
+   * any angle formula; they say how the numbers were produced and are snapshotted per session.
+   * 'none' = never calibrated; 'manual' = a wizard result edited by hand.
+   */
+  calibrationMethod: CalibrationMethod
+  /** uuid of the wizard run that produced the active calibration; null for migrated/manual/none. */
+  calibrationId: string | null
+  /** Which posture is 0 degrees; null = unknown (legacy unknown vector, manual, none). */
+  referenceKind: ReferenceKind | null
+  referencePosture: ReferencePosture | null
+  calibrationQuality: CalibrationQuality | null
+  /** Wire protocol the calibration was solved against; null = unknown. */
+  firmwareProtocol: FirmwareProtocol | null
 }
 
 /**
@@ -167,6 +192,8 @@ export interface SessionRuntime {
   running: boolean
   /** 判定引擎當前階段(idle/holding/restPending),供 phase 徽章與教練提示 */
   phase: EnginePhase
+  /** The in-session mounting check reported a shifted shin sensor; angles since then are not trusted. */
+  mountShift: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -203,7 +230,14 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarCollapsed: false,
   telemetryEnabled: false,
   telemetryEndpoint: 'https://hina-tw.ddns.net/irms-api',
-  language: 'system'
+  language: 'system',
+  voiceEnabled: true,
+  calibrationMethod: 'none',
+  calibrationId: null,
+  referenceKind: null,
+  referencePosture: null,
+  calibrationQuality: null,
+  firmwareProtocol: null
 }
 
 /**
@@ -249,7 +283,14 @@ export const CALIBRATION_KEYS = [
   'distalAxisRotationVerified',
   'proximalRollVerified',
   'distalRollVerified',
-  'lastCalibratedAt'
+  'lastCalibratedAt',
+  // Provenance (unified calibration S1): the method marker goes into the snapshot before any math changes.
+  'calibrationMethod',
+  'calibrationId',
+  'referenceKind',
+  'referencePosture',
+  'calibrationQuality',
+  'firmwareProtocol'
 ] as const satisfies readonly (keyof Settings)[]
 
 /** 把一筆 settings patch 拆成「Session 進行中仍可套用」與「被凍結」兩部分。export 供測試。 */
@@ -315,6 +356,8 @@ interface StoreState {
 
   // Session 執行期
   session: SessionRuntime
+  /** 採集停止後的存檔狀態；失敗時保留療程，供使用者明確重試。 */
+  sessionSaveState: 'idle' | 'saving' | 'failed'
 
   // 設定(持久化)
   settings: Settings
@@ -341,6 +384,7 @@ interface StoreState {
   /** 切換介面語系(非校準欄位,Session 進行中亦可) */
   setLanguage(language: LanguageSetting): void
   patchSession(patch: Partial<SessionRuntime>): void
+  setSessionSaveState(state: 'idle' | 'saving' | 'failed'): void
   resetSession(): void
   log(message: string): void
 }
@@ -375,7 +419,7 @@ export function reconcileSelection(
 }
 
 /** settings 的 persist 版本(說明見下方 persist 設定的 version 註解)。export 供測試鎖定。 */
-export const SETTINGS_PERSIST_VERSION = 17
+export const SETTINGS_PERSIST_VERSION = 19
 
 export const useStore = create<StoreState>()(
   persist(
@@ -406,8 +450,10 @@ export const useStore = create<StoreState>()(
         overComfort: false,
         elapsedSec: 0,
         running: false,
-        phase: 'idle'
+        phase: 'idle',
+        mountShift: false
       },
+      sessionSaveState: 'idle',
 
       settings: DEFAULT_SETTINGS,
       logs: [],
@@ -446,7 +492,7 @@ export const useStore = create<StoreState>()(
       setCustomActions: (actions) => {
         const { settings, selectedActionId, session } = get()
         // Session 進行中不動選取,避免判定參數被中途抽換
-        if (session.running) {
+        if (session.running || session.id != null) {
           set({ customActions: actions })
           return
         }
@@ -471,7 +517,7 @@ export const useStore = create<StoreState>()(
         // Session 進行中凍結校準:見 CALIBRATION_KEYS。刻意「丟掉並留下日誌」而非
         // 靜默忽略——靜默失敗正是這個專案反覆抓到的那類缺陷。真正的防線在 UI
         // (按鈕/入口在進行中就不可按),這裡是最後一道,擋掉任何繞過 UI 的路徑。
-        if (state.session.running) {
+        if (state.session.running || state.session.id != null) {
           const { allowed, frozen } = splitCalibrationPatch(patch)
           if (frozen.length > 0) {
             state.log(`Calibration frozen during session; ignored: ${frozen.join(', ')}`)
@@ -494,9 +540,11 @@ export const useStore = create<StoreState>()(
       setLanguage: (language) => get().setSettings({ language }),
 
       patchSession: (patch) => set({ session: { ...get().session, ...patch } }),
+      setSessionSaveState: (sessionSaveState) => set({ sessionSaveState }),
 
       resetSession: () =>
         set({
+          sessionSaveState: 'idle',
           session: {
             id: null,
             reps: 0,
@@ -506,7 +554,8 @@ export const useStore = create<StoreState>()(
             overComfort: false,
             elapsedSec: 0,
             running: false,
-            phase: 'idle'
+            phase: 'idle',
+            mountShift: false
           }
         }),
 
@@ -550,10 +599,32 @@ export const useStore = create<StoreState>()(
       // v16:移除上方導覽列的主題切換鈕(2026-09-27 使用者指示),App 內已無處可改主題;
       //      重設為 system,否則曾手動切到日間/夜間的使用者會被永久卡在該主題。
       // v17:language(i18n P0),預設 system。
-      migrate: migratePersisted
+      // v18:voiceEnabled(語音提示),預設開啟。
+      // v19:calibration provenance (calibrationMethod/Id, referenceKind/Posture, quality, firmwareProtocol);
+      //      method inferred from the stored shape by inferCalibrationProvenance.
+      migrate: migratePersisted,
+      // RISK-FIX (2026-10-10): migrate only runs when the stored version is older, so a corrupted
+      // same-version value (null/NaN/negative) used to flow straight into timers and the chart.
+      merge: (persisted, current) => {
+        const { settings } = migrateSettings(persisted)
+        return { ...current, settings: sanitizeSettings(settings) }
+      }
     }
   )
 )
+
+/** RISK-FIX (2026-10-10): clamp numeric display/flush settings that must be positive finite numbers. */
+export function sanitizeSettings(settings: Settings): Settings {
+  const positive = (v: unknown, fallback: number, min: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= min ? v : fallback
+  return {
+    ...settings,
+    // A corrupted same-version method marker must not pass as a real one.
+    calibrationMethod: isCalibrationMethod(settings.calibrationMethod) ? settings.calibrationMethod : 'none',
+    maxChartPoints: Math.round(positive(settings.maxChartPoints, DEFAULT_SETTINGS.maxChartPoints, 10)),
+    flushIntervalSec: Math.round(positive(settings.flushIntervalSec, DEFAULT_SETTINGS.flushIntervalSec, 1))
+  }
+}
 
 /** persist 的 migrate 本體(export 供測試):版本相依的修正放這裡,欄位補齊交給 migrateSettings。 */
 export function migratePersisted(persisted: unknown, version: number): { settings: Settings } {
@@ -562,8 +633,55 @@ export function migratePersisted(persisted: unknown, version: number): { setting
   // v17:新欄位由 DEFAULT_SETTINGS 補上 'system';毀損/未知的值同樣回退,
   // 否則 resolveLocale 雖然會回退,設定頁卻會顯示一個不存在的選項。
   if (!isLanguageSetting(migrated.settings.language)) migrated.settings.language = 'system'
+  // v19: infer provenance for installs that predate it. Runtime numbers are untouched.
+  if (version < 19) Object.assign(migrated.settings, inferCalibrationProvenance(migrated.settings))
   return migrated
 }
+
+const dotV = (a: AccelVector, b: AccelVector): number => a.x * b.x + a.y * b.y + a.z * b.z
+
+/**
+ * Infer how a pre-v19 install was calibrated (unified calibration plan section 3.4). Only provenance
+ * fields are returned; no angle formula input changes, so legacy runtime output is bit-identical.
+ *
+ * Evidence used (all from the stored shape):
+ * - Flow A's vector path derives hinge = cross(baseline, moved) with zero = baseline, which makes
+ *   proximalInvert always false and distalInvert always true (knee curl moves backwards). Flow B
+ *   hard-codes both inverts to false. A hinge pair with both inverts false and zero perpendicular to
+ *   hinge is therefore attributed to B. This is a heuristic: a hand-edited A result also matches.
+ * - Hinge axes in a profile that was never wizard-stamped (lastCalibratedAt null) stay 'legacyUnknownVector'.
+ * - Euler-only settings with a wizard timestamp are flow A's Euler path.
+ * Wizards A and B both define 0 degrees as standing straight.
+ */
+export function inferCalibrationProvenance(s: Settings): Partial<Settings> {
+  const hasHinge = Boolean(s.proximalHingeAxis && s.distalHingeAxis && s.proximalZeroAccel && s.distalZeroAccel)
+  const standing = {
+    referenceKind: 'straight' as ReferenceKind,
+    referencePosture: 'standing' as ReferencePosture,
+    calibrationQuality: null,
+    calibrationId: null
+  }
+  if (hasHinge) {
+    if (s.lastCalibratedAt == null) {
+      return { calibrationMethod: 'legacyUnknownVector', firmwareProtocol: 'vector', referenceKind: null, referencePosture: null, calibrationQuality: null, calibrationId: null }
+    }
+    const orthogonal =
+      Math.abs(dotV(s.proximalHingeAxis as AccelVector, s.proximalZeroAccel as AccelVector)) < 1e-6 &&
+      Math.abs(dotV(s.distalHingeAxis as AccelVector, s.distalZeroAccel as AccelVector)) < 1e-6
+    const looksLikeB = !s.proximalInvert && !s.distalInvert && orthogonal
+    return { ...standing, calibrationMethod: looksLikeB ? 'legacyB' : 'legacyAVector', firmwareProtocol: 'vector' }
+  }
+  if (s.lastCalibratedAt != null) {
+    return { ...standing, calibrationMethod: 'legacyAEuler', firmwareProtocol: 'euler' }
+  }
+  return { calibrationMethod: 'none', firmwareProtocol: null, referenceKind: null, referencePosture: null, calibrationQuality: null, calibrationId: null }
+}
+
+const CALIBRATION_METHODS: readonly CalibrationMethod[] = [
+  'unified', 'legacyAVector', 'legacyAEuler', 'legacyB', 'legacyUnknownVector', 'manual', 'none'
+]
+export const isCalibrationMethod = (v: unknown): v is CalibrationMethod =>
+  typeof v === 'string' && (CALIBRATION_METHODS as readonly string[]).includes(v)
 
 /** v3 及更早版本使用的「符號摺疊」offset 欄位——已被 zeroRaw 取代,僅遷移時讀取 */
 interface LegacyOffsetFields {
@@ -722,6 +840,13 @@ export function migrateSettings(persisted: unknown): { settings: Settings } {
  * - Roll:0° = 站直,正 = 向外側傾
  * - kneeRoll:帶符號 shinRoll − thighRoll,正 = 外翻 (valgus)、負 = 內翻 (varus)
  */
+/** True when a unified profile cannot be evaluated because the packet lacks the gravity vectors it needs. */
+export function unifiedVectorsMissing(raw: RawAngles, s: Settings): boolean {
+  if (s.calibrationMethod !== 'unified') return false
+  if (!raw.shinAccel) return true
+  return Boolean(s.proximalZeroAccel && s.proximalHingeAxis && !raw.thighAccel)
+}
+
 export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   let thigh: number
   let thighRoll: number
@@ -770,6 +895,24 @@ export function applyCalibration(raw: RawAngles, s: Settings): LiveAngles {
   let knee = jointAngleDeg(thigh, shin)
   if (!hingeFramed && raw.thighAccel && raw.shinAccel) {
     knee = Math.abs(vectorAngleDeg(raw.thighAccel, raw.shinAccel) - (s.kneeZeroRaw ?? 0))
+  }
+
+  // Unified calibration (plan 2026-10-15): both limb angles are forward-positive about a common hinge direction,
+  // so the SIGNED knee is thigh minus shin and hyperextension stays negative instead of being folded into +flexion
+  // (finding X3). Legacy methods above are untouched. A profile without a thigh frame (shin only) has no thigh
+  // compensation: the thigh reads 0 and the knee is the negated shin angle.
+  if (unifiedVectorsMissing(raw, s)) {
+    // A truncated BLE link drops the V: field. The Euler fallback above would read unset zeros and always
+    // report a positive knee, hiding hyperextension, so a unified profile reports "no data" instead.
+    knee = Number.NaN
+  } else if (s.calibrationMethod === 'unified' && raw.shinAccel && s.distalZeroAccel && s.distalHingeAxis) {
+    if (hingeFramed) {
+      knee = shortestArcDelta(shin, thigh)
+    } else {
+      thigh = 0
+      thighRoll = 0
+      knee = normalizeDeg(-shin)
+    }
   }
 
   return {

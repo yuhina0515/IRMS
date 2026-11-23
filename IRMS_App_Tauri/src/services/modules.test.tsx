@@ -1,6 +1,6 @@
 // .tsx so it runs in the jsdom project (localStorage).
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadModules, readDisabled, setModuleEnabled, useModulesStore, type ModuleLoaderDeps } from './modules'
+import { ACTIVATE_TIMEOUT_MS, loadModules, readDisabled, setModuleEnabled, useModulesStore, type ModuleLoaderDeps } from './modules'
 
 const entry = (id: string) => ({ id, version: '1.0.0', name: id, description: '', path: `/m/${id}-1.0.0.js` })
 
@@ -55,6 +55,28 @@ describe('module loader', () => {
     )
     const [bad, good] = useModulesStore.getState().modules
     expect(bad).toMatchObject({ status: 'error', error: 'boom' })
+    expect(good.status).toBe('active')
+  })
+
+  it('times out a module whose activate() never settles instead of blocking the queue', async () => {
+    vi.useFakeTimers()
+    try {
+      const p = loadModules(
+        deps({
+          sync: async () => ({ modules: [entry('hang'), entry('good')], offline: false, warnings: [] }),
+          importModule: async (path) =>
+            path.includes('hang')
+              ? { default: { activate: () => new Promise<void>(() => {}) } }
+              : { default: { activate: () => {} } }
+        })
+      )
+      await vi.advanceTimersByTimeAsync(ACTIVATE_TIMEOUT_MS + 1)
+      await p
+    } finally {
+      vi.useRealTimers()
+    }
+    const [hang, good] = useModulesStore.getState().modules
+    expect(hang).toMatchObject({ status: 'error', error: 'Module activation timed out' })
     expect(good.status).toBe('active')
   })
 
