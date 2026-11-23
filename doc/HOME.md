@@ -21,6 +21,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-23 PR 與分支整理** · [[log_20261123_pr_tidy_up]]: 合併 #14、#15(#7/#8 的程式修正)、#16(文獻庫,取代 #1);#7/#8 關閉;#5 維持開啟並標注 needs-split;刪除 11 個已合併分支;iOS 分支保留。
 - **2026-11-23 專業知識與文獻資料庫** ([README](knowledge-base/README.md) · [Log](coding%20log/log_20261016_hyperextension_and_alert_wording_evidence.md)): 222 筆來源、24 個主題、13 篇導讀,含離線搜尋與引用匯出;過度伸直文獻僅以 5° 作為靜態或被動切點,動態 -5° 警示尚無證據基礎,候選用語待 V11。僅附書目資訊與本專案自寫摘要,不含第三方摘要全文。
 - **2026-11-22 原生模組套件第一階段** · [[log_20261122_native_module_packages_phase1]]: 簽章內容套件(IRMS-Modules 索引的 native 陣列)、暫存安裝 + 上一版保留 + 每次載入以已存簽章重新驗證、防降版/重播、設定 → 模組管理頁,第一個套件是使用提示。eng-developer 實作、eng-qa 審查 10 項已修。尚未發布任何套件。
 - **2026-11-22 模組可獨立更新(D2 翻案)** · [[log_20261122_meeting_updatable_modules]]: 擁有者筆記要求「App 不用更新,只更新部分模組」並有管理頁。會議結論:第一階段簽章模組套件 + App 端宣告式畫面引擎 + 註冊/回復 + 管理頁(先做 session-tips 內容包);第二階段 wasmi 邏輯模組(角度範圍先試),不在警示路徑上。不採 runtime .slint、Rhai、DLL。
