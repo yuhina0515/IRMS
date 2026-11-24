@@ -233,6 +233,22 @@ export interface StoredReading extends SensorReading {
   sessionId: number
 }
 
+/** 全解析度分析只需要這三欄；不以圖表抽樣取代時間統計。 */
+export type ReviewAnalysisReading = Pick<StoredReading, 'timestamp' | 'kneeAngle' | 'proximalAngle'>
+/** 同一次 DB 讀取所得的圖表與完整分析投影；CSV 仍走 getData 全量契約。 */
+export interface SessionReviewData {
+  chart: StoredReading[]
+  analysis: ReviewAnalysisReading[]
+}
+
+/** 原生分頁校正超界頁碼，總數與資料列來自同一讀取交易。 */
+export interface SessionPage {
+  sessions: Session[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /**
  * 使用者透過檔案選取器挑的韌體 .bin，由可信任的宿主層讀檔 + 算 MD5 後回傳。
  * Electron 版使用 Node `crypto`，Tauri 版使用 Rust；renderer 不取得通用檔案系統權限，
@@ -278,6 +294,8 @@ export type UpdateStatus =
   | { state: 'not-available' }
   | { state: 'downloading'; percent: number }
   | { state: 'downloaded'; version: string }
+  | { state: 'installing'; version: string }
+  | { state: 'install-error'; version: string }
   | { state: 'apk-available'; version: string }
   | { state: 'error'; message: string }
 
@@ -287,13 +305,15 @@ export type UpdateStatus =
  */
 export interface IrmsApi {
   sessions: {
-    start(input: SessionStartInput): Promise<{ sessionId: number }>
+    start(input: SessionStartInput): Promise<{ sessionId: number; storageIdentity: string }>
     end(sessionId: number, repsCompleted: number): Promise<{ success: true }>
     /** 逐次持久化 reps,讓非正常結束的 Session 仍保有正確計數 */
     progress(sessionId: number, reps: number): Promise<{ success: true }>
     list(): Promise<Session[]>
+    listPage(page: number, pageSize: number): Promise<SessionPage>
     /** maxPoints 給定時於主進程 LTTB 抽樣(圖表用);CSV 匯出不給,取全量 */
     getData(sessionId: number, maxPoints?: number): Promise<StoredReading[]>
+    getReview(sessionId: number): Promise<SessionReviewData>
     delete(sessionId: number): Promise<{ success: true }>
     /** 刪除所有示範模式紀錄;回傳實際刪掉的列數 */
     purgeDemo(): Promise<{ deleted: number }>
@@ -311,7 +331,8 @@ export interface IrmsApi {
     remove(id: number): Promise<void>
   }
   data: {
-    appendBatch(sessionId: number, readings: SensorReading[]): Promise<{ count: number }>
+    /** 同一批資料重試必須沿用識別碼與完整內容，不能改用時間戳去重。 */
+    appendBatch(sessionId: number, readings: SensorReading[], batchId: string, storageIdentity: string): Promise<{ count: number }>
   }
   actions: {
     list(): Promise<CustomAction[]>

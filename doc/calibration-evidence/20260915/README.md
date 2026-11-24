@@ -7,10 +7,33 @@ Source: Claude's September 15 supervised-session trace, recovered from the local
 From `IRMS_App_Tauri`, using Node 24:
 
 ```powershell
-node scripts/replay-calibration.mjs ../doc/calibration-evidence/20260915/packets.txt
+node scripts/replay-calibration.mjs ../doc/calibration-evidence/20260915/packets.txt --provenance ../doc/calibration-evidence/20260915/provenance.json
 ```
 
 Observed: 66,560 angle packets, all containing both vectors; 367 hardware error packets; no malformed or truncated packets. Vector norms range from 0.999217694 to 1.000818165. Error counts are packet counts, not independent incidents. No timestamps survive in this trace, so elapsed time, sustained rate, and movement phases cannot be inferred reliably.
+
+### Replay identity check (2026-10-30)
+
+The optional `--provenance` argument verifies the provided packet hash and the count of nonblank
+lines (including error/malformed packets), failing with nonzero exit and no successful JSON report
+on mismatch. Bare invocation remains a raw audit and does not infer a manifest or original identity.
+If supplying settings, keep the settings JSON as the second positional argument before or after
+the provenance option; settings are still caller supplied, not verified as this session's settings.
+
+`packetsSha256` is the unchanged historical CRLF extraction hash. Git stores LF, so the sidecar now
+also records `packetsCanonicalLfSha256` with explicit `crlf-to-lf-v1`: remove only a CR immediately
+before LF at byte level. Do not trim, decode/reencode, reorder, strip prefixes/BOM or change final
+newlines to make a hash pass. When canonical fields are supplied, their hash must match even if the
+raw hash matches. Reports distinguish `raw-sha256` from `canonical-lf-sha256`; canonical equivalence
+is not identical original bytes. Both forms were replayed with the same 66,927/66,560/367 counts.
+
+The additive `evidence` block (schema version1) records actual input byte hashes/lengths, optional
+settings/manifest hashes, script/parser/math source hashes and Node version. It prints no private
+paths or raw settings and does not follow manifest source/settings paths. Parser/math are unchanged.
+Verification means consistency against a caller-provided sidecar, not source authenticity, original
+trace verification, matching settings, timing, movement labels or reference-angle accuracy. Existing
+missing settings and all measurement limits below remain unchanged. The historical source hash is
+retained but the original temporary trace was not recovered/reverified by this work.
 
 The exact matching `proximalZeroAccel`, `distalZeroAccel`, `proximalHingeAxis`, and `distalHingeAxis` settings are absent from the located log. Claude's report refers to them as logged above, but does not actually include their values. Do not substitute current live settings or infer calibration endpoints from unlabeled packets and call that the original session.
 

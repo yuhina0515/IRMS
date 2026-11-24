@@ -145,7 +145,7 @@ beforeEach(() => {
     customActions: [ACTION],
     selectedActionId: ACTION.id,
     angleRange: MEASURED_RANGE,
-    settings: { ...useStore.getState().settings, ...IDENTITY_CALIBRATION, protocol: 'knee' }
+    settings: { ...useStore.getState().settings, ...IDENTITY_CALIBRATION, protocol: 'knee', flushIntervalSec: 2 }
   })
   useStore.getState().setParams({
     targetAngle: ACTION.targetAngle,
@@ -174,6 +174,126 @@ afterEach(async () => {
 })
 
 describe('開始/結束的重入防護', () => {
+  it('resets stale hold progress without a disconnect and waits for continuous samples before GOAL', async () => {
+    await sessionController.startSession()
+    feed(IN_ZONE, 20)
+    expect(useStore.getState().session.holdProgress).toBeGreaterThan(0)
+    expect(useStore.getState().session.reps).toBe(0)
+    vi.advanceTimersByTime(3000)
+    bluetoothService.ingest(encodeAnglePacket(poseForKnee(IN_ZONE)))
+    vi.advanceTimersByTime(80) // 讓 UI 節流送出重啟保持後的精確零進度。
+    expect(useStore.getState().isConnected).toBe(true)
+    expect(useStore.getState().session.holdProgress).toBe(0)
+    expect(useStore.getState().session.reps).toBe(0)
+    expect(countOf('CMD:GOAL')).toBe(0)
+    feed(IN_ZONE, 60)
+    expect(useStore.getState().session.reps).toBe(1)
+    expect(countOf('CMD:GOAL')).toBe(1)
+  })
+
+  it('writes long-interval acquisition in bounded transactions without dropping samples', async () => {
+    useStore.setState((s) => ({ settings: { ...s.settings, flushIntervalSec: 1_000_000 } }))
+    await sessionController.startSession()
+    feed(REST, 1001)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map((call) => call[1].length)).toEqual([1000, 1])
+    expect(stub.appended).toHaveLength(1001)
+  })
+
+  it('refuses close while starting even before the native session id exists', async () => {
+    let finish!: () => void
+    stub.sessions.start.mockImplementationOnce(() => new Promise<{ sessionId: number; storageIdentity: string }>((resolve) => {
+      finish = () => resolve({ sessionId: 1, storageIdentity: 'a'.repeat(32) + '/' + 'b'.repeat(32) })
+    }))
+    const starting = sessionController.startSession()
+    expect(useStore.getState().session.id).toBeNull()
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    finish()
+    await starting
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    await sessionController.endSession()
+  })
+
+  it('protects retained save failures and prevents a new start during reserved idle close', async () => {
+    await sessionController.startSession()
+    stub.sessions.end.mockRejectedValueOnce('disk busy')
+    expect(await sessionController.endSession()).toBe(false)
+    expect(sessionController.reserveWindowClose()).toBe(false)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(sessionController.reserveWindowClose()).toBe(true)
+    try {
+      expect(sessionController.reserveWindowClose()).toBe(false)
+      await expect(sessionController.startSession()).rejects.toThrow('Window close protection')
+      expect(stub.sessions.start).toHaveBeenCalledTimes(1)
+    } finally { sessionController.releaseWindowClose() }
+  })
+
+  it('blocks new sessions until close protection is available', async () => {
+    sessionController.setCloseProtectionAvailable(false)
+    try {
+      await expect(sessionController.startSession()).rejects.toThrow('Window close protection')
+      expect(stub.sessions.start).not.toHaveBeenCalled()
+    } finally { sessionController.setCloseProtectionAvailable(true) }
+  })
+
+  it('preserves ambiguous batch identity and boundary before newer buffered readings', async () => {
+    useStore.setState((s) => ({ settings: { ...s.settings, flushIntervalSec: 1 } }))
+    let rejectWrite!: (reason: Error) => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((_, reject) => { rejectWrite = reject }))
+    await sessionController.startSession()
+    feed(REST, 3)
+    await vi.advanceTimersByTimeAsync(1000)
+    const original = stub.data.appendBatch.mock.calls[0]
+    feed(REST, 5)
+    rejectWrite(new Error('commit succeeded but reply lost'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(await sessionController.endSession()).toBe(true)
+    expect(original[2]).toMatch(/^[a-f\d-]{36}$/i)
+    const calls = stub.data.appendBatch.mock.calls
+    expect(calls.map(call => call[1].length)).toEqual([3, 3, 5])
+    expect(calls[1]).toEqual(original)
+    expect(calls[2][2]).not.toBe(original[2])
+  })
+
+  it('binds reading retries to the storage identity returned by session creation', async () => {
+    const storageIdentity = 'a'.repeat(32) + '/' + 'b'.repeat(32)
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 1, storageIdentity })
+    await sessionController.startSession()
+    feed(REST, 3)
+    stub.data.appendBatch.mockRejectedValueOnce(new Error('reply lost'))
+    expect(await sessionController.endSession()).toBe(false)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[3])).toEqual([storageIdentity, storageIdentity])
+  })
+
+  it('does not rebind an old multi-chunk snapshot when a numeric session id is reused', async () => {
+    useStore.setState(s => ({ settings: { ...s.settings, flushIntervalSec: 60 } }))
+    let failFirst!: (reason: Error) => void
+    let finishRetry!: () => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((_, reject) => { failFirst = reject }))
+    await sessionController.startSession()
+    feed(REST, 1500)
+    failFirst(new Error('retry later'))
+    await Promise.resolve()
+    await Promise.resolve()
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>(resolve => { finishRetry = () => resolve({ count: 1000 }) }))
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[1].length)).toEqual([1000, 1000])
+    // 模擬外部復原流程換掉 owner，且刻意重用數字 id；一般 UI 不會這樣重設。
+    useStore.getState().resetSession()
+    const replacementIdentity = '1'.repeat(32) + '/' + '2'.repeat(32)
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 1, storageIdentity: replacementIdentity })
+    await sessionController.startSession()
+    finishRetry()
+    await Promise.resolve()
+    await Promise.resolve()
+    feed(REST, 3)
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map(call => call[1].length)).toEqual([1000, 1000, 3])
+    expect(stub.data.appendBatch.mock.calls[2][3]).toBe(replacementIdentity)
+  })
+
   it('retains a failed final batch for explicit retry without resuming acquisition', async () => {
     await sessionController.startSession()
     feed(REST, 3)
@@ -193,6 +313,61 @@ describe('開始/結束的重入防護', () => {
     expect(stub.sessions.end).toHaveBeenCalledWith(1, 3)
     expect(useStore.getState().session.id).toBeNull()
     expect(useStore.getState().sessionSaveState).toBe('idle')
+  })
+
+  it('retires acknowledged chunks and retries only the failed suffix', async () => {
+    useStore.setState((s) => ({ settings: { ...s.settings, flushIntervalSec: 1_000_000 } }))
+    let finishWrite!: () => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((resolve) => {
+      finishWrite = () => resolve({ count: 1000 })
+    })).mockRejectedValueOnce(new Error('second write failed'))
+    await sessionController.startSession()
+    feed(REST, 1500)
+    const ending = sessionController.endSession()
+    finishWrite()
+    expect(await ending).toBe(false)
+    expect(stub.data.appendBatch.mock.calls.map((call) => call[1].length)).toEqual([1000, 500])
+    const suffix = stub.data.appendBatch.mock.calls[1][1]
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls[2][1]).toEqual(suffix)
+    expect(stub.data.appendBatch.mock.calls[2][2]).toBe(stub.data.appendBatch.mock.calls[1][2])
+    expect(stub.appended).toEqual(suffix)
+  })
+
+  it('stops before accepting sample 2001 and retains the full failed backlog in order', async () => {
+    useStore.setState((s) => ({ settings: { ...s.settings, flushIntervalSec: 1_000_000 } }))
+    let failWrite!: () => void
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((_, reject) => {
+      failWrite = () => reject(new Error('disk unavailable'))
+    })).mockRejectedValue(new Error('still unavailable'))
+    await sessionController.startSession()
+    feed(REST, 2001)
+    expect(useStore.getState().session.running).toBe(false)
+    expect(useStore.getState().session.reps).toBe(0)
+    failWrite()
+    await vi.waitFor(() => expect(useStore.getState().sessionSaveState).toBe('failed'))
+    expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
+    const first = stub.data.appendBatch.mock.calls[0][1]
+    stub.data.appendBatch.mockImplementation(async (_, readings) => {
+      stub.appended.push(...readings)
+      return { count: readings.length }
+    })
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.appended).toHaveLength(2000)
+    expect(stub.appended.slice(0, 1000)).toEqual(first)
+    expect(stub.appended.every((row, index, rows) => index === 0 || row.timestamp > rows[index - 1].timestamp)).toBe(true)
+    expect(stub.data.appendBatch.mock.calls.map((call) => call[1].length)).toEqual([1000, 1000, 1000, 1000])
+  })
+
+  it('retains an uncertain short acknowledgement instead of reporting a saved session', async () => {
+    await sessionController.startSession()
+    feed(REST, 3)
+    stub.data.appendBatch.mockResolvedValueOnce({ count: 0 })
+    expect(await sessionController.endSession()).toBe(false)
+    expect(stub.sessions.end).not.toHaveBeenCalled()
+    expect(await sessionController.endSession()).toBe(true)
+    expect(stub.data.appendBatch.mock.calls[1][1]).toEqual(stub.data.appendBatch.mock.calls[0][1])
+    expect(stub.data.appendBatch.mock.calls[1][2]).toBe(stub.data.appendBatch.mock.calls[0][2])
   })
 
   it.each([new Error('cannot finalize'), 'database is locked', null])('retains end failure %s and retries without reappending committed readings', async (failure) => {
@@ -223,7 +398,7 @@ describe('開始/結束的重入防護', () => {
   it('freezes acquisition immediately and awaits the periodic write before ending', async () => {
     useStore.setState({ settings: { ...useStore.getState().settings, flushIntervalSec: 1 } })
     let finishWrite!: () => void
-    stub.data.appendBatch.mockImplementationOnce(() => new Promise<void>((resolve) => { finishWrite = resolve }))
+    stub.data.appendBatch.mockImplementationOnce(() => new Promise<{ count: number }>((resolve) => { finishWrite = () => resolve({ count: 25 }) }))
     await sessionController.startSession()
     feed(REST, 25)
     expect(stub.data.appendBatch).toHaveBeenCalledTimes(1)
@@ -249,22 +424,23 @@ describe('開始/結束的重入防護', () => {
     await ending
     expect(stub.data.appendBatch).toHaveBeenCalledTimes(2)
     expect(stub.data.appendBatch.mock.calls[1][1]).toEqual(stub.data.appendBatch.mock.calls[0][1])
-    stub.sessions.start.mockResolvedValueOnce({ sessionId: 2 })
+    stub.sessions.start.mockResolvedValueOnce({ sessionId: 2, storageIdentity: 'c'.repeat(32) + '/' + 'f'.repeat(32) })
     await sessionController.startSession()
     feed(IN_ZONE, 25)
     await sessionController.endSession()
     expect(stub.data.appendBatch.mock.calls[2][0]).toBe(2)
     expect(stub.data.appendBatch.mock.calls[2][1]).toHaveLength(25)
+    expect(stub.data.appendBatch.mock.calls[2][3]).toBe('c'.repeat(32) + '/' + 'f'.repeat(32))
   })
 
   it('retires a pending start after connection loss even when the link reconnects', async () => {
-    let create!: (value: { sessionId: number }) => void
+    let create!: (value: { sessionId: number; storageIdentity: string }) => void
     stub.sessions.start.mockImplementationOnce(() => new Promise((resolve) => { create = resolve }))
     const starting = sessionController.startSession()
     bluetoothService.onConnectionLost?.()
     useStore.getState().setConnection(false, null)
     bluetoothService.beginSimulated('reconnected')
-    create({ sessionId: 42 })
+    create({ sessionId: 42, storageIdentity: 'a'.repeat(32) + '/' + 'b'.repeat(32) })
     await expect(starting).rejects.toThrow('Connection lost while starting session')
     expect(useStore.getState().session.running).toBe(false)
     expect(useStore.getState().session.id).toBeNull()

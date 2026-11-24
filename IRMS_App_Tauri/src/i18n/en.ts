@@ -182,6 +182,10 @@ export const en = {
   },
 
   common: {
+    saveBeforeClose: 'Finish saving the session or wait for the application operation before closing. If saving failed, retry saving first.',
+    closeProtectionFailed: 'Window close protection is unavailable. Restart the app before starting another session.',
+    storageBackpressure: 'Data collection stopped because storage could not keep up. Check the session save status.',
+    close: 'Close',
     cancel: 'Cancel',
     confirm: 'Confirm',
     save: 'Save',
@@ -245,6 +249,8 @@ export const en = {
   },
 
   updateBanner: {
+    installing: 'Applying update… Waiting for the app to close.',
+    installFailed: 'An error occurred while applying the update. You can retry.',
     ready: (p: { version: string }) => `Version ${p.version} is downloaded. Restart to apply it`,
     sessionNote: ' (session in progress; restart after it ends)',
     restartBlocked: 'You cannot restart during a session. This button becomes available once the session ends',
@@ -427,6 +433,8 @@ export const en = {
     exported: 'Session exported',
     exportFailed: (p: { message: string }) => `Export failed: ${p.message}`,
     loadFailed: 'Could not load history',
+    loading: 'Loading session records…',
+    deleteFailed: 'Could not delete the session record. Try again.',
     deleteTitle: 'Delete session',
     deleteBody: (p: { id: number }) => `Delete the record of session #${p.id}?`,
     deleted: (p: { id: number }) => `Session #${p.id} deleted`,

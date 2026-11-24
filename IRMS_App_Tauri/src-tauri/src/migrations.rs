@@ -182,6 +182,46 @@ fn migration_9(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+fn migration_10(conn: &Connection) -> rusqlite::Result<()> {
+    // 只新增非唯一排序索引；同時間戳由 id 明確排序，不改既有資料列。
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_start_id ON sessions(startTime DESC, id DESC);",
+    )
+}
+
+fn migration_11(conn: &Connection) -> rusqlite::Result<()> {
+    // 與讀值一起交易提交；療程刪除會同時清除收據，不留下另一份量測內容。
+    conn.execute_batch(
+        "CREATE TABLE reading_batch_receipts (
+            sessionId INTEGER NOT NULL,
+            batchId TEXT NOT NULL CHECK(length(batchId) = 36),
+            payloadHash TEXT NOT NULL CHECK(length(payloadHash) = 64),
+            rowCount INTEGER NOT NULL CHECK(rowCount > 0 AND rowCount <= 1000),
+            PRIMARY KEY(sessionId, batchId),
+            FOREIGN KEY(sessionId) REFERENCES sessions(id) ON DELETE CASCADE
+        ) WITHOUT ROWID;",
+    )
+}
+
+fn migration_12(conn: &Connection) -> rusqlite::Result<()> {
+    // 只作持久關聯識別，不是認證憑證；歷史資料與數字 id 保持不變。
+    conn.execute_batch(
+        "CREATE TABLE storage_identity (
+            singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+            databaseId TEXT NOT NULL CHECK(length(databaseId) = 32 AND databaseId NOT GLOB '*[^0-9a-f]*')
+        );
+        INSERT INTO storage_identity VALUES(1, lower(hex(randomblob(16))));
+        ALTER TABLE sessions ADD COLUMN storageKey TEXT
+            CHECK(storageKey IS NULL OR (length(storageKey) = 32 AND storageKey NOT GLOB '*[^0-9a-f]*'));
+        UPDATE sessions SET storageKey = lower(hex(randomblob(16)));
+        CREATE UNIQUE INDEX idx_sessions_storage_key ON sessions(storageKey);
+        CREATE TRIGGER sessions_assign_storage_key AFTER INSERT ON sessions
+        WHEN NEW.storageKey IS NULL BEGIN
+            UPDATE sessions SET storageKey = lower(hex(randomblob(16))) WHERE id = NEW.id;
+        END;",
+    )
+}
+
 pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -227,6 +267,21 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 9,
         name: "mobility records (strategy C long-term range-of-motion total)",
         up: migration_9,
+    },
+    Migration {
+        version: 10,
+        name: "stable indexed history pagination",
+        up: migration_10,
+    },
+    Migration {
+        version: 11,
+        name: "transactional reading batch retry receipts",
+        up: migration_11,
+    },
+    Migration {
+        version: 12,
+        name: "persistent database and session storage identities",
+        up: migration_12,
     },
 ];
 
@@ -565,7 +620,7 @@ mod tests {
 
             assert_eq!(
                 apply_migrations(&db, MIGRATIONS, noop_log).unwrap(),
-                vec![7, 8, 9]
+                vec![7, 8, 9, 10, 11, 12]
             );
 
             let mut stmt = db.prepare("SELECT source FROM sessions").unwrap();

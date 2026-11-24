@@ -17,12 +17,13 @@ vi.mock('@tauri-apps/api/core', () => ({
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { FirmwareBinary } from '@shared/types'
+import type { FirmwareBinary, UpdateStatus } from '@shared/types'
 import { useStore } from '../store/useStore'
 import { useUiStore } from '../store/useUiStore'
 import { bluetoothService, type OtaProgress } from '../services/bluetooth'
 import { irms } from '../platform/irmsApi'
 import { SettingsView } from './SettingsView'
+import { UpdateBanner } from '../components/UpdateBanner'
 import { getT } from '../i18n'
 
 const FIRMWARE: FirmwareBinary = {
@@ -52,6 +53,26 @@ async function pickFirmware(): Promise<void> {
   await userEvent.click(screen.getByRole('button', { name: '選擇韌體檔案 (.bin)' }))
   await screen.findByText(/IRMS_Sensor\.ino\.bin/)
 }
+
+it('reflects installer states while retaining the downloaded artifact and one global error announcement owner', async () => {
+  const listeners = new Set<(status: UpdateStatus) => void>()
+  const statusChanged = (status: UpdateStatus): void => listeners.forEach((callback) => callback(status))
+  vi.spyOn(irms.updates, 'onStatusChange').mockImplementation((callback) => {
+    listeners.add(callback)
+    callback({ state: 'downloaded', version: '2.0.0' })
+    return () => { listeners.delete(callback) }
+  })
+  render(<><SettingsView /><UpdateBanner /></>)
+  await userEvent.click(screen.getByRole('button', { name: '軟體與韌體' }))
+  act(() => statusChanged({ state: 'installing', version: '2.0.0' }))
+  expect(screen.getAllByText(getT().updateBanner.installing)).toHaveLength(2)
+  expect(screen.getAllByRole('status').filter((node) => node.textContent === getT().updateBanner.installing)).toHaveLength(1)
+  expect(screen.getByRole('button', { name: getT().settings.software.processing })).toBeDisabled()
+  act(() => statusChanged({ state: 'install-error', version: '2.0.0' }))
+  expect(screen.getAllByText(getT().updateBanner.installFailed)).toHaveLength(2)
+  expect(screen.getAllByRole('alert').filter((node) => node.textContent?.trim() === getT().updateBanner.installFailed)).toHaveLength(1)
+  expect(screen.getByRole('button', { name: getT().settings.software.downloadedWaiting })).toBeDisabled()
+})
 
 
 /** v3 Settings shows one category at a time; the OTA panel lives under 軟體與韌體. */
@@ -206,6 +227,33 @@ describe('SettingsView 韌體 OTA 面板:進度旅程', () => {
 })
 
 describe('SettingsView 分類索引(v3)', () => {
+  it('switches supported languages by named keyboard control and keeps the next field in Tab order', async () => {
+    useStore.getState().setSettings({ language: 'zh-Hant' })
+    render(<SettingsView />)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /顯示/ }))
+    const language = screen.getByRole('combobox', { name: getT().settings.display.language })
+    await user.click(screen.getByText(getT().settings.display.language))
+    expect(language).toHaveFocus()
+    await user.keyboard('{End}{Enter}')
+    expect(useStore.getState().settings.language).toBe('en')
+    expect(screen.getByRole('combobox', { name: 'Language' })).toHaveFocus()
+    await user.keyboard('{ArrowDown}{Home}{ArrowDown}')
+    expect(screen.getByRole('option', { name: '繁體中文' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'English' })).toBeInTheDocument()
+    await user.tab()
+    expect(useStore.getState().settings.language).toBe('zh-Hant')
+    expect(screen.getByRole('combobox', { name: getT().settings.display.theme })).toHaveFocus()
+  })
+  it('labels display number fields and lets label clicks focus their input', async () => {
+    render(<SettingsView />)
+    await userEvent.click(screen.getByRole('button', { name: /顯示/ }))
+    const field = screen.getByRole('spinbutton', { name: getT().settings.display.maxChartPoints })
+    await userEvent.click(screen.getByText(getT().settings.display.maxChartPoints))
+    expect(field).toHaveFocus()
+    expect(screen.getByRole('spinbutton', { name: getT().settings.display.flushInterval })).toBeInTheDocument()
+  })
+
   it('一次只顯示一個分類,切換分類會替換右側內容而不是往下長', async () => {
     render(<SettingsView />)
     expect(screen.getByRole('heading', { level: 2, name: '裝置與連線' })).toBeInTheDocument()

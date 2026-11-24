@@ -8,6 +8,7 @@
 // pairing/streaming/OTA run, the same way the existing OTA hardware tasks (B3/B4/D1/D2) already
 // tracked for the firmware side are blocked on real-hardware access.
 
+use crate::ble_lifecycle::{self, Connector, Coordinator};
 use crate::protocol::{
     self, ParsedPacket, CHAR_ANGLE_TX, CHAR_FW_VERSION, CHAR_OTA_CONTROL, CHAR_OTA_DATA,
     CHAR_OTA_STATUS, CHAR_PROFILE_RX, OTA_CHUNK_DELAY_MS, OTA_CHUNK_SIZE, OTA_SERVICE_UUID,
@@ -20,7 +21,6 @@ use futures::StreamExt;
 use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager as _, State};
 use tokio::sync::{broadcast, Mutex};
@@ -40,22 +40,43 @@ pub struct BleState {
     /// Identifies the live connection. A notification listener that outlives its connection
     /// (manual disconnect, or a newer connect) sees a different value and must stay silent;
     /// otherwise its late "stream ended" would clear or report the newer connection as down.
-    generation: AtomicU64,
+    coordinator: Coordinator,
 }
 
 impl BleState {
     /// Starts a new connection epoch and returns its id.
+    #[cfg(test)]
     fn begin_connection(&self) -> u64 {
-        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+        self.coordinator.begin()
     }
 
     /// Invalidates the current epoch (no listener is current afterwards).
+    #[cfg(test)]
     fn invalidate_connection(&self) {
-        self.generation.fetch_add(1, Ordering::SeqCst);
+        self.coordinator.begin();
     }
 
+    #[cfg(test)]
     fn is_current(&self, generation: u64) -> bool {
-        self.generation.load(Ordering::SeqCst) == generation
+        self.with_current(generation, || ()).is_some()
+    }
+
+    // 世代檢查與同步副作用不可分開，否則失效操作可能插在檢查與 emit 之間。
+    // callback 不得 await、重入世代鎖或取得 peripheral；雙鎖時固定 peripheral -> epoch。
+    // callback panic 不會修改計數器，因此 poison 時仍可安全取回世代值以退休舊連線。
+    fn with_current<R>(&self, generation: u64, callback: impl FnOnce() -> R) -> Option<R> {
+        self.coordinator.with_current(generation, callback)
+    }
+
+    // 等待裝置鎖之後才核對世代；所有拆除副作用都在 peripheral -> epoch 的鎖序內執行。
+    async fn with_current_peripheral<R>(
+        &self,
+        generation: u64,
+        callback: impl FnOnce(&mut Option<Peripheral>) -> R,
+    ) -> Option<R> {
+        self.coordinator
+            .with_peripheral(&self.peripheral, generation, callback)
+            .await
     }
 }
 
@@ -66,7 +87,7 @@ impl Default for BleState {
             peripheral: Mutex::new(None),
             ota_status_tx,
             ota_update_lock: Mutex::new(()),
-            generation: AtomicU64::new(0),
+            coordinator: Coordinator::default(),
         }
     }
 }
@@ -131,9 +152,21 @@ fn error_chain(e: &dyn std::error::Error) -> String {
     out
 }
 
-async fn find_adapter() -> Result<Adapter, String> {
+// 原生 await 邊界的所有權檢查，不會任意丟棄仍可能在 OS 層完成的連線 future。
+fn ensure_current(current: &impl Fn() -> bool) -> Result<(), String> {
+    if current() {
+        Ok(())
+    } else {
+        Err(ble_lifecycle::CANCELLED.into())
+    }
+}
+
+async fn find_adapter(current: impl Fn() -> bool + Send + Sync) -> Result<Adapter, String> {
+    ensure_current(&current)?;
     let manager = Manager::new().await.map_err(|e| error_chain(&e))?;
+    ensure_current(&current)?;
     let adapters = manager.adapters().await.map_err(|e| error_chain(&e))?;
+    ensure_current(&current)?;
     adapters
         .into_iter()
         .next()
@@ -145,37 +178,73 @@ async fn find_adapter() -> Result<Adapter, String> {
 /// (main/index.ts) — there is no Tauri/btleplug equivalent of Chromium's
 /// select-bluetooth-device event, so this polls the adapter's discovered-peripherals list
 /// directly instead.
-async fn scan_for_device(adapter: &Adapter) -> Result<Peripheral, String> {
-    adapter
+async fn scan_for_device(
+    adapter: &Adapter,
+    current: impl Fn() -> bool + Send + Sync,
+) -> Result<Peripheral, String> {
+    ensure_current(&current)?;
+    let started = adapter
         .start_scan(ScanFilter::default())
         .await
-        .map_err(|e| error_chain(&e))?;
+        .map_err(|e| error_chain(&e));
 
     let deadline = tokio::time::Instant::now() + SCAN_TIMEOUT;
-    let found = loop {
-        let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
-        let mut hit = None;
-        for p in peripherals {
-            if let Ok(Some(props)) = p.properties().await {
-                if let Some(name) = &props.local_name {
-                    if name.contains(protocol::DEVICE_NAME_PREFIX) {
-                        hit = Some(p);
-                        break;
+    let found = async {
+        started?;
+        loop {
+            ensure_current(&current)?;
+            let peripherals = adapter.peripherals().await.map_err(|e| error_chain(&e))?;
+            ensure_current(&current)?;
+            let mut hit = None;
+            for p in peripherals {
+                let props = p.properties().await;
+                ensure_current(&current)?;
+                if let Ok(Some(props)) = props {
+                    if let Some(name) = &props.local_name {
+                        if name.contains(protocol::DEVICE_NAME_PREFIX) {
+                            hit = Some(p);
+                            break;
+                        }
                     }
                 }
             }
+            if let Some(p) = hit {
+                return Ok(p);
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err("Device not found within scan window".to_string());
+            }
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
-        if let Some(p) = hit {
-            break Some(p);
-        }
-        if tokio::time::Instant::now() >= deadline {
-            break None;
-        }
-        tokio::time::sleep(Duration::from_millis(300)).await;
-    };
+    }
+    .await;
+    // 所有出口（命中、逾時、查詢失敗與取消）共用收尾，且如實保留 stop_scan 失敗。
+    match (found, adapter.stop_scan().await) {
+        (Ok(peripheral), Ok(())) => Ok(peripheral),
+        (Ok(_), Err(error)) => Err(format!("stop_scan failed: {error}")),
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(stop)) => Err(format!("{error}; stop_scan failed: {stop}")),
+    }
+}
 
-    adapter.stop_scan().await.ok();
-    found.ok_or_else(|| "Device not found within scan window".to_string())
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NotificationKind {
+    Angle,
+    OtaStatus,
+}
+
+// 通知的同步派送接縫，讓原生路徑與不需實體 BLE 的回歸測試走相同邏輯。
+fn dispatch_notification(
+    state: &BleState,
+    generation: u64,
+    kind: NotificationKind,
+    value: &[u8],
+    dispatch: impl FnOnce(NotificationKind, &str),
+) -> bool {
+    let text = String::from_utf8_lossy(value);
+    state
+        .with_current(generation, || dispatch(kind, &text))
+        .is_some()
 }
 
 /// Spawns the single background task that reads btleplug's shared notification stream and
@@ -194,8 +263,11 @@ fn spawn_notification_listener(
             Ok(s) => s,
             Err(e) => {
                 let message = format!("notification stream failed: {e}");
-                telemetry::record(&app, "ble_error", json!({ "message": message }));
-                let _ = app.emit("ble:error", message);
+                let state = app.state::<BleState>();
+                let _ = state.with_current(generation, || {
+                    telemetry::record(&app, "ble_error", json!({ "message": message }));
+                    let _ = app.emit("ble:error", message);
+                });
                 return;
             }
         };
@@ -203,72 +275,92 @@ fn spawn_notification_listener(
         let ota_status_uuid = uuid(CHAR_OTA_STATUS);
 
         while let Some(notification) = stream.next().await {
-            if notification.uuid == angle_uuid {
-                let text = String::from_utf8_lossy(&notification.value).to_string();
-                // Opt-in calibration trace for supervised real-device tuning. Keep production
-                // silent; developers can launch with IRMS_CALIBRATION_TRACE=1 and capture the
-                // exact wire packets without changing their timing or the frontend transform.
-                if std::env::var_os("IRMS_CALIBRATION_TRACE").is_some() {
-                    eprintln!("[calibration-trace] {}", text.trim());
-                }
-                // Raw wire text, not the parsed form: offline replay/re-parsing (calibration,
-                // protocol changes) needs exactly what the device sent.
-                telemetry::record(&app, "packet", json!({ "raw": text.trim() }));
-                // Opt-in raw motion packet (firmware CMD:RAW_ON): forwarded as text and parsed in
-                // the frontend; it must never reach the angle parser, which would call it malformed.
-                if text.trim_start().starts_with("G:") {
-                    let _ = app.emit("ble:raw", text.trim());
-                    continue;
-                }
-                let parsed: ParsedPacket = protocol::parse_angle_packet(&text);
-                let _ = app.emit("ble:packet", &parsed);
+            let kind = if notification.uuid == angle_uuid {
+                NotificationKind::Angle
             } else if notification.uuid == ota_status_uuid {
-                let text = String::from_utf8_lossy(&notification.value).to_string();
-                telemetry::record(&app, "ota_status", json!({ "status": text }));
-                let _ = ota_status_tx.send(text);
+                NotificationKind::OtaStatus
+            } else {
+                continue;
+            };
+            let state = app.state::<BleState>();
+            let accepted = dispatch_notification(
+                &state,
+                generation,
+                kind,
+                &notification.value,
+                |kind, text| {
+                    if kind == NotificationKind::Angle {
+                        // Raw wire text, not the parsed form: offline replay/re-parsing (calibration,
+                        // protocol changes) needs exactly what the device sent.
+                        telemetry::record(&app, "packet", json!({ "raw": text.trim() }));
+                        // Opt-in raw motion packet (firmware CMD:RAW_ON): forwarded as text and parsed in
+                        // the frontend; it must never reach the angle parser, which would call it malformed.
+                        if text.trim_start().starts_with("G:") {
+                            let _ = app.emit("ble:raw", text.trim());
+                        } else {
+                            let parsed: ParsedPacket = protocol::parse_angle_packet(text);
+                            let _ = app.emit("ble:packet", &parsed);
+                        }
+                    } else {
+                        telemetry::record(&app, "ota_status", json!({ "status": text }));
+                        let _ = ota_status_tx.send(text.to_string());
+                    }
+                },
+            );
+            if !accepted {
+                return;
+            }
+            // 除錯 stderr 可能阻塞，因此只對已接受樣本輸出，且不放進世代派送鎖。
+            // Opt-in calibration trace for supervised real-device tuning. Keep production
+            // silent; developers can launch with IRMS_CALIBRATION_TRACE=1 and capture the
+            // exact wire packets without changing their timing or the frontend transform.
+            if kind == NotificationKind::Angle
+                && std::env::var_os("IRMS_CALIBRATION_TRACE").is_some()
+            {
+                eprintln!(
+                    "[calibration-trace] {}",
+                    String::from_utf8_lossy(&notification.value).trim()
+                );
             }
         }
         // A manual disconnect or a newer connect already owns the UI state; stay silent.
         let state = app.state::<BleState>();
-        if !state.is_current(generation) {
-            return;
-        }
-        // Stream ended — device disconnected. Drop the dead handle so later commands report
-        // "not connected" instead of writing to a stale peripheral.
-        *state.peripheral.lock().await = None;
-        // Web Bluetooth's gattserverdisconnected has a
-        // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
-        // stream) that a full reconnect-loop port should listen to separately; this skeleton
-        // only reports the notification stream closing, not full reconnect orchestration.
-        telemetry::record(
-            &app,
-            "connection",
-            json!({ "connected": false, "reason": "notification_stream_ended" }),
-        );
-        let _ = app.emit(
-            "ble:connection",
-            ConnectionEvent {
-                connected: false,
-                device_name: None,
-            },
-        );
+        // 先等待 peripheral，再於同一個短鎖內重新核對世代及發布斷線，避免等待跨越新連線。
+        let _ = state
+            .with_current_peripheral(generation, |peripheral| {
+                // Stream ended — device disconnected. Drop the dead handle so later commands report
+                // "not connected" instead of writing to a stale peripheral.
+                *peripheral = None;
+                // Web Bluetooth's gattserverdisconnected has a
+                // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
+                // stream) that a full reconnect-loop port should listen to separately; this skeleton
+                // only reports the notification stream closing, not full reconnect orchestration.
+                telemetry::record(
+                    &app,
+                    "connection",
+                    json!({ "connected": false, "reason": "notification_stream_ended" }),
+                );
+                let _ = app.emit(
+                    "ble:connection",
+                    ConnectionEvent {
+                        connected: false,
+                        device_name: None,
+                    },
+                );
+            })
+            .await;
     });
 }
 
 #[tauri::command]
 pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<String, String> {
     let result = connect(&app, &state).await;
-    match &result {
-        Ok(name) => telemetry::record(
-            &app,
-            "connection",
-            json!({ "connected": true, "deviceName": name }),
-        ),
-        Err(message) => telemetry::record(
+    if let Err(message) = &result {
+        telemetry::record(
             &app,
             "ble_error",
             json!({ "op": "connect", "message": message }),
-        ),
+        );
     }
     result
 }
@@ -276,49 +368,77 @@ pub async fn ble_connect(app: AppHandle, state: State<'_, BleState>) -> Result<S
 async fn connect(app: &AppHandle, state: &BleState) -> Result<String, String> {
     // A second connect while one is live would leave two listeners on two handles; retire the
     // old connection first so exactly one listener and one peripheral exist.
-    if let Some(old) = state.peripheral.lock().await.take() {
-        state.invalidate_connection();
-        let _ = old.disconnect().await;
-    }
-
-    let adapter = find_adapter().await?;
-    let peripheral = scan_for_device(&adapter).await?;
-
-    peripheral.connect().await.map_err(|e| error_chain(&e))?;
     // Everything after the OS-level connect must release it on failure; otherwise the device
     // stays connected at the OS level while we report failure, and the next scan cannot see it.
-    match setup_connection(&peripheral).await {
-        Ok(name) => {
-            let generation = state.begin_connection();
+    ble_lifecycle::establish(
+        &state.coordinator,
+        &state.peripheral,
+        &NativeConnector,
+        |generation, peripheral, name| {
+            telemetry::record(
+                app,
+                "connection",
+                json!({ "connected": true, "deviceName": name }),
+            );
+            let _ = app.emit(
+                "ble:connection",
+                ConnectionEvent {
+                    connected: true,
+                    device_name: Some(name.to_string()),
+                },
+            );
+            // 已安裝 handle 並發布 connected 後才排程，立即結束的 stream 不會被稍後安裝覆寫。
             spawn_notification_listener(
                 app.clone(),
                 peripheral.clone(),
                 state.ota_status_tx.clone(),
                 generation,
             );
-            *state.peripheral.lock().await = Some(peripheral);
+        },
+    )
+    .await
+}
 
-            let _ = app.emit(
-                "ble:connection",
-                ConnectionEvent {
-                    connected: true,
-                    device_name: Some(name.clone()),
-                },
-            );
-            Ok(name)
-        }
-        Err(err) => {
-            let _ = peripheral.disconnect().await;
-            Err(err)
-        }
+// 真實傳輸只提供 OS 操作；所有權、清理與發布順序統一由可回歸測試的流程控制。
+struct NativeConnector;
+impl Connector for NativeConnector {
+    type Adapter = Adapter;
+    type Peripheral = Peripheral;
+    async fn adapter(&self, current: impl Fn() -> bool + Send + Sync) -> Result<Adapter, String> {
+        find_adapter(current).await
+    }
+    async fn scan(
+        &self,
+        adapter: &Adapter,
+        current: impl Fn() -> bool + Send + Sync,
+    ) -> Result<Peripheral, String> {
+        scan_for_device(adapter, current).await
+    }
+    async fn connect(&self, peripheral: &Peripheral) -> Result<(), String> {
+        peripheral.connect().await.map_err(|e| error_chain(&e))
+    }
+    async fn setup(
+        &self,
+        peripheral: &Peripheral,
+        current: impl Fn() -> bool + Send + Sync,
+    ) -> Result<String, String> {
+        setup_connection(peripheral, current).await
+    }
+    async fn disconnect(&self, peripheral: &Peripheral) -> Result<(), String> {
+        peripheral.disconnect().await.map_err(|e| error_chain(&e))
     }
 }
 
-async fn setup_connection(peripheral: &Peripheral) -> Result<String, String> {
+async fn setup_connection(
+    peripheral: &Peripheral,
+    current: impl Fn() -> bool + Send + Sync,
+) -> Result<String, String> {
+    ensure_current(&current)?;
     peripheral
         .discover_services()
         .await
         .map_err(|e| error_chain(&e))?;
+    ensure_current(&current)?;
 
     let angle_char = peripheral
         .characteristics()
@@ -329,42 +449,45 @@ async fn setup_connection(peripheral: &Peripheral) -> Result<String, String> {
         .subscribe(&angle_char)
         .await
         .map_err(|e| error_chain(&e))?;
+    ensure_current(&current)?;
 
-    Ok(peripheral
+    let name = peripheral
         .properties()
         .await
         .ok()
         .flatten()
         .and_then(|p| p.local_name)
-        .unwrap_or_else(|| "IRMS Device".to_string()))
+        .unwrap_or_else(|| "IRMS Device".to_string());
+    ensure_current(&current)?;
+    Ok(name)
 }
 
 #[tauri::command]
 pub async fn ble_disconnect(app: AppHandle, state: State<'_, BleState>) -> Result<(), String> {
     // Retire the listener first so its late stream-end cannot report a second "disconnected".
-    state.invalidate_connection();
-    let mut guard = state.peripheral.lock().await;
-    let result = if let Some(p) = guard.take() {
-        p.disconnect().await.map_err(|e| e.to_string())
-    } else {
-        Ok(())
-    };
-    telemetry::record(
-        &app,
-        "connection",
-        json!({ "connected": false, "reason": "manual", "error": result.as_ref().err() }),
-    );
-    // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
-    // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
-    // 還保有 Peripheral handle 才更新 UI。
-    let _ = app.emit(
-        "ble:connection",
-        ConnectionEvent {
-            connected: false,
-            device_name: None,
+    ble_lifecycle::disconnect(
+        &state.coordinator,
+        &state.peripheral,
+        &NativeConnector,
+        |result| {
+            telemetry::record(
+                &app,
+                "connection",
+                json!({ "connected": false, "reason": "manual", "error": result.as_ref().err() }),
+            );
+            // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
+            // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
+            // 還保有 Peripheral handle 才更新 UI。
+            let _ = app.emit(
+                "ble:connection",
+                ConnectionEvent {
+                    connected: false,
+                    device_name: None,
+                },
+            );
         },
-    );
-    result
+    )
+    .await
 }
 
 /// Writes a control command string (see shared BleCommand constants) to the profile-RX
@@ -726,6 +849,155 @@ mod ota_tests {
         let second = state.begin_connection();
         assert!(state.is_current(second));
         assert!(!state.is_current(first));
+    }
+
+    #[test]
+    fn retired_notifications_never_reach_angle_raw_or_ota_dispatch() {
+        let state = BleState::default();
+        let first = state.begin_connection();
+        state.invalidate_connection();
+        let second = state.begin_connection();
+        for (kind, bytes) in [
+            (NotificationKind::Angle, b"T:1,S:2,K:3".as_slice()),
+            (NotificationKind::Angle, b"G:1/2/3/4/5/6".as_slice()),
+            (NotificationKind::OtaStatus, b"OTA:READY".as_slice()),
+        ] {
+            let mut emitted = Vec::new();
+            assert!(!dispatch_notification(
+                &state,
+                first,
+                kind,
+                bytes,
+                |kind, text| {
+                    emitted.push((kind, text.to_string()));
+                }
+            ));
+            assert!(emitted.is_empty());
+            assert!(dispatch_notification(
+                &state,
+                second,
+                kind,
+                bytes,
+                |kind, text| {
+                    emitted.push((kind, text.to_string()));
+                }
+            ));
+            assert_eq!(
+                emitted,
+                vec![(kind, String::from_utf8_lossy(bytes).to_string())]
+            );
+        }
+    }
+
+    #[test]
+    fn invalidation_waits_for_current_dispatch_and_rejects_every_later_old_callback() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Barrier,
+        };
+        let state = Arc::new(BleState::default());
+        let generation = state.begin_connection();
+        let started = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let attempting = Arc::new(Barrier::new(2));
+        let completed = Arc::new(AtomicBool::new(false));
+        let dispatch_thread = {
+            let (state, started, release, completed) = (
+                state.clone(),
+                started.clone(),
+                release.clone(),
+                completed.clone(),
+            );
+            std::thread::spawn(move || {
+                dispatch_notification(
+                    &state,
+                    generation,
+                    NotificationKind::Angle,
+                    b"K:90",
+                    |_, _| {
+                        started.wait();
+                        release.wait();
+                        completed.store(true, Ordering::SeqCst);
+                    },
+                )
+            })
+        };
+        started.wait();
+        let held_during_callback = state.coordinator.locked_during_callback();
+        let invalidate_thread = {
+            let (state, attempting, completed) =
+                (state.clone(), attempting.clone(), completed.clone());
+            std::thread::spawn(move || {
+                attempting.wait();
+                state.invalidate_connection();
+                assert!(completed.load(Ordering::SeqCst));
+            })
+        };
+        attempting.wait();
+        release.wait();
+        assert!(dispatch_thread.join().unwrap());
+        invalidate_thread.join().unwrap();
+        assert!(held_during_callback);
+        assert!(!dispatch_notification(
+            &state,
+            generation,
+            NotificationKind::Angle,
+            b"K:90",
+            |_, _| panic!("stale dispatch")
+        ));
+    }
+
+    #[tokio::test]
+    async fn stale_teardown_rechecks_generation_after_waiting_for_peripheral() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+        let state = Arc::new(BleState::default());
+        let first = state.begin_connection();
+        let peripheral = state.peripheral.lock().await;
+        let touched = Arc::new(AtomicBool::new(false));
+        let (waiting_tx, waiting_rx) = tokio::sync::oneshot::channel();
+        let teardown = {
+            let (state, touched) = (state.clone(), touched.clone());
+            tokio::spawn(async move {
+                waiting_tx.send(()).unwrap();
+                state
+                    .with_current_peripheral(first, |_| touched.store(true, Ordering::SeqCst))
+                    .await
+            })
+        };
+        waiting_rx.await.unwrap();
+        let second = state.begin_connection();
+        drop(peripheral);
+        assert!(teardown.await.unwrap().is_none());
+        assert!(!touched.load(Ordering::SeqCst));
+        assert!(state.is_current(second));
+        assert!(state
+            .with_current_peripheral(second, |_| touched.store(true, Ordering::SeqCst))
+            .await
+            .is_some());
+        assert!(touched.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn callback_panic_does_not_prevent_connection_retirement() {
+        let state = BleState::default();
+        let first = state.begin_connection();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            state.with_current(first, || panic!("failed callback"));
+        }));
+        assert!(failure.is_err());
+        state.invalidate_connection();
+        assert!(!state.is_current(first));
+        let second = state.begin_connection();
+        assert!(dispatch_notification(
+            &state,
+            second,
+            NotificationKind::OtaStatus,
+            b"OTA:DONE",
+            |_, _| {}
+        ));
     }
 
     #[test]

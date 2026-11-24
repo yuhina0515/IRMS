@@ -13,12 +13,14 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
-use crate::firmware_update::{client, get_bytes};
+use crate::firmware_update::{client, get_bytes, MAX_SIGNATURE_BYTES};
 
 /// Raw 32-byte Ed25519 public key (base64) matching IRMS_secrets/irms_modules_ed25519.pem.
 const MODULES_PUBKEY_B64: &str = "rmTFnYTSMzLCrqDW0Hv3e6gKKXFODYhxd1zkvmWceG0=";
 const RELEASES: &str = "https://github.com/yuhina0515/IRMS-Modules/releases";
 const MAX_MODULE_BYTES: u64 = 512 * 1024;
+// 清單先受回應大小上限保護，再進行簽章與項目驗證。
+const MAX_INDEX_BYTES: usize = 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -162,8 +164,18 @@ async fn sync(dir: PathBuf, app_version: String) -> Result<ModuleSyncResult, Str
     let mut warnings = Vec::new();
 
     let remote = async {
-        let idx = get_bytes(&http, &format!("{RELEASES}/latest/download/index.json")).await?;
-        let sig = get_bytes(&http, &format!("{RELEASES}/latest/download/index.json.sig")).await?;
+        let idx = get_bytes(
+            &http,
+            &format!("{RELEASES}/latest/download/index.json"),
+            MAX_INDEX_BYTES,
+        )
+        .await?;
+        let sig = get_bytes(
+            &http,
+            &format!("{RELEASES}/latest/download/index.json.sig"),
+            MAX_SIGNATURE_BYTES,
+        )
+        .await?;
         let entries = verify_index(&idx, &String::from_utf8_lossy(&sig), &key)?;
         if let Some(cached) = cached_entries(&dir, &key) {
             if let Some(id) = find_rollback(&cached, &entries) {
@@ -208,14 +220,19 @@ async fn sync(dir: PathBuf, app_version: String) -> Result<ModuleSyncResult, Str
                 warnings.push(format!("{} 本機檔案缺失或不符,離線無法重新下載", m.id));
                 continue;
             }
-            let data =
-                match get_bytes(&http, &format!("{RELEASES}/latest/download/{}", m.file)).await {
-                    Ok(d) => d,
-                    Err(e) => {
-                        warnings.push(format!("{} 下載失敗: {e}", m.id));
-                        continue;
-                    }
-                };
+            let data = match get_bytes(
+                &http,
+                &format!("{RELEASES}/latest/download/{}", m.file),
+                m.size as usize,
+            )
+            .await
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    warnings.push(format!("{} 下載失敗: {e}", m.id));
+                    continue;
+                }
+            };
             if data.len() as u64 != m.size || sha256_hex(&data) != m.sha256 {
                 warnings.push(format!("{} 雜湊與清單不符,拒絕載入", m.id));
                 continue;

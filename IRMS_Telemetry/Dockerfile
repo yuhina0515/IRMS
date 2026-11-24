@@ -1,6 +1,6 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY server.mjs share.mjs ./
+COPY server.mjs share.mjs runOwnership.mjs ./
 ENV DATA_DIR=/data NODE_ENV=production
 USER node
 EXPOSE 8120

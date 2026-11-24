@@ -1,12 +1,227 @@
 # 智慧復健監測系統 (Intelligent Rehabilitation Monitoring System - IRMS)
 
+> Bound-delete prerequisite (2026-10-31): [test-only contract](recovery/bound-delete-precondition.md)
+> checks original DB/session binding inside deletion transaction;4SQLite cases/full172native passed.
+> Production IPC/manual oracle unchanged; lineage is not restore or deletion authorization.
+
+> Cooperating context lease (2026-10-30): [78-case evidence](recovery/cooperating-context-lease.md)
+> acquires same-bucket exclusive browser ownership before startup audit, retains it for proxy lifetime
+> and revokes old/staged callbacks on loss. Not native global ownership or production hookup.
+
+> Local startup-readiness prototype (2026-10-30): [69-case evidence](recovery/startup-readiness.md)
+> exposes no owner before audited stats; pending/fenced/unavailable storage stays held. Explicit empty
+> local readiness is not a cross-window lease, strict-write proof or native-history/restore authority.
+
+> Actual owner ordering probe (2026-10-30): [61-case evidence](recovery/owner-ordering-probe.md)
+> delays real SQLite acknowledgements in Chrome, verifying full count -> durable fence -> native
+> deletion. Short/late replies stay held; restart retains fence but loses memory owner. No actual IPC.
+
+> History transition owner prototype (2026-10-30): [contract/tests](recovery/history-transition-owner.md)
+> tracks a submitted append before callback, then orders full acknowledgement, fence and mutation;
+> stage timeout/uncertainty remains held.19controlled-promise cases, not actual IPC/cancellation proof.
+
+> History-change intent prototype (2026-10-30): [53-case evidence/policy](recovery/history-change-fence.md)
+> persists one unresolved delete/restore intent before native mutation; enqueue/ack reject while
+> peek/stats retain evidence. No clear API, in-flight native quiescence or production hookup yet.
+
+> Startup inspection prototype (2026-10-30): [39-case evidence/status contract](recovery/reconciliation-inspection.md)
+> uses an existing read-only DB without initialization. Matching/conflicting/unseen receipts and
+> rejected associations preserve the journal; no status authorizes replay, deletion or timestamp repair.
+
+> Actual native journal oracle (2026-10-30): [29-case isolated evidence](recovery/native-journal-oracle.md)
+> connects Chrome IDB to real Rust/SQLite receipts with synthetic temporary data. Lost-reply retries
+> deduplicate; missing/foreign/deleted associations retain the journal. Startup abandoned/stale end
+> and same-lineage backup divergence are observed limitations; production replay remains gated.
+
+> Recovery journal evidence prototype (2026-10-30): [isolated protocol/probe](recovery/journal-prototype.md)
+> exercises real Chrome IndexedDB with synthetic data and an owned temporary profile; production
+> collection does not import it. Rust/WebView drain and deletion/restore/startup integration remain
+> open. Start-response association validation additionally rejects trailing-newline identities.
+
+
+> Persistent storage association (2026-10-30): migration12 binds writes to a stable DB/session identity,
+> returned atomically with session creation and retained across retries/snapshot awaits. Same numeric
+> IDs from another DB/recreated session reject. See [contract](storage-identity.md); this is a recovery
+> journal prerequisite, not unsent crash recovery, authentication or backup-generation detection.
+
+
+> Reading batch retry (2026-10-30): migration11 and required batchId provide transactional
+> payload-checked retry receipts. Renderer retains original identity and chunk boundary on uncertain
+> replies. See [storage contract](storage-batch-retry.md); this does not persist unsent buffers.
+
+
+> Offline receiver bundle v1 (2026-10-30): [contract](receiver-capture-bundle-v1.md) defines one bounded, embedded UTF-8 calibration/frames container and CLI validator. Exact hashes and receiver counters are structural checks only; synthetic fixture, no recording, source timing, calibration association or reference accuracy claim.
+
+
 > 系統架構與整合技術規格說明書 (System Architecture & Specifications)
+
+> Calibration B input guard (2026-10-30): each capture snapshots a receiver-only raw receipt counter
+> after countdown and consumes each new raw notification at most once with a complete new V: frame.
+> Floor/corrected captures require fresh receipts; skipped/no-correction V-only and optional gyro
+> paths remain. No source timestamp/sequence or synchronization is introduced; G: parser, solver,
+>10-frame minimum/durations and Apply-only persistence are unchanged. See [measurement evidence](MEASUREMENT_EVIDENCE.md).
+
+> Offline measurement replay (2026-10-30): see [evidence inventory](MEASUREMENT_EVIDENCE.md).
+> Additive input/source/runtime identity and optional manifest hash/count check preserve raw audit/
+> caller-supplied unsmoothed projection. Explicit CRLF/LF identity is not authenticity, matched
+> calibration, timing or accuracy; application protocol/math and stored trace remain unchanged.
+
+> 2026-10-30 update feedback: typed installing/install-error(version) statuses supplement downloaded.
+> Publish installing only after transition lease/flag acquisition; retain and replay after successful
+> handoff until process exit. Explicit rejection releases ownership then publishes generic retryable
+> install-error and rethrows original error. Banner handles rejection, disables restart while pending,
+> and uses persistent separate localized status/alert regions; Settings copies are static for both
+> install transitions, keeping a single announcement owner. Observer/replay errors are isolated and
+> synchronous nested status supersedes obsolete delivery. Background checks/downloads remain quiet;
+> no actual installer outcome, native speech delivery or process exit proof is implied.
+
+> 2026-10-30 updater: controller start, idle normal close and updater installation synchronously
+> acquire the same import-independent single-owner application-transition lease. Active/retained
+> session checks still apply. Start releases in finally, failed destroy/install release their own
+> lease, successful installer handoff retains installing/lease until process exit so no new data
+> can begin while termination is pending. No platform/controller import cycle or IPC/schema change.
+> Installer promise rejection cannot prove an external process never launched; native Windows
+> installation/termination, forced exit and crash durability remain unverified.
+
+> 2026-10-29 normal close: application-lifetime native close handler is installed before allowing
+> sessions; pending/failed registration blocks new starts. Close is prevented while starting/ending,
+> running, retained session id, buffer or flush exists; localized hint directs existing save/retry.
+> Idle close reserves controller against new start, explicitly destroys native window and releases
+> reservation on failure. Main-window capability adds only core:window:allow-destroy (not in installed
+> core window defaults). No auto-end/discard. Native titlebar/AltF4 event delivery remains unverified;
+> renderer crash/hang, forced termination and OS shutdown need separate durable recovery.
+
+> 2026-10-29 storage: shared storage-budget.json caps append IPC transactions at1000 rows and
+> timestamps at128 UTF-8 bytes; all six angles/rolls must be finite, checked after deserialization
+> before DB lock. Repository transactions/schema unchanged. Controller retains all unacknowledged
+> rows, chunks writes and stops acquisition before accepting the next frame at2000 pending rows
+> (buffer plus in-flight suffix), using existing save/retry UI. No silent oldest-row truncation.
+> Positive full-count acknowledgements retire chunks; lost replies can still cause duplicate retries.
+> This is not a durable queue, wire/parse-heap cap, clinical range validation or disk completion guarantee.
+
+> 2026-10-29 history list: sessions.listPage -> sessions_list_page returns sessions/total/page/
+> pageSize from one read transaction, size1..100, clamped page and stable startTime DESC,id DESC.
+> Migration10 adds nonunique idx_sessions_start_id only; prior migrations/data preserved. Renderer
+> fetches current measured page and fences stale/resize/delete results; old full APIs/export retained.
+
+> 2026-10-29 history review: additive sessions.getReview -> sessions_get_review returns chart
+> (original knee LTTB, max1200) and every analysis row (timestamp/kneeAngle/proximalAngle) from one
+> SELECT. Renderer preserves full-resolution metric/module analysis and locale-only chart redraw.
+> CSV/getData/schema unchanged; no byte/heap ceiling or native FPS claim. See performance protocol.
+
+> 2026-10-29 Wizard B announcements: persistent polite status distinguishes raw detection, floor
+> faces, poses, sweeps and results; preparation/recording change once per phase. Assertive errors
+> include failed solver results only in result stage. Countdown ticks/raw/numeric solutions excluded.
+> Capture/solver/detection/Apply behavior unchanged; native speech/metrology remain unverified.
+
+> 2026-10-29 Wizard A announcements: persistent polite atomic step/capture status and assertive
+> error region reuse existing localized text. Countdown/raw/preview values are excluded; retry clears
+> errors so repeated failures change text again. Actual native speech/order/recovery remains unverified.
+
+> 2026-10-29 Wizard B access: B now uses the single-calibration-wizard portal/focus contract, named
+> Close and side pressed states, priority-10 capture Escape consumption. B raw-stream lifetime/detection,
+> solver and Apply-only persistence unchanged. Simultaneous arbitrary A/B mounting unsupported;
+> native raw/AT/paint/step and metrology acceptance remain open.
+
+> 2026-10-29 calibration modal: Wizard A owns a named body-portal dialog with focus/background
+> isolation. It yields to real alertdialogs through closing, resuming its prior control after recovery.
+> Paint layers: Wizard A 1100, confirmation 1200, hardware 1500 (native paint acceptance pending).
+> Escape priority: background 0, Wizard A 10, confirmation 20, hardware 100; capture consumes without
+> closing. Explicit close/capture math unchanged. Native AT/step announcements/Wizard B remain open.
+
+> 2026-10-29 calibration controls: Wizard A exposes localized Close and mutually exclusive wear-side
+> pressed states using existing native buttons/local state. Selection and close do not apply settings.
+> Capture math/timing unchanged; full modal focus and native AT acceptance remain open.
+
+> 2026-10-29 emergency access: ErrorOverlay owns a named body-portal alertdialog, contained focus,
+> save/disconnect access and reversible inert isolation. Confirmation hands off the original recovery
+> target; shared isolation leases restore only after the last owner. Hardware Escape priority 100
+> consumes without dismissal; ordinary priority 0 remains LIFO. Session/BLE/DB/IPC contracts unchanged.
+
+> 2026-10-29 dropdown access: GlassDropdown is a select-only combobox with trigger focus,
+> active-descendant navigation, explicit Enter/Space/Tab/click commit and Escape cancellation.
+> Closing options are noninteractive; shared Escape stack protects underlying layers. Display
+> language/theme/pose fields have associated names; native/AT acceptance remains documented separately.
+
+> 2026-10-29 ownership-v1: native per-launch master derives collector-specific proof, only in a
+> sensitive HTTP header; first ingest transaction binds its SHA-256 digest in collector `run_owners`.
+> Owned ingest/share create requires proof; legacy runs cannot acquire ownership later. Runtime
+> module request shape unchanged; native preflight/response markers reject legacy collectors, and
+> generation checks suppress stale code/token. Canonical collector URLs exclude userinfo/query/
+> fragment; proof-bearing requests never redirect. Client+collector rollout/acceptance still open.
+
+> 2026-10-29 share HTTP budgets: native bridge accepts incoming bodies up to 64 KiB, checking
+> declared length and each accumulated chunk for all statuses before appending. Outgoing JSON
+> remains <=32 KiB; existing method/path/endpoint/token/timeouts and status/body contract unchanged.
+> 64 KiB accommodates current collector 16K UTF-16 state after UTF-8 expansion and its envelope.
+
+> 2026-10-29 share authorization: collector source now ends a removed/departed/expired viewer's
+> pending state polls with 401 and no state, revalidating membership at completion. Closing a share
+> retains 410. No request format, BLE or DB schema changes; production collector deployment open.
 
 > **相關文件**:[專案總覽](../README.md) · [開發進度 PROJECT_STATUS](PROJECT_STATUS.md) · [優化待辦 OPTIMIZATION](OPTIMIZATION.md) · [編碼規範 AI_CODING_RULES](AI_CODING_RULES.md) · [變更日誌 coding log](coding%20log/)
 
 ---
 
+## BLE notification retirement (2026-10-29)
+
+Native angle/raw-calibration/OTA-status dispatch and telemetry are checked under the same short
+connection-epoch gate used by begin/invalidate. An invalidation waits for an already-running
+dispatch, and a retired listener cannot start another dispatch afterward. Stream acquisition errors
+use the same gate; stream-end teardown first waits for the peripheral lock, then rechecks the epoch
+before clearing the handle or publishing disconnect. No await or recursive BLE lock acquisition is
+allowed within the synchronous epoch callback (lock order: peripheral -> epoch). Poison recovery
+keeps retirement available after callback panic. Debug stderr output runs outside that short gate.
+
+This does not recall frontend events already queued before invalidation or add source timestamps.
+Native btleplug/OS race acceptance remains open.
+
+### Native connect ownership (2026-10-29)
+
+`ble_lifecycle.rs` reserves an epoch before its first await and serializes native attempts through
+cleanup. Current ownership is checked at awaited boundaries; native adapter/scan/setup also check
+their internal boundaries. Scan uses one stop_scan epilogue and reports cleanup failures. Installation,
+connected publication and listener scheduling run in that order under peripheral/epoch protection.
+Disconnect cannot take a newer handle or publish a stale disconnected event. Cancellation preserves
+simultaneous backend/cleanup errors. Lock order is attempts -> peripheral -> epoch; disconnect skips
+attempts so it can retire ownership promptly.
+
+OS calls already running are awaited before cleanup; cancellation does not mean instantaneous physical
+disconnect. Cleanup failure leaves physical state unverified, and arbitrary orchestration-future abort
+is not a cleanup guarantee. Fake transports verify the shared orchestration, not real OS timing.
+
+## Firmware and module download budgets (2026-10-29)
+
+The shared HTTP downloader rejects oversized declared Content-Length and also counts every body
+chunk before extending its buffer, so chunked/close-delimited responses cannot bypass the limit.
+Firmware manifests are capped at 64 KiB, module indexes at 1 MiB and base64 signature text at 1 KiB.
+Payload downloads use the exact size from a verified manifest/index (existing maximums: firmware
+4 MiB, module 512 KiB). Signature, final size, hash, version and rollback checks remain required.
+The byte budget is not a replacement for authenticity checks or a measured process-heap ceiling.
+Oversized module metadata follows the existing verified-cache fallback; oversized module content is
+skipped without writing partial files. No external service or release format changes.
+
+## Telemetry resource and destination boundaries (2026-10-29)
+
+Opt-in telemetry now accepts at most 64 KiB of serialized event data from either Rust or frontend
+callers. The queue evicts oldest events above 20,000 entries or 8 MiB of serialized events; batches
+are selected before cloning and capped at 2,000 events / approximately 512 KiB, plus the request
+envelope. These are wire-size budgets, not a measured total heap limit. Drops remain visible in status.
+Changing the normalized collector endpoint or enabled state discards pending data and changes the
+configuration generation. Old request results cannot mutate the new generation. Already-issued
+requests may still reach the former destination; changing settings cannot recall transmitted data.
+No database schema, BLE protocol or public IPC shape changes. See [research readiness](RESEARCH_READINESS.md)
+for the institution/locale evidence matrix and follow-up priorities.
+
 ## Mobility and session reliability (2026-10-20)
+
+Repetition-hold follow-up (2026-10-29): TriggerEngine now uses a monotonic receiver clock and reads
+it once per sample. A gap above 250 ms, backwards time or a nonfinite clock cancels the current hold;
+the next valid strictly in-zone sample starts a fresh hold. Completed repetitions still require an
+actual rest sample before rearming, and personal-angle warnings remain independent. This prevents
+notification silence from earning hold time. The 250 ms threshold is an engineering continuity
+guard; native BLE scheduling and source timestamps remain separate validation work. Visual freshness
+during total silence is not changed: this guard is evaluated when the next sample arrives.
 
 Mobility C uses monotonic sample timestamps to require a continuous two-second hold, at least ten samples,
 and no inter-sample gap above 250 ms. The gap threshold is an engineering continuity guard, not a validated
@@ -28,8 +243,9 @@ history row. Demo purge removes only completed rows; repeated finalization prese
 and a missing session cannot be reported saved. No database schema or IPC signature changed.
 
 Recovery keeps the app process alive; it is not a durable crash-recovery journal. The existing 2,000-reading
-failed-write buffer cap remains. Genuine failed SQLite batches roll back atomically; ambiguous IPC acknowledgements
-are not deduplicated and require a separate batch-token design if that failure must be handled.
+failed-write buffer cap remains. Genuine failed SQLite batches roll back atomically. The2026-10-30
+batch-token follow-up deduplicates retries of the same identity/payload, including commit-with-lost-reply;
+unsent buffers and their identities are still process-local.
 
 ## 1. 系統概述 (System Overview)
 
@@ -188,7 +404,7 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
   * 同步成功後，前端儀表板的對應指示數值（如 Target、Tol）會即時更新。
 * **資料持久化與匯出**：
   * **SQLite 本地資料庫(三張表,存於 Electron `userData` 目錄)**:完整欄位定義見
-    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--9)。
+    [AI_CODING_RULES.md §4.3](AI_CODING_RULES.md#43-sqlite-schema目前-user_version--12)。
     * `custom_actions` 資料表:自訂復健動作範本(名稱、協定、目標角度、容錯、維持時間、`triggerType` 判定型別)。
     * `sessions` 資料表:每次復健歷程(開始/結束時間、目標角度、容錯、維持時間、`actionId`/`actionName` 動作快照、`protocol`、`repsCompleted` 達標次數)。
     * `sensor_data` 資料表:以 `sessionId` 外鍵(`ON DELETE CASCADE`)連動,記錄高頻 6 軸角度(`kneeAngle`、`thighAngle`、`shinAngle`、`kneeRoll`、`thighRoll`、`shinRoll`)與時間戳記。

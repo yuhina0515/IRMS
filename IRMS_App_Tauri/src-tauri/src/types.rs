@@ -79,6 +79,14 @@ pub struct SessionStartInput {
     pub source: String,
 }
 
+/// 建立療程與取得持久關聯身份同一交易完成，避免開始後才重新綁定另一個資料庫。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionStarted {
+    pub session_id: i64,
+    pub storage_identity: String,
+}
+
 // Field names below stay `thigh`/`shin` internally (matching the SQLite column names in
 // db.rs/migrations.rs unchanged by this pass) but are renamed on the wire via explicit
 // `serde(rename)` to `proximal`/`distal`, matching shared/types.ts's `SensorReading`/
@@ -118,9 +126,67 @@ pub struct StoredReading {
     pub timestamp: String,
 }
 
+/// 全解析度統計所需投影；保留原時間字串供既有 renderer Date.parse 語意使用。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewAnalysisReading {
+    pub timestamp: String,
+    pub knee_angle: f64,
+    pub proximal_angle: f64,
+}
+
+/// 圖表與分析來自同一次讀取，不影響舊 get_data/CSV 全量契約。
+#[derive(Debug, Serialize)]
+pub struct SessionReviewData {
+    pub chart: Vec<StoredReading>,
+    pub analysis: Vec<ReviewAnalysisReading>,
+}
+
+/// 同一讀取交易的總數/分頁；回傳已校正的頁碼與上限。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionPage {
+    pub sessions: Vec<Session>,
+    pub total: usize,
+    pub page: usize,
+    pub page_size: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_page_wire_shape_matches_shared_types() {
+        assert_eq!(
+            serde_json::to_value(SessionPage {
+                sessions: vec![],
+                total: 0,
+                page: 0,
+                page_size: 6
+            })
+            .unwrap(),
+            serde_json::json!({ "sessions": [], "total": 0, "page": 0, "pageSize": 6 })
+        );
+    }
+
+    #[test]
+    fn session_review_projection_wire_shape_matches_shared_types() {
+        let review = SessionReviewData {
+            chart: vec![],
+            analysis: vec![ReviewAnalysisReading {
+                timestamp: "invalid-preserved".into(),
+                knee_angle: 12.0,
+                proximal_angle: -4.0,
+            }],
+        };
+        assert_eq!(
+            serde_json::to_value(review).unwrap(),
+            serde_json::json!({
+                "chart": [], "analysis": [{ "timestamp": "invalid-preserved", "kneeAngle": 12.0, "proximalAngle": -4.0 }]
+            })
+        );
+    }
 
     // CON-01 (2026-09-17): the BLE wire protocol has shared TS/Rust contract fixtures, but the
     // Tauri IPC layer's Rust structs and shared/types.ts's hand-written interfaces have no

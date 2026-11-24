@@ -2,8 +2,8 @@
 // stores it in SQLite so runs can be queried afterwards.
 // Zero dependencies: node:http + node:sqlite (Node >= 24).
 //
-// Auth model: ingest is open to any app install (the app and repo are public, so no ingest
-// secret could stay secret). Abuse is bounded server-side instead: per-IP rate limits, a total
+// Auth model: new runs may ingest publicly; owned runs require a native per-run proof header.
+// No embedded global secret or device-attestation claim. Abuse is bounded by per-IP rate limits, a total
 // database size cap and time-based retention. Reading requires READ_TOKEN from the environment,
 // which must never be committed.
 
@@ -13,6 +13,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { createShareService, RUN_LIVE_MS } from './share.mjs'
+import { createRunOwnership, OWNER_HEADER } from './runOwnership.mjs'
 
 const PORT = Number(process.env.PORT ?? 8120)
 const HOST = process.env.HOST ?? '0.0.0.0'
@@ -82,7 +83,9 @@ const insertEvent = db.prepare(
 )
 
 const lastSeenOf = db.prepare('SELECT last_seen FROM runs WHERE id = ?')
+const ownership = createRunOwnership(db)
 const share = createShareService({
+  isRunOwner: ownership.isOwner,
   isRunLive(runId) {
     if (!RUN_ID_RE.test(runId)) return false
     const row = lastSeenOf.get(runId)
@@ -122,7 +125,7 @@ function readBody(req) {
 
 const isStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max
 
-function ingest(payload) {
+function ingest(payload, proof) {
   const { runId, appVersion, host, dropped, events } = payload ?? {}
   if (
     typeof runId !== 'string' ||
@@ -141,6 +144,11 @@ function ingest(payload) {
   let inserted = 0
   db.exec('BEGIN')
   try {
+    const rejected = ownership.authorizeIngest(runId, proof)
+    if (rejected) {
+      db.exec('ROLLBACK')
+      return rejected
+    }
     for (const e of events) {
       const data = e.data === undefined ? null : JSON.stringify(e.data)
       inserted += Number(insertEvent.run(runId, e.seq, e.t, e.kind, data).changes)
@@ -165,7 +173,7 @@ function ingest(payload) {
 function listRuns(params) {
   const limit = Math.min(Number(params.get('limit')) || 50, 500)
   const rows = db
-    .prepare('SELECT * FROM runs ORDER BY last_seen DESC LIMIT ?')
+    .prepare('SELECT id, first_seen, last_seen, app_version, host, event_count, dropped FROM runs ORDER BY last_seen DESC LIMIT ?')
     .all(limit)
   const kinds = db.prepare('SELECT kind, COUNT(*) AS n FROM events WHERE run_id = ? GROUP BY kind')
   return rows.map((r) => ({ ...r, kinds: Object.fromEntries(kinds.all(r.id).map((k) => [k.kind, k.n])) }))
@@ -234,8 +242,14 @@ function pruneExpired() {
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
   const expired = db.prepare('SELECT id FROM runs WHERE last_seen < ?').all(cutoff)
   for (const { id } of expired) {
-    db.prepare('DELETE FROM events WHERE run_id = ?').run(id)
-    db.prepare('DELETE FROM runs WHERE id = ?').run(id)
+    // 保留期清除須一起刪除資料與 ownership，避免部分刪除留下可被重新認領的 run。
+    db.exec('BEGIN')
+    try {
+      db.prepare('DELETE FROM events WHERE run_id = ?').run(id)
+      ownership.remove(id)
+      db.prepare('DELETE FROM runs WHERE id = ?').run(id)
+      db.exec('COMMIT')
+    } catch (err) { db.exec('ROLLBACK'); throw err }
   }
   if (expired.length) console.log(`pruned ${expired.length} runs older than ${RETENTION_DAYS} days`)
 }
@@ -262,7 +276,7 @@ const server = http.createServer(async (req, res) => {
       }
       window.events += Array.isArray(payload?.events) ? payload.events.length : 0
       if (window.events > RATE_MAX_EVENTS) return send(res, 429, { error: 'rate limited' })
-      const result = ingest(payload)
+      const result = ingest(payload, req.headers[OWNER_HEADER])
       return send(res, result.status, result.body)
     }
     if (p.startsWith('/v1/share')) {
@@ -297,7 +311,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.listen(PORT, HOST, () => console.log(`irms-telemetry listening on ${HOST}:${PORT}`))
+server.listen(PORT, HOST, () => console.log(`irms-telemetry listening on ${HOST}:${server.address().port}`))
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => server.close(() => (db.close(), process.exit(0))))

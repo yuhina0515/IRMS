@@ -91,17 +91,25 @@ export function installIrmsStub(overrides: IrmsStubOverrides = {}): IrmsStub {
   // 預設實作一律「成功且回傳空集合」:測試只需覆寫它實際關心的那一兩個方法。
   const defaults = {
     sessions: {
-      start: async (_input: SessionStartInput) => ({ sessionId: nextSessionId++ }),
+      start: async (_input: SessionStartInput) => ({ sessionId: nextSessionId++, storageIdentity: 'd'.repeat(32) + '/' + 'e'.repeat(32) }),
       end: async (_sessionId: number, _repsCompleted: number) => ({ success: true as const }),
       progress: async (_sessionId: number, _reps: number) => ({ success: true as const }),
       list: async (): Promise<Session[]> => [],
+      // 舊 list fixtures 轉成分頁；產品 adapter 不回退全量查詢。
+      listPage: async (requested: number, requestedSize: number) => {
+        const all = await (overrides.sessions?.list ?? (async () => []))()
+        const pageSize = Math.max(1, Math.min(100, requestedSize))
+        const page = Math.min(requested, Math.max(0, Math.ceil(all.length / pageSize) - 1))
+        return { sessions: all.slice(page * pageSize, (page + 1) * pageSize), total: all.length, page, pageSize }
+      },
       getData: async (_sessionId: number, _maxPoints?: number): Promise<StoredReading[]> => [],
+      getReview: async (_sessionId: number) => ({ chart: [], analysis: [] }),
       delete: async (_sessionId: number) => ({ success: true as const }),
       purgeDemo: async () => ({ deleted: 0 }),
       exportText: async (_defaultName: string, _contents: string) => true
     },
     data: {
-      appendBatch: async (_sessionId: number, readings: SensorReading[]) => {
+      appendBatch: async (_sessionId: number, readings: SensorReading[], _batchId?: string, _storageIdentity?: string) => {
         appended.push(...readings)
         return { count: readings.length }
       }

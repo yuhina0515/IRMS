@@ -23,6 +23,84 @@ beforeEach(() => {
   mock.close.mockResolvedValue(undefined)
 })
 describe('updater concurrency', () => {
+  it('publishes installing while pending and replays it after successful handoff', async () => {
+    const pending = deferred()
+    mock.install.mockReturnValueOnce(pending.promise)
+    const { irms } = await import('./irmsApi')
+    await irms.updates.checkNow()
+    const listener = vi.fn()
+    const unsubscribe = irms.updates.onStatusChange(listener)
+    const installing = irms.updates.restartNow()
+    const pendingStatus = listener.mock.lastCall?.[0]
+    pending.resolve()
+    await installing
+    unsubscribe()
+    const remounted = vi.fn()
+    irms.updates.onStatusChange(remounted)()
+    expect(pendingStatus).toEqual({ state: 'installing', version: '2.0.0' })
+    expect(remounted).toHaveBeenLastCalledWith({ state: 'installing', version: '2.0.0' })
+  })
+
+  it('publishes a retryable install error without raw native details', async () => {
+    mock.install.mockRejectedValueOnce(new Error('private-native-detail')).mockResolvedValueOnce(undefined)
+    const { irms } = await import('./irmsApi')
+    await irms.updates.checkNow()
+    const listener = vi.fn()
+    irms.updates.onStatusChange(listener)
+    await expect(irms.updates.restartNow()).rejects.toThrow('private-native-detail')
+    expect(listener).toHaveBeenLastCalledWith({ state: 'install-error', version: '2.0.0' })
+    expect(JSON.stringify(listener.mock.calls)).not.toContain('private-native-detail')
+    await irms.updates.restartNow()
+    expect(mock.install).toHaveBeenCalledTimes(2)
+    expect(listener).toHaveBeenLastCalledWith({ state: 'installing', version: '2.0.0' })
+  })
+
+  it('isolates throwing subscribers during replay, progress and rejection without masking the native error', async () => {
+    const original = new Error('installer rejected')
+    mock.install.mockRejectedValueOnce(original).mockResolvedValueOnce(undefined)
+    const { irms } = await import('./irmsApi')
+    await irms.updates.checkNow()
+    const throwing = vi.fn(() => { throw new Error('subscriber failed') })
+    const unsubscribe = irms.updates.onStatusChange(throwing)
+    const observer = vi.fn()
+    irms.updates.onStatusChange(observer)
+    await expect(irms.updates.restartNow()).rejects.toBe(original)
+    expect(observer).toHaveBeenLastCalledWith({ state: 'install-error', version: '2.0.0' })
+    unsubscribe()
+    const calls = throwing.mock.calls.length
+    await irms.updates.restartNow()
+    expect(throwing).toHaveBeenCalledTimes(calls)
+    expect(mock.install).toHaveBeenCalledTimes(2)
+  })
+
+  it('sets installation ownership before a status subscriber can reenter restart', async () => {
+    const { irms } = await import('./irmsApi')
+    await irms.updates.checkNow()
+    let nested: Promise<void> | undefined
+    irms.updates.onStatusChange((status) => {
+      if (status.state === 'installing') nested = irms.updates.restartNow()
+    })
+    await irms.updates.restartNow()
+    await nested
+    expect(mock.install).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not deliver an obsolete failure after a subscriber has synchronously started a newer attempt', async () => {
+    mock.install.mockRejectedValueOnce(new Error('first attempt')).mockResolvedValueOnce(undefined)
+    const { irms } = await import('./irmsApi')
+    await irms.updates.checkNow()
+    let retry: Promise<void> | undefined
+    irms.updates.onStatusChange((status) => {
+      if (status.state === 'install-error') retry = irms.updates.restartNow()
+    })
+    const observer = vi.fn()
+    irms.updates.onStatusChange(observer)
+    await expect(irms.updates.restartNow()).rejects.toThrow('first attempt')
+    await retry
+    expect(observer).toHaveBeenLastCalledWith({ state: 'installing', version: '2.0.0' })
+    expect(observer.mock.calls.some(([status]) => status.state === 'install-error')).toBe(false)
+    expect(mock.install).toHaveBeenCalledTimes(2)
+  })
   it('blocks installation while a stopped session still owns unsaved data', async () => {
     const { irms } = await import('./irmsApi')
     const { useStore } = await import('../store/useStore')

@@ -207,6 +207,11 @@ export const zhHant = {
 
   /** 跨畫面共用的按鈕與短語 */
   common: {
+    saveBeforeClose: '請先完成療程儲存或等待應用程式操作完成再關閉；若儲存失敗，請先重試儲存。',
+    closeProtectionFailed: '視窗關閉保護無法使用，開始下一場療程前請重新啟動應用程式。',
+    storageBackpressure: '儲存速度不足，已停止本場資料收集。請確認療程儲存狀態。',
+    // 圖示關閉按鈕的可存取名稱。
+    close: '關閉',
     cancel: '取消',
     confirm: '確認',
     save: '儲存',
@@ -272,6 +277,8 @@ export const zhHant = {
   },
 
   updateBanner: {
+    installing: '正在套用更新，等待應用程式關閉。',
+    installFailed: '套用更新時發生錯誤，可以重試。',
     ready: (p: { version: string }) => `新版本 ${p.version} 已下載完成,重新啟動即可套用`,
     sessionNote: '(Session 進行中,建議結束後再重啟)',
     restartBlocked: 'Session 進行中無法重啟——結束後這個按鈕會恢復可用',
@@ -451,6 +458,8 @@ export const zhHant = {
     exported: '紀錄已匯出',
     exportFailed: (p: { message: string }) => `匯出失敗:${p.message}`,
     loadFailed: '載入歷史失敗',
+    loading: '載入療程紀錄中…',
+    deleteFailed: '刪除療程紀錄失敗,請重試。',
     deleteTitle: '刪除紀錄',
     deleteBody: (p: { id: number }) => `確定刪除療程 #${p.id} 的紀錄嗎?`,
     deleted: (p: { id: number }) => `療程 #${p.id} 已刪除`,

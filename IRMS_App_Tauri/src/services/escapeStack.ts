@@ -13,21 +13,22 @@
 // 使用者的心智模型一致:Esc 關掉「我現在正在看的那一層」。
 type EscapeHandler = () => void
 
-const stack: EscapeHandler[] = []
+// 一般視窗同優先序維持後進先出；硬體警示可保留最高優先權，避免被後開的背景層搶走 Esc。
+const stack: Array<{ handler: EscapeHandler; priority: number }> = []
 
 /**
- * 推入一個 Esc 處理者(最後推入者最先被派送到)。
+ * 推入一個 Esc 處理者(先比優先序，同序最後推入者最先被派送到)。
  * @returns 移除函式;重複呼叫安全。
  */
-export function pushEscapeHandler(handler: EscapeHandler): () => void {
-  stack.push(handler)
+export function pushEscapeHandler(handler: EscapeHandler, priority = 0): () => void {
+  const entry = { handler, priority }
+  stack.push(entry)
   let removed = false
   return () => {
     if (removed) return
     removed = true
-    // 用 lastIndexOf:同一個函式實體理論上只會有一份,但即使呼叫端重複推入,
-    // 移除最後一份也才對得上「後進先出」。
-    const i = stack.lastIndexOf(handler)
+    // 以註冊項目身分移除，重複註冊相同函數也不會誤刪其他租約。
+    const i = stack.indexOf(entry)
     if (i >= 0) stack.splice(i, 1)
   }
 }
@@ -37,9 +38,9 @@ export function pushEscapeHandler(handler: EscapeHandler): () => void {
  * @returns 是否真的有處理者被呼叫(呼叫端據此決定要不要擋掉事件)。
  */
 export function dispatchEscape(): boolean {
-  const top = stack[stack.length - 1]
+  const top = stack.reduce<(typeof stack)[number] | undefined>((best, entry) => !best || entry.priority >= best.priority ? entry : best, undefined)
   if (!top) return false
-  top()
+  top.handler()
   return true
 }
 

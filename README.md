@@ -50,6 +50,7 @@ LED/蜂鳴器回饋,並將復健歷程儲存於本地 **SQLite** 以供量化分
 | [doc/PROJECT_STATUS.md](doc/PROJECT_STATUS.md) | **專案開發進度與整合報告** — 世代沿革、已完成階段、驗證、待辦。 |
 | [doc/OPTIMIZATION.md](doc/OPTIMIZATION.md) | **功能清單與優化待辦 (活清單)** — 現有功能盤點與優化 backlog。 |
 | [doc/AI_CODING_RULES.md](doc/AI_CODING_RULES.md) | **AI 協同開發與編碼規範** — 行為準則、韌體/App 開發規則、參數速查表。 |
+| [doc/RESEARCH_READINESS.md](doc/RESEARCH_READINESS.md) | University evidence mapping, inclusive engineering acceptance, department intervention rules and autonomous continuation. |
 | [doc/coding log/](doc/coding%20log/) | **開發變更日誌** — 每次開發計畫與變更的獨立 log(只增不改)。 |
 
 ---

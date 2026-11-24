@@ -10,17 +10,76 @@ import { useStore } from '../store/useStore'
 import { SessionSaveControl } from './SessionSaveControl'
 import { bluetoothService } from '../services/bluetooth'
 import { useT } from '../i18n'
+import { useId, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useEscapeKey } from '../hooks/useEscapeKey'
+import { isolateBody, takeEmergencyReturnTarget } from '../services/modalIsolation'
 
 export function ErrorOverlay(): JSX.Element | null {
   const hardwareError = useStore((s) => s.hardwareError)
   const m = useT()
+  const titleId = useId()
+  const descriptionId = useId()
+  const hintId = useId()
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const active = Boolean(hardwareError)
+  // 警示不能用 Escape 靜默消失，也不能讓背景後開的視窗搶走此事件。
+  useEscapeKey(active ? () => {} : null, 100)
+
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current
+    if (!active || !overlay) return
+    const invoker = takeEmergencyReturnTarget() ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    const releaseIsolation = isolateBody(overlay)
+    const eligible = (element: HTMLElement): boolean => element.isConnected && !element.matches(':disabled') && !element.closest('[inert], [hidden], [aria-hidden="true"]')
+    const controls = (): HTMLButtonElement[] => Array.from(overlay.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(eligible)
+    const focusInside = (): void => { (controls()[0] ?? overlay).focus() }
+    const containFocus = (event: FocusEvent): void => { if (!overlay.contains(event.target as Node)) focusInside() }
+    const containKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        const choices = controls()
+        const index = choices.indexOf(document.activeElement as HTMLButtonElement)
+        const next = index < 0 ? (event.shiftKey ? choices.length - 1 : 0) : (index + (event.shiftKey ? -1 : 1) + choices.length) % choices.length
+        ;(choices[next] ?? overlay).focus()
+      } else if (!overlay.contains(event.target as Node)) {
+        event.preventDefault(); event.stopPropagation()
+      }
+    }
+    const containPointer = (event: Event): void => {
+      if (!overlay.contains(event.target as Node)) { event.preventDefault(); event.stopPropagation() }
+    }
+    // 儲存中按鈕會停用、成功後會移除；焦點必須接續到仍可操作的逃生控制。
+    const observer = new MutationObserver(() => {
+      const focused = document.activeElement
+      if (!(focused instanceof HTMLElement) || !overlay.contains(focused) || !eligible(focused)) focusInside()
+    })
+    observer.observe(overlay, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'hidden', 'inert'] })
+    document.addEventListener('focusin', containFocus, true)
+    document.addEventListener('keydown', containKey, true)
+    document.addEventListener('pointerdown', containPointer, true)
+    document.addEventListener('click', containPointer, true)
+    focusInside()
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('focusin', containFocus, true)
+      document.removeEventListener('keydown', containKey, true)
+      document.removeEventListener('pointerdown', containPointer, true)
+      document.removeEventListener('click', containPointer, true)
+      releaseIsolation()
+      const target = takeEmergencyReturnTarget() ?? invoker
+      const fallback = Array.from(document.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]')).find((element) => !overlay.contains(element) && element.tabIndex >= 0 && eligible(element))
+      if (target && !overlay.contains(target) && eligible(target)) target.focus()
+      else fallback?.focus()
+    }
+  }, [active])
   if (!hardwareError) return null
 
-  return (
-    <div className="error-overlay">
-      <div className="icon">🚨</div>
-      <h2>{m.errorOverlay.title}</h2>
-      <p>
+  return createPortal(
+    <div ref={overlayRef} className="error-overlay" data-emergency-focus-owner role="alertdialog" tabIndex={-1} aria-modal="true" aria-labelledby={titleId} aria-describedby={`${descriptionId} ${hintId}`}>
+      <div className="icon" aria-hidden="true">🚨</div>
+      <h2 id={titleId}>{m.errorOverlay.title}</h2>
+      <p id={descriptionId}>
         {m.errorOverlay.lost({ code: hardwareError })}
         <br />
         {m.errorOverlay.frozen}
@@ -31,9 +90,9 @@ export function ErrorOverlay(): JSX.Element | null {
           {m.common.disconnect}
         </button>
       </div>
-      <p className="error-overlay-hint">
+      <p id={hintId} className="error-overlay-hint">
         {m.errorOverlay.hint}
       </p>
-    </div>
+    </div>, document.body
   )
 }

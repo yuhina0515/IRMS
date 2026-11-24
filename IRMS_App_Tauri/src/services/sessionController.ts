@@ -19,8 +19,9 @@ import { TriggerEngine } from './triggerEngine'
 import { currentLimits, currentTriggerConfig } from './triggerConfig'
 import { irms } from '../platform/irmsApi'
 import { createTrailingThrottle } from './uiThrottle'
+import storageBudget from '@shared/storage-budget.json'
+import { acquireAppTransition } from './appTransition'
 
-const MAX_BUFFER_RESTORE = 2000
 /** UI 同步節流間隔:25Hz 封包流降為 ~12.5Hz 重繪;判定引擎與 DB 緩衝仍吃全速 */
 const UI_SYNC_MS = 80
 /**
@@ -37,6 +38,12 @@ class SessionController {
   private buffer: SensorReading[] = []
   /** 同一時間只允許一筆批次寫入；結束時先等待它再補寫剩餘資料。 */
   private flushing: Promise<void> | null = null
+  /** 包含目前交易與尚未送出的 snapshot 後綴，避免只計算新 buffer。 */
+  private pendingWriteRows = 0
+  /** 回覆不明時保留同一身份與切分邊界；新讀值不可併入舊批次。 */
+  private retryBatch: { sessionId: number; id: string; count: number } | null = null
+  /** 與建立療程快照一起取得；重試不得重新查詢／換綁另一個資料庫。 */
+  private storageIdentity: string | null = null
   private connectionGeneration = 0
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private clockTimer: ReturnType<typeof setInterval> | null = null
@@ -247,6 +254,13 @@ class SessionController {
     // 結束邊界之後不再判定、計數或累積資料，避免落在最後寫入之後。
     const { session } = useStore.getState()
     if (this.ending || (!session.running && session.id != null)) return
+    // 在判定引擎之前停止；未接受的下一筆不能增加次數或觸發達標。
+    if (session.running && this.buffer.length + this.pendingWriteRows >= storageBudget.maxPendingReadings) {
+      useStore.getState().log('Storage backpressure: stopping acquisition with retained readings')
+      useUiStore.getState().showToast(getT().common.storageBackpressure, 'error', 10000)
+      void this.endSession()
+      return
+    }
 
     // 達標/超限判定(即使未開始 Session 也判定,以便連線時即提供回饋)
     const cfg = this.currentConfig()
@@ -273,6 +287,8 @@ class SessionController {
         distalRoll: angles.shinRoll,
         timestamp: new Date().toISOString()
       })
+      // 即使設定很長的計時週期，也不能產生無上限的單次交易。
+      if (this.buffer.length >= storageBudget.maxBatchRows && !this.flushing) void this.flush()
     }
   }
 
@@ -289,15 +305,45 @@ class SessionController {
   /** 開始/結束的重入防護:兩者都要 await,session.id/running 要等 await 之後才變 */
   private starting = false
   private ending = false
+  /** 啟動時安裝原生關窗保護；安裝失敗時不可建立新療程。 */
+  private closeProtectionAvailable = true
+  private closingWindow = false
+  private releaseCloseTransition: (() => void) | null = null
+
+  setCloseProtectionAvailable(available: boolean): void {
+    this.closeProtectionAvailable = available
+  }
+
+  /** 同步保留關窗權，避免閒置檢查後又開始新的療程。 */
+  reserveWindowClose(): boolean {
+    const { session } = useStore.getState()
+    if (this.closingWindow || this.starting || this.ending || session.running || session.id != null ||
+      this.buffer.length > 0 || this.flushing != null) return false
+    const release = acquireAppTransition()
+    if (!release) return false
+    this.releaseCloseTransition = release
+    this.closingWindow = true
+    return true
+  }
+
+  releaseWindowClose(): void {
+    this.closingWindow = false
+    this.releaseCloseTransition?.()
+    this.releaseCloseTransition = null
+  }
 
   async startSession(): Promise<void> {
+    if (!this.closeProtectionAvailable || this.closingWindow) throw new Error('Window close protection unavailable')
     const state = useStore.getState()
     if (this.starting || this.ending || state.session.running || state.session.id != null) return
+    const release = acquireAppTransition()
+    if (!release) throw new Error('Application transition is pending')
     this.starting = true
     try {
       await this.doStartSession()
     } finally {
       this.starting = false
+      release()
     }
   }
 
@@ -318,7 +364,7 @@ class SessionController {
     }
 
     try {
-      const { sessionId } = await irms.sessions.start({
+      const { sessionId, storageIdentity } = await irms.sessions.start({
         targetAngle: params.targetAngle,
         tolerance: params.tolerance,
         holdTimeMs: params.holdTimeMs,
@@ -353,6 +399,8 @@ class SessionController {
       }
 
       this.buffer = []
+      this.retryBatch = null
+      this.storageIdentity = storageIdentity
       this.resetFeedbackState()
       this.startTimestamp = Date.now()
 
@@ -473,24 +521,46 @@ class SessionController {
     this.clockTimer = null
   }
 
-  /** 批次寫入緩衝資料;失敗則回補緩衝(上限 2000 筆防止無限堆積) */
+  /** 有限 snapshot 依序寫入；只退休完整確認的前綴，失敗後保留全部後綴。 */
   private async flush(): Promise<void> {
     if (this.flushing) return this.flushing
     const { session } = useStore.getState()
     if (session.id == null || this.buffer.length === 0) return
 
+    // 跨 await 的整個 snapshot 固定同一身份，不因數字 id 被重用而換綁。
+    const storageIdentity = this.storageIdentity
     const readings = this.buffer
     this.buffer = []
+    this.pendingWriteRows = readings.length
     const write = async (): Promise<void> => {
+      let acknowledged = 0
       try {
-        await irms.data.appendBatch(session.id!, readings)
+        while (acknowledged < readings.length) {
+          if (useStore.getState().session.id !== session.id || this.storageIdentity !== storageIdentity) return
+          // 產生身份後才進 IPC；短回覆／拒絕都不能更換身份或重新切批。
+          if (this.retryBatch?.sessionId !== session.id) this.retryBatch = null
+          const batch = this.retryBatch ?? {
+            sessionId: session.id!, id: crypto.randomUUID(),
+            count: Math.min(storageBudget.maxBatchRows, readings.length - acknowledged)
+          }
+          this.retryBatch = batch
+          const chunk = readings.slice(acknowledged, acknowledged + batch.count)
+          if (!storageIdentity) throw new Error('Session storage identity unavailable')
+          const result = await irms.data.appendBatch(session.id!, chunk, batch.id, storageIdentity)
+          if (result?.count !== chunk.length) throw new Error('Incomplete batch acknowledgement')
+          // 舊療程的延遲回覆不得清除新療程的待確認身份。
+          if (this.retryBatch === batch) this.retryBatch = null
+          acknowledged += chunk.length
+          this.pendingWriteRows = readings.length - acknowledged
+        }
       } catch (err) {
         // 防止外部狀態重設後，舊療程的資料回補到另一場療程。
-        if (useStore.getState().session.id === session.id) {
-          const combined = readings.concat(this.buffer)
-          this.buffer = combined.slice(-MAX_BUFFER_RESTORE)
+        if (useStore.getState().session.id === session.id && this.storageIdentity === storageIdentity) {
+          this.buffer = readings.slice(acknowledged).concat(this.buffer)
         }
-        useStore.getState().log(`Batch write failed, buffer restored: ${(err as Error).message}`)
+        useStore.getState().log(`Batch write failed, buffer restored: ${String(err)}`)
+      } finally {
+        this.pendingWriteRows = 0
       }
     }
     this.flushing = write()

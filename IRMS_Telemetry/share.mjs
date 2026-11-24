@@ -13,6 +13,7 @@
 //   telemetry database, and a restart simply ends all shares.
 
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { OWNER_HEADER } from './runOwnership.mjs'
 
 // Crockford-style alphabet without I, L, O, U: codes are read aloud and typed by hand.
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -56,9 +57,9 @@ const cleanName = (v) =>
   typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 40) : ''
 
 /**
- * @param {{ isRunLive(runId: string): boolean, now?: () => number }} deps
+ * @param {{ isRunLive(runId: string): boolean, isRunOwner?: (runId: string, proof: unknown) => boolean, now?: () => number }} deps
  */
-export function createShareService({ isRunLive, now = Date.now }) {
+export function createShareService({ isRunLive, isRunOwner = () => false, now = Date.now }) {
   /** @type {Map<string, any>} code → share */
   const shares = new Map()
 
@@ -79,20 +80,33 @@ export function createShareService({ isRunLive, now = Date.now }) {
     share.waiters.clear()
   }
 
+  // 先撤銷成員資格，再立即結束該觀眾的等待；不喚醒其他仍有權限的觀眾。
+  function removeViewer(share, id) {
+    const viewer = share.viewers.get(id)
+    if (!viewer) return false
+    share.viewers.delete(id)
+    for (const wake of viewer.waiters) wake()
+    return true
+  }
+
   /** Drops idle viewers, and closes shares whose host or telemetry run went quiet. */
   function sweep() {
     const t = now()
     for (const share of shares.values()) {
       if (t - share.hostSeen > HOST_IDLE_MS) close(share, 'host idle')
       else if (!isRunLive(share.runId)) close(share, 'telemetry stopped')
-      else for (const [id, v] of share.viewers) if (t - v.lastSeen > VIEWER_IDLE_MS) share.viewers.delete(id)
+      else for (const [id, v] of share.viewers) if (t - v.lastSeen > VIEWER_IDLE_MS) removeViewer(share, id)
     }
   }
 
-  function create(body) {
+  function create(body, req) {
     const runId = body?.runId
     if (typeof runId !== 'string' || !isRunLive(runId)) {
       return [409, { error: 'telemetry run is not live; enable live telemetry upload first' }]
+    }
+    // 必須先驗證，再變更既有分享；runId 與 reader token 都不是主機所有權。
+    if (!isRunOwner(runId, req.headers[OWNER_HEADER])) {
+      return [403, { error: 'run ownership proof required; use an upgraded app and wait for its first upload' }]
     }
     // One share per run: creating again replaces the previous code.
     for (const s of shares.values()) if (s.runId === runId) close(s, 'replaced')
@@ -116,7 +130,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
       closed: null
     }
     shares.set(code, share)
-    return [200, { code, hostToken: share.hostToken }]
+    return [200, { code, hostToken: share.hostToken, ownershipVersion: 1 }]
   }
 
   function pushState(share, body) {
@@ -148,7 +162,8 @@ export function createShareService({ isRunLive, now = Date.now }) {
       name: cleanName(body?.name) || 'Viewer',
       canEdit: false,
       joinedAt: t,
-      lastSeen: t
+      lastSeen: t,
+      waiters: new Set()
     }
     share.viewers.set(viewer.id, viewer)
     return [200, { viewerId: viewer.id, viewerToken: viewer.token, canEdit: false }]
@@ -174,11 +189,19 @@ export function createShareService({ isRunLive, now = Date.now }) {
           done = true
           clearTimeout(timer)
           share.waiters.delete(finish)
-          viewer.lastSeen = now()
-          resolve(share.closed ? [410, { error: 'share ended', reason: share.closed }] : [200, viewerView(share, viewer)])
+          viewer.waiters.delete(finish)
+          res.off('close', finish)
+          // 非同步等待結束時重驗資格；舊物件不能在被移除後繼續讀到新狀態。
+          if (share.closed) resolve([410, { error: 'share ended', reason: share.closed }])
+          else if (share.viewers.get(viewer.id) !== viewer) resolve([401, { error: 'viewer token required' }])
+          else {
+            viewer.lastSeen = now()
+            resolve([200, viewerView(share, viewer)])
+          }
         }
         const timer = setTimeout(finish, MAX_WAIT_MS)
         share.waiters.add(finish)
+        viewer.waiters.add(finish)
         res.on('close', finish)
       })
     }
@@ -223,7 +246,8 @@ export function createShareService({ isRunLive, now = Date.now }) {
   async function route(method, p, req, res, readJson, params) {
     if (!p.startsWith('/v1/share')) return null
     sweep()
-    if (p === '/v1/share' && method === 'POST') return create(await readJson())
+    if (p === '/v1/share/capabilities' && method === 'GET') return [200, { ownershipVersion: 1 }]
+    if (p === '/v1/share' && method === 'POST') return create(await readJson(), req)
 
     const m = p.match(/^\/v1\/share\/([^/]+)(\/[a-z]+)?(?:\/([^/]+))?$/)
     if (!m) return [404, { error: 'not found' }]
@@ -257,7 +281,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
       if (!isHost) return [401, { error: 'host token required' }]
       if (method === 'POST') return setViewer(share, m[3], await readJson())
       if (method === 'DELETE') {
-        return share.viewers.delete(m[3]) ? [200, { viewers: viewerList(share) }] : [404, { error: 'no such viewer' }]
+        return removeViewer(share, m[3]) ? [200, { viewers: viewerList(share) }] : [404, { error: 'no such viewer' }]
       }
     }
     if (sub === '/commands' && method === 'POST') {
@@ -266,7 +290,7 @@ export function createShareService({ isRunLive, now = Date.now }) {
     }
     if (sub === '/leave' && method === 'POST') {
       if (!viewer) return [401, { error: 'viewer token required' }]
-      share.viewers.delete(viewer.id)
+      removeViewer(share, viewer.id)
       return [200, { left: true }]
     }
     return [404, { error: 'not found' }]
