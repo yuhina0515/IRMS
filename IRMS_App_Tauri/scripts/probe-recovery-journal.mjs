@@ -72,8 +72,8 @@ const server = createServer((request, response) => {
 let browser, channel, report, failed = false, caseName = 'startup'
 const cases = []
 // 僅由測試父程序呼叫精確 ignored test；不向瀏覽器提供原生端點或任意路徑。
-function native(op, database = 'native', batch) {
-  writeFileSync(join(directory, 'native-request.json'), JSON.stringify({ op, database, ...(batch ? { batch } : {}) }))
+function native(op, database = 'native', batch, deleteBinding) {
+  writeFileSync(join(directory, 'native-request.json'), JSON.stringify({ op, database, batch, deleteBinding }))
   const child = spawnSync(nativeOracle, ['--exact', 'recovery_oracle::manual_recovery_oracle', '--ignored', '--nocapture'], {
     windowsHide: true, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
     env: { ...process.env, IRMS_RECOVERY_ORACLE_ROOT: directory },
@@ -83,6 +83,10 @@ function native(op, database = 'native', batch) {
   const result = JSON.parse(matches[0][1])
   if (result.status === 'infrastructureFailure') throw new Error('Native oracle failed')
   return result
+}
+// 僅送出已保存的原始綁定。fixture 模式使用同一個原生刪除交易。
+function deleteBound(database, { sessionId, storageIdentity }, rollbackFixture = false) {
+  return native(rollbackFixture ? 'deleteWithRollbackFixture' : 'delete', database, undefined, { sessionId, storageIdentity })
 }
 async function stopBrowser() {
   channel?.close(); channel = undefined
@@ -204,7 +208,7 @@ try {
     assert(JSON.stringify(replay) === JSON.stringify(original))
     const reply = native('append', 'native', replay), state = native('inspect')
     assert(reply.status === 'committed' && reply.count === 2 && state.rows === 2 && state.receipts === 1)
-    // append/inspect 會執行啟動孤兒收尾；唯讀 reconcile 分支不執行 init。
+    // append 會執行啟動孤兒收尾；唯讀 inspect/reconcile 分支不執行 init。
     assert(state.ended === 1 && state.abandoned === 1 && state.staleEnd === 1)
     cases.push(caseName)
     await inspectNative('reconcile-committed-abandoned-receipt-is-not-ack-authority', 'native', replay,
@@ -226,6 +230,7 @@ try {
     const pending = await evaluate('j.peek()')
     caseName = 'native-missing-database-retains-journal-no-create'
     assert(native('append', 'backup', pending).status === 'missingDatabase')
+    assert(deleteBound('backup', pending).status === 'missingDatabase')
     assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
     await inspectNative('reconcile-missing-database-does-not-create', 'backup', pending, 'missingDatabase')
     caseName = 'native-foreign-database-retains-original-journal'
@@ -241,7 +246,7 @@ try {
     // 同血統備份保留 identity；舊備份與目前刪除歷史不能僅靠 matching key 判別。
     assert(native('backup').status === 'backedUp')
     caseName = 'native-deleted-session-retains-journal-no-recreate'
-    assert(native('delete', 'native', pending).status === 'deleted')
+    assert(deleteBound('native', pending).status === 'deleted')
     assert(native('append', 'native', pending).status === 'rejected')
     const deleted = native('inspect')
     assert(deleted.rows === 0 && deleted.receipts === 0 && deleted.sessions === 0)
@@ -276,13 +281,41 @@ try {
     caseName = 'history-native-rejection-does-not-clear-fence'
     assert(native('append', 'native', pending).status === 'rejected')
     assert(JSON.stringify((await evaluate('j.stats()')).historyFence) === JSON.stringify(committedFence)); cases.push(caseName)
+    // 以已落盤的 fence 指定原始綁定；失敗後比較原生計數、收據及完整 journal。
+    async function assertOriginalFenceAndQueue() {
+      const stats = await evaluate('j.stats()')
+      assert(JSON.stringify(stats.historyFence) === JSON.stringify(committedFence))
+      assert(stats.batches === 1 && stats.rows === pending.readings.length)
+      assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending))
+    }
+    for (const [scenario, database] of [['foreign-db', 'foreign'], ['recreated-id', 'native'], ['sqlite-rollback', 'backup']]) {
+      caseName = `bound-delete-${scenario}-retains-native-state-fence-and-queue`
+      const rollback = database === 'backup'
+      const before = native('inspect', database)
+      assert(before.sessions === 1)
+      if (rollback) assert(before.rows === 4 && before.receipts === 2)
+      assert(deleteBound(database, committedFence, rollback).status === (rollback ? 'rolledBack' : 'rejected'))
+      assert(JSON.stringify(native('inspect', database)) === JSON.stringify(before))
+      if (rollback) {
+        const { inspection } = native('reconcile', database, pending)
+        assert(inspection.status === 'receiptMatched' && inspection.count === pending.readings.length)
+      }
+      await assertOriginalFenceAndQueue()
+      cases.push(caseName)
+    }
+    caseName = 'bound-delete-rejected-or-rolled-back-restart-still-withholds-owner'
+    await stopBrowser(); await startBrowser()
+    await assertOriginalFenceAndQueue()
+    const held = await evaluate('gateModule.openHistoryTransitionGate(() => j.stats())')
+    assert(held.status === 'held' && held.reason === 'historyUnresolved' && !Object.hasOwn(held, 'owner'))
+    cases.push(caseName)
     caseName = 'history-native-delete-lost-reply-browser-kill-retains-intent-and-queue'
     // 只有 fence 的 complete promise 已完成才走 native；回覆丟棄不解除 intent。
-    assert(native('delete', 'backup', pending).status === 'deleted')
+    assert(deleteBound('backup', committedFence).status === 'deleted')
     await stopBrowser(); await startBrowser()
-    assert(native('inspect', 'backup').sessions === 0)
-    assert(JSON.stringify((await evaluate('j.stats()')).historyFence) === JSON.stringify(committedFence))
-    assert(JSON.stringify(await evaluate('j.peek()')) === JSON.stringify(pending)); cases.push(caseName)
+    const afterDelete = native('inspect', 'backup')
+    assert(afterDelete.sessions === 0 && afterDelete.rows === 0 && afterDelete.receipts === 0)
+    await assertOriginalFenceAndQueue(); cases.push(caseName)
     await evaluate(`globalThis.intent=${JSON.stringify(intent)}`)
     await check('history-preceding-enqueue-retained-after-fence', `(async()=>{await reset();await Promise.all([j.enqueue(batch()),j.markHistoryChange(intent)]);try{await j.acknowledge(ack(await j.peek()));return false}catch{return (await j.stats()).rows===1&&(await j.stats()).historyFence!==null}})()`)
     await check('history-concurrent-following-ack-sees-fence', `(async()=>{await reset();const b=batch();await j.enqueue(b);const r=await Promise.allSettled([j.markHistoryChange(intent),j.acknowledge(ack(b))]);return r[0].status==='fulfilled'&&r[1].status==='rejected'&&(await j.stats()).rows===1&&(await j.stats()).historyFence!==null})()`)
@@ -313,7 +346,7 @@ try {
     assert(await evaluate(`(async()=>{deliver(${committed.count});await ready;return (await pendingAppend)&&calls.fence===1&&calls.mutate===1&&g.snapshot().phase==='mutating'&&(await j.stats()).historyFence.kind==='delete'})()`))
     assert(native('inspect', 'backup').rows === 2); cases.push(caseName)
     caseName = 'owner-native-delete-result-keeps-held-journal'
-    assert(native('delete', 'backup', ownedBatch).status === 'deleted')
+    assert(deleteBound('backup', (await evaluate('j.stats()')).historyFence).status === 'deleted')
     assert(await evaluate(`(async()=>{mutated();return (await changing)&&g.snapshot().reason==='historyComplete'&&(await j.stats()).rows===2})()`))
     assert(native('inspect', 'backup').sessions === 0); cases.push(caseName)
     caseName = 'owner-browser-restart-retains-fence-not-memory-owner'
@@ -408,6 +441,8 @@ try {
         nativeHistoryAuthority: false, crossWindowReservation: false, productionConnected: false },
       cooperatingLease: { prototype: true, actualSameProfileOriginTargets: 2, exclusiveIfAvailable: true,
         auditInsideLease: true, lifetimeHeld: true, staleProxyRevoked: true, nativeGlobalLock: false, productionConnected: false },
+      boundDeletion: { originalBindingFromFence: true, foreignAndRecreatedRejected: true, sqliteTriggerRollbackVerified: true,
+        skipsInitialization: true, originalJournalAndFenceRetained: true, sameLineageBackupCanMatch: true },
       boundaries: 'Actual repository+shared input validation; parent discards committed reply; no Tauri IPC or native force-kill/power-loss claim' }
   }
 } catch (error) {

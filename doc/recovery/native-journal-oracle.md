@@ -1,7 +1,8 @@
 # Isolated browser journal with actual Rust/SQLite receipts
 
 Later extension: [read-only reconciliation inspection](reconciliation-inspection.md) adds10 cases
-and explicitly skips initialization for reconcile only. The29-case report below remains historical.
+and explicitly skips initialization for reconcile. The [bound-delete extension](bound-delete-precondition.md)
+also skips initialization for inspect and delete. The 29-case report below remains historical.
 
 The [recorded result](native-journal-probe-20261030.json) covers29 synthetic cases:19 existing
 Chrome IndexedDB cases and10 additional native integration cases. The prototype remains unconnected
@@ -24,7 +25,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib --no-run --message-format=
 if ($LASTEXITCODE -ne 0) { throw 'Oracle build failed' }
 $artifact=Get-Content "$env:TEMP/irms-oracle-build.jsonl" | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.reason -eq 'compiler-artifact' -and $_.executable -and $_.target.name -eq 'irms_app_tauri_lib' } | Select-Object -Last 1
 if (-not $artifact) { throw 'Oracle executable missing' }
-node scripts/probe-recovery-journal.mjs 'C:/Program Files/Google/Chrome/Application/chrome.exe' --native-oracle $artifact.executable --output ../doc/recovery/native-journal-probe-20261030.json
+node scripts/probe-recovery-journal.mjs 'C:/Program Files/Google/Chrome/Application/chrome.exe' --native-oracle $artifact.executable --output "$env:TEMP/irms-native-journal-current.json"
 if ($LASTEXITCODE -ne 0) { throw 'Probe failed' }
 ```
 

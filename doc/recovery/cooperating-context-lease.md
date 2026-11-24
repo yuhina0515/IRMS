@@ -40,8 +40,8 @@ This coordination depends on every relevant caller using the same wrapper/name/b
 direct IPC, other profiles, external restore and noncooperating code remain bypasses. Browser lease
 release on context death is safe only as one prerequisite; persisted journal/fence must be reaudited
 and native target/history preconditions still checked. Empty local readiness does not detect eviction
-or rollback. Native deletion in the test oracle currently targets numeric IDs in synthetic fixed DBs;
-it is not a production bound-delete/restore authorization contract.
+or rollback. This historical report used numeric-ID deletion in synthetic fixed DBs. The later
+[bound-delete oracle](bound-delete-precondition.md) checks original storage identity.
 
 Reproduce using [native oracle](native-journal-oracle.md) with output
 `../doc/recovery/context-lease-probe-20261030.json`. Preserve earlier reports. Raw/served module/

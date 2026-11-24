@@ -1,5 +1,6 @@
 // 僅供手動合成測試的原生收據 oracle；正式應用程式不編譯此模組。
 use crate::{commands::validate_append_readings, db, types::SensorReading};
+use rusqlite::{Connection, OpenFlags};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{fs, io::Read, path::PathBuf};
@@ -23,12 +24,22 @@ struct Batch {
     readings: Vec<SensorReading>,
 }
 
+// 刪除只使用原始場次關聯，不接收批次內容。
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DeleteBinding {
+    session_id: i64,
+    storage_identity: String,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Request {
     op: String,
     database: String,
     batch: Option<Batch>,
+    #[serde(rename = "deleteBinding")]
+    delete_binding: Option<DeleteBinding>,
 }
 
 // 所有路徑固定在本次已存在的 temp 子目錄；不接受任意 DB 路徑或刪除根目錄。
@@ -57,7 +68,11 @@ fn root() -> Result<PathBuf, ()> {
 }
 
 fn execute() -> Result<Value, ()> {
-    let root = root()?;
+    execute_at(&root()?)
+}
+
+// 固定格式的請求可由原生測試直接使用，不必修改程序環境變數。
+fn execute_at(root: &std::path::Path) -> Result<Value, ()> {
     let request_path = root.join("native-request.json");
     if !regular_or_missing(&request_path)? {
         return Err(());
@@ -87,13 +102,17 @@ fn execute() -> Result<Value, ()> {
     if request.op != "init" && !exists {
         return Ok(json!({"status":"missingDatabase"}));
     }
-    // 核對分支不能呼叫 init：否則只看狀態也會遷移或把未結束場次標成 abandoned。
-    let mut conn = if request.op == "reconcile" {
-        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .map_err(|_| ())?
-    } else {
-        db::init_database(&path).map_err(|_| ())?
+    // 核對與綁定刪除都跳過初始化，避免遷移或提前結束其他場次。
+    let conn = match request.op.as_str() {
+        "inspect" | "reconcile" => {
+            Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        }
+        "delete" | "deleteWithRollbackFixture" => {
+            Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        }
+        _ => db::init_database(&path),
     };
+    let mut conn = conn.map_err(|_| ())?;
     match request.op.as_str() {
         "init" => {
             if !db::sessions_repo::list(&conn).map_err(|_| ())?.is_empty() {
@@ -172,10 +191,32 @@ fn execute() -> Result<Value, ()> {
                 json!({"status":"inspected","rows":rows,"receipts":receipts,"sessions":sessions,"ended":ended,"abandoned":abandoned,"staleEnd":stale_end}),
             )
         }
-        "delete" => {
-            db::sessions_repo::delete(&conn, request.batch.ok_or(())?.session_id)
+        "delete" | "deleteWithRollbackFixture" => {
+            let binding = request.delete_binding.ok_or(())?;
+            conn.pragma_update(None, "foreign_keys", true)
                 .map_err(|_| ())?;
-            Ok(json!({"status":"deleted"}))
+            if request.op == "deleteWithRollbackFixture" {
+                // 暫存觸發器在刪除與級聯後使交易失敗，不改動磁碟上的 schema。
+                conn.execute_batch(
+                    "CREATE TEMP TRIGGER oracle_abort_delete AFTER DELETE ON main.sessions
+                     BEGIN SELECT RAISE(ABORT, 'synthetic delete rollback'); END;",
+                )
+                .map_err(|_| ())?;
+            }
+            match db::sessions_repo::delete_bound(
+                &mut conn,
+                binding.session_id,
+                &binding.storage_identity,
+            ) {
+                Ok(()) => Ok(json!({"status":"deleted"})),
+                Err(rusqlite::Error::SqliteFailure(error, _))
+                    if request.op == "deleteWithRollbackFixture"
+                        && error.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER =>
+                {
+                    Ok(json!({"status":"rolledBack"}))
+                }
+                Err(_) => Ok(json!({"status":"rejected"})),
+            }
         }
         "backup" if request.database == "native" => {
             let target = root.join("backup.sqlite");
@@ -231,6 +272,78 @@ fn file_guard_accepts_only_regular_files_or_absence() {
     assert_eq!(regular_or_missing(&file), Ok(true));
     assert!(regular_or_missing(&root).is_err());
     fs::remove_file(file).unwrap();
+    fs::remove_dir(root).unwrap();
+}
+
+#[test]
+fn bound_delete_requests_preserve_foreign_recreated_and_rolled_back_rows() {
+    // 用獨立磁碟 fixture 測試實際請求分派與重新開檔，包含未結束場次的狀態。
+    let root = std::env::temp_dir().join(format!("irms-journal-probe-{}", uuid::Uuid::new_v4()));
+    fs::create_dir(&root).unwrap();
+    let request_path = root.join("native-request.json");
+    let request = |body: Value| {
+        fs::write(&request_path, serde_json::to_vec(&body).unwrap()).unwrap();
+        execute_at(&root).unwrap()
+    };
+    let inspect = |database: &str| request(json!({"op":"inspect","database":database}));
+    let started = request(json!({"op":"init","database":"native"}));
+    let binding = &started["started"];
+    let delete = |op: &str, database: &str| {
+        request(json!({"op":op,"database":database,"deleteBinding":binding}))
+    };
+    assert_eq!(delete("delete", "backup")["status"], "missingDatabase");
+    assert!(!root.join("backup.sqlite").exists());
+
+    let foreign = request(json!({"op":"init","database":"foreign"}));
+    assert_eq!(foreign["started"]["sessionId"], binding["sessionId"]);
+    let foreign_before = inspect("foreign");
+    assert_eq!(foreign_before["ended"], 0);
+    assert_eq!(delete("delete", "foreign")["status"], "rejected");
+    assert_eq!(inspect("foreign"), foreign_before);
+
+    let mut batch = (*binding).clone();
+    batch["batchId"] = json!("22222222-2222-4222-8222-222222222222");
+    batch["readings"] = json!([{"timestamp":"synthetic","kneeAngle":1,"proximalAngle":2,
+        "distalAngle":3,"kneeRoll":4,"proximalRoll":5,"distalRoll":6}]);
+    let append = request(json!({"op":"append","database":"native","batch":batch}));
+    assert_eq!(append, json!({"status":"committed","count":1}));
+    let before = inspect("native");
+    assert_eq!(before["rows"], 1);
+    assert_eq!(before["receipts"], 1);
+    assert_eq!(
+        delete("deleteWithRollbackFixture", "native")["status"],
+        "rolledBack"
+    );
+    assert_eq!(inspect("native"), before);
+    assert_eq!(delete("delete", "native")["status"], "deleted");
+    let after = inspect("native");
+    for key in ["sessions", "rows", "receipts"] {
+        assert_eq!(after[key], 0);
+    }
+
+    assert_eq!(
+        request(json!({"op":"recreate","database":"native","batch":batch}))["status"],
+        "recreated"
+    );
+    let recreated = inspect("native");
+    assert_eq!(recreated["sessions"], 1);
+    assert_eq!(recreated["ended"], 0);
+    assert_eq!(delete("delete", "native")["status"], "rejected");
+    assert_eq!(inspect("native"), recreated);
+
+    for filename in ["native.sqlite", "foreign.sqlite", "native-request.json"] {
+        fs::remove_file(root.join(filename)).unwrap();
+    }
+    // 唯讀 WAL 開啟後可能留下 SQLite 側檔，清理只限這兩個已知 fixture。
+    for filename in ["native.sqlite", "foreign.sqlite"] {
+        for suffix in ["-wal", "-shm", "-journal"] {
+            match fs::remove_file(root.join(format!("{filename}{suffix}"))) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => panic!("fixture cleanup failed: {error}"),
+            }
+        }
+    }
     fs::remove_dir(root).unwrap();
 }
 

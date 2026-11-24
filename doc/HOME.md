@@ -21,6 +21,10 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 
 ## ⚠ 目前狀態速記
 
+- **2026-11-24 bound-delete oracle** ([[log_20261124_bound_delete_oracle|Log]]) integrates original-binding deletion into the isolated SQLite oracle. The browser probe covers rejection and rollback with fence and queue retention. [Test scope and evidence](recovery/bound-delete-precondition.md)
+
+- **2026-10-31 quota hold** ([[log_20261031_quota_hold|Log]]): weekly remaining20%, five-hour78%; new expensive work stopped, resume allknown>=30. Head3d7807b CI41091644325 SUCCESS; local status checkpoint only, prior implementation pushed.
+
 - **2026-10-31 bound-delete prerequisite** ([[log_20261031_bound_delete|Log]]): [test-only contract](recovery/bound-delete-precondition.md),4SQLite/full172native passed; production/oracle unchanged, integration waits quota.
 
 - **2026-10-30 cooperating context lease** ([[log_20261030_context_lease|Log]]): [78-case evidence](recovery/cooperating-context-lease.md),48focused; two actual Chrome targets, lifetime/old-proxy control and request-loss fixes. Native global/bound mutation still unverified; production unconnected.

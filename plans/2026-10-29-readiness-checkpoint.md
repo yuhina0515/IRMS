@@ -1,6 +1,38 @@
 # IRMS autonomous continuation checkpoint
 
-## Current checkpoint (2026-10-31 bound native delete prerequisite)
+## Current checkpoint (2026-11-24 isolated bound deletion)
+
+The requested local continuation integrates original-binding deletion into the isolated native
+oracle. It opens an existing DB without startup initialization and enables cascading foreign keys.
+The browser probe passes the persisted fence binding and checks that rejection and rollback preserve
+the full fence and original pending payload. See the [coding log](../doc/coding%20log/log_20261124_bound_delete_oracle.md)
+for current validation and environment limits. Earlier quota observations and evidence are retained below.
+
+Blocked acceptance includes physical BLE timing, reference-instrument measurement and fit, native
+accessibility with assistive technology, and human or institution-specific evaluation. Release,
+deployment, and remote updates are outside this local run. The isolated work still leaves
+restore-generation detection and cross-store retention and deletion policy open.
+
+## Historical checkpoint (2026-10-31 quota hold)
+
+LIVE QUOTA HOLD: five-hour remaining78%, weekly20% (weekly used80%). Stop condition reached on
+2026-10-31 local heartbeat (2026-10-30T17:36Z). No new implementation/review/build/browser task began.
+Resume expensive work only ALL known windows>=30%; unknown quota permits brief status checks only.
+No purchase/reset/auth substitution. Keep heartbeat enabled for quiet quota/status checks; unchanged
+hold needs no repeated user notification or repeated logs/scans.
+
+Head3d7807bf9c51c6370e85ebf9d51994142e440590, remote/draftPR5 matches, CI41091644325 SUCCESS.
+Worktree was clean before this local status checkpoint. Intentional uncommitted status-only files:
+plans/2026-10-29-readiness-checkpoint.md, doc/HOME.md and
+doc/coding log/log_20261031_quota_hold.md. No commit/push for quota-only bookkeeping/CI churn.
+Preserve these files on resume; no unrelated changes. Implementation from prior turn is fully pushed.
+
+Next bounded task AFTER quota recovery remains isolated native oracle bound-delete integration,
+foreign/recreated/rollback rejection with original fence/journal retained. cfg(test) prerequisite
+already verified172Rust/7ignored/fmt/Clippy; productionIPC/UI/schema/manualoracle unchanged.
+No merge/deploy/device/participant operations, no complete recovery/erase/universal readiness claim.
+
+## Historical checkpoint (2026-10-31 bound native delete prerequisite)
 
 Baseline54f03d8 clean, CI41083792235 SUCCESS. Initialquota88%/22%, last81%/21%, nohold atlastcheck.
 One small task: cfg(test)-only sessions_repo::delete_bound, canonical originalidentity+positiveID,

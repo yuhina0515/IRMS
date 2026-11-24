@@ -53,14 +53,14 @@ The label implementation follows [W3C WAI form-label guidance](https://www.w3.or
 
 Use asynchronous independent reports, then one written triage meeting. Do not manufacture consensus or run meetings without a concrete decision. Reviewers stay read-only. Antigravity is optional and was not found on PATH in this batch; do not install or route to an unverified account just to increase agent count.
 
-## Software-only priority update (2026-10-30)
+## Software-only priority update (2026-11-24)
 
-No physical devices in this session. R05 batch retry identity now resolves same-identity lost-reply
-replay with migration11 transactional receipts; see [contract](storage-batch-retry.md). Persistent DB/session association is now the reviewed prerequisite (migration12); no independent
-journal or unsent recovery claim yet. Next is durable
-unsent queue/restart reconciliation, followed by remaining software accessibility/privacy journeys
-and reproducibility artifacts. External measurement gates do not imply all software work is blocked.
-No clinical or institution-wide conclusion follows from these software improvements.
+R05 uses migration 11 transactional receipts for same-identity lost-reply retry and migration 12
+for persistent DB/session association. The independent journal and startup gate remain isolated
+prototypes. The native test oracle now checks original binding and cascades deletion atomically.
+Restore generation and cross-store retention and deletion policy remain prerequisites for using
+this flow with production data. Physical measurement and human acceptance remain separate gates.
+[Retry contract](storage-batch-retry.md) · [Bound-delete evidence](recovery/bound-delete-precondition.md)
 
 ## Ordered next batches
 
