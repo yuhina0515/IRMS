@@ -16,8 +16,8 @@ use std::time::Duration;
 
 use crate::firmware::FirmwareBinary;
 
-/// Raw 32-byte Ed25519 public key (base64) matching IRMS_secrets/irms_firmware_ed25519.pem.
-const FIRMWARE_PUBKEY_B64: &str = "9inYbAyGpSC4KbNtu1+tT/I5B/jrMDuwmfH3SsS1u/8=";
+// Public key is single-sourced from IRMS_Core so a rotation cannot diverge between apps.
+use irms_core::firmware_update::FIRMWARE_PUBKEY_B64;
 const RELEASES: &str = "https://github.com/yuhina0515/IRMS-Firmware/releases";
 const MAX_FIRMWARE_BYTES: u64 = 4 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
