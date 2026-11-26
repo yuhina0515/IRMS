@@ -33,7 +33,7 @@ LED/蜂鳴器回饋,並將復健歷程儲存於本地 **SQLite** 以供量化分
   韌體原始碼在獨立儲存庫 [IRMS-Firmware](https://github.com/yuhina0515/IRMS-Firmware)。
 - **應用端 (現役)**:`IRMS_App_Tauri/` — Tauri 2 + Rust 後端 + React 18 / TypeScript / Tailwind / Vite 前端。
   BLE、SQLite、OTA、更新器由 Rust 負責;前端負責介面與療程判定。
-- **應用端 (原生測試線)**:`IRMS_App_Native/` + `IRMS_Core/` — Rust + Slint,無 WebView,僅 Windows;已發布 `v1.3.0-beta.11`(未簽章 pre-release,功能對等與實機驗收尚未完成,Tauri 版仍是出貨版)。
+- **應用端 (原生測試線)**:`IRMS_App_Native/` + `IRMS_Core/` — Rust + Slint,無 WebView,僅 Windows;已發布 `v1.3.0-beta.13`(2026-11-22,未簽章 pre-release,功能對等與實機驗收尚未完成,Tauri 版仍是出貨版)。
 - **可選模組**:簽章的執行期模組發布在 [IRMS-Modules](https://github.com/yuhina0515/IRMS-Modules)。
 
 > **版本說明**:應用端世代為 v1(Vanilla JS + Express)→ v2(Electron,已退場)→ 現行 Tauri 版

@@ -227,7 +227,12 @@ export function createShareService({ isRunLive, now = Date.now }) {
 
     const m = p.match(/^\/v1\/share\/([^/]+)(\/[a-z]+)?(?:\/([^/]+))?$/)
     if (!m) return [404, { error: 'not found' }]
-    const code = normalizeCode(decodeURIComponent(m[1]))
+    let code
+    try {
+      code = normalizeCode(decodeURIComponent(m[1]))
+    } catch {
+      return [400, { error: 'bad share code' }]
+    }
     const share = code && shares.get(code)
     if (!share) return [404, { error: 'no such share code (it may have ended)' }]
     const sub = m[2] ?? ''
@@ -251,7 +256,8 @@ export function createShareService({ isRunLive, now = Date.now }) {
     }
     if (sub === '/state' && method === 'GET') {
       if (!viewer) return [401, { error: 'viewer token required' }]
-      return readState(share, viewer, Number(params.get('after') ?? -1), res)
+      const after = Number(params.get('after') ?? -1)
+      return readState(share, viewer, Number.isFinite(after) ? after : -1, res)
     }
     if (sub === '/viewers' && m[3]) {
       if (!isHost) return [401, { error: 'host token required' }]

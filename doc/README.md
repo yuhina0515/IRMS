@@ -215,6 +215,17 @@ App 端校準精靈會把任意佩戴方向的原始值正規化為以下慣例;
     * **MTU**：韌體顯式設定 `setMTU(128)`,確保 6 軸封包(6 軸最長約 54 bytes;含 `V:` 擴充欄位最長 114 bytes,需 MTU ≥ 117)不被截斷。
   * **指令接收 (Profile RX Characteristic)**：
     * **UUID**：`4fafc201-1fb5-459e-8fcc-c5c9c331914b` -> `beb5483f-36e1-4688-b7f5-ea07361b26a8`
+    * **OTA 服務(韌體更新,UUID 取自 `IRMS_Core/src/protocol.rs`)**:
+
+      | 項目 | UUID |
+      |---|---|
+      | OTA Service | `4fafc201-1fb5-459e-8fcc-c5c9c3319150` |
+      | OTA Control | `beb5483e-36e1-4688-b7f5-ea07361b28a8` |
+      | OTA Data | `beb5483f-36e1-4688-b7f5-ea07361b28a8` |
+      | OTA Status | `beb54840-36e1-4688-b7f5-ea07361b28a8` |
+      | FW Version | `beb54841-36e1-4688-b7f5-ea07361b28a8` |
+
+      資料分塊 `OTA_CHUNK_SIZE` = 125 bytes(MTU 128 減 3 bytes ATT 標頭)。
     * **指令格式 (`CMD:`)**:
       `CMD:LED_ON/OFF`(達標回饋燈)、`CMD:GOAL`(達標雙短響)、`CMD:ALARM_ON/OFF`(超限長鳴)、`CMD:RAW_ON/OFF`(開關下述 `G:` 原始串流,預設關閉)。
       韌體以 `trim()` 剝除尾端空白後**精確比對**;指令字串不可附加換行。

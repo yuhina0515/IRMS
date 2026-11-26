@@ -11,7 +11,7 @@ async function tick(){
       if(ff){ if(ev.length) seq=ev.at(-1).seq; if(ev.length<5000){ ff=false; break;} continue; }
       if(!ev.length) break;
       for(const e of ev){ seq=e.seq;
-        if(e.kind==='packet'){ const s=e.data.raw.startsWith('ERR')?e.data.raw:'ANGLE'; if(s!==state){ if(state) console.log(e.t.slice(11,19),'stream ->',s); state=s;} continue; }
+        if(e.kind==='packet'){ const s=e.data?.raw?.startsWith('ERR')?e.data.raw:'ANGLE'; if(s!==state){ if(state) console.log(e.t.slice(11,19),'stream ->',s); state=s;} continue; }
         if(e.kind==='app_log'&&/^Packet #/.test(e.data.message)) continue;
         console.log(e.t.slice(11,19),e.kind,JSON.stringify(e.data).slice(0,200));
       }

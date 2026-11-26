@@ -104,6 +104,12 @@ function send(res, status, body) {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
+    // Refuse an oversized declared body before reading any of it; the streaming cap below still
+    // covers requests without Content-Length (chunked).
+    if (Number(req.headers['content-length']) > MAX_BODY_BYTES) {
+      reject(Object.assign(new Error('body too large'), { status: 413 }))
+      return
+    }
     const chunks = []
     let size = 0
     req.on('data', (chunk) => {
@@ -288,7 +294,15 @@ const server = http.createServer(async (req, res) => {
       if (!tokenMatches(req, READ_TOKEN)) return send(res, 401, { error: 'unauthorized' })
       if (p === '/v1/runs') return send(res, 200, listRuns(url.searchParams))
       const m = p.match(/^\/v1\/runs\/([^/]+)\/events$/)
-      if (m) return send(res, 200, listEvents(decodeURIComponent(m[1]), url.searchParams))
+      if (m) {
+        let runId
+        try {
+          runId = decodeURIComponent(m[1])
+        } catch {
+          return send(res, 400, { error: 'bad run id' })
+        }
+        return send(res, 200, listEvents(runId, url.searchParams))
+      }
     }
     send(res, 404, { error: 'not found' })
   } catch (err) {

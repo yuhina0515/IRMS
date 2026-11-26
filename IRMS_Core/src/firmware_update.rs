@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 /// Raw 32-byte Ed25519 public key (base64) matching IRMS_secrets/irms_firmware_ed25519.pem.
-const FIRMWARE_PUBKEY_B64: &str = "9inYbAyGpSC4KbNtu1+tT/I5B/jrMDuwmfH3SsS1u/8=";
+pub const FIRMWARE_PUBKEY_B64: &str = "9inYbAyGpSC4KbNtu1+tT/I5B/jrMDuwmfH3SsS1u/8=";
 const RELEASES: &str = "https://github.com/yuhina0515/IRMS-Firmware/releases";
 const MAX_FIRMWARE_BYTES: u64 = 4 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);

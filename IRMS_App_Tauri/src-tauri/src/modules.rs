@@ -15,8 +15,8 @@ use tauri::Manager;
 
 use crate::firmware_update::{client, get_bytes};
 
-/// Raw 32-byte Ed25519 public key (base64) matching IRMS_secrets/irms_modules_ed25519.pem.
-const MODULES_PUBKEY_B64: &str = "rmTFnYTSMzLCrqDW0Hv3e6gKKXFODYhxd1zkvmWceG0=";
+// Public key is single-sourced from IRMS_Core so a rotation cannot diverge between apps.
+use irms_core::modules::MODULES_PUBKEY_B64;
 const RELEASES: &str = "https://github.com/yuhina0515/IRMS-Modules/releases";
 const MAX_MODULE_BYTES: u64 = 512 * 1024;
 
