@@ -107,9 +107,11 @@ Tauri app is frozen the way the Electron app was.
 
 ## Status (2026-11-16)
 
+> **Updated 2026-11-26** (annotations below; older text kept as history): main = `5fdff10`; the native stack PRs #9 to #13 were merged on 2026-11-22; latest native release is `v1.3.0-beta.13` (2026-11-22); modules are independently updatable (D2 reversed 2026-11-22; IRMS-Modules `v2026.11.22` published, but its session-tips package needs app beta.14, not yet released); the BLE transport runs for real by default (real-device evidence since 2026-11-17). Open: device acceptance (OTA on Windows, CSV in Excel, renderer/IME), signing, beta.14 release.
+
 - The owner requested the first native installer as `v1.3.0-beta.1`; see
   [[2026-11-16-native-beta1-installer]]. This is a separate, unsigned test release,
-  with no Tauri updater cutover or claim of feature parity. The existing database
+  with ~~no Tauri updater cutover~~ (2026-11-26: the cutover happened in beta.6) and no claim of feature parity. The existing database
   isolation remains in place. Public code signing is still pending.
 - Phase 0: measured, see `doc/coding log/log_20261116_rust_native_phase1_prototype.md`. Cold start to first
   frame and installer size are still owed.
@@ -120,7 +122,7 @@ Tauri app is frozen the way the Electron app was.
 - Phase 3: started 2026-11-16 at the owner's request (earlier than the D1 default). Slice 1 done: `IRMS_Core`
   holds types, protocol, defaults, downsample, migrations, ble_lifecycle, db; see
   `log_20261116_rust_native_phase3_core_slice1.md`. Slice 2 done: the BLE transport is in the core
-  behind a `BleHost` trait (needs a real-device run before merging). Telemetry, firmware and modules still in `src-tauri`.
+  behind a `BleHost` trait (~~needs a real-device run before merging~~ 2026-11-26: merged to main with #9 to #13 on 2026-11-22; real connection and streaming were seen on a device 2026-11-17). Telemetry, firmware and modules still in `src-tauri`.
 - Phase 4: started. `judge.rs` in the core ports movementMetric, guidance and triggerEngine with 37 tests;
   the native prototype judges with it. See `log_20261116_rust_native_phase4_judge.md`.
   Also ported and checked call by call against the TypeScript on shared fixtures: session analysis, angle
@@ -131,12 +133,12 @@ Tauri app is frozen the way the Electron app was.
   The native session feedback slice (ordered BLE effects, mute/rearm, Windows
   speech, stop/fault/close ownership and normalized snapshots) is implemented;
   see [[log_20261116_native_session_feedback]]. Complete controller/reconnection
-  parity, mobility flow, translations and the other listed gates remain open.
+  parity, ~~mobility flow~~ (done 2026-11-17, beta.2), translations and the other listed gates remain open.
 - 2026-11-17: mobility measurement, the calibration flow (presets, leg, quick re-zero, restore at startup)
   and the pre-session wearing check are ported and shown in the native app, see
   [[log_20261117_native_mobility_wearing]]; released as `v1.3.0-beta.2`. Simulated rig only. Still open:
   legacy/Euler branch (deliberately not ported), phase 5 (updater cutover, single instance, file dialogs,
-  Electron migration), phase 6 modules (D2), 3D leg (D3), signing and physical-device acceptance.
+  Electron migration), phase 6 modules (D2; ~~built in~~ reversed 2026-11-22, see D2), 3D leg (D3), signing and physical-device acceptance.
 - New open point: renderer choice. Software renderer about 8 MB private, GL about 100 MB; the GL window could
   not be confirmed on screen from a remote capture.
 
@@ -144,13 +146,13 @@ Tauri app is frozen the way the Electron app was.
   (beta.3), the Tauri updater cutover and first-launch import of the Tauri database (beta.6), a signed
   self-updater with silent `/SELFUPDATE` installs (beta.9; the laptop updated beta.9 to beta.11 by itself),
   installer/uninstaller that close a running app, firmware check and OTA UI (beta.5, beta.10). Phase 6 follows
-  D2: modules are built into the program. D3: the 3D leg stays a projected drawing. D5: Slint license read against
+  D2: ~~modules are built into the program~~ (2026-11-26: reversed 2026-11-22, modules are independently updatable). D3: the 3D leg stays a projected drawing. D5: Slint license read against
   the IRMS license, no conflict ([[log_20261117_slint_license_review]]). Real-device evidence (from telemetry):
   connection, streaming, calibration, one session; beta.1 to beta.6 had run the simulator by default, fixed in
   beta.7 ([[log_20261117_native_real_ble_default]]). Windows holding a paired device makes the app unable to find it
   ([[log_20261117_native_connect_retry_and_ota]]). Still open: OTA on hardware (never seen to finish on Windows),
-  CSV in Excel, renderer choice and IME, signing (owner: not now), Phase 7 parity checklist and cutover, merge of the
-  PR stack #9 to #12. Dependency audit: [[log_20261117_dependency_audit]].
+  CSV in Excel, renderer choice and IME, signing (owner: not now), Phase 7 parity checklist and cutover, ~~merge of the
+  PR stack #9 to #12~~ (2026-11-26: PRs #9 to #13 merged 2026-11-22). Dependency audit: [[log_20261117_dependency_audit]].
 
 ## Open decisions for the owner
 

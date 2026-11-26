@@ -97,7 +97,8 @@ export struct ModuleItem { id: string, name: string, note: string, installed: st
 export struct RangeRow { id: string, text: string, current: bool }
 export struct SessionRow { id: string, started: string, action: string, reps: int, duration: string, demo: bool, summary: string }
 
-// Simulated app state shared by all screens (phase 2: no real device or database behind it).
+// App state shared by all screens. main.rs fills it from the Store (SQLite) and the real BLE
+// connection by default; with --simulate the simulator feeds it instead.
 export global App {
     in property <string> preferences-status;
     in property <bool> preferences-can-retry;

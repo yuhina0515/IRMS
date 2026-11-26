@@ -1,5 +1,6 @@
 // IRMS native prototype shell: top navigation, the five screens, calibration wizard.
-// Simulated data only; not connected to the shipping app. No page-level scrolling anywhere.
+// Data comes from the App global: the Store and real BLE by default, the simulator with --simulate.
+// No page-level scrolling anywhere.
 import { Theme, Btn, Card, Chip, App } from "theme.slint";
 import { Live, LiveView } from "live.slint";
 import { ActionsView, HistoryView, ToolsView, SettingsView } from "pages.slint";
