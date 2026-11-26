@@ -24,7 +24,7 @@ InstallDir "$LOCALAPPDATA\Programs\IRMS Native Beta"
 InstallDirRegKey HKCU "Software\IRMS\NativeBeta" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "1.3.0.13"
+VIProductVersion "1.3.0.14"
 VIAddVersionKey /LANG=1033 "ProductName" "IRMS Native Beta"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
@@ -99,6 +99,24 @@ Function CloseRunningApp
   Pop $R5
   Sleep 1000
   close_done:
+  ; The process can be gone while its .exe is still locked for a moment (antivirus scan, handle
+  ; teardown); seen in test-installer.ps1 as a failed copy right after a successful close. Wait up to
+  ; 15 s for the file to be writable before the copy.
+  IfFileExists "$INSTDIR\irms_app_native.exe" 0 unlock_done
+  StrCpy $R7 0
+  unlock_wait:
+    ClearErrors
+    FileOpen $R8 "$INSTDIR\irms_app_native.exe" a
+    IfErrors unlock_retry
+    FileClose $R8
+    Goto unlock_done
+  unlock_retry:
+    IntOp $R7 $R7 + 1
+    IntCmp $R7 30 unlock_done
+    Sleep 500
+    Goto unlock_wait
+  unlock_done:
+  ClearErrors
 FunctionEnd
 
 ; Removes the Tauri app (not its data: the native app imports that on first launch).
@@ -129,14 +147,14 @@ Section "IRMS Native Beta" SEC_MAIN
   ClearErrors
   File /oname=irms_app_native.exe "${APP_EXE}"
   IfErrors 0 +3
-    MessageBox MB_ICONSTOP "Close IRMS Native Beta before installing."
+    MessageBox MB_ICONSTOP "Close IRMS Native Beta before installing." /SD IDOK
     Abort
   File /oname=vcruntime140.dll "${VC_RUNTIME}"
   File "README.txt"
   File /oname=LICENSE.txt "..\..\LICENSE"
   File /oname=THIRD-PARTY-NOTICES.txt "${NOTICES_FILE}"
   IfErrors 0 +3
-    MessageBox MB_ICONSTOP "Could not install all application files. Close IRMS and retry."
+    MessageBox MB_ICONSTOP "Could not install all application files. Close IRMS and retry." /SD IDOK
     Abort
   CreateDirectory "$SMPROGRAMS\IRMS Native Beta"
   Delete "$SMPROGRAMS\IRMS Native Beta\IRMS Device (Experimental).lnk"
