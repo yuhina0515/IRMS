@@ -75,3 +75,17 @@ test('a viewer with an up-to-date version waits, then gets the next push', async
   assert.equal(status, 200)
   assert.deepEqual(body.state, { reps: 1 })
 })
+
+test('a malformed percent escape in the share code is a 400, not a throw', async () => {
+  const { call } = harness()
+  assert.equal((await call('GET', '/v1/share/%E0%A4%A'))[0], 400)
+})
+
+test('a non-numeric after parameter answers at once instead of waiting', async () => {
+  const { call } = harness()
+  const [, s] = await call('POST', '/v1/share', { body: { runId: 'run-live-1' } })
+  const [, v] = await call('POST', `/v1/share/${s.code}/join`, { body: {} })
+  await call('POST', `/v1/share/${s.code}/state`, { token: s.hostToken, body: { state: { reps: 1 } } })
+  const [status] = await call('GET', `/v1/share/${s.code}/state`, { token: v.viewerToken, params: 'after=abc' })
+  assert.equal(status, 200)
+})
