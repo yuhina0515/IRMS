@@ -21,6 +21,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-26 原生 v1.3.0-beta.14 發布** · [[log_20261126_native_beta14_release]]: 首個含可獨立更新模組套件的版本,`beta-latest` 已指向 beta.14;安裝程式在靜默更新時會等候舊程式檔解除鎖定(安裝測試曾間歇失敗)。
 - **2026-11-26 無裝置調查與修正** · [[log_20261126_device_free_audit]]: Haiku 調查架構與完成度,Sonnet 實作 4 項:CI 加入原生 App 與遙測測試、遙測對畸形請求回 400/413、Tauri 簽章公鑰改由 IRMS_Core 單一來源、現況文件更新。分支 `chore/device-free-20261126`,未合併、遙測未部署。
 - **2026-11-23 PR 與分支整理** · [[log_20261123_pr_tidy_up]]: 合併 #14、#15(#7/#8 的程式修正)、#16(文獻庫,取代 #1);#7/#8 關閉;#5 維持開啟並標注 needs-split;刪除 11 個已合併分支;iOS 分支保留。
 - **2026-11-23 專業知識與文獻資料庫** ([README](knowledge-base/README.md) · [Log](coding%20log/log_20261016_hyperextension_and_alert_wording_evidence.md)): 222 筆來源、24 個主題、13 篇導讀,含離線搜尋與引用匯出;過度伸直文獻僅以 5° 作為靜態或被動切點,動態 -5° 警示尚無證據基礎,候選用語待 V11。僅附書目資訊與本專案自寫摘要,不含第三方摘要全文。
