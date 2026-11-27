@@ -26,8 +26,8 @@ coding log,不憑印象轉述。
 | PR | 已合併:#2 到 #4、#6、#9 到 #17(#9 到 #13 原生線於 2026-11-22 合併;#14 行動版移植紀錄;#15 取得 #7/#8 的程式修正,#7/#8 已關閉、分支保留;#16 文獻庫,取代 #1;#17 PR 整理紀錄)。唯一開啟:#5(草稿,標籤 needs-split) |
 | 測試(2026-11-26 於 `5fdff10` 實跑) | `IRMS_Core` 232 通過、6 略過;`IRMS_App_Native` 67 通過、1 略過。前端(Tauri)本次**未重跑** |
 | DB schema | `PRAGMA user_version = 10`(`IRMS_Core/src/migrations.rs`) |
-| CI | `main` 上的 `.github/workflows/ci.yml` 只跑 Tauri 的 `npm run ci`(其中含 `IRMS_Core` 的 fmt/test/clippy);原生 App 與遙測的 job 已加在分支 `chore/device-free-20261126`,尚未進 `main` |
-| 實機驗收追蹤 | GitHub 上沒有任何 issue;實機驗收項目尚未建成 issue。實機證據與「仍無實機證據」清單仍照 11-18 總表(未重新驗證) |
+| CI | `main` 上的 `.github/workflows/ci.yml` 只跑 Tauri 的 `npm run ci`(其中含 `IRMS_Core` 的 fmt/test/clippy);2026-11-26 起另有原生 App(fmt/test/clippy)與遙測(`node --test`)job(PR #18) |
+| 實機驗收追蹤 | 2026-11-26 已開 issue #19 到 #23(標籤 `needs-device`:Windows OTA、CSV/Excel、渲染器與輸入法、暫定門檻、統一校準 S9)。實機證據與「仍無實機證據」清單仍照 11-18 總表(未重新驗證) |
 | Android / iOS | 皆暫停(iOS 2026-10-15;Android 2026-11-16),不變 |
 
 ## 2026-11-18 文件校準:現況總表(以本節為準,與下方任何舊敘述衝突時以本節為準)

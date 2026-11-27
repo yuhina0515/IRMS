@@ -38,7 +38,14 @@ Snapshot: `git archive` of `5fdff10` in the session temp folder. Workers did not
 | `8e07468` | C1: CI jobs `native-app` (fmt, test, clippy -D warnings, Windows) and `telemetry` (node --test, Node 24) | same commands pass locally; first GitHub run is the real check |
 | `ec618c7` | C3: Tauri crate imports the firmware and module public keys from IRMS_Core (values were identical) | Core 232, Tauri Rust 43 tests, fmt and clippy clean; native builds |
 
-Not deployed: the telemetry fix is code only; the collector on hina-server still runs the old version.
+Merged as PR #18 (`e53363f`); all three CI jobs passed on GitHub (native-app 7 min, tauri-app 8.5 min, telemetry 7 s).
+
+## Owner decisions and follow-up (same day)
+
+Owner chose: merge #18, open the device issues, deploy telemetry with a loopback bind, hold beta.14.
+
+- Telemetry deployed to hina-server: backups `*.bak-20261126` of server.mjs, share.mjs, docker-compose.yml; the deployed files had matched the repo apart from line endings. Port now `127.0.0.1:8120`. Checks: `/v1/health` 200 and authed `/v1/runs` 200 via Caddy; on the host, malformed share code returns 400 `bad share code` and a declared 5 MB ingest returns 413; port 8120 refused from the public name and the LAN IP; Caddy upstream connections still arrive from `172.23.0.1`, so the trusted-proxy client IP logic is unchanged; no errors in the container log.
+- Issues #19 to #23 opened with label `needs-device`.
 
 ## Rejected or not taken
 
@@ -55,5 +62,5 @@ Not deployed: the telemetry fix is code only; the collector on hina-server still
 
 ## Still open
 
-- Owner decisions: open GitHub issues for device acceptance (OTA on Windows, CSV in Excel, renderer/IME, provisional thresholds, unified calibration S9); stable `v1.2.0` target of 2026-12-01; beta.14 release; telemetry redeploy and port binding.
+- beta.14 held by the owner until device testing. Stable `v1.2.0` target of 2026-12-01 not reconfirmed.
 - Frontend `npm run ci` not rerun (no TS touched).
