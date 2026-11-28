@@ -825,6 +825,8 @@ fn describe_ota_error(status_text: &str) -> String {
         "NOT_STARTED" => "尚未送出 OTA:START 就收到 END".to_string(),
         "SIZE_MISMATCH" => "實際收到的位元組數與宣告的大小不符,更新已中止".to_string(),
         "WRITE_FAIL" => "寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)".to_string(),
+        "TIMEOUT" => "裝置太久沒有收到資料,已中止更新;請重試".to_string(),
+        "NOT_CONFIRMED_YET" => "裝置剛更新完,正在確認新韌體;請等幾秒再試".to_string(),
         other => format!("裝置回報錯誤:{other}"),
     }
 }
