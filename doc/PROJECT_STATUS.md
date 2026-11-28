@@ -21,8 +21,8 @@ coding log,不憑印象轉述。
 | 項目 | 現況 |
 |---|---|
 | 出貨線(Tauri) | 已發布 `v1.2.0-beta.25`(prerelease)仍是最新的 Tauri 發布;`main` 原始碼版本同為 `1.2.0-beta.25`。目標:2026-12-01 前發佈穩定版 `v1.2.0`(2026-11-10 指定) |
-| 原生線(Rust/Slint) | 最新發布 `v1.3.0-beta.13`(2026-11-22,未簽章 pre-release);`beta-latest/latest.json` 指向 beta.13。beta.14(第一個含模組套件的版本)**尚未發布**。Tauri 自動更新已於 beta.6 切換到原生(見 `doc/plans/2026-11-16-rust-native-ui-plan.md`) |
-| 模組 | IRMS-Modules `v2026.11.22` 已發布(簽章索引;session-tips 1.0.0,minApp `1.3.0-beta.14`,故在 beta.14 發布前不會生效)。D2 已於 2026-11-22 翻案:模組可獨立更新 |
+| 原生線(Rust/Slint) | 最新發布 `v1.3.0-beta.15`(2026-11-28,未簽章 pre-release);`beta-latest/latest.json` 指向 beta.15。韌體最新 `v1.0.1-beta.3`(IRMS-Firmware,同日發布)。Tauri 自動更新已於 beta.6 切換到原生(見 `doc/plans/2026-11-16-rust-native-ui-plan.md`) |
+| 模組 | IRMS-Modules `v2026.11.22` 已發布(簽章索引;session-tips 1.0.0,minApp `1.3.0-beta.14`,beta.14 起生效)。D2 已於 2026-11-22 翻案:模組可獨立更新 |
 | PR | 已合併:#2 到 #4、#6、#9 到 #17(#9 到 #13 原生線於 2026-11-22 合併;#14 行動版移植紀錄;#15 取得 #7/#8 的程式修正,#7/#8 已關閉、分支保留;#16 文獻庫,取代 #1;#17 PR 整理紀錄)。唯一開啟:#5(草稿,標籤 needs-split) |
 | 測試(2026-11-26 於 `5fdff10` 實跑) | `IRMS_Core` 232 通過、6 略過;`IRMS_App_Native` 67 通過、1 略過。前端(Tauri)本次**未重跑** |
 | DB schema | `PRAGMA user_version = 10`(`IRMS_Core/src/migrations.rs`) |
@@ -37,7 +37,7 @@ coding log,不憑印象轉述。
 | 項目 | 現況 |
 |---|---|
 | 出貨線(Tauri) | 已發布 `v1.2.0-beta.25`(2026-10-17,prerelease);`main` 原始碼版本同為 `1.2.0-beta.25`。目標:2026-12-01 前發佈穩定版 `v1.2.0`(2026-11-10 指定) |
-| 原生線(Rust/Slint) | 已發布 `v1.3.0-beta.11`(2026-11-17 07:25Z,未簽章 pre-release;2026-11-17 單日 beta.2 到 beta.11)。出貨者仍是 Tauri,原生版尚未取代它 |
+| 原生線(Rust/Slint) | 最新發布 `v1.3.0-beta.15`(2026-11-28,未簽章 pre-release);`beta-latest/latest.json` 指向 beta.15。韌體最新 `v1.0.1-beta.3`(IRMS-Firmware,同日發布)。Tauri 自動更新已於 beta.6 切換到原生(見 `doc/plans/2026-11-16-rust-native-ui-plan.md`) |
 | 進行中、尚未提交 | 原生 `1.3.0-beta.12` 版號變更(`pure-rust-ui` worktree,7 個檔案未提交,內容為自動重連、鎖逾時、rusqlite 0.43 等 beta.12 說明);Tauri `1.2.0-rc.1` 版號變更(`integrate-beta26` worktree,6 個檔案未提交)。兩者都不是已發布版本 |
 | PR | 已合併:#2(安全政策)、#3(2026-10-17)、#4(2026-10-20)、#6(2026-11-10)。草稿未合併:#7 訓練中大腿位移偵測、#8 架構審查、#9 到 #12 原生線(#9 beta.1 安裝包、#10 療程回饋與連續保持、#11 處方與偏好、#12 活動度/穿戴檢查/對等清單,四者堆疊,#12 為頂端)、#5 其餘部分。開啟:#1 證據庫 |
 | 測試(2026-11-18 於 `044839d` 實跑) | 前端 722 通過 / 75 檔;`IRMS_Core` 195 通過、6 略過;`IRMS_App_Native` 47 通過、1 略過。Tauri 端 Rust 測試、Clippy、rustfmt 本次**未重跑** |
