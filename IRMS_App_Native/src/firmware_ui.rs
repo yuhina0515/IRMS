@@ -53,6 +53,8 @@ struct Inner {
     sent: usize,
     total: usize,
     message: String,
+    /// The owner pressed abort; checked after the download, before anything is sent to the device.
+    cancelled: bool,
 }
 
 #[derive(Clone, Default)]
@@ -145,6 +147,7 @@ impl FirmwareCheck {
                 return;
             }
             inner.phase = OtaPhase::Downloading;
+            inner.cancelled = false;
             inner.sent = 0;
             inner.total = 0;
             inner.message = format!("下載並驗證韌體 v{version}…");
@@ -160,7 +163,9 @@ impl FirmwareCheck {
                     return;
                 }
             };
-            this.lock().phase = OtaPhase::Starting;
+            if !this.begin_transfer() {
+                return;
+            }
             match ble_perform_ota_update(&host, host.ble(), image.data, image.md5).await {
                 Ok(message) => this.finish(
                     OtaPhase::Done,
@@ -174,12 +179,28 @@ impl FirmwareCheck {
         });
     }
 
+    /// Moves from download to transfer, unless the owner aborted meanwhile.
+    fn begin_transfer(&self) -> bool {
+        let mut inner = self.lock();
+        if inner.cancelled {
+            inner.phase = OtaPhase::Error;
+            inner.message = "已中止更新,沒有傳送任何資料到裝置".into();
+            return false;
+        }
+        inner.phase = OtaPhase::Starting;
+        true
+    }
+
     /// Asks the device to drop the running transfer; the transfer then ends with an error.
     pub fn abort(&self, ble: Arc<BleState>, runtime: &tokio::runtime::Handle) {
         if !self.active() {
             return;
         }
-        self.lock().message = "正在中止更新…".into();
+        {
+            let mut inner = self.lock();
+            inner.cancelled = true;
+            inner.message = "正在中止更新…".into();
+        }
         runtime.spawn(async move {
             let _ = ble_abort_ota(&ble).await;
         });
@@ -306,6 +327,15 @@ mod tests {
             notes: notes.into(),
             app_compatible: true,
         }
+    }
+
+    #[test]
+    fn an_abort_during_the_download_stops_before_the_transfer() {
+        let check = FirmwareCheck::default();
+        check.lock().phase = OtaPhase::Downloading;
+        check.lock().cancelled = true;
+        assert!(!check.begin_transfer());
+        assert!(!check.active());
     }
 
     #[test]
