@@ -34,6 +34,14 @@ wearer. eng-qa (sonnet): review of the final diff.
 6. OTA host (tests only, not run on hardware): bounded the status subscribe and data writes; OTA:DONE that
    arrives despite a failed END write counts; abort during download no longer flashes.
 
+## Review of the diff, and fixes
+- The first version of fix 1 called `peripheral.disconnect()` without the peripheral lock. btleplug holds an
+  internal guard across a pending write or read, so the two could wedge. The listener now uses the coordinated
+  disconnect. Four of four resets reconnected with the probe afterwards (lost seen after about 10 s,
+  reconnect 3-6 s). The app itself was not run again after this review round.
+- `OTA:DONE` now wins even when the END write never returns (test only).
+- Automatic reconnect now stops after more than three consecutive command failures (test only).
+
 ## A session across a link loss
 With a synthetic calibration (`method: bench-seed`, isolated database) a real-device session ran about 90 s.
 A reset during it: the session was closed and saved 5 s later and the app reconnected 10 s after the reset.
@@ -47,10 +55,10 @@ A reset during it: the session was closed and saved 5 s later and the app reconn
 - CSV was exported by calling the app's own `export_csv` from a small program, not through the save dialog.
 - CSV timestamps stay ISO text in Excel (same as the Tauri export).
 - The Tauri app shares the link-loss change; only its Rust tests ran.
-- A persistently failing command would now reconnect again and again until the owner presses disconnect.
 
 ## Problems during the run
 - First grace-period change broke `propagates_write_failure`; the grace is now shorter than the caller limit.
 - One renderer measurement was invalid (not connected after the previous app was killed) and was repeated.
 - Opening the serial port does not always reset the board; the first mid-session attempt tested nothing.
+- The review found a lock-order defect in the first link-loss fix (see above).
 - Someone used the desktop during the last UI step (theme changed), so UI automation stopped there.

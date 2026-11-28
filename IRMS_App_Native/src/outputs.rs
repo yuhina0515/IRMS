@@ -59,7 +59,10 @@ impl Device for NativeHost {
         ble::ble_drop_failed_link(self, &self.state, epoch).await
     }
 }
-async fn execute_job(job: Job, device: &impl Device, events: &Events) {
+/// Consecutive command failures after which the app stops reconnecting by itself.
+const MAX_FAILED_RECONNECTS: u32 = 3;
+
+async fn execute_job(job: Job, device: &impl Device, events: &Events, failures: &mut u32) {
     let report = |epoch, error| {
         let _ = events.send((
             Receipt::now(),
@@ -69,23 +72,29 @@ async fn execute_job(job: Job, device: &impl Device, events: &Events) {
     };
     match job {
         Job::Command(epoch, text) => {
-            if let Err(error) = watched(
+            let sent = watched(
                 device.command(epoch, text),
                 events,
                 "裝置指令",
                 Duration::from_secs(15),
             )
-            .await
-            {
-                if error != CANCELLED {
+            .await;
+            match sent {
+                Ok(()) => *failures = 0,
+                Err(error) if error == CANCELLED => {}
+                Err(error) => {
                     report(epoch, error);
-                    if let Err(error) = watched(
-                        device.drop_failed_link(epoch),
-                        events,
-                        "裝置斷線",
-                        Duration::from_secs(15),
-                    )
-                    .await
+                    *failures += 1;
+                    // A device that connects but refuses every command must not reconnect forever.
+                    let cleanup = async {
+                        if *failures > MAX_FAILED_RECONNECTS {
+                            device.disconnect(Some(epoch)).await
+                        } else {
+                            device.drop_failed_link(epoch).await
+                        }
+                    };
+                    if let Err(error) =
+                        watched(cleanup, events, "裝置斷線", Duration::from_secs(15)).await
                     {
                         report(epoch, error);
                     }
@@ -132,9 +141,10 @@ impl Outputs {
         let worker_host = host.clone();
         let worker_events = events.clone();
         rt.spawn(async move {
+            let mut failures = 0;
             while let Some(job) = rx.recv().await {
                 if let Some(host) = &worker_host {
-                    execute_job(job, host, &worker_events).await;
+                    execute_job(job, host, &worker_events, &mut failures).await;
                 }
             }
         });
@@ -299,8 +309,8 @@ mod tests {
         }
         let (tx, rx) = mpsc::channel();
         let fake = Fake::default();
-        execute_job(Job::Command(7, "CMD:LED_OFF".into()), &fake, &tx).await;
-        execute_job(Job::Disconnect(Some(7), true), &fake, &tx).await;
+        execute_job(Job::Command(7, "CMD:LED_OFF".into()), &fake, &tx, &mut 0).await;
+        execute_job(Job::Disconnect(Some(7), true), &fake, &tx, &mut 0).await;
         assert_eq!(
             *fake.calls.lock().unwrap(),
             vec!["CMD:LED_OFF", "disconnect Some(7)", "disconnect None"]
@@ -337,8 +347,15 @@ mod tests {
         }
         let (tx, _rx) = mpsc::channel();
         let fake = Fake::default();
-        execute_job(Job::Command(7, "CMD:LED_OFF".into()), &fake, &tx).await;
-        assert_eq!(*fake.calls.lock().unwrap(), vec!["lost"]);
+        let mut failures = 0;
+        for _ in 0..4 {
+            let job = Job::Command(7, "CMD:LED_OFF".into());
+            execute_job(job, &fake, &tx, &mut failures).await;
+        }
+        assert_eq!(
+            *fake.calls.lock().unwrap(),
+            vec!["lost", "lost", "lost", "manual"]
+        );
     }
     #[tokio::test]
     async fn watchdog_reports_wait_without_dropping_the_device_operation() {

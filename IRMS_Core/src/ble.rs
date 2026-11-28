@@ -59,6 +59,7 @@ const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(1500);
 /// `reason` of the `ble:connection` event published when the link drops by itself. Hosts start their
 /// auto-reconnect on it.
 pub const LINK_LOST_REASON: &str = "notification_stream_ended";
+const MANUAL_REASON: &str = "manual";
 /// How long the notification stream may stay silent before the link state is asked.
 const LINK_POLL: Duration = Duration::from_millis(500);
 /// How long a status may still arrive after the write that asked for it reported an error.
@@ -141,6 +142,7 @@ impl BleState {
     }
 
     // 等待裝置鎖之後才核對世代；所有拆除副作用都在 peripheral -> epoch 的鎖序內執行。
+    #[cfg(test)]
     async fn with_current_peripheral<R>(
         &self,
         generation: u64,
@@ -413,38 +415,12 @@ fn spawn_notification_listener<H: BleHost>(
                 );
             }
         }
-        // A manual disconnect or a newer connect already owns the UI state; stay silent.
-        let state = app.ble();
-        // Release the OS handle first: a kept one lets Windows take the device back, and a connected
-        // device does not advertise, so the reconnect scan would not find it.
-        if state.with_current(generation, || ()).is_some() {
-            let _ = tokio::time::timeout(DISCONNECT_TIMEOUT, peripheral.disconnect()).await;
-        }
-        // 先等待 peripheral，再於同一個短鎖內重新核對世代及發布斷線，避免等待跨越新連線。
-        let _ = state
-            .with_current_peripheral(generation, |peripheral| {
-                // Stream ended — device disconnected. Drop the dead handle so later commands report
-                // "not connected" instead of writing to a stale peripheral.
-                *peripheral = None;
-                // Web Bluetooth's gattserverdisconnected has a
-                // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
-                // stream) that a full reconnect-loop port should listen to separately; this skeleton
-                // only reports the notification stream closing, not full reconnect orchestration.
-                app.record(
-                    "connection",
-                    json!({ "connected": false, "reason": LINK_LOST_REASON }),
-                );
-                app.emit(
-                    "ble:connection",
-                    ConnectionEvent {
-                        generation: None,
-                        connected: false,
-                        device_name: None,
-                        reason: Some(LINK_LOST_REASON),
-                    },
-                );
-            })
-            .await;
+        // A manual disconnect or a newer connect already owns the UI state: the generation check
+        // inside keeps this silent. The teardown holds the peripheral lock because btleplug keeps an
+        // internal guard across a pending write or read, and its disconnect() would block on it.
+        // It also releases the OS handle: a kept one lets Windows take the device back, and a
+        // connected device does not advertise, so the reconnect scan would not find it.
+        let _ = disconnect(&app, app.ble(), Some(generation), LINK_LOST_REASON).await;
     }));
 }
 
@@ -591,7 +567,7 @@ async fn setup_connection(
 }
 
 pub async fn ble_disconnect<H: BleHost>(app: &H, state: &BleState) -> Result<(), String> {
-    disconnect(app, state, None, false).await
+    disconnect(app, state, None, MANUAL_REASON).await
 }
 
 /// Tears down a connection whose command write failed. On Windows the write times out before the link
@@ -601,7 +577,7 @@ pub async fn ble_drop_failed_link<H: BleHost>(
     state: &BleState,
     generation: u64,
 ) -> Result<(), String> {
-    disconnect(app, state, Some(generation), true).await
+    disconnect(app, state, Some(generation), "command_failed").await
 }
 
 /// 只收尾指定世代，避免延遲的指令錯誤中斷新連線。
@@ -610,14 +586,14 @@ pub async fn ble_disconnect_for_generation<H: BleHost>(
     state: &BleState,
     generation: u64,
 ) -> Result<(), String> {
-    disconnect(app, state, Some(generation), false).await
+    disconnect(app, state, Some(generation), MANUAL_REASON).await
 }
 
 async fn disconnect<H: BleHost>(
     app: &H,
     state: &BleState,
     expected: Option<u64>,
-    lost: bool,
+    cause: &'static str,
 ) -> Result<(), String> {
     // Retire the listener first so its late stream-end cannot report a second "disconnected".
     ble_lifecycle::disconnect_matching(
@@ -630,7 +606,7 @@ async fn disconnect<H: BleHost>(
                 "connection",
                 json!({
                     "connected": false,
-                    "reason": if lost { "command_failed" } else { "manual" },
+                    "reason": cause,
                     "error": result.as_ref().err()
                 }),
             );
@@ -643,7 +619,7 @@ async fn disconnect<H: BleHost>(
                     generation: None,
                     connected: false,
                     device_name: None,
-                    reason: lost.then_some(LINK_LOST_REASON),
+                    reason: (cause != MANUAL_REASON).then_some(LINK_LOST_REASON),
                 },
             );
         },
@@ -742,34 +718,38 @@ async fn send_and_wait_for_ota_status(
 ) -> Result<String, String> {
     let mut rx = tx.subscribe();
     tokio::time::timeout(timeout, async {
-        // The device restarts right after OTA:DONE, which can fail the write that asked for it: a
-        // matching status that still arrives wins over the write error.
-        if let Err(error) = write.await {
-            // Shorter than the outer limit, so the write error is what gets reported.
-            let grace = OTA_LATE_STATUS_GRACE.min(timeout / 2);
-            let late = tokio::time::timeout(grace, async {
-                while let Ok(text) = rx.recv().await {
+        // The device restarts right after OTA:DONE, so the write that asked for it may fail or never
+        // return. A matching status wins over either; a failed write gets a short grace period.
+        let grace = OTA_LATE_STATUS_GRACE.min(timeout / 2);
+        let mut failed: Option<(String, tokio::time::Instant)> = None;
+        let mut writing = true;
+        tokio::pin!(write);
+        loop {
+            let give_up = failed.as_ref().map(|(_, at)| *at);
+            tokio::select! {
+                biased;
+                status = rx.recv() => {
+                    let text = status.map_err(|err| format!("OTA status channel: {err}"))?;
+                    if text.starts_with("OTA:ERROR:") {
+                        return Err(describe_ota_error(&text));
+                    }
+                    if text == "OTA:ABORTED" {
+                        return Err("OTA update aborted".to_string());
+                    }
                     if predicate(&text) {
-                        return Some(text);
+                        return Ok(text);
                     }
                 }
-                None
-            });
-            return late.await.ok().flatten().ok_or(error);
-        }
-        loop {
-            let text = rx
-                .recv()
-                .await
-                .map_err(|err| format!("OTA status channel: {err}"))?;
-            if text.starts_with("OTA:ERROR:") {
-                return Err(describe_ota_error(&text));
-            }
-            if text == "OTA:ABORTED" {
-                return Err("OTA update aborted".to_string());
-            }
-            if predicate(&text) {
-                return Ok(text);
+                written = &mut write, if writing => {
+                    writing = false;
+                    if let Err(error) = written {
+                        failed = Some((error, tokio::time::Instant::now() + grace));
+                    }
+                }
+                _ = tokio::time::sleep_until(give_up.unwrap_or_else(tokio::time::Instant::now)),
+                    if give_up.is_some() => {
+                    return Err(failed.map(|(error, _)| error).unwrap_or_default());
+                }
             }
         }
     })
@@ -1115,6 +1095,23 @@ mod ota_tests {
             async move {
                 sender.send("OTA:DONE".to_string()).unwrap();
                 Err("device unreachable".to_string())
+            },
+            |s| s == "OTA:DONE",
+            Duration::from_secs(10),
+        )
+        .await;
+        assert_eq!(result, Ok("OTA:DONE".to_string()));
+    }
+
+    #[tokio::test]
+    async fn a_done_status_does_not_wait_for_a_write_that_never_returns() {
+        let (tx, _keep) = broadcast::channel(4);
+        let sender = tx.clone();
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async move {
+                sender.send("OTA:DONE".to_string()).unwrap();
+                std::future::pending::<Result<(), String>>().await
             },
             |s| s == "OTA:DONE",
             Duration::from_secs(10),
