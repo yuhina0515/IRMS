@@ -78,8 +78,31 @@ A reset during it: the session was closed and saved 5 s later and the app reconn
 - The review found a lock-order defect in the first link-loss fix (see above).
 - Someone used the desktop during the last UI step (theme changed), so UI automation stopped there.
 
-## Follow-up: remaining OTA gaps (in progress)
-- Owner: the afternoon jitter is the unit lying on Hina-PC next to a blower-fan GTX 1070. The morning noise
-  figures were taken on the same spot and include some of that vibration.
-- App: disconnect and window close are refused while an OTA transfers (tests and clippy pass, not yet on the
-  board). Firmware changes planned in [[2026-11-28-remaining-ota-gaps-plan]].
+## Follow-up: remaining OTA gaps
+Plan: [[2026-11-28-remaining-ota-gaps-plan]]. Owner input: the afternoon jitter is the unit lying on Hina-PC next
+to a blower-fan GTX 1070; the morning noise figures were taken on the same spot and include some of it.
+Review before flashing: eng-qa (sonnet), findings applied (manual app install during OTA, guard only while
+linked, refuse OTA while the image is unconfirmed).
+
+App (PR #27): disconnect, window close and manual install are refused while an OTA transfers.
+Firmware (IRMS-Firmware draft PR #2, 1.0.1-beta.3, not tagged or released): restart from loop() so OTA:DONE is
+sent; 60 s idle timeout; rollback until a client has been connected for 3 s.
+
+On the board (dev build, core 3.3.11):
+- From the new firmware the host received `OTA:DONE` and reported success.
+- Reset with no client after the update: back to 1.0.1-beta.2.
+- Confirmed by a client, then reset: stayed on 1.0.1-beta.3 with beta.2 in the other slot. (A first attempt had
+  beta.3 in both slots and proved nothing; it was repeated.)
+- No data after OTA:START: `OTA:ERROR:TIMEOUT` at 60 s, link kept, next start accepted.
+- Start before confirmation: `OTA:ERROR:NOT_CONFIRMED_YET`.
+
+App on the board (final code): disconnect and close refused mid-transfer, update beta.1 to beta.2 ended with only
+the success line, and a board reset afterwards reconnected. Telemetry run id for #19:
+`4f7046c4-c75a-424e-ba94-adfe115ff9f9`. After the reconnect the app sends one harmless `OTA:ABORT` (cleanup of
+the failed END write on released firmware).
+
+Board left on the released 1.0.1-beta.2. Flash backups: `full_flash_4MB.bin` (beta.1 state) and
+`full_flash_4MB_beta2.bin` in `E:\Monitoring-and-IoT\IRMS_firmware_backup6-11-28\`.
+
+Still open: no test with an image that crashes or never advertises; the core 3.0.7 build is only compiled by CI;
+#21 (laptop renderer, IME), #22 and #23 need a person; #20 was not run through the save dialog.
