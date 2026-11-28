@@ -1,6 +1,6 @@
 # IRMS Native Beta
 
-Windows x64 Rust/Slint application, version `1.3.0-beta.14`. Early test release:
+Windows x64 Rust/Slint application, version `1.3.0-beta.15`. Early test release:
 feature parity and physical device acceptance are incomplete. The existing Tauri
 release remains the shipping application.
 
