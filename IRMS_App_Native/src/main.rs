@@ -771,9 +771,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let updater = updater.clone();
         let sim = sim.clone();
         let ui_w = ui.as_weak();
+        let firmware = firmware.clone();
         app.on_update_install(move || {
             let Some(ui) = ui_w.upgrade() else { return };
-            if update_idle(&ui, &sim.borrow()) {
+            // The installer ends the app by force, which would cut a firmware transfer.
+            if update_idle(&ui, &sim.borrow()) && !firmware.active() {
                 updater.install();
             } else {
                 ui.global::<App>()
@@ -842,10 +844,17 @@ fn main() -> Result<(), slint::PlatformError> {
         let connect_timer = connect_timer.clone();
         let host = host.clone();
         let real = real.clone();
+        let firmware = firmware.clone();
         app.on_request_connect(move || {
             let Some(ui) = ui_w.upgrade() else { return };
             let app = ui.global::<App>();
             if sim.borrow().closing || sim.borrow().disconnecting {
+                return;
+            }
+            // Dropping the link would cut the transfer; the firmware page offers a real abort.
+            // Only while linked: after a failed restart the owner must still be able to connect.
+            if firmware.active() && app.get_conn() == 2 {
+                app.set_feedback_error(OTA_BUSY_NOTICE.into());
                 return;
             }
             if let Some(host) = &host {
@@ -930,7 +939,15 @@ fn main() -> Result<(), slint::PlatformError> {
         let sim = sim.clone();
         let sessions = sessions.clone();
         let close_epoch = host.as_ref().map(|h| h.epoch.clone());
+        let firmware = firmware.clone();
         ui.window().on_close_requested(move || {
+            if firmware.active() {
+                if let Some(ui) = ui_w.upgrade() {
+                    ui.global::<App>()
+                        .set_feedback_error(OTA_BUSY_NOTICE.into());
+                }
+                return slint::CloseRequestResponse::KeepWindowShown;
+            }
             if let Some(epoch) = &close_epoch {
                 epoch.fetch_add(1, Ordering::SeqCst);
             }
@@ -1950,6 +1967,8 @@ fn set_history_rows(ui: &MainWindow, sessions: &VecModel<SessionRow>, rows: Vec<
 }
 
 /// Whether a session may start right now (nothing else owns the device, a calibration is in force).
+const OTA_BUSY_NOTICE: &str = "韌體更新進行中:要停止請到「設定 → 軟體與韌體」按中止";
+
 /// Link-loss recovery, like the Tauri app's attemptReconnect: after an unexpected disconnect the app tries
 /// again by itself. Each attempt is a full connect (scan, connect, subscribe) that already retries inside.
 const RECONNECT_ATTEMPTS: u32 = 3;

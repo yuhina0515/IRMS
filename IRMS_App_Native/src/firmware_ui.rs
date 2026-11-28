@@ -11,8 +11,11 @@
 //! transfer leaves the device on its current firmware.
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use irms_core::ble::{ble_abort_ota, ble_perform_ota_update, BleHost, BleState};
+use irms_core::ble::{
+    ble_abort_ota, ble_get_firmware_version, ble_perform_ota_update, BleHost, BleState,
+};
 use irms_core::firmware_update::{check_latest, download_latest, is_newer, FirmwareRelease};
 use serde_json::Value;
 use slint::ComponentHandle;
@@ -53,6 +56,8 @@ struct Inner {
     sent: usize,
     total: usize,
     message: String,
+    /// The owner pressed abort; checked after the download, before anything is sent to the device.
+    cancelled: bool,
 }
 
 #[derive(Clone, Default)]
@@ -130,6 +135,8 @@ impl FirmwareCheck {
         inner.message = message;
         if phase == OtaPhase::Done {
             inner.offer = None;
+            // The check's text still names the old version; the result replaces it.
+            inner.status.clear();
         }
     }
 
@@ -145,6 +152,7 @@ impl FirmwareCheck {
                 return;
             }
             inner.phase = OtaPhase::Downloading;
+            inner.cancelled = false;
             inner.sent = 0;
             inner.total = 0;
             inner.message = format!("下載並驗證韌體 v{version}…");
@@ -160,12 +168,28 @@ impl FirmwareCheck {
                     return;
                 }
             };
-            this.lock().phase = OtaPhase::Starting;
+            if !this.begin_transfer() {
+                return;
+            }
             match ble_perform_ota_update(&host, host.ble(), image.data, image.md5).await {
                 Ok(message) => this.finish(
                     OtaPhase::Done,
                     format!("{message}。裝置重開機後程式會自動重新連線,連上後再按「檢查韌體」確認新版本"),
                 ),
+                // Everything was sent: the firmware restarts before Windows gets the answer to
+                // OTA:END, so an error here says nothing. The version after the restart does.
+                Err(e) if this.phase() == OtaPhase::Finalizing => {
+                    this.lock().message = "傳送完成,等待裝置重開機後確認版本…".into();
+                    let read = || async { ble_get_firmware_version(host.ble()).await.ok().flatten() };
+                    if confirm_version(read, &version, CONFIRM_ATTEMPTS, CONFIRM_GAP).await {
+                        this.finish(OtaPhase::Done, format!("更新完成,裝置已是韌體 v{version}"));
+                    } else {
+                        this.finish(
+                            OtaPhase::Error,
+                            format!("無法確認更新結果:{e}。請等裝置重新連線後按「檢查韌體」確認版本"),
+                        );
+                    }
+                }
                 Err(e) => this.finish(
                     OtaPhase::Error,
                     format!("韌體更新失敗:{e}。裝置仍使用原本的韌體,可以重試"),
@@ -174,16 +198,55 @@ impl FirmwareCheck {
         });
     }
 
+    /// Moves from download to transfer, unless the owner aborted meanwhile.
+    fn begin_transfer(&self) -> bool {
+        let mut inner = self.lock();
+        if inner.cancelled {
+            inner.phase = OtaPhase::Error;
+            inner.message = "已中止更新,沒有傳送任何資料到裝置".into();
+            return false;
+        }
+        inner.phase = OtaPhase::Starting;
+        true
+    }
+
     /// Asks the device to drop the running transfer; the transfer then ends with an error.
     pub fn abort(&self, ble: Arc<BleState>, runtime: &tokio::runtime::Handle) {
         if !self.active() {
             return;
         }
-        self.lock().message = "正在中止更新…".into();
+        {
+            let mut inner = self.lock();
+            inner.cancelled = true;
+            inner.message = "正在中止更新…".into();
+        }
         runtime.spawn(async move {
             let _ = ble_abort_ota(&ble).await;
         });
     }
+}
+
+/// How long the restarted device gets to reconnect and report its version.
+const CONFIRM_ATTEMPTS: u32 = 60;
+const CONFIRM_GAP: Duration = Duration::from_secs(1);
+
+/// True once the device reports `target`. An old or missing answer only means "not yet".
+async fn confirm_version<F>(
+    read: impl Fn() -> F,
+    target: &str,
+    attempts: u32,
+    gap: Duration,
+) -> bool
+where
+    F: std::future::Future<Output = Option<String>>,
+{
+    for _ in 0..attempts {
+        if read().await.as_deref() == Some(target) {
+            return true;
+        }
+        tokio::time::sleep(gap).await;
+    }
+    false
 }
 
 /// The beta app follows the beta firmware channel, like the Tauri app's own update channel.
@@ -220,7 +283,7 @@ pub fn summary(device: Option<&str>, connected: bool, release: &FirmwareRelease)
     }
     if offered(device, connected, release) {
         text.push_str(
-            "\n更新約需數分鐘:期間請保持裝置通電、靠近電腦,不要中斷連線。原生版的 OTA 尚未在實機完成驗證;\
+            "\n更新約需數分鐘:期間請保持裝置通電、靠近電腦,不要中斷連線。\
              失敗或中止時裝置會保留原本的韌體。",
         );
     }
@@ -308,6 +371,29 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn a_restarted_device_confirms_the_update_by_its_version() {
+        let reads = std::cell::Cell::new(0);
+        let read = || {
+            reads.set(reads.get() + 1);
+            let answer = (reads.get() > 2).then(|| "1.0.1-beta.2".to_string());
+            async move { answer }
+        };
+        let gap = Duration::from_millis(1);
+        assert!(confirm_version(read, "1.0.1-beta.2", 5, gap).await);
+        let old = || async { Some("1.0.1-beta.1".to_string()) };
+        assert!(!confirm_version(old, "1.0.1-beta.2", 3, gap).await);
+    }
+
+    #[test]
+    fn an_abort_during_the_download_stops_before_the_transfer() {
+        let check = FirmwareCheck::default();
+        check.lock().phase = OtaPhase::Downloading;
+        check.lock().cancelled = true;
+        assert!(!check.begin_transfer());
+        assert!(!check.active());
+    }
+
     #[test]
     fn the_beta_app_uses_the_beta_channel() {
         assert!(beta_channel("1.3.0-beta.4"));
@@ -322,10 +408,8 @@ mod tests {
         assert!(summary(None, true, &r).contains("沒有回報版本"));
         assert!(summary(None, false, &r).contains("連線裝置後"));
         let s = summary(Some("1.1.0"), true, &r);
-        assert!(
-            s.contains("1465 KB") && s.contains("說明:fix") && s.contains("尚未在實機完成驗證")
-        );
-        assert!(!summary(Some("1.2.0"), true, &r).contains("尚未在實機完成驗證"));
+        assert!(s.contains("1465 KB") && s.contains("說明:fix") && s.contains("更新約需數分鐘"));
+        assert!(!summary(Some("1.2.0"), true, &r).contains("更新約需數分鐘"));
     }
 
     #[test]

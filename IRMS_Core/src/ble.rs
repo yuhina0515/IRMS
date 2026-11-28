@@ -56,6 +56,30 @@ async fn within<T>(
     }
 }
 const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(1500);
+/// `reason` of the `ble:connection` event published when the link drops by itself. Hosts start their
+/// auto-reconnect on it.
+pub const LINK_LOST_REASON: &str = "notification_stream_ended";
+const MANUAL_REASON: &str = "manual";
+/// How long the notification stream may stay silent before the link state is asked.
+const LINK_POLL: Duration = Duration::from_millis(500);
+/// How long a status may still arrive after the write that asked for it reported an error.
+const OTA_LATE_STATUS_GRACE: Duration = Duration::from_secs(3);
+
+/// The next notification, or `None` once the stream ends or the link reports itself down. btleplug's
+/// Windows stream does not end on a lost link while the `Peripheral` is held, so silence is checked.
+async fn next_while_linked<S, F>(stream: &mut S, linked: impl Fn() -> F) -> Option<S::Item>
+where
+    S: futures::Stream + Unpin,
+    F: Future<Output = bool>,
+{
+    loop {
+        match tokio::time::timeout(LINK_POLL, stream.next()).await {
+            Ok(item) => return item,
+            Err(_) if !linked().await => return None,
+            Err(_) => {}
+        }
+    }
+}
 
 /// What the BLE layer needs from the program hosting it. The Tauri app implements this over its
 /// `AppHandle` (events to the WebView, telemetry, the managed `BleState`, Tauri's async runtime);
@@ -118,6 +142,7 @@ impl BleState {
     }
 
     // 等待裝置鎖之後才核對世代；所有拆除副作用都在 peripheral -> epoch 的鎖序內執行。
+    #[cfg(test)]
     async fn with_current_peripheral<R>(
         &self,
         generation: u64,
@@ -147,6 +172,8 @@ struct ConnectionEvent {
     generation: Option<u64>,
     connected: bool,
     device_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -338,7 +365,8 @@ fn spawn_notification_listener<H: BleHost>(
         let angle_uuid = uuid(CHAR_ANGLE_TX);
         let ota_status_uuid = uuid(CHAR_OTA_STATUS);
 
-        while let Some(notification) = stream.next().await {
+        let linked = || async { peripheral.is_connected().await.unwrap_or(true) };
+        while let Some(notification) = next_while_linked(&mut stream, linked).await {
             let kind = if notification.uuid == angle_uuid {
                 NotificationKind::Angle
             } else if notification.uuid == ota_status_uuid {
@@ -387,32 +415,12 @@ fn spawn_notification_listener<H: BleHost>(
                 );
             }
         }
-        // A manual disconnect or a newer connect already owns the UI state; stay silent.
-        let state = app.ble();
-        // 先等待 peripheral，再於同一個短鎖內重新核對世代及發布斷線，避免等待跨越新連線。
-        let _ = state
-            .with_current_peripheral(generation, |peripheral| {
-                // Stream ended — device disconnected. Drop the dead handle so later commands report
-                // "not connected" instead of writing to a stale peripheral.
-                *peripheral = None;
-                // Web Bluetooth's gattserverdisconnected has a
-                // direct btleplug analog (CentralEvent::DeviceDisconnected on the adapter, not on this
-                // stream) that a full reconnect-loop port should listen to separately; this skeleton
-                // only reports the notification stream closing, not full reconnect orchestration.
-                app.record(
-                    "connection",
-                    json!({ "connected": false, "reason": "notification_stream_ended" }),
-                );
-                app.emit(
-                    "ble:connection",
-                    ConnectionEvent {
-                        generation: None,
-                        connected: false,
-                        device_name: None,
-                    },
-                );
-            })
-            .await;
+        // A manual disconnect or a newer connect already owns the UI state: the generation check
+        // inside keeps this silent. The teardown holds the peripheral lock because btleplug keeps an
+        // internal guard across a pending write or read, and its disconnect() would block on it.
+        // It also releases the OS handle: a kept one lets Windows take the device back, and a
+        // connected device does not advertise, so the reconnect scan would not find it.
+        let _ = disconnect(&app, app.ble(), Some(generation), LINK_LOST_REASON).await;
     }));
 }
 
@@ -466,6 +474,7 @@ async fn connect<H: BleHost>(app: &H, state: &BleState) -> Result<String, String
                     generation: Some(generation),
                     connected: true,
                     device_name: Some(name.to_string()),
+                    reason: None,
                 },
             );
             // 已安裝 handle 並發布 connected 後才排程，立即結束的 stream 不會被稍後安裝覆寫。
@@ -558,7 +567,17 @@ async fn setup_connection(
 }
 
 pub async fn ble_disconnect<H: BleHost>(app: &H, state: &BleState) -> Result<(), String> {
-    disconnect(app, state, None).await
+    disconnect(app, state, None, MANUAL_REASON).await
+}
+
+/// Tears down a connection whose command write failed. On Windows the write times out before the link
+/// loss is reported, so this publishes the lost-link reason and the host reconnects.
+pub async fn ble_drop_failed_link<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    generation: u64,
+) -> Result<(), String> {
+    disconnect(app, state, Some(generation), "command_failed").await
 }
 
 /// 只收尾指定世代，避免延遲的指令錯誤中斷新連線。
@@ -567,13 +586,14 @@ pub async fn ble_disconnect_for_generation<H: BleHost>(
     state: &BleState,
     generation: u64,
 ) -> Result<(), String> {
-    disconnect(app, state, Some(generation)).await
+    disconnect(app, state, Some(generation), MANUAL_REASON).await
 }
 
 async fn disconnect<H: BleHost>(
     app: &H,
     state: &BleState,
     expected: Option<u64>,
+    cause: &'static str,
 ) -> Result<(), String> {
     // Retire the listener first so its late stream-end cannot report a second "disconnected".
     ble_lifecycle::disconnect_matching(
@@ -584,7 +604,11 @@ async fn disconnect<H: BleHost>(
         |result| {
             app.record(
                 "connection",
-                json!({ "connected": false, "reason": "manual", "error": result.as_ref().err() }),
+                json!({
+                    "connected": false,
+                    "reason": cause,
+                    "error": result.as_ref().err()
+                }),
             );
             // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
             // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
@@ -595,6 +619,7 @@ async fn disconnect<H: BleHost>(
                     generation: None,
                     connected: false,
                     device_name: None,
+                    reason: (cause != MANUAL_REASON).then_some(LINK_LOST_REASON),
                 },
             );
         },
@@ -693,20 +718,38 @@ async fn send_and_wait_for_ota_status(
 ) -> Result<String, String> {
     let mut rx = tx.subscribe();
     tokio::time::timeout(timeout, async {
-        write.await?;
+        // The device restarts right after OTA:DONE, so the write that asked for it may fail or never
+        // return. A matching status wins over either; a failed write gets a short grace period.
+        let grace = OTA_LATE_STATUS_GRACE.min(timeout / 2);
+        let mut failed: Option<(String, tokio::time::Instant)> = None;
+        let mut writing = true;
+        tokio::pin!(write);
         loop {
-            let text = rx
-                .recv()
-                .await
-                .map_err(|err| format!("OTA status channel: {err}"))?;
-            if text.starts_with("OTA:ERROR:") {
-                return Err(describe_ota_error(&text));
-            }
-            if text == "OTA:ABORTED" {
-                return Err("OTA update aborted".to_string());
-            }
-            if predicate(&text) {
-                return Ok(text);
+            let give_up = failed.as_ref().map(|(_, at)| *at);
+            tokio::select! {
+                biased;
+                status = rx.recv() => {
+                    let text = status.map_err(|err| format!("OTA status channel: {err}"))?;
+                    if text.starts_with("OTA:ERROR:") {
+                        return Err(describe_ota_error(&text));
+                    }
+                    if text == "OTA:ABORTED" {
+                        return Err("OTA update aborted".to_string());
+                    }
+                    if predicate(&text) {
+                        return Ok(text);
+                    }
+                }
+                written = &mut write, if writing => {
+                    writing = false;
+                    if let Err(error) = written {
+                        failed = Some((error, tokio::time::Instant::now() + grace));
+                    }
+                }
+                _ = tokio::time::sleep_until(give_up.unwrap_or_else(tokio::time::Instant::now)),
+                    if give_up.is_some() => {
+                    return Err(failed.map(|(error, _)| error).unwrap_or_default());
+                }
             }
         }
     })
@@ -782,6 +825,8 @@ fn describe_ota_error(status_text: &str) -> String {
         "NOT_STARTED" => "尚未送出 OTA:START 就收到 END".to_string(),
         "SIZE_MISMATCH" => "實際收到的位元組數與宣告的大小不符,更新已中止".to_string(),
         "WRITE_FAIL" => "寫入 flash 失敗,更新已中止(裝置仍執行原本的韌體,不會變磚)".to_string(),
+        "TIMEOUT" => "裝置太久沒有收到資料,已中止更新;請重試".to_string(),
+        "NOT_CONFIRMED_YET" => "裝置剛更新完,正在確認新韌體;請等幾秒再試".to_string(),
         other => format!("裝置回報錯誤:{other}"),
     }
 }
@@ -831,10 +876,13 @@ pub async fn ble_perform_ota_update<H: BleHost>(
             .find(|c| c.uuid == uuid(CHAR_OTA_STATUS))
             .cloned()
             .ok_or("OTA status characteristic not found")?;
-        peripheral
-            .subscribe(&status_char)
-            .await
-            .map_err(|e| e.to_string())?;
+        within("Subscribe OTA status", SUBSCRIBE_TIMEOUT, async {
+            peripheral
+                .subscribe(&status_char)
+                .await
+                .map_err(|e| e.to_string())
+        })
+        .await?;
         (control, data_char)
     };
 
@@ -877,10 +925,13 @@ pub async fn ble_perform_ota_update<H: BleHost>(
             {
                 let guard = state.peripheral.lock().await;
                 let peripheral = guard.as_ref().ok_or("裝置未連線")?;
-                peripheral
-                    .write(&data_char, chunk, WriteType::WithoutResponse)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                within("Write firmware data", BLE_IO_TIMEOUT, async {
+                    peripheral
+                        .write(&data_char, chunk, WriteType::WithoutResponse)
+                        .await
+                        .map_err(|e| e.to_string())
+                })
+                .await?;
             }
             tokio::time::sleep(Duration::from_millis(OTA_CHUNK_DELAY_MS)).await;
             offset = end;
@@ -1007,6 +1058,68 @@ mod ota_tests {
         );
         assert_eq!(clean_firmware_version(b"  "), None);
         assert_eq!(clean_firmware_version(b""), None);
+    }
+
+    #[tokio::test]
+    async fn a_silent_stream_ends_once_the_link_reports_down() {
+        let mut silent = futures::stream::pending::<u8>();
+        let next = tokio::time::timeout(
+            Duration::from_secs(5),
+            next_while_linked(&mut silent, || async { false }),
+        )
+        .await;
+        assert!(matches!(next, Ok(None)));
+        let mut ready = futures::stream::iter([7u8]);
+        assert_eq!(
+            next_while_linked(&mut ready, || async { false }).await,
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn a_lost_link_event_carries_the_reason_hosts_reconnect_on() {
+        let lost = serde_json::to_value(ConnectionEvent {
+            generation: None,
+            connected: false,
+            device_name: None,
+            reason: Some(LINK_LOST_REASON),
+        })
+        .unwrap();
+        assert_eq!(lost["reason"], LINK_LOST_REASON);
+    }
+
+    #[tokio::test]
+    async fn a_done_status_wins_over_the_failed_end_write() {
+        let (tx, _keep) = broadcast::channel(4);
+        let sender = tx.clone();
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async move {
+                sender.send("OTA:DONE".to_string()).unwrap();
+                Err("device unreachable".to_string())
+            },
+            |s| s == "OTA:DONE",
+            Duration::from_secs(10),
+        )
+        .await;
+        assert_eq!(result, Ok("OTA:DONE".to_string()));
+    }
+
+    #[tokio::test]
+    async fn a_done_status_does_not_wait_for_a_write_that_never_returns() {
+        let (tx, _keep) = broadcast::channel(4);
+        let sender = tx.clone();
+        let result = send_and_wait_for_ota_status(
+            &tx,
+            async move {
+                sender.send("OTA:DONE".to_string()).unwrap();
+                std::future::pending::<Result<(), String>>().await
+            },
+            |s| s == "OTA:DONE",
+            Duration::from_secs(10),
+        )
+        .await;
+        assert_eq!(result, Ok("OTA:DONE".to_string()));
     }
 
     #[test]

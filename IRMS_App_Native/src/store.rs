@@ -454,7 +454,11 @@ impl Store {
         let meta = [
             format!("# source,{}", session.source),
             format!("# session,{}", session.id),
-            format!("# action,{}", opt(session.action_name.clone())),
+            // Quoted: a prescription name is the owner's text and may hold a comma.
+            format!(
+                "# action,\"{}\"",
+                opt(session.action_name.clone()).replace('"', "\"\"")
+            ),
             format!("# protocol,{}", opt(session.protocol.clone())),
             format!("# triggerType,{}", opt(session.trigger_type.clone())),
             format!("# targetAngle,{}", num(session.target_angle)),
@@ -467,7 +471,7 @@ impl Store {
             format!("# repsCompleted,{}", session.reps_completed),
             format!("# abandoned,{}", session.abandoned != 0),
             format!("# calibration,\"{calibration}\""),
-            "# note,thighRoll/shinRoll/kneeRoll are sensor-mounting diagnostics, not validated varus/valgus".to_string(),
+            "# note,\"thighRoll/shinRoll/kneeRoll are sensor-mounting diagnostics, not validated varus/valgus\"".to_string(),
         ]
         .join("
 ");
@@ -495,10 +499,11 @@ impl Store {
         } else {
             format!("irms_session_{}.csv", session.id)
         };
+        // The byte order mark makes Excel read the file as UTF-8; without it zh-TW Windows garbles Chinese.
         Ok((
             name,
             format!(
-                "{meta}
+                "\u{FEFF}{meta}
 timestamp,kneeAngle,thighAngle,shinAngle,kneeRoll,thighRoll,shinRoll
 {body}"
             ),
@@ -708,7 +713,10 @@ mod tests {
             )
         );
         let lines: Vec<&str> = text.lines().collect();
-        assert!(lines[0].starts_with("# source,"));
+        assert!(
+            lines[0].starts_with("\u{FEFF}# source,"),
+            "Excel needs the BOM"
+        );
         assert!(lines.iter().any(|l| l.starts_with("# calibration,\"")));
         assert!(lines.iter().any(|l| l.starts_with("# note,")));
         let header = lines
