@@ -77,3 +77,9 @@ A reset during it: the session was closed and saved 5 s later and the app reconn
 - Opening the serial port does not always reset the board; the first mid-session attempt tested nothing.
 - The review found a lock-order defect in the first link-loss fix (see above).
 - Someone used the desktop during the last UI step (theme changed), so UI automation stopped there.
+
+## Follow-up: remaining OTA gaps (in progress)
+- Owner: the afternoon jitter is the unit lying on Hina-PC next to a blower-fan GTX 1070. The morning noise
+  figures were taken on the same spot and include some of that vibration.
+- App: disconnect and window close are refused while an OTA transfers (tests and clippy pass, not yet on the
+  board). Firmware changes planned in [[2026-11-28-remaining-ota-gaps-plan]].
