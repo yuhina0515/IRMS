@@ -21,6 +21,7 @@ description: IRMS 專案導覽首頁(Obsidian 起始頁)
 | [[ROADMAP\|📍 架構與代碼計畫]] | 架構決策 (D1–D6) 與 Phase 0–5 開發路線圖 |
 
 ## ⚠ 目前狀態速記
+- **2026-11-28 無穿戴者實機測試** · [[log_20261128_bench_device_no_wearer]]: BLE 0 掉包;發現並修好 Windows 上斷線不被偵測、自動重連失效、CSV 在 Excel 中文亂碼、連線錯誤訊息被截斷;OTA(#19)未執行。分支 `fix/ble-link-loss-and-ota-host`,未合併、未發版。
 - **2026-11-26 原生 v1.3.0-beta.14 發布** · [[log_20261126_native_beta14_release]]: 首個含可獨立更新模組套件的版本,`beta-latest` 已指向 beta.14;安裝程式在靜默更新時會等候舊程式檔解除鎖定(安裝測試曾間歇失敗)。
 - **2026-11-26 無裝置調查與修正** · [[log_20261126_device_free_audit]]: Haiku 調查架構與完成度,Sonnet 實作 4 項:CI 加入原生 App 與遙測測試、遙測對畸形請求回 400/413、Tauri 簽章公鑰改由 IRMS_Core 單一來源、現況文件更新。分支 `chore/device-free-20261126`,未合併、遙測未部署。
 - **2026-11-23 PR 與分支整理** · [[log_20261123_pr_tidy_up]]: 合併 #14、#15(#7/#8 的程式修正)、#16(文獻庫,取代 #1);#7/#8 關閉;#5 維持開啟並標注 needs-split;刪除 11 個已合併分支;iOS 分支保留。
