@@ -40,6 +40,10 @@ enum Speech {
 trait Device {
     fn command(&self, epoch: u64, text: String) -> impl Future<Output = Result<(), String>> + Send;
     fn disconnect(&self, epoch: Option<u64>) -> impl Future<Output = Result<(), String>> + Send;
+    /// Cleanup after a failed command: the link is treated as lost, so the app reconnects.
+    fn drop_failed_link(&self, epoch: u64) -> impl Future<Output = Result<(), String>> + Send {
+        self.disconnect(Some(epoch))
+    }
 }
 impl Device for NativeHost {
     async fn command(&self, epoch: u64, text: String) -> Result<(), String> {
@@ -50,6 +54,9 @@ impl Device for NativeHost {
             Some(epoch) => ble::ble_disconnect_for_generation(self, &self.state, epoch).await,
             None => ble::ble_disconnect(self, &self.state).await,
         }
+    }
+    async fn drop_failed_link(&self, epoch: u64) -> Result<(), String> {
+        ble::ble_drop_failed_link(self, &self.state, epoch).await
     }
 }
 async fn execute_job(job: Job, device: &impl Device, events: &Events) {
@@ -73,7 +80,7 @@ async fn execute_job(job: Job, device: &impl Device, events: &Events) {
                 if error != CANCELLED {
                     report(epoch, error);
                     if let Err(error) = watched(
-                        device.disconnect(Some(epoch)),
+                        device.drop_failed_link(epoch),
                         events,
                         "裝置斷線",
                         Duration::from_secs(15),
@@ -308,6 +315,30 @@ mod tests {
         );
         assert_eq!(events.last().unwrap().1, "native:shutdown");
         assert!(events.last().unwrap().2["error"].is_null());
+    }
+    #[tokio::test]
+    async fn a_failed_command_drops_the_link_as_lost_not_as_a_manual_disconnect() {
+        #[derive(Default)]
+        struct Fake {
+            calls: std::sync::Mutex<Vec<&'static str>>,
+        }
+        impl Device for Fake {
+            async fn command(&self, _epoch: u64, _text: String) -> Result<(), String> {
+                Err("Write command timed out after 5 s".into())
+            }
+            async fn disconnect(&self, _epoch: Option<u64>) -> Result<(), String> {
+                self.calls.lock().unwrap().push("manual");
+                Ok(())
+            }
+            async fn drop_failed_link(&self, _epoch: u64) -> Result<(), String> {
+                self.calls.lock().unwrap().push("lost");
+                Ok(())
+            }
+        }
+        let (tx, _rx) = mpsc::channel();
+        let fake = Fake::default();
+        execute_job(Job::Command(7, "CMD:LED_OFF".into()), &fake, &tx).await;
+        assert_eq!(*fake.calls.lock().unwrap(), vec!["lost"]);
     }
     #[tokio::test]
     async fn watchdog_reports_wait_without_dropping_the_device_operation() {

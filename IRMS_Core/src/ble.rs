@@ -591,7 +591,17 @@ async fn setup_connection(
 }
 
 pub async fn ble_disconnect<H: BleHost>(app: &H, state: &BleState) -> Result<(), String> {
-    disconnect(app, state, None).await
+    disconnect(app, state, None, false).await
+}
+
+/// Tears down a connection whose command write failed. On Windows the write times out before the link
+/// loss is reported, so this publishes the lost-link reason and the host reconnects.
+pub async fn ble_drop_failed_link<H: BleHost>(
+    app: &H,
+    state: &BleState,
+    generation: u64,
+) -> Result<(), String> {
+    disconnect(app, state, Some(generation), true).await
 }
 
 /// 只收尾指定世代，避免延遲的指令錯誤中斷新連線。
@@ -600,13 +610,14 @@ pub async fn ble_disconnect_for_generation<H: BleHost>(
     state: &BleState,
     generation: u64,
 ) -> Result<(), String> {
-    disconnect(app, state, Some(generation)).await
+    disconnect(app, state, Some(generation), false).await
 }
 
 async fn disconnect<H: BleHost>(
     app: &H,
     state: &BleState,
     expected: Option<u64>,
+    lost: bool,
 ) -> Result<(), String> {
     // Retire the listener first so its late stream-end cannot report a second "disconnected".
     ble_lifecycle::disconnect_matching(
@@ -617,7 +628,11 @@ async fn disconnect<H: BleHost>(
         |result| {
             app.record(
                 "connection",
-                json!({ "connected": false, "reason": "manual", "error": result.as_ref().err() }),
+                json!({
+                    "connected": false,
+                    "reason": if lost { "command_failed" } else { "manual" },
+                    "error": result.as_ref().err()
+                }),
             );
             // `guard` 為空也必須送事件：renderer 可能因 HMR 或 notification stream 提前結束
             // 而持有假的 connected=true。手動斷線是明確的狀態重設邊界，不能依賴底層剛好
@@ -628,7 +643,7 @@ async fn disconnect<H: BleHost>(
                     generation: None,
                     connected: false,
                     device_name: None,
-                    reason: None,
+                    reason: lost.then_some(LINK_LOST_REASON),
                 },
             );
         },
