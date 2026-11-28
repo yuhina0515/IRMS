@@ -46,11 +46,26 @@ wearer. eng-qa (sonnet): review of the final diff.
 With a synthetic calibration (`method: bench-seed`, isolated database) a real-device session ran about 90 s.
 A reset during it: the session was closed and saved 5 s later and the app reconnected 10 s after the reset.
 
+## Firmware OTA (#19), approved by the owner the same day
+- Recovery first: the full 4 MB flash was read to `E:\Monitoring-and-IoT\IRMS_firmware_backup\2026-11-28\`
+  and verified against the chip. Restore: `esptool write-flash 0 full_flash_4MB.bin` (used once, hash verified).
+- Abort at 400,750 of 1,177,536 bytes (headless probe, same core calls): `OTA:ABORTED`, still 1.0.1-beta.1,
+  239 packets in the next 10 s.
+- Full update from Settings in the app, beta.1 to beta.2: transfer 154 s, `verified OK`, reconnected about
+  10 s after the restart, device reports beta.2. **The app said it had failed**: the firmware restarts before
+  the END write is answered (HRESULT 0x800704C7) and `OTA:DONE` never arrives.
+- Fix: after a complete transfer the app reads the version of the restarted device. Rerun on hardware from a
+  USB-restored beta.1 reported success with beta.2 (transfer 147 s).
+- The stale "new version" status line and the "never verified on hardware" hint were corrected afterwards
+  (tests only).
+- Packet-to-packet gravity jitter of sensor 1 rose from about 1 deg to 7 deg during the day. Mean direction
+  unchanged, and it already showed on beta.1 before any flashing. Cause not confirmed (possibly vibration
+  near the sensor); do not use today's later captures as a noise figure.
+- No telemetry run id (telemetry was left off); the evidence is the serial log.
+
 ## Not done
-- **OTA (#19) not run.** Open, from review, not verified on hardware: the firmware may restart before
-  `OTA:DONE` leaves the radio (expect a false failure); there is no effective rollback; no idle timeout for a
-  stuck OTA; disconnect and window close are not blocked during OTA. Set up USB recovery (esptool is in
-  `%LOCALAPPDATA%\Arduino15`) before trying.
+- OTA open points, from review: no effective rollback; no idle timeout for a stuck OTA; disconnect and window
+  close are not blocked during OTA.
 - #22, #23 and the strap-slip measurement need a wearer. IME and laptop renderer need a person.
 - CSV was exported by calling the app's own `export_csv` from a small program, not through the save dialog.
 - CSV timestamps stay ISO text in Excel (same as the Tauri export).
